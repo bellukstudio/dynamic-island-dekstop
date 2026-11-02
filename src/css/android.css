@@ -206,6 +206,8 @@ main {
   flex: 1;
   min-height: 0;
   display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 10px;
 }
 .mirror-stage canvas {
