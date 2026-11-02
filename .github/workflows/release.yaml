@@ -48,7 +48,7 @@ jobs:
           tag="v${{ steps.ver.outputs.version }}"
           id=$(gh api -X POST "repos/${{ github.repository }}/releases" \
             -f tag_name="$tag" \
-            -f name="Notch $tag" \
+            -f name="WellNotch $tag" \
             -f body="Unduh installer Windows (.exe), exe portabel, atau AppImage (Linux) di bagian Assets." \
             -F draft=true \
             -F prerelease=${{ inputs.prerelease }} \
@@ -116,8 +116,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v="${{ needs.prepare.outputs.version }}"
-          f="notch_${v}_x64_portable.exe"
-          cp src-tauri/target/release/notch.exe "$f"
+          f="WellNotch_${v}_x64_portable.exe"
+          cp src-tauri/target/release/WellNotch.exe "$f"
           curl -sS --fail-with-body -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Content-Type: application/octet-stream" \
