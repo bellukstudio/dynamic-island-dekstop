@@ -12,6 +12,8 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::Duration;
 
 const NO_WINDOW: u32 = 0x0800_0000;
+// Prioritas di bawah normal: pemindaian WMI/PnP tidak boleh bersaing dengan aplikasi di depan.
+const BELOW_NORMAL: u32 = 0x0000_4000;
 
 // PowerShell yang berjalan lama (apalagi dengan Get-CimInstance / Get-PnpDevice tiap putaran)
 // perlahan menggemuk. Proses dimatikan lalu dijalankan ulang berkala supaya memorinya kembali.
@@ -26,9 +28,10 @@ pub fn subscribe(tag: &'static str) -> mpsc::Receiver<String> {
     rx
 }
 
-// H: kecerahan layar          tiap putaran (~0,7 dtk)
-// D: perangkat USB + jack     tiap 3 putaran, diakhiri "D:---"
-// T: Bluetooth terhubung      tiap 4 putaran, diakhiri "T:---"
+// Putaran = 1 dtk (sebelumnya 0,7 dtk). Pemindaian PnP adalah bagian paling mahal, jadi dijarangkan.
+// H: kecerahan layar          tiap putaran, hanya dicetak bila berubah (CimSession dipakai ulang)
+// D: perangkat USB + jack     tiap 4 putaran (~4 dtk), diakhiri "D:---"
+// T: Bluetooth terhubung      tiap 6 putaran (~6 dtk), diakhiri "T:---"
 //   {83DA6326-...} 15 = DEVPKEY_Device_IsConnected
 //   {104EA319-...} 2  = tingkat baterai perangkat Bluetooth (jika dilaporkan)
 const SCRIPT: &str = r##"
@@ -38,12 +41,27 @@ $ProgressPreference = 'SilentlyContinue'
 $mm = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render'
 $conn = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
 $batt = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
+$cs = $null
+try { $cs = New-CimSession } catch { }
+$lastBr = -1
+$brFail = 0
+$brSkip = 0
 $i = 0
 while ($true) {
-  $br = (Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Select-Object -First 1).CurrentBrightness
-  if ($br -ne $null) { 'H:B|' + $br }
+  # PC desktop / monitor eksternal tanpa WMI kecerahan: berhenti menanyakan tiap putaran
+  if ($brSkip -gt 0) { $brSkip-- } else {
+    if ($cs) { $br = (Get-CimInstance -CimSession $cs -Namespace root/WMI -ClassName WmiMonitorBrightness | Select-Object -First 1).CurrentBrightness }
+    else { $br = (Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Select-Object -First 1).CurrentBrightness }
+    if ($br -ne $null) {
+      $brFail = 0
+      if ($br -ne $lastBr) { $lastBr = $br; 'H:B|' + $br }
+    } else {
+      $brFail++
+      if ($brFail -ge 3) { $brSkip = 30 }
+    }
+  }
 
-  if ($i % 3 -eq 0) {
+  if ($i % 4 -eq 0) {
     Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\VID_*' } |
       ForEach-Object { 'D:' + $_.InstanceId + '|' + $_.Class + '|' + $_.FriendlyName }
 
@@ -62,7 +80,7 @@ while ($true) {
     'D:---'
   }
 
-  if ($i % 4 -eq 0) {
+  if ($i % 6 -eq 0) {
     Get-PnpDevice -Class Bluetooth -PresentOnly | Where-Object {
       $_.InstanceId -like 'BTHENUM\DEV_*' -or $_.InstanceId -like 'BTHLE\DEV_*'
     } | ForEach-Object {
@@ -78,7 +96,7 @@ while ($true) {
 
   $i = ($i + 1) % 12
   if ($i -eq 0) { [GC]::Collect() }
-  Start-Sleep -Milliseconds 700
+  Start-Sleep -Milliseconds 1000
 }
 "##;
 
@@ -87,7 +105,7 @@ fn run() -> bool {
     let subs = SUBS.lock().unwrap_or_else(|e| e.into_inner()).clone();
     let child = Command::new("powershell")
         .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", SCRIPT])
-        .creation_flags(NO_WINDOW)
+        .creation_flags(NO_WINDOW | BELOW_NORMAL)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())

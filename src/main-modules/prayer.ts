@@ -106,7 +106,7 @@ function render() {
     const count = el("pr-count");
     if (!count) return; // halaman dimatikan
     build();
-    const set = (id: string, t: string) => { const e = el(id); if (e) e.textContent = t; };
+    const set = (id: string, t: string) => { const e = el(id); if (e && e.textContent !== t) e.textContent = t; }; // textContent selalu memicu mutasi DOM, lewati kalau sama
 
     set("pr-city", prefs?.kabkota ?? "-");
     set("pr-src", err ? `Gagal: ${err}`.slice(0, 40) : "Dari config");
@@ -512,5 +512,14 @@ export function initPrayer(h: Hooks) {
         render();
     });
 
-    setInterval(() => { render(); checkReminders(); }, 1000);
+    // render() menyentuh puluhan elemen: tiap detik hanya saat hitung mundur terlihat, selain itu tiap 20 dtk.
+    // checkReminders() tidak menyentuh DOM, jadi tetap tiap detik supaya adzan/pengingat tepat waktu.
+    let lastRender = 0;
+    setInterval(() => {
+        const now = Date.now();
+        const c = el("pr-count");
+        const shown = !!c && ((c as any).checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) ?? true);
+        if (shown || now - lastRender >= 20_000) { lastRender = now; render(); }
+        checkReminders();
+    }, 1000);
 }

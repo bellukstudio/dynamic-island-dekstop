@@ -103,6 +103,22 @@ export function init(ctx: Record<string, any>): void {
         const m = Math.floor((s % 3600) / 60);
         return d ? `${d}h ${h}j` : h ? `${h}j ${m}m` : `${m}m`;
     };
+    // Thread Rust hanya memantau + mengirim event "stats" saat halaman Stats terbuka di hub.
+    let statsOn = false;
+    const syncStats = () => {
+        const want = ctx.notch.dataset.view === "hub" && ctx.names?.[ctx.page] === "stats";
+        if (want === statsOn)
+            return;
+        statsOn = want;
+        void ctx.invoke("stats_set_active", { active: want }).catch(() => { statsOn = !want; });
+    };
+    new MutationObserver(syncStats).observe(ctx.notch, { attributes: true, attributeFilter: ["data-view"] });
+    const prevSetPage = ctx.setPage;
+    ctx.setPage = function (i: number) {
+        const r = prevSetPage.call(this, i);
+        syncStats();
+        return r;
+    };
     ctx.listen<Stats>("stats", (e) => {
         const s = e.payload;
         if (!document.getElementById("st-cpu"))

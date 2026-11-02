@@ -32,7 +32,7 @@ export function initHubNav(names: string[], onPick: (i: number) => void) {
     list.setAttribute("role", "group");
     list.setAttribute("aria-label", "Navigasi halaman Notch");
     list.replaceChildren();
-    if (clockTimer !== undefined) window.clearInterval(clockTimer);
+    if (clockTimer !== undefined) window.clearTimeout(clockTimer);
 
     const btns: HTMLButtonElement[] = names.map((n, i) => {
         const [label, svg] = NAV[n] ?? [n, `<circle cx="12" cy="12" r="3"/>`];
@@ -66,7 +66,11 @@ export function initHubNav(names: string[], onPick: (i: number) => void) {
             `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     };
     tick();
-    clockTimer = window.setInterval(tick, 1000);
+    // jam hanya menampilkan HH:MM -> cukup bangun tepat di pergantian menit, bukan tiap detik
+    const schedule = () => {
+        clockTimer = window.setTimeout(() => { tick(); schedule(); }, 60_000 - (Date.now() % 60_000) + 30);
+    };
+    schedule();
 
     return (page: number) => {
         btns.forEach((b, n) => {

@@ -43,6 +43,11 @@ pub fn start(app: AppHandle) {
             push(last.clone());
         }
 
+        // Windows: nomor urut clipboard murah dibaca dan tidak membuka clipboard. get_text() tiap 600 ms
+        // membuka clipboard terus-menerus (boros dan bisa mengganggu aplikasi lain).
+        #[cfg(target_os = "windows")]
+        let mut last_seq: u32 = u32::MAX;
+
         loop {
             // permintaan "salin ulang" dari frontend; sekaligus berfungsi sebagai jeda polling
             match rx.recv_timeout(Duration::from_millis(600)) {
@@ -55,6 +60,15 @@ pub fn start(app: AppHandle) {
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {}
                 Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                let seq = unsafe { windows::Win32::System::DataExchange::GetClipboardSequenceNumber() };
+                if seq == last_seq {
+                    continue;
+                }
+                last_seq = seq;
             }
 
             // konten non-teks (gambar, file) menghasilkan Err dan dilewati

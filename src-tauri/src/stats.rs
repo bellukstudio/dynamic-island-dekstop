@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 use sysinfo::{CpuRefreshKind, Disks, Networks, ProcessRefreshKind, ProcessesToUpdate, System};
@@ -92,6 +93,14 @@ fn primary_disk(disks: &Disks) -> Option<&sysinfo::Disk> {
     }
 }
 
+// true hanya selama halaman Stats benar-benar terlihat di hub (diatur frontend lewat stats_set_active).
+static ACTIVE: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn stats_set_active(active: bool) {
+    ACTIVE.store(active, Ordering::Relaxed);
+}
+
 pub fn start(app: AppHandle) {
     // halaman "stats" dihapus dari config -> pemantauan tidak dijalankan sama sekali
     if !crate::config::get().pages.iter().any(|p| p == "stats") {
@@ -135,7 +144,21 @@ pub fn start(app: AppHandle) {
         let mut disk_total = 0u64;
         let mut disk_label = String::from("Penyimpanan N/A");
 
+        let mut was_active = false;
         loop {
+            // Halaman Stats tertutup: tidak ada refresh sysinfo dan tidak ada event ke webview.
+            if !ACTIVE.load(Ordering::Relaxed) {
+                was_active = false;
+                thread::sleep(Duration::from_millis(300));
+                continue;
+            }
+            if !was_active {
+                // baru dibuka: buang selisih selama jeda (kalau tidak, kecepatan jaringan melonjak palsu)
+                was_active = true;
+                sys.refresh_cpu_usage();
+                nets.refresh(true);
+                tick = 0;
+            }
             // refresh CPU/jaringan memakai selisih antar-panggilan, jadi instance dipertahankan
             thread::sleep(Duration::from_millis(1000));
 

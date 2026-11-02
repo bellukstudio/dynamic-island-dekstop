@@ -421,6 +421,27 @@ fn set_hit_area(window: tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Windows: tekan aktivitas latar & memori WebView2. Harus diset SEBELUM webview pertama dibuat.
+    // Daftar --disable-features sama dengan bawaan Tauri. Mau menimpa? set sendiri env var ini sebelum
+    // menjalankan app. Kalau tampilan jadi aneh, hapus --enable-low-end-device-mode dulu.
+    #[cfg(target_os = "windows")]
+    {
+        if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
+            // SAFETY: dipanggil sekali di awal run(), sebelum thread lain dibuat.
+            unsafe {
+                std::env::set_var(
+                    "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+                    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+                     --enable-low-end-device-mode \
+                     --disable-background-networking \
+                     --disable-component-update \
+                     --disable-domain-reliability \
+                     --disable-breakpad \
+                     --no-pings",
+                );
+            }
+        }
+    }
     // Wayland: default ke XWayland supaya posisi dan klik berfungsi.
     // Untuk mencoba mode native (layer-shell): NOTCH_NATIVE=1
     #[cfg(target_os = "linux")]
@@ -490,7 +511,7 @@ pub fn run() {
                 std::thread::spawn(move || {
                     let mut last = (i32::MIN, i32::MIN, i32::MIN, i32::MIN);
                     loop {
-                        std::thread::sleep(std::time::Duration::from_millis(700));
+                        std::thread::sleep(std::time::Duration::from_millis(1500));
                         let m = w
                             .current_monitor()
                             .ok()
@@ -573,7 +594,8 @@ pub fn run() {
               // kirim posisi hanya saat kursor bergerak (plus denyut ~4x/detik saat diam,
               // karena frontend menghitung ulang hover saat ukuran notch berubah)
               let mut last_emit = (i32::MIN, i32::MIN);
-              let mut still: u32 = 0;
+              let mut last_beat = std::time::Instant::now();
+              let mut busy_until = std::time::Instant::now();
               loop {
                 if let (Ok(cur), Ok(pos), Ok(size), Ok(scale)) = (
                     w.cursor_position(),
@@ -587,11 +609,14 @@ pub fn run() {
                     let key = (dx.round() as i32, dy.round() as i32);
                     let send = if key != last_emit {
                         last_emit = key;
-                        still = 0;
+                        last_beat = std::time::Instant::now();
+                        busy_until = last_beat + std::time::Duration::from_millis(1500);
+                        true
+                    } else if last_beat.elapsed() >= std::time::Duration::from_millis(250) {
+                        last_beat = std::time::Instant::now();
                         true
                     } else {
-                        still = still.wrapping_add(1);
-                        still % 8 == 0
+                        false
                     };
                     if send {
                         let _ = w.emit("cursor", CursorPos { dx, dy });
@@ -619,7 +644,23 @@ pub fn run() {
                         }
                     }
                 }
-                std::thread::sleep(std::time::Duration::from_millis(33));
+                // Adaptif: rapat (33 ms) hanya saat kursor baru bergerak atau sedang menyeret notch.
+                // Saat diam interval dilonggarkan supaya thread ini jarang membangunkan event loop utama
+                // (outer_position/outer_size/scale_factor masing-masing = satu round-trip ke thread UI).
+                #[cfg(target_os = "windows")]
+                let hot = IS_DRAGGING.load(std::sync::atomic::Ordering::Relaxed)
+                    || DRAG_OUT.load(std::sync::atomic::Ordering::Relaxed);
+                #[cfg(not(target_os = "windows"))]
+                let hot = false;
+                let now = std::time::Instant::now();
+                let ms: u64 = if hot || now < busy_until {
+                    33
+                } else if now.duration_since(busy_until) > std::time::Duration::from_secs(10) {
+                    150
+                } else {
+                    80
+                };
+                std::thread::sleep(std::time::Duration::from_millis(ms));
                 }
             });
 
@@ -708,6 +749,7 @@ pub fn run() {
             media::media_control,
             media::media_pause_all,
             media::media_resume,
+            stats::stats_set_active,
             media::media_seek,
             set_size,
             set_hit_area,

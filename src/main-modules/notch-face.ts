@@ -14,8 +14,15 @@ export function register(ctx: Record<string, any>): void {
       const max = 6;
       const dist = Math.hypot(dx, dy) || 1;
       const k = Math.min(1, dist / 300);
-      ctx.eyes.style.setProperty("--lx", `${(dx / dist) * max * k}px`);
-      ctx.eyes.style.setProperty("--ly", `${Math.max(-1, Math.min(1, (dy / dist) * max * k))}px`);
+      // bulatkan ke 0,25px & lewati kalau tidak berubah: tiap setProperty = style recalc + repaint jendela transparan
+      const lx = Math.round((dx / dist) * max * k * 4) / 4;
+      const ly = Math.round(Math.max(-1, Math.min(1, (dy / dist) * max * k)) * 4) / 4;
+      if (lx === ctx._lookX && ly === ctx._lookY)
+          return;
+      ctx._lookX = lx;
+      ctx._lookY = ly;
+      ctx.eyes.style.setProperty("--lx", `${lx}px`);
+      ctx.eyes.style.setProperty("--ly", `${ly}px`);
   };
   ctx.accentFrom = function accentFrom(img: HTMLImageElement) {
       if (ctx.fixedAccent())

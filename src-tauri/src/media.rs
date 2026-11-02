@@ -387,6 +387,7 @@ mod imp {
 
             loop {
                 let mut state = MediaState::default();
+                let mut idle = true; // tidak ada sesi media -> poll lebih jarang
 
                 if let Ok(s) = session() {
                     if let Ok(st) = read_state(&s) {
@@ -416,11 +417,12 @@ mod imp {
                             }
                         }
                         state = st;
+                        idle = false;
                     }
                 }
 
                 dedup.emit(&app, state);
-                std::thread::sleep(Duration::from_millis(1000));
+                std::thread::sleep(Duration::from_millis(if idle { 2000 } else { 1000 }));
             }
         });
     }

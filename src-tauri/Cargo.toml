@@ -76,6 +76,7 @@ windows = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",
   "Win32_System_LibraryLoader",    # loupe color picker (GetModuleHandleW)
+  "Win32_System_DataExchange",     # GetClipboardSequenceNumber (pantau clipboard tanpa membukanya)
   "Win32_Graphics_Gdi",            # BARU: GetMonitorInfoW (area kerja tanpa taskbar)
 ] }
 

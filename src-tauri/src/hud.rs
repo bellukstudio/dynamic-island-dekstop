@@ -207,7 +207,7 @@ mod imp {
             println!("hud: volume={:?}", last);
 
             loop {
-                std::thread::sleep(Duration::from_millis(250));
+                std::thread::sleep(Duration::from_millis(400));
                 if en.is_none() {
                     en = enumerator();
                 }
