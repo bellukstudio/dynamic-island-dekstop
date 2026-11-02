@@ -3,7 +3,7 @@
         "resources": {
             "pdfium-linux/*": "pdfium/",
             "adb-linux/*": "adb/",
-            "resources/scrcpy-server.jar": "resources/"
+            "resources/scrcpy-server.jar": "resources/scrcpy-server.jar"
         }
     }
 }
