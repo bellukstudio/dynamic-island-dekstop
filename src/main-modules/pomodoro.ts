@@ -61,7 +61,7 @@ export function init(ctx: Record<string, any>): void {
       ctx.focusTick(ctx.phase, ctx.round, ctx.phaseLen(ctx.phase), ctx.remaining, ctx.running); // Focus Companion: setengah sesi
       if (ctx.remaining <= 0)
           ctx.nextPhase(true);
-  }, 250);
+  }, 1000);
   ctx.pomBtn = (id: string, fn: () => void) => ctx.$(id).addEventListener("click", (e) => { e.stopPropagation(); fn(); ctx.renderPom(); });
   ctx.pomBtn("pom-toggle", () => {
       ctx.running = !ctx.running;

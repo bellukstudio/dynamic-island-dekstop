@@ -1,4 +1,4 @@
-// Color Picker global: shortcut (Ctrl+Alt+P) langsung mengaktifkan eyedropper layar; klik/Enter mengambil
+// Color Picker global: shortcut (Ctrl+Alt+Shift+P) langsung mengaktifkan eyedropper layar; klik/Enter mengambil
 // warna dan HEX langsung tersalin. Esc atau shortcut lagi membatalkan. Panel hanya cadangan bila eyedropper gagal.
 export function register(ctx: Record<string, any>): void {
     ctx.colorPicker = {

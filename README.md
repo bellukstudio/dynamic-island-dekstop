@@ -113,6 +113,17 @@ npm install --save-dev @types/node
 
 Cargo akan mengunduh dependensi Rust secara otomatis pada build pertama.
 
+Sapaan neural menggunakan klip Edge TTS yang disimpan di `public/greeting/`. Untuk membuat atau
+memperbarui klip setelah mengubah teks atau preset suara, siapkan Python dan jalankan:
+
+```bash
+python -m pip install edge-tts
+npm run greeting:audio
+```
+
+Jalankan generator sebelum build rilis agar klip ikut dibundel. Generator mendukung empat preset
+neural; teks kustom dan preset suara sistem tetap menggunakan voice Windows.
+
 ```bash
 npm run tauri dev       # jalankan dengan Vite hot reload
 npm run tauri build     # buat paket rilis

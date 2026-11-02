@@ -289,8 +289,7 @@ async function runAll() {
     render();
 }
 
-// ---------- dipanggil dari Rust (lewat eval) saat jendela disembunyikan / ditampilkan ----------
-// Jendela Compress tidak dihancurkan saat ditutup, hanya di-hide, jadi UI harus direset manual.
+// ---------- dipanggil dari Rust (lewat eval) saat jendela ditampilkan ----------
 // Memakai eval (bukan event) supaya tidak bergantung pada capability event.
 const w = window as unknown as { __compressReset?: () => void; __compressShown?: () => void };
 

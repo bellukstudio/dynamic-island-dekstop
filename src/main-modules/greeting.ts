@@ -1,10 +1,12 @@
 // Greeting di jendela utama Notch. Dua sumber sapaan, satu layer tampilan (.l-greeting di index.html):
 //  1. Saat aplikasi dijalankan (juga setelah komputer restart): baca pilihan dari Pengaturan
-//     (localStorage "notch.startupGreeting"), tampilkan kartu teks dan ucapkan dengan TTS id-ID.
+//     (localStorage "notch.startupGreeting"), tampilkan kartu teks dan ucapkan dengan mode suara terpilih.
 //  2. Tombol "▶ Coba ucapkan" di Pengaturan: jendela Settings yang berbicara, lalu mengirim event
 //     "greeting-start" {id, text, subtitle, durationMs} dan "greeting-end" {id}. Di sini cukup
 //     menampilkan / menutup kartunya (tanpa berbicara lagi agar tidak dobel).
 import { listen } from "@tauri-apps/api/event";
+import { speak } from "./greeting-voice";
+import { DEFAULT_VOICE_ID, isVoiceId } from "./greeting-lang";
 
 export type GreetingHooks = {
   canShow: () => boolean;                 // tidak sedang ada kartu/hub lain
@@ -21,12 +23,12 @@ export type GreetingApi = {
 };
 type StartPayload = { id?: string; text?: string; subtitle?: string; durationMs?: number };
 type EndPayload = { id?: string };
-type Pref = { enabled: boolean; mode: string; custom_text: string };
+type Pref = { enabled: boolean; mode: string; custom_text: string; voice: string };
 
 // harus sama dengan settings.html
 const STARTUP_GREETING_KEY = "notch.startupGreeting";
 const MODES = ["auto", "random", "halo", "morning", "noon", "afternoon", "evening", "custom"];
-const DEFAULT: Pref = { enabled: true, mode: "random", custom_text: "Halo, semangat menjalani hari!" };
+const DEFAULT: Pref = { enabled: true, mode: "random", custom_text: "Halo, semangat menjalani hari!", voice: DEFAULT_VOICE_ID };
 
 function readPref(): Pref {
   try {
@@ -36,6 +38,7 @@ function readPref(): Pref {
       enabled: saved.enabled !== false,
       mode: MODES.includes(saved.mode) ? saved.mode : "auto",
       custom_text: typeof saved.custom_text === "string" ? saved.custom_text.slice(0, 120) : DEFAULT.custom_text,
+      voice: isVoiceId(saved.voice) ? saved.voice : DEFAULT.voice,
     };
   } catch { return { ...DEFAULT }; }
 }
@@ -122,61 +125,28 @@ function pickPhrase(d = new Date()): { text: string; sub: string } {
   try { localStorage.setItem(LAST_PHRASE_KEY, String(chosen)); } catch { /* abaikan */ }
 
   const [title, sub] = PHRASES[chosen];
-  const text = title
+  return { text: fillTitle(title, part), sub };
+}
+const fillTitle = (title: string, part: string) =>
+  title
     .replace("{waktu}", part[0].toUpperCase() + part.slice(1))
     .replace("{bonjour}", part === "malam" ? "Bonsoir" : "Bonjour");
-  return { text, sub };
+
+/** Semua kalimat yang mungkin diucapkan (kecuali teks kustom). Dipakai scripts/gen-greeting-audio.ts
+ *  untuk membuat klip suara; harus selalu sejalan dengan teks yang dikirim ke speak(). */
+export function allSpokenTexts(): string[] {
+  const parts = ["pagi", "siang", "sore", "malam"];
+  const out = new Set<string>(["Halo!", "Selamat pagi!", "Selamat siang!", "Selamat sore!", "Selamat malam!"]);
+  for (const part of parts) {
+    out.add(`Halo! Selamat ${part}!`); // mode "auto"
+    for (const [title, sub] of PHRASES) out.add(`${fillTitle(title, part)} ${sub}`); // mode "random"
+  }
+  return [...out];
 }
 const estimateMs = (text: string) => {
   const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.min(11000, Math.max(3500, 1800 + words * 470));
 };
-
-// ---------- suara ----------
-const findIndonesianVoice = (voices: SpeechSynthesisVoice[]) =>
-  voices.find((v) => /^id(?:[-_]|$)/i.test(v.lang) || /(?:bahasa\s+indonesia|indonesian)/i.test(v.name)) ?? null;
-
-// Tepat setelah boot / start, daftar suara Windows sering kosong beberapa detik. Tunggu sampai
-// suara Indonesia muncul (polling + "voiceschanged"), bukan menyerah pada pengecekan pertama.
-function waitForIndonesianVoice(timeoutMs = 9000): Promise<SpeechSynthesisVoice | null> {
-  const synth = window.speechSynthesis;
-  return new Promise((resolve) => {
-    const check = () => {
-      const v = findIndonesianVoice(synth.getVoices());
-      if (v) { cleanup(); resolve(v); }
-    };
-    const poll = window.setInterval(check, 300);
-    const timer = window.setTimeout(() => { cleanup(); resolve(findIndonesianVoice(synth.getVoices())); }, timeoutMs);
-    function cleanup() { clearInterval(poll); clearTimeout(timer); synth.removeEventListener("voiceschanged", check); }
-    synth.addEventListener("voiceschanged", check);
-    check();
-  });
-}
-
-async function speak(text: string): Promise<{ ok: boolean; reason: string }> {
-  const synth = window.speechSynthesis;
-  if (!synth || typeof SpeechSynthesisUtterance === "undefined") return { ok: false, reason: "Web Speech tidak tersedia" };
-  const voice = await waitForIndonesianVoice();
-  if (!voice) {
-    const list = synth.getVoices().map((v) => `${v.name} (${v.lang})`).join(", ") || "belum ada voice yang dimuat";
-    return { ok: false, reason: `voice id-ID tidak ditemukan; tersedia: ${list}` };
-  }
-  return new Promise((resolve) => {
-    let started = false, done = false;
-    const finish = (r: { ok: boolean; reason: string }) => { if (!done) { done = true; clearTimeout(watchdog); clearTimeout(hard); resolve(r); } };
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "id-ID"; u.voice = voice; u.rate = 0.95; u.pitch = 1.04;
-    u.onstart = () => { started = true; };
-    u.onend = () => finish({ ok: true, reason: "" });
-    u.onerror = (e) => finish({ ok: false, reason: e.error || "error" });
-    const watchdog = window.setTimeout(() => {
-      if (!started && !synth.speaking && !synth.pending) finish({ ok: false, reason: "audio tidak mulai diputar" });
-    }, 7000);
-    const hard = window.setTimeout(() => finish({ ok: true, reason: "" }), 30000);
-    try { synth.cancel(); synth.resume(); synth.speak(u); }
-    catch (error) { finish({ ok: false, reason: String(error) }); }
-  });
-}
 
 // ---------- jendela utama ----------
 let started = false;
@@ -266,7 +236,7 @@ export function initGreeting(h: GreetingHooks): GreetingApi | null {
       : new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
     const spoken = random ? `${random.text} ${random.sub}` : text;
     showCard("startup", text, sub, estimateMs(spoken) + 1800);
-    void speak(spoken).then((r) => {
+    void speak(spoken, pref.voice).then((r) => {
       if (!r.ok) console.warn("[Greeting] Suara gagal:", r.reason);
       endCard("startup");
     });

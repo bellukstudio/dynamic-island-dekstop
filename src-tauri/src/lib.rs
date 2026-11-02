@@ -174,7 +174,7 @@ fn reposition_later(window: &tauri::WebviewWindow) {
     }
 }
 
-// payload posisi kursor (30x/detik): struct bertipe, bukan serde_json::json! (peta + String per kirim)
+// Payload kursor adaptif: struct bertipe menghindari peta + String baru pada setiap event.
 #[derive(serde::Serialize, Clone)]
 struct CursorPos {
     dx: f64,
@@ -479,16 +479,31 @@ pub fn run() {
                 .with_handler(|app, shortcut, event| {
                     if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
                         use tauri_plugin_global_shortcut::{Code, Modifiers};
-                        if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyK) {
-                            compress::toggle_window(app); // Ctrl+Alt+K: jendela Compress
-                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyC) {
-                            convert::toggle_window(app); // Ctrl+Alt+C: jendela Convert
-                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT, Code::KeyS) {
+                        if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyK,
+                        ) {
+                            compress::toggle_window(app); // Ctrl+Alt+Shift+K: jendela Compress
+                        } else if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyC,
+                        ) {
+                            convert::toggle_window(app); // Ctrl+Alt+Shift+C: jendela Convert
+                        } else if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyS,
+                        ) {
                             share::toggle_window(app); // Ctrl+Alt+Shift+S: jendela Share (kirim/terima file)
-                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyA) {
-                            android::toggle_window(app); // Ctrl+Alt+A: jendela Android (adb)
-                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyP) {
-                            let _ = app.emit("color-picker-shortcut", ()); // Ctrl+Alt+P: color picker
+                        } else if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyA,
+                        ) {
+                            android::toggle_window(app); // Ctrl+Alt+Shift+A: jendela Android (adb)
+                        } else if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyP,
+                        ) {
+                            let _ = app.emit("color-picker-shortcut", ()); // Ctrl+Alt+Shift+P: color picker
                         }
                         // kombinasi lain yang tidak terdaftar sengaja diabaikan (bukan lagi jatuh ke color picker)
                     }
@@ -497,12 +512,12 @@ pub fn run() {
         )
         .setup(|app| {
             use tauri_plugin_global_shortcut::GlobalShortcutExt;
-            app.global_shortcut().register("Ctrl+Alt+P")?;
+            app.global_shortcut().register("Ctrl+Alt+Shift+P")?;
             // Shortcut Compress & Convert: bila sudah dipakai aplikasi lain, abaikan saja (jangan gagalkan startup).
-            let _ = app.global_shortcut().register("Ctrl+Alt+K");
-            let _ = app.global_shortcut().register("Ctrl+Alt+C");
+            let _ = app.global_shortcut().register("Ctrl+Alt+Shift+K");
+            let _ = app.global_shortcut().register("Ctrl+Alt+Shift+C");
             let _ = app.global_shortcut().register("Ctrl+Alt+Shift+S");
-            let _ = app.global_shortcut().register("Ctrl+Alt+A");
+            let _ = app.global_shortcut().register("Ctrl+Alt+Shift+A");
             let win = app.get_webview_window("main").unwrap();
             // Pantau area kerja monitor: berubah saat taskbar di-hide/ditampilkan, dipindah, atau resolusi berubah.
             // Frontend lalu memperbarui batas bawahnya sehingga notch bisa turun mentok / naik di atas taskbar.
@@ -656,9 +671,9 @@ pub fn run() {
                 let ms: u64 = if hot || now < busy_until {
                     33
                 } else if now.duration_since(busy_until) > std::time::Duration::from_secs(10) {
-                    150
+                    250
                 } else {
-                    80
+                    120
                 };
                 std::thread::sleep(std::time::Duration::from_millis(ms));
                 }
@@ -738,6 +753,22 @@ pub fn run() {
                     eprintln!("[dnd-rust] {} {:?}", window.label(), d);
                 }
             }
+            // Jendela alat dibuat ulang saat dibuka lagi, sehingga WebView tersembunyi tidak menahan RAM.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                match window.label() {
+                    "compress" | "convert" | "share" | "android" => {
+                        api.prevent_close();
+                        match window.label() {
+                            "compress" => compress::close_compress_window(window.app_handle()),
+                            "convert" => convert::close_convert_window(window.app_handle()),
+                            "share" => share::close_share_window(window.app_handle()),
+                            "android" => android::close_android_window(window.app_handle()),
+                            _ => unreachable!(),
+                        }
+                    }
+                    _ => {}
+                }
+            }
             // jendela pengaturan ditutup tanpa simpan -> kembalikan tampilan notch ke isi file
             if window.label() == "settings" {
                 if let tauri::WindowEvent::Destroyed = event {
@@ -802,6 +833,9 @@ pub fn run() {
             android::android_pair,
             android::android_connect,
             android::android_disconnect,
+            android::android_qr_start,
+            android::android_qr_status,
+            android::android_qr_stop,
             android::android_pick_files,
             android::android_reveal,
             android::android_close,
@@ -855,8 +889,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("gagal membangun aplikasi")
         .run(|_app_handle, event| {
-            #[cfg(target_os = "linux")]
             if let tauri::RunEvent::Exit = event {
+                android::shutdown();
+                #[cfg(target_os = "linux")]
                 osd_control::restore();
             }
         });

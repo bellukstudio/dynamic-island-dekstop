@@ -92,7 +92,7 @@ export function init(ctx: Record<string, any>): void {
           if (!ctx.override && ctx.inside && !ctx.holdHover && !ctx.prayerAdhanActive && now - ctx.insideSince > ctx.T.hover_open_ms)
               ctx.openHub(ctx.homePage());
       }
-  }, 120);
+  }, 250);
   // ---------- nonaktifkan klik kanan (menu bawaan webview) ----------
   // fase capture: menu bawaan diblokir di mana pun; handler lain (mis. klik kanan item shelf) tetap jalan
   window.addEventListener("contextmenu", (e) => e.preventDefault(), true);

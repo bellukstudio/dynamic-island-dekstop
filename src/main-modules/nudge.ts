@@ -124,7 +124,7 @@ export function initNudge(h: NudgeHooks) {
 
         shownAt = now;
         fire(cfg, Math.max(1, Math.floor(idle / 60_000)));
-    }, 2000);
+    }, 10_000);
 
     // perubahan dari jendela pengaturan berlaku langsung
     // Preferensi lokal juga bisa berubah dari jendela Settings tanpa restart.

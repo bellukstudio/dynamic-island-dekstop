@@ -24,6 +24,11 @@ fn err<E: std::fmt::Display>(e: E) -> String {
     e.to_string()
 }
 
+/// QR (SVG murni) untuk teks apa pun. Dipakai juga oleh jendela Android untuk pairing nirkabel.
+pub(crate) fn qr_svg(text: &str) -> Option<String> {
+    server::qr_svg(text)
+}
+
 /// Folder tempat file masuk disimpan: <Unduhan>/Notch
 pub(super) fn inbox_dir(app: &AppHandle) -> PathBuf {
     app.path().download_dir().unwrap_or_else(|_| std::env::temp_dir()).join("Notch")
@@ -150,15 +155,19 @@ pub fn share_reveal(path: String) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Siklus hidup jendela (di-hide, bukan di-destroy; menutup = hentikan server)
+// Siklus hidup jendela (menutup juga menghentikan server)
 // ---------------------------------------------------------------------------------------------
-fn close_share_window(app: &AppHandle) {
+pub fn close_share_window(app: &AppHandle) {
     stop_server();
     lan::reject_all_pending(); // penawaran masuk yang belum dijawab dianggap ditolak
     FILES.lock().unwrap_or_else(|e| e.into_inner()).clear();
     if let Some(w) = app.get_webview_window("share") {
-        let _ = w.eval("window.__shareReset && window.__shareReset()");
-        let _ = w.hide();
+        if let Err(error) = w.destroy() {
+            eprintln!("share: gagal menutup jendela: {error}");
+            if let Err(hide_error) = w.hide() {
+                eprintln!("share: fallback menyembunyikan jendela juga gagal: {hide_error}");
+            }
+        }
     }
 }
 

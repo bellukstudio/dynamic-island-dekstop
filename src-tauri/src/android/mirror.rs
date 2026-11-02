@@ -311,11 +311,11 @@ pub async fn start(resource_dir: Option<PathBuf>, serial: String) -> Result<Mirr
             "audio=false",
             "video=true",
             "control=true",
-            // Tanpa metadata nama perangkat/codec. Frame meta TETAP aktif: tiap paket video diawali
-            // header 12 byte (PTS+flag, ukuran) yang dipakai sisi TS untuk memotong frame.
+            // Tanpa nama perangkat. Frame meta TETAP aktif: tiap paket video diawali header 12 byte
+            // (flag+PTS, ukuran) yang dipakai sisi TS untuk memotong frame. Server versi ini selalu
+            // mengirim codec id + paket sesi di awal aliran; itu ditangani di android.ts.
             "send_device_meta=false",
             "send_frame_meta=true",
-            "send_codec_meta=false",
             // Dummy byte di socket PERTAMA (video) = sinyal bahwa adb forward sungguh sudah
             // tersambung ke perangkat, bukan cuma port lokal yang kebuka.
             "send_dummy_byte=true",
@@ -325,6 +325,10 @@ pub async fn start(resource_dir: Option<PathBuf>, serial: String) -> Result<Mirr
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    // lewat Wi-Fi: turunkan resolusi dan bitrate supaya tidak patah-patah
+    if serial.contains(':') || serial.contains("_adb-tls") {
+        server_cmd.args(["max_size=1280", "video_bit_rate=4000000", "max_fps=30"]);
+    }
     hide(&mut server_cmd);
     let mut server_child = server_cmd.spawn().map_err(|e| format!("Gagal menjalankan scrcpy-server: {e}"))?;
 

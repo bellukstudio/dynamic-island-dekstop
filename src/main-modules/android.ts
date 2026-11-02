@@ -3,7 +3,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-//import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface Device { serial: string; state: string; model: string; wifi: boolean }
 interface Entry { name: string; is_dir: boolean; size: number; date: string }
@@ -30,10 +29,13 @@ const state = {
     wifiMsg: "",
     wifiErr: false,
     wifiVals: { pairAddr: "", pairCode: "", connAddr: "" } as Record<string, string>,
+    qr: { on: false, svg: "", state: "", msg: "", note: "", err: false },
     seq: 0,
 };
 let poll = 0;
 let listToken = 0;
+let qrTimer = 0;
+let qrStarting = false;
 
 // ---------- util ----------
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -76,7 +78,7 @@ $("app").innerHTML = `
       <div class="logo">${ICON.logo}</div>
       <div><h1>Android</h1><p>Jelajahi HP &amp; transfer file lewat USB atau Wi-Fi</p></div>
     </div>
-     <div class="win-ctl">
+    <div class="win-ctl">
       <button class="x" id="minimize" aria-label="Minimalkan" title="Minimalkan">&#8211;</button>
       <button class="x" id="maximize" aria-label="Maksimalkan" title="Maksimalkan / pulihkan">&#9633;</button>
       <button class="x" id="close" aria-label="Tutup" title="Tutup">×</button>
@@ -126,15 +128,33 @@ function devicesHtml(): string {
     }).join("")}</div>`;
 }
 
+function qrHtml(): string {
+    const q = state.qr;
+    const body = q.on
+        ? `<div class="qr-svg">${q.svg}</div>
+           <div class="qr-info">
+             <p>Di HP: <i>Opsi pengembang → Debugging nirkabel → Pasangkan perangkat dengan kode QR</i>, lalu pindai.</p>
+             <div class="wifi-msg" id="qrmsg">${esc(q.msg)}</div>
+             <div><button class="btn" id="qrstop">Batal</button></div>
+           </div>`
+        : `<div class="qr-info">
+             <p>Tanpa mengetik alamat dan kode: pindai QR dari HP (Android 11+, satu jaringan Wi-Fi).</p>
+             ${q.note ? `<div class="wifi-msg${q.err ? " err" : ""}">${esc(q.note)}</div>` : ""}
+             <div><button class="btn primary" id="qrstart">Tampilkan QR</button></div>
+           </div>`;
+    return `<div class="qr-box">${body}</div>`;
+}
+
 function wifiHtml(): string {
     const v = state.wifiVals;
     return `
     <div style="margin-top:10px"><button class="btn" id="wifitoggle">${state.wifiOpen ? "Tutup" : "Sambungkan lewat Wi-Fi"}</button></div>
     ${state.wifiOpen ? `
-    <div class="hint-card" style="margin-top:8px">Android 11+: <i>Opsi pengembang → Debugging nirkabel</i>. Pairing sekali (alamat &amp; kode dari <i>Pasangkan dengan kode</i>), lalu sambungkan dengan alamat di layar utama Debugging nirkabel.</div>
+    <div class="hint-card" style="margin-top:8px">Android 11+: <i>Opsi pengembang → Debugging nirkabel</i>. Pindai QR di bawah, atau pairing manual (alamat &amp; kode dari <i>Pasangkan dengan kode</i>) lalu sambungkan dengan alamat di layar utama Debugging nirkabel.</div>
     <div class="wifi-box">
+      ${qrHtml()}
       <div class="wifi-step">
-        <div class="wifi-h"><span class="n">1</span>Pairing <small>(cukup sekali)</small></div>
+        <div class="wifi-h"><span class="n">1</span>Pairing manual <small>(cukup sekali)</small></div>
         <label class="wifi-fld"><span>Alamat pairing</span>
           <input id="pairAddr" value="${esc(v.pairAddr)}" placeholder="192.168.1.20:37123" autocomplete="off" spellcheck="false" /></label>
         <label class="wifi-fld"><span>Kode pairing</span>
@@ -187,7 +207,26 @@ function opRow(o: Op): string {
     </div>`;
 }
 
+// render() membangun ulang DOM; bungkus supaya fokus, posisi kursor, dan scroll tidak hilang.
 function render() {
+    const main = $("main");
+    const ae = document.activeElement as HTMLInputElement | null;
+    const keep = ae && ae.id && main.contains(ae)
+        ? { id: ae.id, s: ae.selectionStart, e: ae.selectionEnd }
+        : null;
+    const top = main.scrollTop;
+    renderInner();
+    main.scrollTop = top;
+    if (keep) {
+        const el = document.getElementById(keep.id) as HTMLInputElement | null;
+        if (el) {
+            el.focus({ preventScroll: true });
+            try { el.setSelectionRange(keep.s ?? el.value.length, keep.e ?? el.value.length); } catch { /* bukan input teks */ }
+        }
+    }
+}
+
+function renderInner() {
     const main = $("main");
     const acts = $("acts");
 
@@ -219,7 +258,7 @@ function render() {
     }
     const ops = state.ops.slice(0, 4);
     main.innerHTML = `
-      <section class="panel">${devicesHtml()}${wifiHtml()}</section>
+      <section class="panel"><div id="devsWrap">${devicesHtml()}</div>${wifiHtml()}</section>
       ${browser}
       ${ops.length ? `<div class="sec-t">Aktivitas</div><section class="list">${ops.map(opRow).join("")}</section>` : ""}`;
 
@@ -249,10 +288,17 @@ async function loadDir() {
     render();
 }
 
+// tanda tangan bagian UI yang bergantung pada perangkat siap (browser file / petunjuk "unauthorized")
+const devSig = () =>
+    (ready()?.serial ?? "") + "|" + (state.devices.some((d) => d.state === "unauthorized") ? "u" : "");
+
 async function refreshDevices(initial = false) {
     try {
-        const d = await invoke<Device[]>("android_devices");
+        const raw = await invoke<Device[]>("android_devices");
+        // emulator "offline" hantu hanya membuat daftar berkedip tiap polling
+        const d = raw.filter((x) => !(x.state === "offline" && x.serial.startsWith("emulator-")));
         state.adbOk = true;
+        const before = devSig();
         const changed = JSON.stringify(d) !== JSON.stringify(state.devices);
         state.devices = d;
         if (!ready()) state.serial = null;
@@ -260,7 +306,11 @@ async function refreshDevices(initial = false) {
             const first = d.find((x) => x.state === "device");
             if (first) { state.serial = first.serial; state.path = "/sdcard"; void loadDir(); return; }
         }
-        if (changed || initial) render();
+        if (!changed && !initial) return;
+        // bila hanya daftar perangkat yang berubah, perbarui strip itu saja (panel Wi-Fi/QR/input tidak disentuh)
+        const wrap = document.getElementById("devsWrap");
+        if (!initial && wrap && before === devSig()) wrap.innerHTML = devicesHtml();
+        else render();
     } catch (e) {
         if (String(e) === "ADB_MISSING") { state.adbOk = false; render(); }
     }
@@ -349,9 +399,67 @@ async function wifi(kind: "pair" | "conn") {
     setWifiMsg();
 }
 
+// ---------- Pairing lewat QR ----------
+async function qrStart() {
+    if (qrStarting || state.qr.on) return;
+    qrStarting = true;
+    const button = document.getElementById("qrstart") as HTMLButtonElement | null;
+    if (button) { button.disabled = true; button.textContent = "Membuat QR…"; }
+    try {
+        const r = await invoke<{ svg: string | null; name: string }>("android_qr_start");
+        if (!r.svg) throw new Error("QR pairing tidak dapat dibuat.");
+        state.qr = { on: true, svg: r.svg ?? "", state: "waiting", msg: "Menunggu pindaian dari HP…", note: "", err: false };
+        render();
+        window.clearInterval(qrTimer);
+        qrTimer = window.setInterval(() => void qrPoll(), 1000);
+    } catch (e) {
+        state.qr = { on: false, svg: "", state: "error", msg: "", note: String(e), err: true };
+        render();
+    } finally {
+        qrStarting = false;
+        const retry = document.getElementById("qrstart") as HTMLButtonElement | null;
+        if (retry) { retry.disabled = false; retry.textContent = "Tampilkan QR"; }
+    }
+}
+
+async function qrPoll() {
+    try {
+        const s = await invoke<{ state: string; message: string }>("android_qr_status");
+        state.qr.state = s.state;
+        state.qr.msg = s.message;
+        const el = document.getElementById("qrmsg");
+        if (el) el.textContent = s.message;
+        if (s.state === "done" || s.state === "error") {
+            window.clearInterval(qrTimer);
+            state.qr.on = false;
+            state.qr.note = s.message; // tampil di dalam kotak QR, bukan di bawah form manual
+            state.qr.err = s.state === "error";
+            render();
+            if (s.state === "done") void refreshDevices(true);
+        }
+    } catch (e) {
+        window.clearInterval(qrTimer);
+        state.qr.on = false;
+        state.qr.state = "error";
+        state.qr.note = `Gagal memeriksa status pairing: ${String(e)}`;
+        state.qr.err = true;
+        void invoke("android_qr_stop").catch((error) => console.warn("[Android] Gagal menghentikan pairing QR:", error));
+        render();
+    }
+}
+
+function qrStop() {
+    window.clearInterval(qrTimer);
+    state.qr.on = false;
+    void invoke("android_qr_stop").catch((error) => console.warn("[Android] Gagal menghentikan pairing QR:", error));
+    render();
+}
+
 // ---------- Mirror layar ----------
-// Rust hanya menyalurkan byte. Video: tiap paket = header 12 byte (PTS+flag, ukuran) + data H.264
-// Annex B (send_frame_meta=true). Kontrol: pesan biner protokol scrcpy (big-endian).
+// Rust hanya menyalurkan byte. Aliran video scrcpy terbaru: 4 byte codec id ("h264"), lalu rangkaian
+// paket 12 byte header + data. Header dengan bit 31 menyala = paket sesi (lebar, tinggi, tanpa data);
+// selain itu bit 30 = config, bit 29 = key frame, sisanya PTS, dan 4 byte terakhir = ukuran data
+// (H.264 Annex B). Kontrol: pesan biner protokol scrcpy (big-endian).
 const SCROLL_GAIN = 1 / 120; // makin besar makin cepat scroll roda mouse
 type Bytes = Uint8Array<ArrayBuffer>;
 const mirror = {
@@ -367,7 +475,7 @@ const mirror = {
     fw: 0, // ukuran video terakhir (dipakai untuk koordinat sentuh; harus sama dengan ukuran video server)
     fh: 0,
     down: false,
-    synced: false, // layout awal aliran sudah dikenali
+    synced: false, // codec id sudah dibaca
     failed: false, // sudah gagal mengenali: abaikan sisa data
 };
 
@@ -474,20 +582,6 @@ function mirrorPacket(isConfig: boolean, isKey: boolean, pts: number, data: Byte
 
 const hex = (b: Uint8Array, n = 32) =>
     Array.from(b.subarray(0, n), (x) => x.toString(16).padStart(2, "0")).join(" ");
-
-// Paket PERTAMA scrcpy harus paket konfigurasi: bit config menyala dan isinya diawali start code Annex B.
-// Header paket scrcpy: 8 byte (bit63=config, bit62=key, sisanya PTS) + 4 byte ukuran, lalu data Annex B.
-// function validFirstHeader(b: Uint8Array, o: number): boolean {
-//     if (b.length < o + 16) return false;
-//     const dv = new DataView(b.buffer, b.byteOffset + o, 12);
-//     const hi = dv.getUint32(0);
-//     const size = dv.getUint32(8);
-//     if ((hi & 0x80000000) === 0) return false;        // paket pertama harus config
-//     if ((hi & 0x40000000) !== 0) return false;        // config tidak pernah key
-//     if (size === 0 || size > 1024 * 1024) return false;
-//     const p = o + 12;
-//     return b[p] === 0 && b[p + 1] === 0 && (b[p + 2] === 1 || (b[p + 2] === 0 && b[p + 3] === 1));
-// }
 
 function mirrorFeed(chunk: Bytes) {
     if (mirror.failed) return;
@@ -708,14 +802,23 @@ const KEYMAP: Record<string, number> = {
     });
 }
 
-// ---------- dipanggil dari Rust (lewat eval) ----------
+// ---------- dipanggil dari Rust (lewat eval) saat jendela ditampilkan ----------
 const w = window as unknown as { __androidReset?: () => void; __androidShown?: () => void };
 
 w.__androidReset = () => {
     state.active = false;
     state.ops = [];
     state.wifiOpen = false;
+    window.clearInterval(qrTimer);
+    state.qr.on = false;
+    void invoke("android_qr_stop").catch((error) => console.warn("[Android] Gagal menghentikan pairing QR:", error));
     mirrorStop();
+    // kembalikan ukuran jendela bila sedang dimaksimalkan, supaya saat dibuka lagi tidak tetap penuh
+    if (document.documentElement.classList.contains("maxed")) {
+        void invoke<boolean>("android_toggle_maximize")
+            .then((full) => document.documentElement.classList.toggle("maxed", full))
+            .catch(() => { });
+    }
     $("dragOverlay").classList.remove("over");
 };
 
@@ -753,21 +856,14 @@ document.addEventListener("input", (e) => {
 });
 $("close").addEventListener("click", closeWin);
 $("minimize").addEventListener("click", () => void invoke("android_minimize"));
-$("maximize").addEventListener("click", () => void invoke("android_toggle_maximize"));
-
+$("maximize").addEventListener("click", async () => {
+    const full = await invoke<boolean>("android_toggle_maximize");
+    document.documentElement.classList.toggle("maxed", full);
+});
 // klik tombol mirror tidak boleh mencuri fokus dari canvas (supaya keyboard tetap terkirim ke HP)
 document.addEventListener("mousedown", (e) => {
     if ((e.target as HTMLElement).closest(".mirror-rail, .mirror-nav")) e.preventDefault();
 });
-
-function syncMax() {
-    const full =
-        window.innerWidth >= screen.availWidth - 40 &&
-        window.innerHeight >= screen.availHeight - 40;
-    document.documentElement.classList.toggle("maxed", full);
-}
-window.addEventListener("resize", syncMax);
-syncMax();
 $("bar").addEventListener("mousedown", (e) => {
     if ((e.target as HTMLElement).closest("button")) return;
     // klik kedua dari dobel-klik: start_dragging() di klik pertama menyerahkan mouse ke OS,
@@ -797,7 +893,9 @@ document.addEventListener("click", async (e) => {
     else if (btn.id === "send") await push(await invoke<string[]>("android_pick_files"));
     else if (btn.id === "mirror") void mirrorStart();
     else if (btn.id === "mirrorStop") mirrorStop();
-    else if (btn.id === "wifitoggle") { state.wifiOpen = !state.wifiOpen; render(); }
+    else if (btn.id === "wifitoggle") { state.wifiOpen = !state.wifiOpen; if (!state.wifiOpen) qrStop(); else render(); }
+    else if (btn.id === "qrstart") void qrStart();
+    else if (btn.id === "qrstop") qrStop();
     else if (btn.id === "dopair") void wifi("pair");
     else if (btn.id === "doconn") void wifi("conn");
     else if (btn.dataset.pull) void pull(btn.dataset.pull);

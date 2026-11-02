@@ -194,7 +194,7 @@ async function copyUrl() {
     setTimeout(() => { state.copied = false; render(); }, 1200);
 }
 
-// ---------- dipanggil dari Rust (lewat eval) saat jendela disembunyikan / ditampilkan ----------
+// ---------- dipanggil dari Rust (lewat eval) saat jendela ditampilkan ----------
 const w = window as unknown as { __shareReset?: () => void; __shareShown?: () => void };
 
 w.__shareReset = () => {

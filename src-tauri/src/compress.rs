@@ -1232,7 +1232,7 @@ pub fn compress_reveal(path: String) {
 // ---------------------------------------------------------------------------------------------
 // Siklus hidup jendela
 //
-// Jendela Compress TIDAK dihancurkan saat ditutup, hanya disembunyikan (hide) lalu dipakai ulang.
+// Jendela Compress dihancurkan saat ditutup dan dibuat ulang ketika dibuka kembali.
 // Alasannya:
 //  - `close()` dari thread selain main di Windows kadang baru diproses saat event loop
 //    "terpancing" (mis. saat Settings dibuka), sehingga label "compress" masih terdaftar dan
@@ -1240,7 +1240,7 @@ pub fn compress_reveal(path: String) {
 //  - Jendela transparan tanpa dekorasi bisa meninggalkan "hantu" visual bila di-close langsung.
 //  - Listener drag & drop di frontend cukup dipasang sekali.
 //
-// Shortcut Ctrl+Alt+K: bila jendela tidak terlihat ATAU tidak fokus (mis. tertutup setelah
+// Shortcut Ctrl+Alt+Shift+K: bila jendela tidak terlihat ATAU tidak fokus (mis. tertutup setelah
 // Alt+Tab) -> tampilkan dan bawa ke depan. Hanya bila terlihat dan fokus -> sembunyikan.
 // ---------------------------------------------------------------------------------------------
 fn clear_caches() {
@@ -1250,12 +1250,15 @@ fn clear_caches() {
     IMG_CACHE.lock().unwrap_or_else(|e| e.into_inner()).clear();
 }
 
-/// Sembunyikan (bukan destroy) jendela Compress, lalu reset UI-nya.
-fn close_compress_window(app: &AppHandle) {
+/// Destroy jendela Compress agar WebView dan memori renderer dilepas saat tidak dipakai.
+pub fn close_compress_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("compress") {
-        // eval tidak butuh capability, jadi tetap jalan walau listener event bermasalah
-        let _ = w.eval("window.__compressReset && window.__compressReset()");
-        let _ = w.hide();
+        if let Err(error) = w.destroy() {
+            eprintln!("compress: gagal menutup jendela: {error}");
+            if let Err(hide_error) = w.hide() {
+                eprintln!("compress: fallback menyembunyikan jendela juga gagal: {hide_error}");
+            }
+        }
     }
     clear_caches();
 }

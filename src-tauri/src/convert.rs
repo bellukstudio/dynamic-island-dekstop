@@ -1,4 +1,4 @@
-//! Jendela Convert (Ctrl+Alt+K = Compress, Ctrl+Alt+C = Convert).
+//! Jendela Convert (Ctrl+Alt+Shift+K = Compress, Ctrl+Alt+Shift+C = Convert).
 //!
 //! - Gambar (jpg/png/webp/bmp/gif) -> gambar lain atau PDF
 //! - PDF -> PNG/JPG per halaman (Pdfium, lewat compress::for_each_pdf_page)
@@ -516,12 +516,16 @@ pub fn convert_reveal(path: String) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Siklus hidup jendela (sama seperti Compress: di-hide, bukan di-destroy)
+// Siklus hidup jendela
 // ---------------------------------------------------------------------------------------------
-fn close_convert_window(app: &AppHandle) {
+pub fn close_convert_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("convert") {
-        let _ = w.eval("window.__convertReset && window.__convertReset()");
-        let _ = w.hide();
+        if let Err(error) = w.destroy() {
+            eprintln!("convert: gagal menutup jendela: {error}");
+            if let Err(hide_error) = w.hide() {
+                eprintln!("convert: fallback menyembunyikan jendela juga gagal: {hide_error}");
+            }
+        }
     }
 }
 
@@ -540,7 +544,7 @@ pub fn convert_drag(window: tauri::WebviewWindow) {
     let _ = window.start_dragging();
 }
 
-/// Dipanggil shortcut global (Ctrl+Alt+C): tampilkan, atau sembunyikan bila sedang terlihat dan fokus.
+/// Dipanggil shortcut global (Ctrl+Alt+Shift+C): tampilkan, atau sembunyikan bila sedang terlihat dan fokus.
 pub fn toggle_window(app: &AppHandle) {
     set_resource_dir(app); // gs / pdfium
     officepdf::set_resource_dir(app); // font di resources/fonts

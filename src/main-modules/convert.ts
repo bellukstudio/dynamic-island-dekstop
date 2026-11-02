@@ -235,7 +235,7 @@ async function runAll() {
     render();
 }
 
-// ---------- dipanggil dari Rust (lewat eval) saat jendela disembunyikan / ditampilkan ----------
+// ---------- dipanggil dari Rust (lewat eval) saat jendela ditampilkan ----------
 const w = window as unknown as { __convertReset?: () => void; __convertShown?: () => void };
 
 w.__convertReset = () => {

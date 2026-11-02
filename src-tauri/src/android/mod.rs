@@ -1,4 +1,4 @@
-//! Jendela Android (Ctrl+Alt+A): jelajahi penyimpanan HP Android dan transfer file lewat USB
+//! Jendela Android (Ctrl+Alt+Shift+A): jelajahi penyimpanan HP Android dan transfer file lewat USB
 //! (atau Wi-Fi debugging) memakai `adb`. Tidak perlu aplikasi di HP.
 //! adb dicari di folder resource `adb/` (dibundel), env ADB_PATH, PATH, atau Android SDK.
 mod adb;
@@ -7,7 +7,9 @@ mod mirror;
 use adb::{Adb, Device, Entry};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 static RESOURCE_DIR: OnceLock<PathBuf> = OnceLock::new();
@@ -172,6 +174,199 @@ pub fn android_reveal(path: String) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Pairing lewat QR (Debugging nirkabel, Android 11+)
+//
+// Alur: QR berisi "WIFI:T:ADB;S:<nama>;P:<sandi>;;". HP yang memindainya menyiarkan layanan mDNS
+// `_adb-tls-pairing._tcp` bernama <nama>. Kita menunggu layanan itu muncul di `adb mdns services`,
+// lalu `adb pair <ip:port> <sandi>`, lalu `adb connect` ke layanan `_adb-tls-connect` di IP yang sama.
+// ---------------------------------------------------------------------------------------------
+#[derive(Clone, Serialize)]
+pub struct QrStatus {
+    /// idle | waiting | pairing | connecting | done | error
+    state: &'static str,
+    message: String,
+}
+
+static QR_GEN: AtomicU64 = AtomicU64::new(0);
+static QR_STATE: Mutex<QrStatus> = Mutex::new(QrStatus { state: "idle", message: String::new() });
+const QR_SERVICE_NAME: &str = "ADBQR-connectPhoneOverWifi";
+
+fn qr_alive(epoch: u64) -> bool {
+    QR_GEN.load(Ordering::SeqCst) == epoch
+}
+
+fn set_qr(epoch: u64, state: &'static str, message: impl Into<String>) {
+    if qr_alive(epoch) {
+        *QR_STATE.lock().unwrap_or_else(|e| e.into_inner()) = QrStatus { state, message: message.into() };
+    }
+}
+
+fn pairing_code() -> Result<String, String> {
+    let mut bytes = [0u8; 4];
+    getrandom::fill(&mut bytes).map_err(|e| format!("Gagal membuat kode pairing QR: {e}"))?;
+    Ok(format!("{:06}", u32::from_ne_bytes(bytes) % 1_000_000))
+}
+
+fn qr_worker(epoch: u64, name: String, pass: String) {
+    let Some(a) = get_adb() else {
+        set_qr(epoch, "error", "adb tidak ditemukan");
+        return;
+    };
+    match a.mdns_check() {
+        Ok(t) => {
+            let l = t.to_lowercase();
+            if l.contains("error") || l.contains("disabled") || l.contains("unknown") {
+                set_qr(epoch, "error", format!("adb di sistem ini tidak mendukung mDNS: {}", t.trim()));
+                return;
+            }
+        }
+        Err(e) => {
+            set_qr(epoch, "error", e);
+            return;
+        }
+    }
+
+    // 1) tunggu HP menyiarkan layanan pairing dengan nama yang sama dengan isi QR
+    let deadline = Instant::now() + Duration::from_secs(120);
+    let mut last_note = String::new();
+    let pair_addr = loop {
+        if !qr_alive(epoch) {
+            return;
+        }
+        if Instant::now() > deadline {
+            set_qr(
+                epoch,
+                "error",
+                "Waktu habis: QR tidak dipindai dari HP. Coba lagi dan pastikan HP dan PC satu jaringan Wi-Fi.",
+            );
+            return;
+        }
+        // laporkan apa yang dilihat adb supaya "tidak terjadi apa-apa" bisa didiagnosis dari UI
+        let services = a.mdns_services();
+        if !qr_alive(epoch) {
+            return;
+        }
+        let note = match services {
+            Ok(list) => {
+                if let Some(s) = list.iter().find(|s| s.kind.contains("_adb-tls-pairing") && s.name == name) {
+                    break s.addr.clone();
+                }
+                let pairing = list.iter().filter(|s| s.kind.contains("_adb-tls-pairing")).count();
+                format!("Menunggu pindaian dari HP… (mDNS terlihat: {} layanan, {} pairing)", list.len(), pairing)
+            }
+            Err(e) => format!("Menunggu pindaian dari HP… (adb mdns services gagal: {e})"),
+        };
+        if note != last_note {
+            set_qr(epoch, "waiting", note.clone());
+            last_note = note;
+        }
+        std::thread::sleep(Duration::from_millis(1000));
+    };
+
+    // 2) pairing
+    if !qr_alive(epoch) {
+        return;
+    }
+    set_qr(epoch, "pairing", "Memasangkan dengan HP…");
+    if let Err(e) = a.pair(&pair_addr, &pass) {
+        set_qr(epoch, "error", format!("Pairing gagal: {e}"));
+        return;
+    }
+    if !qr_alive(epoch) {
+        return;
+    }
+
+    // 3) sambungkan: cari layanan connect dari IP yang sama
+    set_qr(epoch, "connecting", "Pairing berhasil, menyambungkan…");
+    let ip = pair_addr.rsplit_once(':').map(|x| x.0).unwrap_or(&pair_addr).to_string();
+    let prefix = format!("{ip}:");
+    let until = Instant::now() + Duration::from_secs(20);
+    while Instant::now() < until {
+        if !qr_alive(epoch) {
+            return;
+        }
+        let services = a.mdns_services();
+        if !qr_alive(epoch) {
+            return;
+        }
+        if let Ok(list) = services {
+            if let Some(s) = list.iter().find(|s| s.kind.contains("_adb-tls-connect") && s.addr.starts_with(&prefix)) {
+                if let Ok(m) = a.connect(&s.addr) {
+                    if !qr_alive(epoch) {
+                        return;
+                    }
+                    set_qr(epoch, "done", m);
+                    return;
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(1000));
+    }
+    set_qr(
+        epoch,
+        "error",
+        "Pairing berhasil, tetapi HP belum tersambung. Isi \"Alamat sambung\" di bawah (alamat di layar utama Debugging nirkabel).",
+    );
+}
+
+#[derive(Serialize)]
+pub struct QrInfo {
+    svg: Option<String>,
+    name: String,
+}
+
+/// Buat QR pairing dan tunggu HP memindainya (berjalan di thread latar; status lewat android_qr_status).
+#[tauri::command]
+pub async fn android_qr_start() -> Result<QrInfo, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        if get_adb().is_none() {
+            return Err(NO_ADB.to_string());
+        }
+        let name = QR_SERVICE_NAME.to_string();
+        let pass = pairing_code()?;
+        let payload = format!("WIFI:T:ADB;S:{name};P:{pass};;");
+        let svg = crate::share::qr_svg(&payload)
+            .ok_or_else(|| "QR pairing tidak dapat dibuat.".to_string())?;
+        let epoch = QR_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+        *QR_STATE.lock().unwrap_or_else(|e| e.into_inner()) =
+            QrStatus { state: "waiting", message: "Menunggu pindaian dari HP…".into() };
+        let n2 = name.clone();
+        std::thread::spawn(move || qr_worker(epoch, n2, pass));
+        Ok(QrInfo { svg: Some(svg), name })
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
+pub fn android_qr_status() -> QrStatus {
+    QR_STATE.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+
+#[tauri::command]
+pub fn android_qr_stop() {
+    QR_GEN.fetch_add(1, Ordering::SeqCst);
+    *QR_STATE.lock().unwrap_or_else(|e| e.into_inner()) = QrStatus { state: "idle", message: String::new() };
+}
+
+#[cfg(test)]
+mod qr_tests {
+    use super::*;
+
+    #[test]
+    fn pairing_code_matches_android_qr_format() {
+        let code = pairing_code().expect("secure random source should be available");
+        assert_eq!(code.len(), 6);
+        assert!(code.bytes().all(|b| b.is_ascii_digit()));
+        assert_eq!(
+            format!("WIFI:T:ADB;S:{QR_SERVICE_NAME};P:{code};;"),
+            format!("WIFI:T:ADB;S:ADBQR-connectPhoneOverWifi;P:{code};;")
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Mirror layar (scrcpy-server lewat adb)
 // ---------------------------------------------------------------------------------------------
 
@@ -193,20 +388,31 @@ pub async fn android_mirror_stop() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Siklus hidup jendela (di-hide, bukan di-destroy)
+// Siklus hidup jendela
 // ---------------------------------------------------------------------------------------------
-fn close_android_window(app: &AppHandle) {
+pub fn close_android_window(app: &AppHandle) {
     // hentikan mirror di thread terpisah supaya UI tidak menunggu adb
     std::thread::spawn(mirror::stop);
+    android_qr_stop();
     if let Some(w) = app.get_webview_window("android") {
-        let _ = w.eval("window.__androidReset && window.__androidReset()");
-        let _ = w.hide();
+        if let Err(error) = w.destroy() {
+            eprintln!("android: gagal menutup jendela: {error}");
+            if let Err(hide_error) = w.hide() {
+                eprintln!("android: fallback menyembunyikan jendela juga gagal: {hide_error}");
+            }
+        }
     }
 }
 
 fn show_android_window(w: &tauri::WebviewWindow) {
     crate::foreground::bring_to_front(w);
     let _ = w.eval("window.__androidShown && window.__androidShown()");
+}
+
+/// Dipanggil saat aplikasi keluar: hentikan pairing QR dan mirror supaya tidak ada proses adb yatim.
+pub fn shutdown() {
+    android_qr_stop();
+    mirror::stop();
 }
 
 #[tauri::command]
@@ -219,7 +425,7 @@ pub fn android_drag(window: tauri::WebviewWindow) {
     let _ = window.start_dragging();
 }
 
-/// Ctrl+Alt+A sudah dipakai toggle buka/tutup; ini untuk dobel-klik header: keluar/masuk fullscreen.
+/// Ctrl+Alt+Shift+A sudah dipakai toggle buka/tutup; ini untuk dobel-klik header: keluar/masuk fullscreen.
 #[tauri::command]
 pub fn android_toggle_fullscreen(window: tauri::WebviewWindow) {
     let is_fs = window.is_fullscreen().unwrap_or(false);
@@ -236,7 +442,41 @@ pub fn android_escape(app: AppHandle, window: tauri::WebviewWindow) {
     }
 }
 
-/// Dipanggil shortcut global (Ctrl+Alt+A).
+#[tauri::command]
+pub fn android_minimize(window: tauri::WebviewWindow) {
+    let _ = window.minimize();
+}
+
+static RESTORE: Mutex<Option<(tauri::PhysicalPosition<i32>, tauri::PhysicalSize<u32>)>> = Mutex::new(None);
+
+/// Maximize manual ke area kerja monitor (tanpa maximize OS yang bergeser di jendela tanpa dekorasi).
+/// Mengembalikan true bila sekarang dalam keadaan penuh.
+#[tauri::command]
+pub fn android_toggle_maximize(window: tauri::WebviewWindow) -> bool {
+    let mut g = RESTORE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((pos, size)) = g.take() {
+        let _ = window.set_size(size);
+        let _ = window.set_position(pos);
+        return false;
+    }
+    if window.is_maximized().unwrap_or(false) {
+        let _ = window.unmaximize();
+    }
+    let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else { return false };
+    let monitor = window
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| window.primary_monitor().ok().flatten());
+    let Some(m) = monitor else { return false };
+    let (x, y, w, h) = crate::monitor_work_area(&m);
+    *g = Some((pos, size));
+    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+    let _ = window.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
+    true
+}
+
+/// Dipanggil shortcut global (Ctrl+Alt+Shift+A).
 pub fn toggle_window(app: &AppHandle) {
     if let Ok(d) = app.path().resource_dir() {
         let _ = RESOURCE_DIR.set(d);
@@ -285,58 +525,3 @@ pub fn toggle_window(app: &AppHandle) {
         }
     });
 }
-
-#[tauri::command]
-pub fn android_minimize(window: tauri::WebviewWindow) {
-    let _ = window.minimize();
-}
-
-static RESTORE: Mutex<Option<(tauri::PhysicalPosition<i32>, tauri::PhysicalSize<u32>)>> = Mutex::new(None);
-
-/// Maximize manual ke area kerja monitor (tanpa maximize OS yang bergeser di jendela tanpa dekorasi).
-/// Mengembalikan true bila sekarang dalam keadaan penuh.
-#[tauri::command]
-pub fn android_toggle_maximize(window: tauri::WebviewWindow) -> bool {
-    let mut g = RESTORE.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((pos, size)) = g.take() {
-        let _ = window.set_size(size);
-        let _ = window.set_position(pos);
-        return false;
-    }
-    if window.is_maximized().unwrap_or(false) {
-        let _ = window.unmaximize();
-    }
-    let (Ok(pos), Ok(size)) = (window.outer_position(), window.outer_size()) else { return false };
-    let monitor = window
-        .current_monitor()
-        .ok()
-        .flatten()
-        .or_else(|| window.primary_monitor().ok().flatten());
-    let Some(m) = monitor else { return false };
-    let (x, y, w, h) = crate::monitor_work_area(&m);
-    *g = Some((pos, size));
-    let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
-    let _ = window.set_size(tauri::PhysicalSize::new(w as u32, h as u32));
-    true
-}
-#[cfg(target_os = "windows")]
-fn force_foreground(w: &tauri::WebviewWindow) {
-    use windows::Win32::Foundation::HWND;
-    use windows::Win32::UI::Input::KeyboardAndMouse::{
-        keybd_event, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP, VK_MENU,
-    };
-    use windows::Win32::UI::WindowsAndMessaging::{BringWindowToTop, SetForegroundWindow};
-
-    let Ok(h) = w.hwnd() else { return };
-    let hwnd = HWND(h.0 as _);
-    unsafe {
-        // ketukan Alt palsu: membuka foreground lock untuk proses ini
-        keybd_event(VK_MENU.0 as u8, 0, KEYBD_EVENT_FLAGS(0), 0);
-        keybd_event(VK_MENU.0 as u8, 0, KEYEVENTF_KEYUP, 0);
-        let _ = BringWindowToTop(hwnd);
-        let _ = SetForegroundWindow(hwnd);
-    }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn force_foreground(_w: &tauri::WebviewWindow) {}

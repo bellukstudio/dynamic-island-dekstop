@@ -40,7 +40,7 @@ export function init(ctx: Record<string, any>): void {
   ctx.sleeping = false;
   ctx.lastActivity = Date.now();
   ctx.applyMood = (m: Mood) => { ctx.eyes.dataset.mood = m; };
-  setInterval(ctx.updateBase, 3000);
+  setInterval(ctx.updateBase, 10_000);
   document.addEventListener("mousemove", ctx.markActive);
   document.addEventListener("keydown", ctx.markActive);
 }

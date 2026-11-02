@@ -132,8 +132,8 @@ export function register(ctx: Record<string, any>): void {
       const visible = ctx.playing && ctx.lyState === "ok" && !!ctx.ly?.lines.length;
       ctx.compactLyrics.classList.toggle("visible", visible);
       if (!visible || !ctx.ly) {
-          ctx.compactLyrics.textContent = "";
-          ctx.compactLyrics.removeAttribute("title");
+          if (ctx.compactLyrics.textContent) ctx.compactLyrics.textContent = "";
+          if (ctx.compactLyrics.hasAttribute("title")) ctx.compactLyrics.removeAttribute("title");
           return;
       }
       const i = ctx.lyIndex();
@@ -209,13 +209,16 @@ export function init(ctx: Record<string, any>): void {
   ctx.CL_MAX = 520;
   ctx.clWidth = 340;
   ctx.clCtx = null;
-  // Perbarui lirik ringkas juga ketika notch berada di compact view.
+  // Lirik cukup diperbarui dua kali per detik; saat tidak ada lirik, hindari kerja DOM.
   setInterval(() => {
-      if (ctx.notch.dataset.view === "lyr")
+      if (ctx.notch.dataset.view === "lyr") {
           ctx.tickLyrics();
-      else
+      } else if (ctx.playing && ctx.lyState === "ok" && ctx.ly?.lines.length) {
           ctx.updateCompactLyric();
-  }, 200);
+      } else if (ctx.compactLyrics.classList.contains("visible")) {
+          ctx.updateCompactLyric();
+      }
+  }, 500);
   if (!ctx.featureOn("lyrics"))
       document.getElementById("m-lyrics")?.remove();
   document.getElementById("m-lyrics")?.addEventListener("click", (e) => { e.stopPropagation(); ctx.openLyrics(); });

@@ -1476,6 +1476,7 @@
     }
   </style>
   <script type="module" src="/src/main-modules/settings-adhan-test.ts"></script>
+  <script type="module" src="/src/main-modules/settings-greeting.ts"></script>
 </head>
 
 <body data-tab="appearance">
@@ -1847,7 +1848,7 @@
           </div>
           <div class="card full" id="greeting-card">
             <h2>Greeting suara saat Notch dimulai</h2>
-            <p class="hint">Notch mengucapkan sapaan saat aplikasi dijalankan dan menampilkan teksnya di notch. Pilih "Acak lucu" untuk sapaan random yang ucapan waktunya (pagi/siang/sore/malam) menyesuaikan jam sekarang. Menggunakan voice Bahasa Indonesia (id-ID); bila belum tersedia, pasang voice Bahasa Indonesia melalui pengaturan Speech Windows. Agar terdengar ketika PC menyala, aktifkan juga "Jalankan otomatis saat komputer menyala" di atas.</p>
+            <p class="hint">Notch mengucapkan sapaan saat aplikasi dijalankan dan menampilkan teksnya di notch. Pilih "Acak lucu" untuk sapaan random yang ucapan waktunya (pagi/siang/sore/malam) menyesuaikan jam sekarang. Pilih mode suara (natural atau gaya anime); bagian berbahasa Inggris dibaca dengan lafal Inggris. Sapaan bawaan memakai klip neural Edge TTS yang disertakan dalam aplikasi; teks kustom atau mode "Suara sistem" memakai voice Windows. Agar terdengar ketika PC menyala, aktifkan juga "Jalankan otomatis saat komputer menyala" di atas.</p>
             <div class="row">
               <label for="g-enabled">Aktifkan greeting suara</label>
               <input type="checkbox" id="g-enabled" />
@@ -1863,6 +1864,16 @@
                 <option value="afternoon">Selamat sore</option>
                 <option value="evening">Selamat malam</option>
                 <option value="custom">Teks kustom</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="g-voice">Mode suara<span class="note">Suara neural Edge TTS; teks kustom memakai suara Windows.</span></label>
+              <select id="g-voice">
+                <option value="cewek">Cewek natural (Gadis)</option>
+                <option value="cowok">Cowok natural (Ardi)</option>
+                <option value="anime-cewek">Anime cewek imut</option>
+                <option value="anime-cowok">Anime cowok (shonen)</option>
+                <option value="system">Suara sistem (Windows)</option>
               </select>
             </div>
             <div class="row" id="g-custom-row">
@@ -1999,10 +2010,13 @@
 
     const NUDGE_UNTIL_MOVE_KEY = "notch.nudge.untilMove";
     const STARTUP_GREETING_KEY = "notch.startupGreeting";
+    // id mode suara harus sama dengan PRESETS di src/main-modules/greeting-lang.ts
+    const GREETING_VOICES = ["cewek", "cowok", "anime-cewek", "anime-cowok", "system"];
     const DEFAULT_GREETING = {
       enabled: true,
       mode: "random",
-      custom_text: "Halo, semangat menjalani hari!"
+      custom_text: "Halo, semangat menjalani hari!",
+      voice: "cewek"
     };
     const CONVERSATION_MOMENTS_KEY = "notch.conversationMoments";
     const DEFAULT_CONVERSATION_MOMENTS = {
@@ -2127,7 +2141,8 @@
         return {
           enabled: saved.enabled !== false,
           mode: ["auto", "random", "halo", "morning", "noon", "afternoon", "evening", "custom"].includes(saved.mode) ? saved.mode : "auto",
-          custom_text: typeof saved.custom_text === "string" ? saved.custom_text.slice(0, 120) : DEFAULT_GREETING.custom_text
+          custom_text: typeof saved.custom_text === "string" ? saved.custom_text.slice(0, 120) : DEFAULT_GREETING.custom_text,
+          voice: GREETING_VOICES.includes(saved.voice) ? saved.voice : DEFAULT_GREETING.voice
         };
       } catch {
         return {
@@ -2140,7 +2155,8 @@
       return {
         enabled: inp("g-enabled").checked,
         mode: inp("g-mode").value,
-        custom_text: inp("g-custom").value.trim().slice(0, 120) || DEFAULT_GREETING.custom_text
+        custom_text: inp("g-custom").value.trim().slice(0, 120) || DEFAULT_GREETING.custom_text,
+        voice: inp("g-voice").value
       };
     }
 
@@ -2157,6 +2173,7 @@
       inp("g-enabled").checked = g.enabled;
       inp("g-mode").value = g.mode;
       inp("g-custom").value = g.custom_text;
+      inp("g-voice").value = g.voice;
       syncGreetingControls();
     }
 
@@ -2164,6 +2181,7 @@
       const enabled = inp("g-enabled").checked;
       const custom = inp("g-mode").value === "custom";
       inp("g-mode").disabled = !enabled;
+      inp("g-voice").disabled = !enabled;
       inp("g-custom").disabled = !enabled || !custom;
       $("g-custom-row").classList.toggle("off", !enabled || !custom);
       $("g-test").disabled = !enabled;
@@ -2385,10 +2403,6 @@
       return Math.min(11000, Math.max(3500, 1800 + words * 470));
     }
 
-    function findIndonesianVoice(voices) {
-      return voices.find((voice) => /^id(?:[-_]|$)/i.test(voice.lang) || /(?:bahasa\s+indonesia|indonesian)/i.test(voice.name));
-    }
-
     function emitGreetingEvent(name, payload) {
       try {
         const result = T.event && typeof T.event.emit === "function" ? T.event.emit(name, payload) : null;
@@ -2399,9 +2413,9 @@
     }
 
     function speakGreeting(text, sub = "") {
-      const synth = window.speechSynthesis;
-      if (!synth || typeof window.SpeechSynthesisUtterance !== "function") {
-        say("Fitur suara tidak tersedia di WebView ini.", "err");
+      const voiceApi = window.__notchGreetingVoice;
+      if (!voiceApi) {
+        say("Modul suara greeting belum termuat. Muat ulang jendela Pengaturan.", "err");
         return false;
       }
       const cardText = String(text || "").trim();
@@ -2419,110 +2433,27 @@
         subtitle: cardSub || "Mencoba mengucapkan greeting…",
         durationMs: estimateGreetingDuration(phrase) + 1800
       });
+      say(`Sedang mengucapkan: ${phrase}`, "ok");
 
-      try {
-        synth.cancel();
-        synth.resume();
-        const utterance = new SpeechSynthesisUtterance(phrase);
-        utterance.lang = "id-ID";
-        utterance.rate = 0.95;
-        utterance.pitch = 1.04;
-
-        let voiceSelected = false;
-        let speechStarted = false;
-        let finished = false;
-        let voiceWaitTimer = 0;
-        let voicePoll = 0;
-        let speechWatchdog = 0;
-        const cleanupVoiceWait = () => {
-          synth.removeEventListener?.("voiceschanged", tryStart);
-          window.clearTimeout(voiceWaitTimer);
-          window.clearInterval(voicePoll);
-          voiceWaitTimer = 0;
-          voicePoll = 0;
-        };
-        const finish = () => {
-          if (finished) return;
-          finished = true;
-          cleanupVoiceWait();
-          window.clearTimeout(speechWatchdog);
-          speechWatchdog = 0;
-          emitGreetingEvent("greeting-end", {
-            id
-          });
-        };
-        utterance.onstart = () => {
-          speechStarted = true;
-          window.clearTimeout(speechWatchdog);
-          say(`Sedang mengucapkan: ${phrase}`, "ok");
-        };
-        utterance.onend = () => {
-          finish();
+      // Mesin yang sama dengan greeting saat Notch dimulai (klip neural per mode suara; fallback suara sistem).
+      voiceApi.speak(phrase, inp("g-voice").value).then((r) => {
+        emitGreetingEvent("greeting-end", {
+          id
+        });
+        if (!r.ok) {
+          say(`Greeting gagal diucapkan (${r.reason}). Periksa audio / voice Bahasa Indonesia di Windows.`, "err");
+        } else if (r.via === "system" && inp("g-voice").value !== "system") {
+          say("Tes selesai dengan suara sistem (klip belum dibuat — jalankan npm run greeting:audio).", "ok");
+        } else {
           say("Tes greeting selesai.", "ok");
-        };
-        utterance.onerror = (event) => {
-          finish();
-          const reason = event && event.error ? ` (${event.error})` : "";
-          say(`Greeting gagal diucapkan${reason}. Periksa voice Bahasa Indonesia di Windows.`, "err");
-        };
-
-        const tryStart = () => {
-          if (voiceSelected || finished) return;
-          const voice = findIndonesianVoice(synth.getVoices());
-          if (!voice) return; // jangan fallback ke voice Inggris/bahasa lain
-          voiceSelected = true;
-          cleanupVoiceWait();
-          utterance.voice = voice;
-          try {
-            say("Memulai greeting dengan voice Bahasa Indonesia…", "ok");
-            synth.resume();
-            synth.speak(utterance);
-            speechWatchdog = window.setTimeout(() => {
-              if (finished) return;
-              if (speechStarted || synth.speaking || synth.pending) {
-                speechWatchdog = window.setTimeout(() => {
-                  if (finished) return;
-                  if (!synth.speaking && !synth.pending) {
-                    finish();
-                    say("Sistem suara tidak merespons. Periksa perangkat output audio Windows.", "err");
-                  }
-                }, 4000);
-                return;
-              }
-              finish();
-              say("Sistem suara tidak mulai memutar audio. Periksa perangkat output audio Windows.", "err");
-            }, 7000);
-          } catch (error) {
-            finish();
-            say(`Gagal memulai greeting: ${error}`, "err");
-          }
-        };
-
-        synth.addEventListener?.("voiceschanged", tryStart);
-        // "voiceschanged" tidak selalu terpicu di WebView2; cek berkala juga.
-        voicePoll = window.setInterval(tryStart, 300);
-        voiceWaitTimer = window.setTimeout(() => {
-          if (voiceSelected || finished) return;
-          cleanupVoiceWait();
-          const voices = synth.getVoices();
-          const available = voices.map((voice) => `${voice.name} (${voice.lang})`).join(", ");
-          say("Voice Bahasa Indonesia (id-ID) tidak ditemukan. Tambahkan voice Bahasa Indonesia di Settings Windows > Time & language > Speech.", "err");
-          console.warn("[Settings] Voice TTS yang tersedia:", available || "belum ada voice yang dimuat");
-          // Teks pada notch tetap tampil sampai timer fallback selesai.
-          emitGreetingEvent("greeting-end", {
-            id
-          });
-        }, 7000);
-        tryStart();
-        if (!synth.getVoices().length) say("Memuat voice Bahasa Indonesia dari Windows…", "ok");
-        return true;
-      } catch (error) {
+        }
+      }).catch((error) => {
         emitGreetingEvent("greeting-end", {
           id
         });
         say(`Gagal mengucapkan greeting: ${error}`, "err");
-        return false;
-      }
+      });
+      return true;
     }
 
     function say(text, kind = "") {
@@ -2767,6 +2698,8 @@
     });
 
     ["g-enabled", "g-mode"].forEach((id) => inp(id).addEventListener("change", syncGreetingControls));
+    // ganti mode suara = langsung dicoba
+    inp("g-voice").addEventListener("change", () => inp("g-test").click());
     inp("g-test").addEventListener("click", () => {
       const greeting = collectGreetingPref();
       // Jangan menimpa status onstart/onerror; speakGreeting mengelola statusnya sendiri.

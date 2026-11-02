@@ -23,6 +23,14 @@ pub struct Entry {
     pub date: String,
 }
 
+/// Satu layanan mDNS yang terlihat oleh adb (`adb mdns services`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Mdns {
+    pub name: String,
+    pub kind: String,
+    pub addr: String,
+}
+
 struct Out {
     ok: bool,
     stdout: String,
@@ -146,6 +154,20 @@ pub fn parse_devices(text: &str) -> Vec<Device> {
     v
 }
 
+/// Keluaran `adb mdns services`: "<nama>  <jenis>  <ip:port>" per baris.
+pub fn parse_mdns(text: &str) -> Vec<Mdns> {
+    text.lines()
+        .filter_map(|l| {
+            let t: Vec<&str> = l.split_whitespace().collect();
+            if t.len() >= 3 && t[1].starts_with('_') {
+                Some(Mdns { name: t[0].into(), kind: t[1].into(), addr: t[2].into() })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn take_token(s: &str) -> Option<(&str, &str)> {
     let s = s.trim_start();
     if s.is_empty() {
@@ -199,7 +221,8 @@ impl Adb {
     }
     fn cmd(&self, args: &[&str]) -> Command {
         let mut c = Command::new(&self.path);
-        c.args(args);
+        // Windows: paksa backend mDNS Openscreen (tanpa Bonjour). Versi adb lama mengabaikan variabel ini.
+        c.args(args).env("ADB_MDNS_OPENSCREEN", "1");
         c
     }
 
@@ -264,5 +287,21 @@ impl Adb {
 
     pub fn disconnect(&self, addr: &str) {
         let _ = run(self.cmd(&["disconnect", addr]), Some(Duration::from_secs(8)));
+    }
+
+    /// Cek apakah backend mDNS adb tersedia (dipakai pairing lewat QR).
+    pub fn mdns_check(&self) -> Result<String, String> {
+        self.ensure_server();
+        let o = run(self.cmd(&["mdns", "check"]), Some(Duration::from_secs(8)))?;
+        Ok(format!("{}{}", o.stdout, o.stderr))
+    }
+
+    /// Daftar layanan mDNS yang sedang terlihat (pairing & connect dari HP).
+    pub fn mdns_services(&self) -> Result<Vec<Mdns>, String> {
+        let o = run(self.cmd(&["mdns", "services"]), Some(Duration::from_secs(8)))?;
+        if !o.ok {
+            return Err(o.msg());
+        }
+        Ok(parse_mdns(&o.stdout))
     }
 }
