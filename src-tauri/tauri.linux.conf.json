@@ -1,0 +1,8 @@
+{
+    "bundle": {
+        "resources": {
+            "pdfium-linux/*": "pdfium/",
+            "adb-linux/*": "adb/"
+        }
+    }
+}

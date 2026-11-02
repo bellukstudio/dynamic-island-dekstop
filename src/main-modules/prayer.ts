@@ -347,8 +347,9 @@ function checkReminders() {
     }
 }
 
-
-// ---------- Mode Ramadan (menggunakan cache prayer_month yang sudah tersedia) ----------
+// ---------- Mode Ramadan ----------
+// Markup ada di index.html dan gaya di ramadan.css. File ini hanya menyambungkan perilaku
+// ke elemen yang sudah ada (tidak lagi membuat tombol, panel, atau <style> sendiri).
 const RAMADAN_KEY = "notch.ramadan.enabled";
 let ramadanEnabled = false;
 try { ramadanEnabled = localStorage.getItem(RAMADAN_KEY) === "1"; } catch { /* storage opsional */ }
@@ -360,153 +361,14 @@ const DHIKR: { ar: string; latin: string; arti: string; note: string }[] = [
 ];
 let dhikrIdx = 0;
 
-const RAMADAN_STYLE = `
-.p-prayer.ramadan-on {
-  display: grid; box-sizing: border-box;
-  grid-template-columns: 176px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  column-gap: 18px; row-gap: 10px; padding: 0 22px 18px; overflow: hidden;
-}
-.p-prayer.ramadan-on .pr-left { grid-column: 1; grid-row: 1; min-height: 96px; }
-.p-prayer.ramadan-on .pr-right { grid-column: 2; grid-row: 1; min-height: 96px; }
-.p-prayer.ramadan-on .pr-arc { width: 300px; }
-.p-prayer.ramadan-on .pr-right, .p-prayer.ramadan-on .pr-left { min-width: 0; }
-.p-prayer.ramadan-on .pr-ctl { box-sizing: border-box; gap: 12px; padding-right: 14px; min-width: 0; max-width: 100%; flex-wrap: nowrap; justify-content: flex-start; }
-.p-prayer.ramadan-on { padding-right: 30px; }
-.p-prayer.ramadan-on .pr-ramadan-panel { margin-right: 0; }
-#notch.ramadan-expanded[data-view="hub"] { --hub-w: 780px; width: 780px !important; }
-#notch.ramadan-expanded[data-view="hub"] .l-hub, #notch.ramadan-expanded[data-view="hub"] .pages { width: 780px !important; }
-.p-prayer .pr-right { container-type: inline-size; container-name: prctl; }
-.p-prayer .pr-ctl { min-width: 0; gap: 6px; flex-wrap: nowrap; }
-.p-prayer .pr-ctl > .pr-seg, .p-prayer .pr-ctl > #pr-remind { flex: none; }
-.pr-ramadan-toggle {
-  all: unset; box-sizing: border-box; cursor: pointer; flex: none;
-  position: relative; z-index: 2; pointer-events: auto;
-  display: inline-flex !important; align-items: center; justify-content: center; gap: 5px;
-  height: 28px; min-width: 28px; padding: 0 12px !important; margin: 0; border-radius: 99px;
-  font-size: 11.5px; font-weight: 650; white-space: nowrap;
-  color: var(--fg); background: rgba(var(--fg-rgb), .08);
-  -webkit-user-select: none; user-select: none;
-  transition: background .15s, transform .12s, box-shadow .15s;
-}
-.pr-ramadan-toggle:hover { background: rgba(var(--fg-rgb), .18); }
-.pr-ramadan-toggle:active { transform: scale(.93); }
-.pr-ramadan-toggle:focus-visible { box-shadow: 0 0 0 2px rgba(var(--accent), .7); }
-.pr-ramadan-toggle.on { color: #fff; background: rgb(var(--accent)); }
-.pr-ramadan-toggle.on:hover { background: rgba(var(--accent), .85); }
-.pr-rm-ico { font-size: 13px; line-height: 1; }
-/* ruang sempit (hub ringkas 580px): tombol jadi ikon bulan supaya baris kontrol tidak terpotong */
-@container prctl (max-width: 390px) {
-  .pr-ramadan-toggle { width: 28px; padding: 0 !important; }
-  .pr-ramadan-toggle .pr-rm-lbl { display: none; }
-}
-.pr-ramadan-panel {
-  grid-column: 1 / -1; grid-row: 2;
-  display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: hidden;
-  box-sizing: border-box; padding: 12px 14px 12px;
-  border: 1px solid rgba(var(--fg-rgb), .12); border-radius: 22px;
-  color: var(--fg); background: rgba(var(--fg-rgb), .03);
-}
-.pr-ramadan-panel[hidden] { display: none; }
-.pr-ramadan-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex: none; }
-.pr-ramadan-headl { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.pr-ramadan-moon { font-size: 22px; line-height: 1; color: #f5b942; }
-.pr-ramadan-title { font-size: 15px; font-weight: 750; }
-.pr-ramadan-state { font-size: 10.5px; opacity: .62; }
-.pr-ramadan-headr { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 650; }
-.pr-rm-sw { all: unset; cursor: pointer; position: relative; width: 34px; height: 19px; border-radius: 99px; background: rgb(var(--accent)); }
-.pr-rm-sw::after { content: ""; position: absolute; top: 2px; left: 17px; width: 15px; height: 15px; border-radius: 50%; background: #fff; }
-.pr-rm-gear { all: unset; cursor: pointer; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: rgba(var(--fg-rgb), .08); }
-.pr-rm-gear svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.pr-ramadan-counts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: none; }
-.pr-ramadan-count {
-  display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 12px;
-  border-radius: 14px; border: 1px solid rgba(80, 220, 170, .35);
-  background: linear-gradient(120deg, rgba(20, 120, 90, .28), rgba(20, 120, 90, .06));
-}
-.pr-ramadan-count.buka { border-color: rgba(245, 185, 66, .4); background: linear-gradient(120deg, rgba(180, 110, 20, .3), rgba(180, 110, 20, .06)); }
-.pr-ramadan-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; background: rgba(80, 220, 170, .16); font-size: 20px; }
-.pr-ramadan-count.buka .pr-ramadan-ico { background: rgba(245, 185, 66, .16); }
-.pr-ramadan-ctext { min-width: 0; }
-.pr-ramadan-count small { display: block; font-size: 11px; color: rgb(110, 230, 190); }
-.pr-ramadan-count.buka small { color: rgb(245, 200, 90); }
-.pr-ramadan-count small i { font-style: normal; }
-.pr-ramadan-count strong { display: block; margin-top: 2px; font-size: 22px; line-height: 1.1; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pr-ramadan-count em { display: block; margin-top: 2px; font-size: 10.5px; opacity: .6; font-style: normal; }
-.pr-ramadan-bottom { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; flex: 1 1 auto; min-height: 0; }
-.pr-ramadan-card {
-  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 10px 12px;
-  border: 1px solid rgba(var(--fg-rgb), .1); border-radius: 16px; background: rgba(var(--fg-rgb), .035);
-}
-.pr-ramadan-card h4 { margin: 0; font-size: 12.5px; font-weight: 700; }
-.pr-ramadan-ch { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex: none; }
-.pr-ramadan-ch span { font-size: 10.5px; opacity: .62; }
-.pr-ramadan-times { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.pr-ramadan-time { padding: 5px 4px; border-radius: 9px; border: 1px solid rgba(var(--fg-rgb), .06); background: rgba(var(--fg-rgb), .05); text-align: center; }
-.pr-ramadan-time.first { border-color: rgb(var(--accent)); background: rgba(var(--accent), .18); }
-.pr-ramadan-time small { display: block; font-size: 10px; opacity: .65; }
-.pr-ramadan-time b { display: block; margin-top: 1px; font-size: 13px; font-variant-numeric: tabular-nums; }
-.pr-ramadan-note { margin-top: auto; padding-top: 6px; font-size: 9.5px; line-height: 1.4; opacity: .6; }
-.pr-dhikr-nav { display: flex; align-items: center; gap: 8px; font-size: 11px; opacity: .85; }
-.pr-dhikr-nav button { all: unset; cursor: pointer; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: rgba(var(--fg-rgb), .08); font-size: 13px; }
-.pr-dhikr-box { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 6px 8px; border: 1px solid rgba(var(--fg-rgb), .08); border-radius: 12px; }
-.pr-dhikr-ar { font-size: 22px; line-height: 1.35; direction: rtl; }
-.pr-dhikr-latin { font-size: 12px; opacity: .85; }
-.pr-dhikr-arti { margin-top: 2px; font-size: 11px; opacity: .8; }
-.pr-dhikr-note { margin-top: 3px; font-size: 10px; opacity: .6; }
-.pr-dhikr-dots { display: flex; justify-content: center; gap: 6px; margin-top: 6px; flex: none; }
-.pr-dhikr-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(var(--fg-rgb), .25); }
-.pr-dhikr-dots i.on { background: rgb(var(--accent)); }
-`;
-
-const GEAR_SVG = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`;
-
 function installRamadanUi() {
-    const prayerPage = document.querySelector<HTMLElement>(".p-prayer");
-    if (!prayerPage || prayerPage.dataset.ramadanReady) return;
-    prayerPage.dataset.ramadanReady = "1";
-    const style = document.createElement("style");
-    style.dataset.ramadan = "";
-    style.textContent = RAMADAN_STYLE;
-    document.head.appendChild(style);
-
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "pr-ramadan-toggle";
-    toggle.id = "pr-ramadan-toggle";
-    toggle.innerHTML = '<span class="pr-rm-ico" aria-hidden="true">☾</span><span class="pr-rm-lbl">Ramadan</span>';
-    toggle.setAttribute("aria-label", "Mode Ramadan");
-    toggle.title = "Aktifkan atau nonaktifkan Mode Ramadan";
-    (prayerPage.querySelector(".pr-ctl") ?? prayerPage).appendChild(toggle);
-
-    const panel = document.createElement("section");
-    panel.className = "pr-ramadan-panel";
-    panel.id = "pr-ramadan-panel";
+    const page = document.querySelector<HTMLElement>(".p-prayer");
+    if (!page || page.dataset.ramadanReady) return;
+    const toggle = el("pr-ramadan-toggle");
+    const panel = el("pr-ramadan-panel");
+    if (!toggle || !panel) return;
+    page.dataset.ramadanReady = "1";
     panel.hidden = !ramadanEnabled;
-    panel.innerHTML = `
-      <div class="pr-ramadan-head">
-        <div class="pr-ramadan-headl">
-          <span class="pr-ramadan-moon">☾</span>
-          <div><div class="pr-ramadan-title">Mode Ramadan</div><div class="pr-ramadan-state">Hitung mundur sahur dan buka puasa, imsakiyah, serta dzikir setelah adzan.</div></div>
-        </div>
-        <div class="pr-ramadan-headr"><button type="button" class="pr-rm-sw" id="pr-ramadan-sw" aria-label="Mode Ramadan aktif"></button><span>Aktif</span><button type="button" class="pr-rm-gear" aria-label="Pengaturan Ramadan">${GEAR_SVG}</button></div>
-      </div>
-      <div class="pr-ramadan-counts">
-        <div class="pr-ramadan-count"><span class="pr-ramadan-ico">🍲</span><div class="pr-ramadan-ctext"><small>Menuju Imsak <i>(Sahur)</i></small><strong id="pr-ramadan-sahur">--:--:--</strong><em id="pr-ramadan-sahur-at">Imsak --:--</em></div></div>
-        <div class="pr-ramadan-count buka"><span class="pr-ramadan-ico">🌅</span><div class="pr-ramadan-ctext"><small>Menuju Maghrib <i>(Buka Puasa)</i></small><strong id="pr-ramadan-buka">--:--:--</strong><em id="pr-ramadan-buka-at">Maghrib --:--</em></div></div>
-      </div>
-      <div class="pr-ramadan-bottom">
-        <div class="pr-ramadan-card">
-          <div class="pr-ramadan-ch"><h4>Imsakiyah Hari Ini</h4><span id="pr-ramadan-date"></span></div>
-          <div class="pr-ramadan-times" id="pr-ramadan-times"></div>
-          <div class="pr-ramadan-note">Jadwal mengikuti lokasi dan data salat yang sudah tersimpan di Notch. Countdown sahur berakhir pada waktu imsak.</div>
-        </div>
-        <div class="pr-ramadan-card">
-          <div class="pr-ramadan-ch"><h4>Dzikir Setelah Adzan</h4><div class="pr-dhikr-nav"><button type="button" id="pr-dh-prev">‹</button><span id="pr-dh-n">1/3</span><button type="button" id="pr-dh-next">›</button></div></div>
-          <div class="pr-dhikr-box"><div class="pr-dhikr-ar" id="pr-dh-ar"></div><div class="pr-dhikr-latin" id="pr-dh-latin"></div><div class="pr-dhikr-arti" id="pr-dh-arti"></div><div class="pr-dhikr-note" id="pr-dh-note"></div></div>
-          <div class="pr-dhikr-dots" id="pr-dh-dots"></div>
-        </div>
-      </div>`;
-    prayerPage.appendChild(panel);
 
     const setEnabled = (v: boolean) => {
         ramadanEnabled = v;
@@ -515,7 +377,7 @@ function installRamadanUi() {
         renderRamadan();
     };
     toggle.addEventListener("click", (e) => { e.stopPropagation(); setEnabled(!ramadanEnabled); });
-    panel.querySelector("#pr-ramadan-sw")?.addEventListener("click", (e) => { e.stopPropagation(); setEnabled(false); });
+    el("pr-ramadan-sw")?.addEventListener("click", (e) => { e.stopPropagation(); setEnabled(false); });
     const step = (d: number) => { dhikrIdx = (dhikrIdx + d + DHIKR.length) % DHIKR.length; renderDhikr(); };
     el("pr-dh-prev")?.addEventListener("click", (e) => { e.stopPropagation(); step(-1); });
     el("pr-dh-next")?.addEventListener("click", (e) => { e.stopPropagation(); step(1); });

@@ -1,0 +1,433 @@
+/* Scrollbar custom untuk seluruh jendela Android (bukan cuma .list) — biar tidak jatuh ke scrollbar bawaan OS saat fullscreen/konten melebihi tinggi window */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* main ikut bisa scroll sendiri (dengan scrollbar custom di atas) saat fullscreen bikin konten lebih tinggi dari window */
+main {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.win main {
+  overflow-y: auto;
+  min-height: 0;
+}
+.win main > * {
+  flex-shrink: 0;
+}
+.win main .list {
+  flex: none;
+  max-height: none;
+  overflow: visible;
+}
+.win main .list .row {
+  flex-shrink: 0;
+  min-height: 58px;
+}
+.win main .row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+}
+.win main .row .act {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  background: rgba(127, 127, 127, 0.14);
+}
+.win main .row .act:hover {
+  background: rgba(127, 127, 127, 0.28);
+}
+
+/* ---------- Form Wi-Fi debugging ---------- */
+.wifi-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.wifi-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px auto;
+  gap: 8px 10px;
+  align-items: end;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.wifi-step.single {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.wifi-h {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.wifi-h .n {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  color: #cfc8ff;
+  background: rgba(139, 123, 255, 0.28);
+}
+.wifi-h small {
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.wifi-fld {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.wifi-fld > span {
+  font-size: 11px;
+  opacity: 0.65;
+}
+.wifi-fld input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: 38px;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.wifi-fld input::placeholder {
+  color: inherit;
+  opacity: 0.35;
+}
+.wifi-fld input:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.wifi-fld input:focus {
+  border-color: rgba(139, 123, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.22);
+}
+
+.wifi-step .btn {
+  height: 38px;
+  margin: 0;
+  white-space: nowrap;
+}
+.wifi-step .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.wifi-msg {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.8;
+  word-break: break-word;
+}
+.wifi-msg:empty {
+  display: none;
+}
+.wifi-msg.err {
+  color: #ff8a8a;
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .wifi-step,
+  .wifi-step.single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wifi-step .btn {
+    width: 100%;
+  }
+}
+
+/* ---------- Mirror layar ---------- */
+/* Menutupi area di bawah header; top diisi JS (tinggi header). Butuh .win position: relative (sudah, karena .overlay absolut). */
+.mirror-view {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 64px;
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  background: rgba(8, 8, 12, 0.97);
+  border-radius: 0 0 18px 18px;
+  overflow: hidden;
+}
+.mirror-view.on {
+  display: flex;
+}
+
+.mirror-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 10px;
+}
+.mirror-stage canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  border-radius: 12px;
+  outline: none;
+  touch-action: none;
+  cursor: pointer;
+}
+.mirror-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.mirror-status.err {
+  color: #ff8a8a;
+  opacity: 1;
+}
+.mirror-status.hide {
+  display: none;
+}
+
+/* ---------- Kontrol jendela di header ---------- */
+.win-ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---------- Mirror: tata letak ala HP ---------- */
+.mirror-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.mirror-main .mirror-stage {
+  flex: 1;
+  min-width: 0;
+}
+
+/* rel tombol fisik di sisi kanan, seperti tombol power/volume HP */
+.mirror-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 4px;
+}
+.mirror-rail .grow {
+  flex: 1;
+}
+.rail-btn {
+  width: 56px;
+  padding: 10px 0 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  transition:
+    background 0.15s,
+    transform 0.08s;
+}
+.rail-btn .ic svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+.rail-btn small {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.rail-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+.rail-btn:active {
+  transform: scale(0.94);
+}
+.rail-btn.danger {
+  background: rgba(255, 90, 90, 0.16);
+  border-color: rgba(255, 90, 90, 0.35);
+  color: #ffb4b4;
+}
+.rail-btn.danger:hover {
+  background: rgba(255, 90, 90, 0.3);
+}
+
+/* tiga tombol navigasi di tengah bawah, seperti navigation bar Android */
+.mirror-nav {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  padding: 8px 12px 12px;
+}
+.nav-btn {
+  width: 72px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: inherit;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  transition:
+    background 0.15s,
+    transform 0.08s;
+}
+.nav-btn svg {
+  width: 20px;
+  height: 20px;
+}
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.nav-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.22);
+}
+/* ---------- Footer: tombol aksi lebar & tidak terpotong ---------- */
+.win footer {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+.win footer .hint {
+  flex: 1 1 280px; /* hint boleh menyusut/turun baris, tombol tidak */
+  min-width: 0;
+  line-height: 1.6;
+}
+.win footer .acts {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+  justify-content: flex-end;
+}
+.win footer .acts .btn {
+  flex: none;
+  min-width: 128px;
+  height: 40px;
+  padding: 0 18px;
+  white-space: nowrap; /* label satu baris */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.win footer .acts .btn svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+@media (max-width: 640px) {
+  .win footer .acts {
+    width: 100%;
+  }
+  .win footer .acts .btn {
+    flex: 1 1 0;
+  }
+}
+/* ---------- Maximize / fullscreen: penuh sampai ke tepi layar ---------- */
+html.maxed,
+html.maxed body,
+html.maxed #app {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+html.maxed .win {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html.maxed .mirror-view {
+  border-radius: 0 !important;
+}
+
+html.maxed .win,
+html.maxed .win::before,
+html.maxed .win::after {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html.maxed body {
+  overflow: hidden !important;
+}
+html.maxed .win {
+  position: fixed !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  transform: none !important;
+}
+html.maxed,
+html.maxed body,
+html.maxed #app {
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}

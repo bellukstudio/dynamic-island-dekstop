@@ -34,7 +34,6 @@ export default defineConfig(({ mode }) => {
         env.VITE_FIREBASE_API_KEY || ""
       ),
     },
-    // 👆 BATAS TAMBAHAN
 
     clearScreen: false,
 
@@ -60,6 +59,10 @@ export default defineConfig(({ mode }) => {
           main: resolve(import.meta.dirname, "index.html"),
           settings: resolve(import.meta.dirname, "settings.html"),
           "note-detail": resolve(import.meta.dirname, "note-detail.html"),
+          "compress": resolve(import.meta.dirname, "compress.html"),
+          "convert": resolve(import.meta.dirname, "convert.html"),
+          "share": resolve(import.meta.dirname, "share.html"),
+          "android": resolve(import.meta.dirname, "android.html"),
         },
       },
     },

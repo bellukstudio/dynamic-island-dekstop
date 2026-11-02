@@ -89,3 +89,12 @@ pub fn clip_clear() -> Vec<String> {
     h.clear();
     h.clone()
 }
+
+/// Salin warna langsung ke clipboard, tanpa bergantung pada fitur riwayat clipboard.
+#[tauri::command]
+pub fn color_copy(text: String) -> Result<(), String> {
+    let mut clipboard = Clipboard::new().map_err(|e| format!("Clipboard tidak tersedia: {e}"))?;
+    clipboard
+        .set_text(text)
+        .map_err(|e| format!("Gagal menyalin warna: {e}"))
+}

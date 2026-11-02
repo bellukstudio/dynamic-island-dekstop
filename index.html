@@ -7,15 +7,15 @@
   <title>notch</title>
 
   <!-- Stylesheet inti -->
-  <link rel="stylesheet" href="/src/base.css" />
-  <link rel="stylesheet" href="/src/eyes.css" />
-  <link rel="stylesheet" href="/src/eye-themes.css" />
-  <link rel="stylesheet" href="/src/media.css" />
-  <link rel="stylesheet" href="/src/widgets.css" />
-  <link rel="stylesheet" href="/src/system.css" />
-  <link rel="stylesheet" href="/src/reminder-notes-base.css" />
-  <link rel="stylesheet" href="/src/privacy.css" />
-  <link rel="stylesheet" href="/src/shelf-lyrics.css" />
+  <link rel="stylesheet" href="/src/css/base.css" />
+  <link rel="stylesheet" href="/src/css/eyes.css" />
+  <link rel="stylesheet" href="/src/css/eye-themes.css" />
+  <link rel="stylesheet" href="/src/css/media.css" />
+  <link rel="stylesheet" href="/src/css/widgets.css" />
+  <link rel="stylesheet" href="/src/css/system.css" />
+  <link rel="stylesheet" href="/src/css/reminder-notes-base.css" />
+  <link rel="stylesheet" href="/src/css/privacy.css" />
+  <link rel="stylesheet" href="/src/css/shelf-lyrics.css" />
 
   <style>
     /* Shelf: item bisa diseret keluar notch. */
@@ -32,27 +32,28 @@
   </style>
 
   <!-- Stylesheet tata letak, fitur, dan penyesuaian (urutan menentukan cascade) -->
-  <link rel="stylesheet" href="/src/position.css" />
-  <link rel="stylesheet" href="/src/edge.css" />
-  <link rel="stylesheet" href="/src/window-bottom.css" />
-  <link rel="stylesheet" href="/src/bottom-play.css" />
-  <link rel="stylesheet" href="/src/reminder-alert.css" />
-  <link rel="stylesheet" href="/src/reminder-notes-compact.css" />
-  <link rel="stylesheet" href="/src/hub-layout.css" />
-  <link rel="stylesheet" href="/src/notes-input.css" />
-  <link rel="stylesheet" href="/src/reminder-picker.css" />
-  <link rel="stylesheet" href="/src/notes-expand.css" />
-  <link rel="stylesheet" href="/src/top-dock-fix.css" />
-  <link rel="stylesheet" href="/src/nudge.css" />
-  <link rel="stylesheet" href="/src/calendar.css" />
-  <link rel="stylesheet" href="/src/clock.css" />
-  <link rel="stylesheet" href="/src/hub-compact.css" />
-  <link rel="stylesheet" href="/src/prayer.css" />
-  <link rel="stylesheet" href="/src/prayer-alert.css" />
-  <link rel="stylesheet" href="/src/currency.css" />
-  <link rel="stylesheet" href="/src/update-banner.css" />
-  <link rel="stylesheet" href="/src/orb-drag.css" />
-  <link rel="stylesheet" href="/src/ramadan.css" />
+  <link rel="stylesheet" href="/src/css/position.css" />
+  <link rel="stylesheet" href="/src/css/edge.css" />
+  <link rel="stylesheet" href="/src/css/window-bottom.css" />
+  <link rel="stylesheet" href="/src/css/bottom-play.css" />
+  <link rel="stylesheet" href="/src/css/reminder-alert.css" />
+  <link rel="stylesheet" href="/src/css/reminder-notes-compact.css" />
+  <link rel="stylesheet" href="/src/css/hub-layout.css" />
+  <link rel="stylesheet" href="/src/css/notes-input.css" />
+  <link rel="stylesheet" href="/src/css/reminder-picker.css" />
+  <link rel="stylesheet" href="/src/css/notes-expand.css" />
+  <link rel="stylesheet" href="/src/css/top-dock-fix.css" />
+  <link rel="stylesheet" href="/src/css/nudge.css" />
+  <link rel="stylesheet" href="/src/css/calendar.css" />
+  <link rel="stylesheet" href="/src/css/clock.css" />
+  <link rel="stylesheet" href="/src/css/hub-compact.css" />
+  <link rel="stylesheet" href="/src/css/prayer.css" />
+  <link rel="stylesheet" href="/src/css/prayer-alert.css" />
+  <link rel="stylesheet" href="/src/css/currency.css" />
+  <link rel="stylesheet" href="/src/css/update-banner.css" />
+  <link rel="stylesheet" href="/src/css/orb-drag.css" />
+  <link rel="stylesheet" href="/src/css/ramadan.css" />
+  <link rel="stylesheet" href="/src/css/color-picker.css" />
 
   <script>
     // Migrasi ringan: tampilkan halaman Currency untuk konfigurasi lama sampai pengguna
@@ -88,7 +89,7 @@
   <script type="module">
     import {
       initCurrencyPage
-    } from "/src/currency.ts";
+    } from "/src/main-modules/currency.ts";
     initCurrencyPage();
   </script>
 </head>
@@ -413,11 +414,22 @@
                     </div>
                   </div>
 
+                  <div class="pk-days" id="pk-days" role="group" aria-label="Hari aktif" hidden>
+                    <button type="button" data-day="1" aria-pressed="false">Sen</button>
+                    <button type="button" data-day="2" aria-pressed="false">Sel</button>
+                    <button type="button" data-day="3" aria-pressed="false">Rab</button>
+                    <button type="button" data-day="4" aria-pressed="false">Kam</button>
+                    <button type="button" data-day="5" aria-pressed="false">Jum</button>
+                    <button type="button" data-day="6" aria-pressed="false">Sab</button>
+                    <button type="button" data-day="0" aria-pressed="false">Min</button>
+                  </div>
+
                   <div class="pk-actions">
                     <label for="pk-repeat-mode">Ulangi</label>
                     <select id="pk-repeat-mode" class="pk-repeat-mode" aria-label="Frekuensi pengulangan">
                       <option value="none">Tidak berulang</option>
                       <option value="daily">Setiap hari</option>
+                      <option value="weekly">Hari tertentu…</option>
                       <option value="monthly">Bulanan · tanggal yang sama</option>
                     </select>
                     <button id="pk-ok" class="pk-ok">Atur</button>
@@ -815,6 +827,27 @@
     <!-- /#shell -->
   </div>
   <!-- /#stage -->
+
+  <!-- Color Picker: panel statis, dibuka melalui shortcut global Ctrl+Shift+C -->
+  <section id="notch-color-picker" aria-label="Color Picker" hidden>
+    <div class="cp-head">
+      <div class="cp-title">Color Picker</div>
+      <button class="cp-close" type="button" aria-label="Tutup">×</button>
+    </div>
+    <p class="cp-desc">Ambil warna dari bagian mana pun di layar. Hasil HEX akan langsung disalin.</p>
+    <div class="cp-actions">
+      <button class="cp-action cp-primary" type="button" data-action="pick">Pilih warna</button>
+      <button class="cp-action" type="button" data-action="copy" hidden>Salin HEX</button>
+    </div>
+    <div class="cp-result" hidden>
+      <span class="cp-swatch" aria-hidden="true"></span>
+      <div class="cp-value">
+        <div class="cp-hex">—</div>
+        <div class="cp-status" role="status" aria-live="polite">Siap memilih warna</div>
+      </div>
+    </div>
+  </section>
+
 </body>
 
 </html>

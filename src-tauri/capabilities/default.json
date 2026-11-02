@@ -1,14 +1,25 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "windows": ["main", "settings", "note-detail"],
+  "windows": [
+    "main",
+    "settings",
+    "note-detail",
+    "compress",
+    "convert",
+    "share",
+    "android"
+  ],
   "permissions": [
     "core:default",
     "core:event:default",
     "core:window:allow-close",
+    "core:event:allow-emit",
     "core:window:allow-destroy",
     "core:window:allow-show",
     "core:window:allow-set-focus",
+    "core:window:allow-is-maximized",
+    "core:window:allow-is-fullscreen",
     "drag:default"
   ]
 }

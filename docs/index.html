@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Notch — Pendamping desktop</title>
-  <meta name="description" content="Notch adalah pendamping desktop ringkas untuk media, lirik, cuaca, timer fokus, pengingat, catatan, riwayat clipboard, file, status sistem, Mode Ramadan, dan Mode rapat.">
+  <meta name="description" content="Notch adalah pendamping desktop ringkas untuk media, lirik, cuaca, timer fokus, pengingat, catatan, clipboard, file, status sistem, Mode Ramadan, Mode rapat, serta alat Compress, Convert, Share, Color Picker, dan Android.">
   <meta name="theme-color" content="#f3f2ed">
   <style>
     :root {
@@ -146,6 +146,20 @@
     .key-row { display: grid; grid-template-columns: minmax(120px, .55fr) 1fr; gap: 24px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
     .key-row strong { font-weight: 650; }
     .key-row span { color: var(--muted); }
+
+    /* Alat & pintasan global */
+    kbd { font: 600 11px var(--mono); padding: 2px 6px; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; background: var(--panel); color: var(--ink); white-space: nowrap; }
+    .tool-list { border-top: 1px solid var(--line); }
+    .tool { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 28px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+    .tool:last-child { border-bottom: 0; }
+    .tool-key { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .tool-key h3 { font-size: 17px; }
+    .tool-key .keys { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 11px; color: var(--muted); }
+    .tool-body { max-width: 720px; }
+    .tool-body p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    .tool-body .plain-list { margin-top: 6px; }
+    .note { margin: 14px 0 0 !important; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--paper); border-radius: 4px; color: var(--muted); font-size: 13px !important; }
+
     .footer { padding: 26px 0 34px; display: flex; justify-content: space-between; align-items: center; gap: 20px; color: var(--muted); font-size: 12px; }
     .footer-links { display: flex; gap: 18px; flex-wrap: wrap; }
     .footer a { color: var(--muted); }
@@ -154,6 +168,7 @@
       .demo { max-width: 580px; width: 100%; }
       .feature-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .split { grid-template-columns: 1fr; gap: 26px; }
+      .tool { grid-template-columns: 1fr; gap: 12px; }
     }
     @media (max-width: 600px) {
       .shell { padding: 0 17px; }
@@ -211,6 +226,11 @@
     <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></symbol>
     <symbol id="i-cursor" viewBox="0 0 24 24"><path d="m5 3 14 7-6 2-2 6z"/></symbol>
     <symbol id="i-price-alert" viewBox="0 0 24 24"><path d="M18 8.5a6 6 0 0 0-12 0c0 5.5-2.5 6-2.5 7.5h17c0-1.5-2.5-2-2.5-7.5M10 20h4"/><path d="m8.5 12 2.5-2.5 1.8 1.5 2.7-3"/></symbol>
+    <symbol id="i-picker" viewBox="0 0 24 24"><path d="m14 7 3 3M4 20l1-4 9.5-9.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="m15 5 1.5-1.5a2.1 2.1 0 0 1 3 3L18 8"/></symbol>
+    <symbol id="i-compress" viewBox="0 0 24 24"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></symbol>
+    <symbol id="i-convert" viewBox="0 0 24 24"><path d="M4 8h14l-3-3M20 16H6l3 3"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol>
   </svg>
 
   <div class="shell">
@@ -221,6 +241,7 @@
       </a>
       <nav class="nav-links" aria-label="Main navigation">
         <a href="#features">Fitur</a>
+        <a href="#tools">Alat</a>
         <a href="#setup">Instalasi</a>
         <a href="#controls">Kontrol</a>
         <a class="nav-cta" href="https://github.com/bellukchips/dynamic-island-dekstop" >Repositori <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a>
@@ -232,7 +253,7 @@
         <div>
           <div class="eyebrow"><span class="status-dot"></span> Windows · Linux · Tauri 2</div>
           <h1>Panel kecil di tepi layar.<br>Dirancang untuk dipakai.</h1>
-          <p class="lead">Notch mengumpulkan hal-hal yang sering kamu cek sepanjang hari ke dalam satu pendamping desktop: media, lirik, cuaca, sesi fokus, pengingat, catatan, file, status sistem, jadwal Ramadan, dan mode rapat otomatis.</p>
+          <p class="lead">Notch mengumpulkan hal-hal yang sering kamu cek sepanjang hari ke dalam satu pendamping desktop: media, lirik, cuaca, sesi fokus, pengingat, catatan, file, status sistem, jadwal Ramadan, dan mode rapat otomatis. Ditambah alat yang bisa dipanggil dengan satu pintasan: compress, convert, share file, color picker, dan jembatan ke HP Android.</p>
           <div class="actions">
             <a class="button primary" href="https://github.com/bellukchips/dynamic-island-dekstop/releases"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> Unduh rilis</a>
             <a class="button" href="https://github.com/bellukchips/dynamic-island-dekstop"><svg class="icon" aria-hidden="true"><use href="#i-github"/></svg> Lihat kode sumber</a>
@@ -280,6 +301,11 @@
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-note"/></svg></span><h3>Catatan permanen</h3></div><p>Simpan catatan cepat dan buka detailnya di jendela terpisah. Catatan tetap tersimpan.</p></article>
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-clipboard"/></svg></span><h3>Riwayat clipboard</h3></div><p>Lihat isi clipboard terbaru, salin ulang item, atau bersihkan riwayat.</p></article>
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-folder"/></svg></span><h3>Shelf file</h3></div><p>Seret file ke notch agar mudah diakses sementara, lalu seret kembali ke File Explorer atau aplikasi lain.</p></article>
+          <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-picker"/></svg></span><h3>Color picker</h3></div><p>Ambil warna dari titik mana pun di layar dengan <code>Ctrl+Alt+P</code>, lalu salin nilainya ke clipboard. Cocok untuk desainer dan pengembang.</p></article>
+          <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-compress"/></svg></span><h3>Compress</h3></div><p>Kecilkan gambar, PDF, dan dokumen Office dengan target persentase yang kamu pilih. Perkiraan ukuran hasil tampil sebelum file disimpan. Buka dengan <code>Ctrl+Alt+K</code>.</p></article>
+          <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-convert"/></svg></span><h3>Convert</h3></div><p>Ubah format gambar, ubah PDF menjadi gambar per halaman, dan ubah dokumen Office menjadi PDF tanpa aplikasi tambahan untuk DOCX, XLSX, dan PPTX. Buka dengan <code>Ctrl+Alt+C</code>.</p></article>
+          <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-share"/></svg></span><h3>Share file lokal</h3></div><p>Kirim dan terima file lewat jaringan Wi-Fi yang sama. HP cukup memindai QR code, tanpa aplikasi atau kabel. Buka dengan <code>Ctrl+Alt+Shift+S</code>.</p></article>
+          <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-phone"/></svg></span><h3>Android: file &amp; mirror layar</h3></div><p>Jelajahi penyimpanan HP Android, transfer file lewat USB atau Wi-Fi, dan tampilkan layar HP di PC lengkap dengan kontrol sentuh dan keyboard. Buka dengan <code>Ctrl+Alt+A</code>.</p></article>
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-moon"/></svg></span><h3>Jadwal shalat</h3></div><p>Jadwal shalat harian, mode pengingat (adzan, nada, atau senyap), pengingat sebelum waktu masuk, dan audio adzan. Selama adzan berbunyi, notch menampilkan kartu atau awan percakapan yang tidak tertutup oleh klik, dan media yang sedang berjalan dijeda lalu dilanjutkan setelah adzan selesai.</p></article>
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-ramadan"/></svg></span><h3>Mode Ramadan</h3></div><p>Aktifkan dari tombol Ramadan di halaman shalat. Notch melebar dan menampilkan hitung mundur menuju imsak (sahur) dan Maghrib (buka puasa), imsakiyah hari ini lengkap dengan imsak, subuh, terbit, dzuhur, ashar, maghrib, dan isya, serta kartu dzikir setelah adzan yang bisa digeser. Setelah adzan selesai, notch menampilkan pengingat dzikir. Memakai jadwal shalat yang sudah tersimpan, dan pilihan aktif atau tidaknya diingat.</p></article>
           <article class="feature"><div class="feature-head"><span class="feature-icon"><svg class="icon"><use href="#i-lock"/></svg></span><h3>Indikator privasi</h3></div><p>Menampilkan indikator dan kartu pemberitahuan saat mikrofon atau kamera sedang digunakan.</p></article>
@@ -299,9 +325,90 @@
         </div>
       </section>
 
+      <section id="tools" class="section">
+        <div class="section-head">
+          <div><div class="kicker">02 / Alat &amp; pintasan global</div><h2>Jendela alat, satu pintasan.</h2></div>
+          <p class="section-intro">Pintasan ini bekerja di mana saja, bahkan saat aplikasi lain sedang aktif. Tekan sekali untuk membuka, tekan lagi saat jendelanya aktif untuk menutup. Jika pintasan bentrok dengan aplikasi lain, Notch tetap berjalan dan hanya pintasan itu yang tidak aktif.</p>
+        </div>
+
+        <div class="tool-list">
+
+          <article class="tool">
+            <div class="tool-key"><h3>Color picker</h3><span class="keys"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>P</kbd></span></div>
+            <div class="tool-body">
+              <p>Ambil warna dari titik mana pun di layar tanpa membuka aplikasi desain. Nilai warna yang dipilih bisa disalin ke clipboard untuk dipakai di editor kode atau alat desain.</p>
+              <ul class="plain-list">
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Bisa dibatalkan kapan saja sebelum warna dipilih.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Hasilnya masuk ke riwayat clipboard.</span></li>
+              </ul>
+            </div>
+          </article>
+
+          <article class="tool">
+            <div class="tool-key"><h3>Compress</h3><span class="keys"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>K</kbd></span></div>
+            <div class="tool-body">
+              <p>Seret file ke jendela atau pilih lewat dialog, lalu atur seberapa besar ukurannya ingin dikurangi (1–95%). Notch mencari pengaturan kualitas teringan yang masih memenuhi target, dan menampilkan perkiraan ukuran hasil sebelum kamu menyimpan.</p>
+              <ul class="plain-list">
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Gambar:</strong> JPG, PNG, dan BMP. BMP disimpan sebagai JPG.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>PDF:</strong> gambar di dalamnya dikecilkan. Jika Ghostscript terpasang, hasilnya jauh lebih kecil dan teks tetap bisa dipilih. Tanpa Ghostscript, Notch memakai mode dasar.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Dokumen Office:</strong> DOCX, XLSX, dan PPTX dikecilkan dengan menyusun ulang gambar di dalamnya.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>File lain:</strong> dikemas menjadi ZIP.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Hasil disimpan di samping file asli dengan akhiran <code>-compressed</code>. File asli tidak pernah ditimpa. Jika hasilnya tidak lebih kecil, Notch memberi tahu dan tidak menyimpan apa pun.</span></li>
+              </ul>
+              <p class="note">Untuk target ukuran yang sangat kecil pada PDF, Notch bisa mengubah halaman menjadi gambar abu-abu beresolusi rendah. Ukurannya turun jauh, tetapi teks tidak bisa dipilih lagi. Mode ini butuh <code>pdfium</code> dan hanya dipakai jika level biasa tidak mencapai target. Folder belum didukung.</p>
+            </div>
+          </article>
+
+          <article class="tool">
+            <div class="tool-key"><h3>Convert</h3><span class="keys"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>C</kbd></span></div>
+            <div class="tool-body">
+              <p>Pilih file, pilih format tujuan, lalu konversi. Format tujuan yang tersedia menyesuaikan jenis file, dan hasilnya selalu disimpan di samping file asli tanpa menimpa apa pun.</p>
+              <ul class="plain-list">
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Gambar:</strong> antara PNG, JPG, WebP, BMP, dan GIF, atau menjadi PDF satu halaman A4 dengan orientasi otomatis. Transparansi diratakan ke latar putih untuk format yang tidak mendukungnya.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>PDF ke gambar:</strong> setiap halaman menjadi PNG atau JPG. DPI (36–400) dan kualitas bisa diatur. PDF multi-halaman dikumpulkan dalam satu folder.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Office ke PDF:</strong> DOCX, XLSX, dan PPTX dikonversi dengan mesin bawaan, tanpa LibreOffice.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Format lama dan lain:</strong> DOC, XLS, PPT, ODT, ODS, ODP, RTF, TXT, dan CSV dikonversi ke PDF lewat LibreOffice jika terpasang. LibreOffice juga menjadi cadangan saat mesin bawaan gagal pada sebuah dokumen.</span></li>
+              </ul>
+              <p class="note">Konversi dari PDF butuh <code>pdfium</code> yang diletakkan di folder aplikasi. Jika belum ada, Notch menampilkan catatan alasan format tidak tersedia.</p>
+            </div>
+          </article>
+
+          <article class="tool">
+            <div class="tool-key"><h3>Share</h3><span class="keys"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></span></div>
+            <div class="tool-body">
+              <p>Kirim dan terima file antar perangkat di jaringan yang sama, tanpa kabel, akun, atau aplikasi di HP. Notch menjalankan server web kecil. Perangkat lain cukup memindai QR code atau membuka alamatnya di browser.</p>
+              <ul class="plain-list">
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Bagikan dari PC:</strong> tambahkan file, lalu perangkat lain mengunduhnya dari halaman web.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Terima di PC:</strong> perangkat lain bisa mengunggah file. File masuk disimpan di folder <code>Unduhan/Notch</code> dan bisa dibuka langsung dari jendela Share.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Antar Notch:</strong> kirim file langsung ke PC lain yang menjalankan Notch. Penerima bisa menerima atau menolak tiap penawaran, mempercayai perangkat tertentu agar otomatis diterima, dan memberi nama perangkat sendiri.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span>Alamat memuat token acak, jadi hanya orang yang memegang alamat atau QR itu yang bisa mengaksesnya.</span></li>
+              </ul>
+              <p class="note">Server hanya hidup selama jendela Share terbuka. Menutup jendela menghentikan server dan mengosongkan daftar file yang dibagikan. Saat ada penawaran file dari Notch lain, jendela Share otomatis muncul di depan.</p>
+            </div>
+          </article>
+
+          <article class="tool">
+            <div class="tool-key"><h3>Android</h3><span class="keys"><kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>A</kbd></span></div>
+            <div class="tool-body">
+              <p>Hubungkan HP Android lewat USB atau Wi-Fi debugging. Tidak perlu memasang aplikasi di HP. Notch memakai <code>adb</code> untuk menjelajahi file dan <code>scrcpy</code> untuk menampilkan layar.</p>
+              <ul class="plain-list">
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Jelajah file:</strong> lompat cepat ke Penyimpanan, Kamera, Unduhan, Gambar, Dokumen, dan Musik, atau telusuri folder lewat breadcrumb.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Transfer:</strong> unduh file atau folder ke <code>Unduhan/Notch/Android</code> dan kirim file ke folder yang sedang dibuka, dengan tombol atau drag &amp; drop. Notch menampilkan kartu “Unduhan selesai” setelah unduhan beres.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Wi-Fi debugging (Android 11+):</strong> pairing sekali dengan kode 6 digit, lalu sambungkan lewat alamat IP. Beberapa HP bisa terdaftar sekaligus.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Mirror layar:</strong> layar HP tampil di PC. Klik kiri untuk sentuh, seret untuk menggeser, roda mouse untuk scroll, dan keyboard untuk mengetik. Klik kanan berfungsi sebagai Kembali dan klik tengah sebagai Home.</span></li>
+                <li><svg class="icon"><use href="#i-check"/></svg><span><strong>Tombol ala HP:</strong> Kembali, Home, dan Recent di bawah layar, serta Power dan Volume di sisi kanan.</span></li>
+              </ul>
+              <p style="margin-top:14px">Jendela bisa diminimalkan, dimaksimalkan, atau dibuat fullscreen dengan dobel-klik header. <kbd>Esc</kbd> menutup mirror, lalu keluar dari fullscreen, lalu menutup jendela. <kbd>Ctrl</kbd> + <kbd>M</kbd> membuka dan menutup mirror.</p>
+              <p class="note">Syarat: aktifkan <em>Opsi pengembang → Debugging USB</em> di HP dan setujui dialog izin saat pertama tersambung. <code>adb</code> dan <code>scrcpy-server.jar</code> harus tersedia di folder resource aplikasi. Mirror butuh WebView2 di Windows. WebKitGTK di Linux umumnya belum mendukung fitur ini, jadi di Linux hanya jelajah dan transfer file yang tersedia.</p>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
       <section id="setup" class="section">
         <div class="section-head">
-          <div><div class="kicker">02 / Setup pengembang</div><h2>Build di komputer sendiri.</h2></div>
+          <div><div class="kicker">03 / Setup pengembang</div><h2>Build di komputer sendiri.</h2></div>
           <p class="section-intro">Situs dokumentasi terpisah dari aplikasi Tauri. Vite hanya membundel halaman HTML yang didaftarkan di konfigurasi proyek. Publikasikan folder <code>docs/</code> melalui Settings → Pages pada repositori GitHub.</p>
         </div>
         <div class="split">
@@ -329,7 +436,7 @@ npm run tauri build</code></pre></div></div>
 
       <section id="controls" class="section">
         <div class="section-head">
-          <div><div class="kicker">03 / Kontrol sehari-hari</div><h2>Gerakan kecil, akses cepat.</h2></div>
+          <div><div class="kicker">04 / Kontrol sehari-hari</div><h2>Gerakan kecil, akses cepat.</h2></div>
           <p class="section-intro">Buka hub dari notch, lalu ganti halaman melalui navigasi hub atau dengan menggulir.</p>
         </div>
         <div class="split">
@@ -344,6 +451,12 @@ npm run tauri build</code></pre></div></div>
             <div class="key-row"><strong>Jatuhkan file</strong><span>Tambahkan ke shelf file</span></div>
             <div class="key-row"><strong>Klik kanan item shelf</strong><span>Tampilkan file di foldernya</span></div>
             <div class="key-row"><strong>Menu tray</strong><span>Buka Pengaturan, pusatkan notch, atau keluar</span></div>
+            <div class="key-row"><strong><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd></strong><span>Color picker</span></div>
+            <div class="key-row"><strong><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>K</kbd></strong><span>Buka atau tutup Compress</span></div>
+            <div class="key-row"><strong><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd></strong><span>Buka atau tutup Convert</span></div>
+            <div class="key-row"><strong><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></strong><span>Buka atau tutup Share</span></div>
+            <div class="key-row"><strong><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>A</kbd></strong><span>Buka atau tutup jendela Android</span></div>
+            <div class="key-row"><strong><kbd>Esc</kbd> di jendela alat</strong><span>Tutup jendela (di Android: tutup mirror, lalu keluar fullscreen, lalu tutup jendela)</span></div>
           </div>
           <div class="key-table">
             <div class="key-row"><strong><code>1</code>–<code>7</code></strong><span>Ganti ekspresi mata</span></div>
@@ -362,7 +475,7 @@ npm run tauri build</code></pre></div></div>
 
       <section id="config" class="section">
         <div class="section-head">
-          <div><div class="kicker">04 / Konfigurasi</div><h2>Atur hub sesuai kebutuhan.</h2></div>
+          <div><div class="kicker">05 / Konfigurasi</div><h2>Atur hub sesuai kebutuhan.</h2></div>
           <p class="section-intro">Gunakan jendela Pengaturan atau ubah <code>config.toml</code> langsung. Urutan halaman mengikuti ID di dalam daftar <code>pages</code>.</p>
         </div>
         <div class="split">

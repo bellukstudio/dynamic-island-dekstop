@@ -1,0 +1,131 @@
+/* ---------- Color Picker ---------- */
+#notch-color-picker {
+  position: fixed;
+  z-index: 2147483000;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(340px, calc(100vw - 24px));
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  color: #f7f8fc;
+  background: rgba(24, 27, 36, 0.97);
+  box-shadow: 0 14px 42px rgba(0, 0, 0, 0.38);
+  font:
+    12px/1.45 Inter,
+    system-ui,
+    sans-serif;
+  backdrop-filter: blur(18px);
+  pointer-events: auto;
+  isolation: isolate;
+}
+
+#notch-color-picker[hidden],
+#notch-color-picker [hidden] {
+  display: none !important;
+}
+
+#notch-color-picker .cp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#notch-color-picker .cp-title {
+  font-size: 13px;
+  font-weight: 750;
+}
+
+#notch-color-picker .cp-close {
+  border: 0;
+  padding: 0 4px;
+  background: transparent;
+  color: #aeb5c5;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#notch-color-picker .cp-desc {
+  margin: 5px 0 12px;
+  color: #aeb5c5;
+}
+
+#notch-color-picker .cp-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#notch-color-picker button.cp-action {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  padding: 8px 11px;
+  color: #f7f8fc;
+  background: #303747;
+  font:
+    600 12px Inter,
+    system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+
+#notch-color-picker button.cp-primary {
+  border-color: #7185ff;
+  background: #7185ff;
+  color: #fff;
+}
+
+#notch-color-picker button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+#notch-color-picker .cp-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+#notch-color-picker .cp-swatch {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 9px;
+  background: #777;
+}
+
+#notch-color-picker .cp-value {
+  min-width: 0;
+  flex: 1;
+}
+
+#notch-color-picker .cp-hex {
+  font:
+    700 13px ui-monospace,
+    "Cascadia Code",
+    Consolas,
+    monospace;
+}
+
+#notch-color-picker .cp-status {
+  margin-top: 3px;
+  color: #aeb5c5;
+  font-size: 11px;
+}
+
+@media (max-width: 420px) {
+  #notch-color-picker {
+    top: 8px;
+    width: calc(100vw - 16px);
+  }
+}
+
+#notch-color-picker button,
+#notch-color-picker button * {
+  pointer-events: auto;
+}

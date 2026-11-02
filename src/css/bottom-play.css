@@ -1,0 +1,185 @@
+/* Bottom Play / Side Play — transform ringan, gerak native dikoreksi CSS tiap frame. */
+#shell[data-play] {
+  translate: var(--bp-x, 0px) var(--bp-y, 0px);
+  rotate: var(--bp-r, 0deg);
+  scale: var(--bp-sx, 1) var(--bp-sy, 1);
+  will-change: translate, rotate, scale;
+  transition: none !important;
+}
+
+/* Di bawah, pusat transform ada di alas agar tidak terlihat terangkat. */
+#shell[data-play-axis="bottom"] {
+  transform-origin: 50% 100%;
+}
+
+/* Di samping, gerak menyusuri tepi secara vertikal dan sisi luar menjadi jangkar. */
+#shell[data-play-axis="side"] {
+  transform-origin: 50% 50%;
+}
+#shell.is-edge-left[data-play-axis="side"] {
+  transform-origin: 0% 50%;
+}
+#shell.is-edge-right[data-play-axis="side"] {
+  transform-origin: 100% 50%;
+}
+
+/* Hantu di samping: meninggi ke arah bawah (ruang di atas terbatas oleh batas jendela). */
+#shell.is-edge-left[data-play="ghost"][data-play-axis="side"] {
+  transform-origin: 0% 0%;
+}
+#shell.is-edge-right[data-play="ghost"][data-play-axis="side"] {
+  transform-origin: 100% 0%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shell[data-play] {
+    translate: none;
+    rotate: none;
+    scale: none;
+    will-change: auto;
+  }
+}
+
+/* ---------- Awan percakapan (Conversation Moments + Focus Companion di kiri/bawah) ----------
+   Hanya opacity + scale yang dianimasikan. Elemen dibuat moment-bubble.ts di dalam #shell. */
+.moment-bubble {
+  --mb-s: var(--s, 1);
+  position: absolute;
+  z-index: 30;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(240px * var(--mb-s));
+  padding: calc(9px * var(--mb-s)) calc(14px * var(--mb-s));
+  border-radius: calc(18px * var(--mb-s));
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow:
+    0 0 0 1px rgba(var(--fg-rgb), 0.08),
+    0 8px 22px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.18s ease,
+    visibility 0s linear 0.18s;
+  will-change: opacity, scale;
+}
+.moment-bubble.show {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.18s ease;
+  animation: mb-pop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.moment-bubble .mb-text {
+  font-size: calc(12.5px * var(--mb-s));
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.moment-bubble .mb-sub {
+  margin-top: 2px;
+  font-size: calc(10.5px * var(--mb-s));
+  line-height: 1.25;
+  color: rgba(var(--fg-rgb), 0.56);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Awan pengingat (bertombol): lebih lebar, teks sampai 4 baris, tombol Tunda/Selesai bisa diklik */
+.moment-bubble.has-actions {
+  max-width: calc(280px * var(--mb-s));
+}
+.moment-bubble.has-actions .mb-text {
+  -webkit-line-clamp: 4;
+}
+.moment-bubble .mb-actions {
+  display: flex;
+  gap: calc(8px * var(--mb-s));
+  margin-top: calc(8px * var(--mb-s));
+}
+.moment-bubble .mb-actions[hidden] {
+  display: none;
+}
+.moment-bubble .mb-btn {
+  all: unset;
+  box-sizing: border-box;
+  height: calc(24px * var(--mb-s));
+  padding: 0 calc(11px * var(--mb-s));
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  background: rgba(var(--fg-rgb), 0.12);
+  font-size: calc(11px * var(--mb-s));
+  font-weight: 600;
+  cursor: pointer;
+  pointer-events: auto; /* awan sendiri pointer-events: none; hanya tombol yang menerima klik */
+  transition: background 0.15s, transform 0.1s;
+}
+.moment-bubble .mb-btn:hover {
+  background: rgba(var(--fg-rgb), 0.22);
+}
+.moment-bubble .mb-btn:active {
+  transform: scale(0.94);
+}
+.moment-bubble .mb-btn.primary {
+  background: rgb(var(--accent));
+  color: #000;
+}
+
+/* ekor awan: kotak diputar 45°, warnanya sama dengan badan awan */
+.moment-bubble::after {
+  content: "";
+  position: absolute;
+  width: calc(12px * var(--mb-s));
+  height: calc(12px * var(--mb-s));
+  background: var(--bg);
+  border-radius: calc(3px * var(--mb-s));
+  rotate: 45deg;
+}
+
+/* Di bawah: awan di atas notch, ekor mengarah ke bawah. */
+.moment-bubble[data-side="bottom"] {
+  bottom: calc(100% + 10px * var(--mb-s));
+  transform-origin: var(--tail-x, 50%) 100%;
+}
+.moment-bubble[data-side="bottom"]::after {
+  left: calc(var(--tail-x, 50%) - 6px * var(--mb-s));
+  bottom: calc(-5px * var(--mb-s));
+}
+
+/* Kiri: awan di kanan notch, ekor mengarah ke kiri, sejajar tengah notch. */
+.moment-bubble[data-side="left"] {
+  left: calc(100% + 4px * var(--mb-s));
+  top: 50%;
+  translate: 0 -50%;
+  transform-origin: 0% 50%;
+}
+.moment-bubble[data-side="left"]::after {
+  left: calc(-5px * var(--mb-s));
+  top: calc(50% - 6px * var(--mb-s));
+}
+
+/* Kanan (hanya bila BUBBLE_ON_RIGHT = true di moment-bubble.ts) */
+.moment-bubble[data-side="right"] {
+  right: calc(100% + 4px * var(--mb-s));
+  top: 50%;
+  translate: 0 -50%;
+  transform-origin: 100% 50%;
+}
+.moment-bubble[data-side="right"]::after {
+  right: calc(-5px * var(--mb-s));
+  top: calc(50% - 6px * var(--mb-s));
+}
+
+@keyframes mb-pop {
+  0% { scale: 0.55; }
+  100% { scale: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment-bubble.show { animation: none; }
+}

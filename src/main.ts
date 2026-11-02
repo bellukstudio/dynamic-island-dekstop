@@ -1,22 +1,22 @@
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { initNudge } from "./nudge";
-import { initGreeting } from "./greeting";
-import { openExternalUrl } from "./open-external";
-import { initMoments, setMeetingMode, noteMedia, noteWeather, noteBattery, noteActivity, focusStarted, focusTick, focusFinished } from "./moments";
-import { loadFace, saveFace, startClock } from "./clock";
-import { initCalendar, goToday, shiftMonth } from "./calendar";
-import { initHubNav } from "./hub-nav";
-import { initPrayer } from "./prayer";
-import { initBottomPlay } from "./bottom-play";
+import { initNudge } from "./main-modules/nudge";
+import { initGreeting } from "./main-modules/greeting";
+import { openExternalUrl } from "./main-modules/open-external";
+import { initMoments, setMeetingMode, noteMedia, noteWeather, noteBattery, noteActivity, focusStarted, focusTick, focusFinished } from "./main-modules/moments";
+import { loadFace, saveFace, startClock } from "./main-modules/clock";
+import { initCalendar, goToday, shiftMonth } from "./main-modules/calendar";
+import { initHubNav } from "./main-modules/hub-nav";
+import { initPrayer } from "./main-modules/prayer";
+import { initBottomPlay } from "./main-modules/bottom-play";
 import { getVersion } from "@tauri-apps/api/app";
-import { loadRemoteUpdateConfig, type RemoteUpdateConfig } from "./firebase";
-import { initEyeBreak } from "./eye-break";
-import { initPriceAlert } from "./price-alert";
-import { initMoodMouth } from "./mood-mouth";
-import { initAdhanFace } from "./adhan-face";
-import { initMomentBubble } from "./moment-bubble";
+import { loadRemoteUpdateConfig, type RemoteUpdateConfig } from "./main-modules/firebase";
+import { initEyeBreak } from "./main-modules/eye-break";
+import { initPriceAlert } from "./main-modules/price-alert";
+import { initMoodMouth } from "./main-modules/mood-mouth";
+import { initAdhanFace } from "./main-modules/adhan-face";
+import { initMomentBubble } from "./main-modules/moment-bubble";
 declare global {
     interface Window {
         __NOTCH_UPDATE_CONFIG__?: RemoteUpdateConfig;
@@ -37,8 +37,8 @@ import * as weatherHud from './main-modules/weather-hud';
 import * as pomodoro from './main-modules/pomodoro';
 import * as quickStats from './main-modules/quick-stats';
 import * as clipboardPrivacy from './main-modules/clipboard-privacy';
+import * as colorPicker from './main-modules/color-picker';
 import * as lyrics from './main-modules/lyrics';
-import * as calendar from './main-modules/calendar';
 import * as shelf from './main-modules/shelf';
 import * as reminders from './main-modules/reminders';
 import * as notes from './main-modules/notes';
@@ -81,6 +81,7 @@ const ctx: Record<string, any> = {
 
 // Register function declarations first to preserve their original hoisting behavior.
   configState.register(ctx);
+  
   windowLayout.register(ctx);
   viewController.register(ctx);
   mood.register(ctx);
@@ -94,8 +95,8 @@ const ctx: Record<string, any> = {
   pomodoro.register(ctx);
   quickStats.register(ctx);
   clipboardPrivacy.register(ctx);
+  colorPicker.register(ctx);
   lyrics.register(ctx);
-  calendar.register(ctx);
   shelf.register(ctx);
   reminders.register(ctx);
   notes.register(ctx);
@@ -106,8 +107,14 @@ const ctx: Record<string, any> = {
 
 // Execute module initialization in the same order as the original main.ts.
   configState.init(ctx);
+  ctx.initCalendar(); 
   // Restore the Conversation Moments / Focus Companion speech cloud.
-  ctx.momentBubble = initMomentBubble({ shell: ctx.$("shell"), notch: ctx.notch });
+  ctx.momentBubble = initMomentBubble({
+    shell: ctx.$("shell"),
+    notch: ctx.notch,
+    // awan bertombol (pengingat) harus ikut masuk area klik native, kalau tidak klik tembus ke aplikasi lain
+    onLayout: () => ctx.setHit?.(ctx.notch.dataset.view ?? "idle"),
+  });
   // Restore idle mood-mouth and adhan mouth/face animations.
   initMoodMouth(ctx.eyes);
   ctx.adhanFace = initAdhanFace(ctx.notch, ctx.eyes);
@@ -124,8 +131,8 @@ const ctx: Record<string, any> = {
   pomodoro.init(ctx);
   quickStats.init(ctx);
   clipboardPrivacy.init(ctx);
+  colorPicker.init(ctx);
   lyrics.init(ctx);
-  calendar.init(ctx);
   shelf.init(ctx);
   reminders.init(ctx);
   notes.init(ctx);

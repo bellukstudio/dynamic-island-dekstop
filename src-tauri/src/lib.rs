@@ -13,6 +13,9 @@ mod weather;
 mod stats;
 mod fullscreen;
 mod clipboard;
+mod colorpick;
+mod compress;
+mod convert;
 mod privacy;
 mod lyrics;
 mod shelf;
@@ -21,6 +24,11 @@ mod reminder;
 mod prayer;
 mod currency;
 mod open_url;
+mod officepdf;
+mod share;
+mod android;
+mod foreground;
+
 #[cfg(target_os = "linux")]
 mod osd_control;
 #[cfg(target_os = "windows")]
@@ -445,7 +453,35 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(cfg_plugin)
         .plugin(tauri_plugin_drag::init()) // drag keluar: notch -> File Explorer
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        use tauri_plugin_global_shortcut::{Code, Modifiers};
+                        if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyK) {
+                            compress::toggle_window(app); // Ctrl+Alt+K: jendela Compress
+                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyC) {
+                            convert::toggle_window(app); // Ctrl+Alt+C: jendela Convert
+                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT, Code::KeyS) {
+                            share::toggle_window(app); // Ctrl+Alt+Shift+S: jendela Share (kirim/terima file)
+                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyA) {
+                            android::toggle_window(app); // Ctrl+Alt+A: jendela Android (adb)
+                        } else if shortcut.matches(Modifiers::CONTROL | Modifiers::ALT, Code::KeyP) {
+                            let _ = app.emit("color-picker-shortcut", ()); // Ctrl+Alt+P: color picker
+                        }
+                        // kombinasi lain yang tidak terdaftar sengaja diabaikan (bukan lagi jatuh ke color picker)
+                    }
+                })
+                .build(),
+        )
         .setup(|app| {
+            use tauri_plugin_global_shortcut::GlobalShortcutExt;
+            app.global_shortcut().register("Ctrl+Alt+P")?;
+            // Shortcut Compress & Convert: bila sudah dipakai aplikasi lain, abaikan saja (jangan gagalkan startup).
+            let _ = app.global_shortcut().register("Ctrl+Alt+K");
+            let _ = app.global_shortcut().register("Ctrl+Alt+C");
+            let _ = app.global_shortcut().register("Ctrl+Alt+Shift+S");
+            let _ = app.global_shortcut().register("Ctrl+Alt+A");
             let win = app.get_webview_window("main").unwrap();
             // Pantau area kerja monitor: berubah saat taskbar di-hide/ditampilkan, dipindah, atau resolusi berubah.
             // Frontend lalu memperbarui batas bawahnya sehingga notch bisa turun mentok / naik di atas taskbar.
@@ -648,6 +684,7 @@ pub fn run() {
             privacy::start(app.handle().clone());
             shelf::start(app.handle().clone());
             reminder::start(app.handle().clone());
+            share::lan::start_background(app.handle().clone()); // Share: terima dari Notch lain bila diaktifkan
             // setelah semua modul mendaftar: satu PowerShell bersama untuk perangkat/kecerahan/Bluetooth
             #[cfg(target_os = "windows")]
             winps::start();
@@ -681,6 +718,58 @@ pub fn run() {
             clipboard::clip_list,
             clipboard::clip_copy,
             clipboard::clip_clear,
+            clipboard::color_copy,
+            colorpick::color_pick_screen,
+            colorpick::color_pick_cancel,
+            compress::compress_file_info,
+            compress::compress_estimate,
+            compress::compress_run_one,
+            compress::compress_pick_files,
+            compress::compress_reveal,
+            compress::compress_close,
+            compress::compress_drag,
+            convert::convert_file_info,
+            convert::convert_run_one,
+            convert::convert_pick_files,
+            convert::convert_reveal,
+            convert::convert_close,
+            convert::convert_drag,
+            share::share_start,
+            share::share_stop,
+            share::share_state,
+            share::share_add,
+            share::share_remove,
+            share::share_pick_files,
+            share::share_open_inbox,
+            share::share_reveal,
+            share::share_close,
+            share::share_drag,
+            share::lan::lan_state,
+            share::lan::lan_set_enabled,
+            share::lan::lan_set_name,
+            share::lan::lan_set_auto_accept,
+            share::lan::lan_untrust,
+            share::lan::lan_respond,
+            share::lan::lan_send,
+            share::lan::lan_pick_folder,
+            android::android_status,
+            android::android_devices,
+            android::android_ls,
+            android::android_push,
+            android::android_pull,
+            android::android_pair,
+            android::android_connect,
+            android::android_disconnect,
+            android::android_pick_files,
+            android::android_reveal,
+            android::android_close,
+            android::android_drag,
+            android::android_mirror_start,
+            android::android_mirror_stop,
+            android::android_toggle_fullscreen,
+            android::android_escape,
+            android::android_minimize,
+            android::android_toggle_maximize,
             lyrics::lyrics_fetch,
             shelf::shelf_list,
             shelf::shelf_add,

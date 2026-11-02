@@ -1,0 +1,101 @@
+/* Tambahan untuk jendela Convert. Dimuat SETELAH compress.css (memakai ulang semua gaya dasarnya). */
+
+/* konten bisa lebih tinggi dari jendela bila panel opsi lengkap: boleh di-scroll */
+main {
+  overflow-y: auto;
+}
+main::-webkit-scrollbar {
+  width: 6px;
+}
+main::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+}
+.list {
+  max-height: 232px;
+  flex: none;
+}
+
+/* teks format asal: tanpa coretan seperti di Compress */
+.sz .from.plain {
+  color: var(--fg-dim);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+/* dropdown format tujuan */
+.sel {
+  appearance: none;
+  height: 30px;
+  padding: 0 28px 0 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c8cbe0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 9px center / 11px;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color-scheme: dark;
+  transition:
+    background-color 0.15s,
+    border-color 0.15s;
+}
+.sel:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(124, 140, 255, 0.5);
+}
+.sel:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.sel option {
+  background: #1a1b23;
+  color: var(--fg);
+}
+
+/* panel opsi */
+.opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.opt + .opt {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.opt .lbl {
+  color: var(--fg-dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+.opt.stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+.opt-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.opt .val {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.opt .val span {
+  font-size: inherit;
+}
+.opt.stack input[type="range"] {
+  margin: 8px 0 0;
+}
+.presets {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

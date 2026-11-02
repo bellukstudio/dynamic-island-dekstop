@@ -1,0 +1,9 @@
+{
+    "bundle": {
+        "resources": {
+            "gs/**/*": "gs/",
+            "pdfium/*": "pdfium/",
+            "adb/*": "adb/"
+        }
+    }
+}

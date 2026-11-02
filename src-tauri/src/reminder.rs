@@ -13,7 +13,7 @@ pub struct Reminder {
     pub done: bool,
     #[serde(default)]
     pub notified: bool,
-    /// Mode pengulangan: "none", "daily", atau "monthly".
+    /// Mode pengulangan: "none", "daily", "weekly" (hari tertentu), atau "monthly".
     #[serde(default)]
     pub repeat_mode: String,
     /// Disimpan untuk membaca data reminder versi lama.
@@ -28,6 +28,10 @@ pub struct Reminder {
     /// Hasil Date.getTimezoneOffset() dari frontend.
     #[serde(default)]
     pub repeat_timezone_offset_minutes: i32,
+    /// Hari aktif untuk mode "weekly" sebagai bitmask: bit 0 = Minggu, 1 = Senin, ... 6 = Sabtu
+    /// (sama dengan Date.getDay() di JavaScript).
+    #[serde(default)]
+    pub repeat_weekdays: u8,
 }
 
 fn path() -> PathBuf {
@@ -39,6 +43,7 @@ static ITEMS: Mutex<Option<Vec<Reminder>>> = Mutex::new(None);
 const MINUTE_MS: i64 = 60_000;
 const HOUR_MS: i64 = 60 * MINUTE_MS;
 const DAY_MS: i64 = 24 * HOUR_MS;
+const WEEK_MASK: u8 = 0b0111_1111;
 
 fn now_ms() -> i64 {
     SystemTime::now()
@@ -114,6 +119,8 @@ fn sorted(mut items: Vec<Reminder>) -> Vec<Reminder> {
 fn effective_repeat_mode(r: &Reminder) -> &str {
     if r.repeat_mode == "monthly" {
         "monthly"
+    } else if r.repeat_mode == "weekly" && (r.repeat_weekdays & WEEK_MASK) != 0 {
+        "weekly"
     } else if r.repeat_mode == "daily" || r.repeat_daily {
         "daily"
     } else {
@@ -132,21 +139,29 @@ pub fn reminders_add(
     due_at: i64,
     repeat_mode: String,
     timezone_offset_minutes: i32,
+    repeat_weekdays: Option<u8>,
 ) -> Vec<Reminder> {
     with_items(|items| {
         let text: String = text.trim().chars().take(200).collect();
-        let due_at = due_at.max(0);
+        let mut due_at = due_at.max(0);
+        let weekdays = repeat_weekdays.unwrap_or(0) & WEEK_MASK;
         let repeat_mode = if due_at == 0 {
             "none".to_string()
         } else {
             match repeat_mode.as_str() {
                 "daily" => "daily".to_string(),
                 "monthly" => "monthly".to_string(),
+                // "weekly" tanpa hari terpilih tidak bermakna -> diperlakukan tidak berulang
+                "weekly" if weekdays != 0 => "weekly".to_string(),
                 _ => "none".to_string(),
             }
         };
         let repeat_daily = repeat_mode == "daily";
         let offset = timezone_offset_minutes.clamp(-840, 840);
+        // Jadwal pertama harus jatuh pada hari yang aktif: geser ke hari aktif terdekat (jam tetap).
+        if repeat_mode == "weekly" {
+            due_at = next_weekly_occurrence(due_at, offset, weekdays, due_at - 1);
+        }
         let repeat_day_of_month = if repeat_mode == "monthly" {
             local_parts(due_at, offset).2 as i32
         } else {
@@ -165,6 +180,7 @@ pub fn reminders_add(
                 repeat_anchor_at: if repeat_mode == "none" { 0 } else { due_at },
                 repeat_day_of_month,
                 repeat_timezone_offset_minutes: if repeat_mode == "none" { 0 } else { offset },
+                repeat_weekdays: if repeat_mode == "weekly" { weekdays } else { 0 },
             });
         }
         sorted(items.clone())
@@ -305,10 +321,40 @@ fn next_monthly_occurrence(anchor_ms: i64, offset_minutes: i32, desired_day: i64
     now.saturating_add(31 * DAY_MS)
 }
 
+// Hari dalam pekan (0 = Minggu ... 6 = Sabtu) untuk jumlah hari sejak epoch. 1 Jan 1970 = Kamis.
+fn weekday_from_days(days_since_epoch: i64) -> u8 {
+    (days_since_epoch + 4).rem_euclid(7) as u8
+}
+
+// Kejadian berikutnya (> now) pada salah satu hari aktif, memakai jam/menit dari jangkar.
+fn next_weekly_occurrence(anchor_ms: i64, offset_minutes: i32, weekdays: u8, now: i64) -> i64 {
+    let (_, _, _, hour, minute) = local_parts(anchor_ms, offset_minutes);
+    let local_now = now.saturating_sub(offset_minutes as i64 * MINUTE_MS);
+    let today = local_now.div_euclid(DAY_MS);
+    for add in 0..=7 {
+        let day = today + add;
+        if weekdays & (1 << weekday_from_days(day)) == 0 {
+            continue;
+        }
+        let (y, m, d) = civil_from_days(day);
+        let candidate = local_datetime_to_timestamp_ms(y, m, d, hour, minute, offset_minutes);
+        if candidate > now {
+            return candidate;
+        }
+    }
+    now.saturating_add(DAY_MS)
+}
+
 fn next_occurrence(r: &Reminder, now: i64) -> Option<i64> {
     let anchor = if r.repeat_anchor_at > 0 { r.repeat_anchor_at } else { r.due_at };
     match effective_repeat_mode(r) {
         "daily" => Some(next_daily_occurrence(anchor, now)),
+        "weekly" => Some(next_weekly_occurrence(
+            anchor,
+            r.repeat_timezone_offset_minutes,
+            r.repeat_weekdays & WEEK_MASK,
+            now,
+        )),
         "monthly" => Some(next_monthly_occurrence(
             anchor,
             r.repeat_timezone_offset_minutes,
