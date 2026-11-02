@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+//import { getCurrentWindow } from "@tauri-apps/api/window";
 
 interface Device { serial: string; state: string; model: string; wifi: boolean }
 interface Entry { name: string; is_dir: boolean; size: number; date: string }
