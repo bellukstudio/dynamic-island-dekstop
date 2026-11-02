@@ -2,7 +2,8 @@
     "bundle": {
         "resources": {
             "pdfium-linux/*": "pdfium/",
-            "adb-linux/*": "adb/"
+            "adb-linux/*": "adb/",
+            "resources/scrcpy-server.jar": "resources/"
         }
     }
 }

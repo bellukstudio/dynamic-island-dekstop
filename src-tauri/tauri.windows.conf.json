@@ -3,7 +3,8 @@
         "resources": {
             "gs/**/*": "gs/",
             "pdfium/*": "pdfium/",
-            "adb/*": "adb/"
+            "adb/*": "adb/",
+            "resources/scrcpy-server.jar": "resources/"
         }
     }
 }
