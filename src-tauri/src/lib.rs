@@ -27,6 +27,7 @@ mod open_url;
 mod officepdf;
 mod share;
 mod android;
+mod whatsapp;
 mod foreground;
 
 #[cfg(target_os = "linux")]
@@ -423,7 +424,8 @@ fn set_hit_area(window: tauri::WebviewWindow, x: i32, y: i32, w: i32, h: i32) {
 pub fn run() {
     // Windows: tekan aktivitas latar & memori WebView2. Harus diset SEBELUM webview pertama dibuat.
     // Daftar --disable-features sama dengan bawaan Tauri. Mau menimpa? set sendiri env var ini sebelum
-    // menjalankan app. Kalau tampilan jadi aneh, hapus --enable-low-end-device-mode dulu.
+    // menjalankan app. Sengaja TIDAK memakai --enable-low-end-device-mode: mode itu mematikan raster GPU dan
+    // memperkecil tile sehingga scroll WhatsApp Web patah-patah (apalagi dengan efek blur).
     #[cfg(target_os = "windows")]
     {
         if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
@@ -432,7 +434,6 @@ pub fn run() {
                 std::env::set_var(
                     "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
                     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
-                     --enable-low-end-device-mode \
                      --disable-background-networking \
                      --disable-component-update \
                      --disable-domain-reliability \
@@ -504,6 +505,11 @@ pub fn run() {
                             Code::KeyP,
                         ) {
                             let _ = app.emit("color-picker-shortcut", ()); // Ctrl+Alt+Shift+P: color picker
+                        } else if shortcut.matches(
+                            Modifiers::CONTROL | Modifiers::ALT | Modifiers::SHIFT,
+                            Code::KeyW,
+                        ) {
+                            whatsapp::toggle_window(app); // Ctrl+Alt+Shift+W: dua akun WhatsApp
                         }
                         // kombinasi lain yang tidak terdaftar sengaja diabaikan (bukan lagi jatuh ke color picker)
                     }
@@ -518,6 +524,7 @@ pub fn run() {
             let _ = app.global_shortcut().register("Ctrl+Alt+Shift+C");
             let _ = app.global_shortcut().register("Ctrl+Alt+Shift+S");
             let _ = app.global_shortcut().register("Ctrl+Alt+Shift+A");
+            let _ = app.global_shortcut().register("Ctrl+Alt+Shift+W");
             let win = app.get_webview_window("main").unwrap();
             // Pantau area kerja monitor: berubah saat taskbar di-hide/ditampilkan, dipindah, atau resolusi berubah.
             // Frontend lalu memperbarui batas bawahnya sehingga notch bisa turun mentok / naik di atas taskbar.
@@ -846,6 +853,18 @@ pub fn run() {
             android::android_escape,
             android::android_minimize,
             android::android_toggle_maximize,
+            whatsapp::whatsapp_status,
+            whatsapp::whatsapp_report_new_message,
+            whatsapp::whatsapp_set_preview,
+            whatsapp::whatsapp_set_pin,
+            whatsapp::whatsapp_unlock,
+            whatsapp::whatsapp_set_view,
+            whatsapp::whatsapp_change_pin,
+            whatsapp::whatsapp_lock,
+            whatsapp::whatsapp_set_notifications,
+            whatsapp::whatsapp_set_background,
+            whatsapp::whatsapp_set_blur,
+            whatsapp::whatsapp_close_manager,
             lyrics::lyrics_fetch,
             shelf::shelf_list,
             shelf::shelf_add,
@@ -888,11 +907,13 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("gagal membangun aplikasi")
-        .run(|_app_handle, event| {
-            if let tauri::RunEvent::Exit = event {
+        .run(|app_handle, event| match event {
+            tauri::RunEvent::Ready => whatsapp::start_background_accounts(app_handle),
+            tauri::RunEvent::Exit => {
                 android::shutdown();
                 #[cfg(target_os = "linux")]
                 osd_control::restore();
             }
+            _ => {}
         });
 }

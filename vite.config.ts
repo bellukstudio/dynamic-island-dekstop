@@ -63,6 +63,7 @@ export default defineConfig(({ mode }) => {
           "convert": resolve(import.meta.dirname, "convert.html"),
           "share": resolve(import.meta.dirname, "share.html"),
           "android": resolve(import.meta.dirname, "android.html"),
+          "whatsapp": resolve(import.meta.dirname, "whatsapp.html"),
         },
       },
     },

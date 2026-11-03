@@ -23,7 +23,7 @@ export type StickyOptions = {
 
 export type MomentBubble = {
   /** Tampilkan awan. Mengembalikan false bila notch tidak di kiri/bawah (pakai kartu biasa). */
-  show: (text: string, sub: string, ms: number) => boolean; // ms <= 0 = tahan sampai hide()
+  show: (text: string, sub: string, ms: number, maxWidth?: number) => boolean; // ms <= 0 = tahan sampai hide()
   hide: () => void;
   /** Awan menempel (adzan / pengingat): tidak hilang oleh timer/hover, hanya oleh hideSticky(). false bila notch tidak di kiri/bawah. */
   showSticky: (text: string, sub: string, opts?: StickyOptions) => boolean;
@@ -106,12 +106,13 @@ export function initMomentBubble({ shell, notch, onLayout }: MomentBubbleHooks):
     layout();
   }
 
-  function show(text: string, sub: string, ms: number): boolean {
+  function show(text: string, sub: string, ms: number, maxWidth?: number): boolean {
     if (sticky) return true; // awan adzan sedang tampil: pesan lain tidak menimpa
     const side = dockSide();
     if (!side) return false;
 
     setActions();
+    el.style.maxWidth = maxWidth ? `min(${Math.max(240, maxWidth)}px, calc(100vw - 32px))` : "";
     textEl.textContent = text;
     subEl.textContent = sub;
     subEl.hidden = !sub;
@@ -138,6 +139,7 @@ export function initMomentBubble({ shell, notch, onLayout }: MomentBubbleHooks):
     timer = 0;
     lostCb = opts.onLost;
     setActions(opts.actions);
+    el.style.maxWidth = "";
     textEl.textContent = text;
     subEl.textContent = sub;
     subEl.hidden = !sub;

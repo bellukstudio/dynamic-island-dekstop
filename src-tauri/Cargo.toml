@@ -1,6 +1,6 @@
 [package]
 name = "WellNotch"
-version = "1.2.5"
+version = "1.2.6"
 description = "A Tauri App"
 authors = ["bellukstudio"]
 edition = "2024"
@@ -15,7 +15,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 toml = "0.8"
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "unstable"] }   # unstable: Window::add_child (satu jendela WhatsApp, banyak webview)
 tauri-plugin-opener = "2"
 tauri-plugin-drag = "2"   # drag file keluar dari notch (shelf) ke File Explorer
 tauri-plugin-global-shortcut = "2"   # BARU: drag file keluar dari notch (shelf) ke File Explorer / aplikasi lain

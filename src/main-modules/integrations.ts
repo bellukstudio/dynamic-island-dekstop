@@ -65,6 +65,7 @@ export function init(ctx: Record<string, any>): void {
         ctx.$("dev-chip").classList.remove("off");
         ctx.$("dev-name").textContent = title;
         ctx.$("dev-sub").textContent = sub;
+        ctx.$("dev-sub").classList.remove("wa-oneline");
         // Tanpa emoji, lingkaran ikon memakai sisa ikon perangkat sebelumnya (tampak kosong).
         // Dengan emoji: pakai gaya ikon "nudge" (emoji di lingkaran kiri, lencana centang kanan disembunyikan).
         if (emoji) {

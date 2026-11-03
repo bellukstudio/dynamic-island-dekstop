@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "whatsapp-remote",
+  "description": "Izinkan halaman WhatsApp Web (webview anak) melaporkan pesan baru ke notch.",
+  "remote": {
+    "urls": ["https://web.whatsapp.com/*"]
+  },
+  "windows": ["whatsapp"],
+  "permissions": ["allow-whatsapp-report-new-message"]
+}

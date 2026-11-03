@@ -17,6 +17,7 @@ import { initPriceAlert } from "./main-modules/price-alert";
 import { initMoodMouth } from "./main-modules/mood-mouth";
 import { initAdhanFace } from "./main-modules/adhan-face";
 import { initMomentBubble } from "./main-modules/moment-bubble";
+import { initWhatsappNotifications } from "./main-modules/whatsapp-notifications";
 declare global {
     interface Window {
         __NOTCH_UPDATE_CONFIG__?: RemoteUpdateConfig;
@@ -140,6 +141,22 @@ const ctx: Record<string, any> = {
   integrations.init(ctx);
   updates.init(ctx);
   bottomPlayStartup.init(ctx);
+  void initWhatsappNotifications({
+    canShow: () => !ctx.meetingMode && !ctx.prayerAdhanActive && ctx.override === null && !ctx.isDraggingWindow,
+    show: (title, sub, ms) => {
+      // Dock kiri/kanan/bawah: awan percakapan; di atas: kartu teks bergaya notifikasi lain.
+      if (ctx.momentBubble?.show(`${title} 💬`, sub, ms, 360) === true) return;
+      ctx.showTextCard?.(title, sub, ms, "💬");
+      // Satu baris + elipsis. Dilepas oleh showTextCard berikutnya, atau otomatis setelah kartu hilang
+      // (jalur lain seperti devices.ts mengisi #dev-sub langsung tanpa showTextCard).
+      const subEl = ctx.$("dev-sub");
+      subEl.classList.add("wa-oneline");
+      window.setTimeout(() => subEl.classList.remove("wa-oneline"), ms + 800);
+    },
+    mood: (m, ms) => ctx.flash(m, ms),
+  }).catch((error) =>
+    console.error("[WhatsApp] Gagal mengaktifkan notifikasi notch:", error)
+  );
 
 // Preserve the original public helpers.
 export const setBase = (...args: any[]) => ctx.setBase(...args);
