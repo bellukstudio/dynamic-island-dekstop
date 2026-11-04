@@ -23,7 +23,7 @@ export type EyeBreakHooks = {
   lastMove: () => number;                                  // waktu (ms epoch) gerakan pointer terakhir
   canShow: () => boolean;                                  // notch bebas (tak ada kartu/hub/adzan)
   view: () => string;                                      // view notch saat ini; "idle" = mata terlihat
-  card: (title: string, sub: string, ms: number) => void;  // tampilkan kartu teks
+  card: (title: string, sub: string, ms: number, emoji?: string) => boolean | void; // pesan: true = tampil sebagai awan, selain itu kartu teks
   mood: (m: string, ms: number) => void;                   // ekspresi mata sementara
 };
 
@@ -82,8 +82,8 @@ export function initEyeBreak(h: EyeBreakHooks) {
   function start() {
     running = true;
     const sec = pref.look_sec;
-    h.card("Waktunya istirahat mata", `Tatap sesuatu ±6 meter jauhnya · ${sec} detik`, INTRO_MS);
-    setCardEmoji(["👀"]);
+    const asBubble = h.card("Waktunya istirahat mata", `Tatap sesuatu ±6 meter jauhnya · ${sec} detik`, INTRO_MS, "👀") === true;
+    if (!asBubble) setCardEmoji(["👀"]);
     // beri jeda lebih sedikit dari timer kartu supaya notch sudah kembali ke tampilan idle saat sesi mulai
     later(beginGaze, INTRO_MS + 250);
   }
@@ -103,8 +103,8 @@ export function initEyeBreak(h: EyeBreakHooks) {
         sub.textContent = text;                  // perbarui hitung mundur tanpa memulai ulang animasi
       } else if (h.view() !== "idle" && h.canShow()) {
         // mata tidak terlihat (jam / musik / dll.): pakai kartu hitung mundur
-        h.card("Istirahat mata", text, left * 1000);
-        setCardEmoji(["👀"]);
+        const asBubble = h.card("Istirahat mata", text, left * 1000, "👀") === true;
+        if (!asBubble) setCardEmoji(["👀"]);
       }
       later(step, TICK_MS);
     };
@@ -117,8 +117,8 @@ export function initEyeBreak(h: EyeBreakHooks) {
     const next = pref.every_min;
     finish();
     if (ourCardShown || h.canShow()) {
-      h.card("Mata sudah segar!", `Istirahat berikutnya ${next} menit lagi`, DONE_MS);
-      setCardEmoji(["😊"]);
+      const asBubble = h.card("Mata sudah segar!", `Istirahat berikutnya ${next} menit lagi`, DONE_MS, "😊") === true;
+      if (!asBubble) setCardEmoji(["😊"]);
     }
     h.mood("happy", DONE_MS + 1500);
   }

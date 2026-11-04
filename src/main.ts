@@ -145,7 +145,7 @@ const ctx: Record<string, any> = {
     canShow: () => !ctx.meetingMode && !ctx.prayerAdhanActive && ctx.override === null && !ctx.isDraggingWindow,
     show: (title, sub, ms) => {
       // Dock kiri/kanan/bawah: awan percakapan; di atas: kartu teks bergaya notifikasi lain.
-      if (ctx.momentBubble?.show(`${title} 💬`, sub, ms, 360) === true) return;
+      if (ctx.momentBubble?.show(`${title} 💬`, sub, ms, 360, true) === true) return;
       ctx.showTextCard?.(title, sub, ms, "💬");
       // Satu baris + elipsis. Dilepas oleh showTextCard berikutnya, atau otomatis setelah kartu hilang
       // (jalur lain seperti devices.ts mengisi #dev-sub langsung tanpa showTextCard).

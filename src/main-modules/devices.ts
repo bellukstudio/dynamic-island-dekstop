@@ -101,7 +101,11 @@ export function init(ctx: Record<string, any>): void {
       const connected = e.payload.connected !== false; // event lama tanpa field = terhubung
       ctx.paintBt(name, battery, connected);
       ctx.hubByHover = false;
-      ctx.expand("bt", ctx.T.card_ms);
+      // Notch di kiri/kanan/dasar: notifikasi Bluetooth tampil sebagai awan; selain itu kartu Bluetooth.
+      const btSub = !connected ? "Bluetooth · Terputus" : battery != null ? `Bluetooth · Terhubung · ${battery}%` : "Bluetooth · Terhubung";
+      const btBubble = !ctx.meetingMode && ctx.momentBubble?.show(name, btSub, ctx.T.card_ms) === true;
+      if (!btBubble)
+          ctx.expand("bt", ctx.T.card_ms);
       if (connected)
           ctx.flash("happy", 2500);
   });

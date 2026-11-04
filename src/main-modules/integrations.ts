@@ -80,28 +80,39 @@ export function init(ctx: Record<string, any>): void {
         ctx.hubByHover = false;
         ctx.expand("dev", ms);
     };
+    // Pesan singkat: awan percakapan bila notch di kiri/kanan/dasar, selain itu kartu teks.
+    // Mengembalikan true bila tampil sebagai awan.
+    ctx.showNotice = (title: string, sub: string, ms: number, emoji?: string): boolean => {
+        if (ctx.momentBubble?.show(emoji ? `${title} ${emoji}` : title, sub, ms) === true)
+            return true;
+        ctx.showTextCard(title, sub, ms, emoji);
+        return false;
+    };
     ctx.initEyeBreak({
         lastMove: () => ctx.lastCursorMove,
         canShow: ctx.notchFree,
         view: () => ctx.notch.dataset.view ?? "idle",
-        card: ctx.showTextCard,
+        card: ctx.showNotice,
         mood: (m, ms) => ctx.flash(m as Mood, ms),
     });
     ctx.initPriceAlert({
         canShow: ctx.notchFree,
-        card: ctx.showTextCard,
+        card: ctx.showNotice,
         mood: (m, ms) => ctx.flash(m as Mood, ms),
     });
     // Jendela Android (terpisah): beri tahu notch utama saat unduhan file selesai.
     ctx.listen("android-download-done", (e: { payload: { name: string; path: string } }) => {
         const { name } = e.payload;
-        ctx.showTextCard("Unduhan selesai", `${name} disimpan ke PC`, 6000, "📥");
+        ctx.showNotice("Unduhan selesai", `${name} disimpan ke PC`, 6000, "📥");
         ctx.flash("happy", 6000);
     }).catch((err) => console.error("[Notch] listen android-download-done gagal:", err));
     // Pengingat jadwal shalat memakai kartu khusus. Saat adzan diputar, kartu ditahan
     // sampai audio selesai dan media yang sebelumnya berjalan dilanjutkan kembali.
     ctx.initPrayer({
         card: (title, sub, ms) => {
+            // Notch di kiri/kanan/dasar: pengingat tampil sebagai awan percakapan; selain itu kartu shalat.
+            if (ctx.momentBubble?.show(title, sub, ms) === true)
+                return;
             ctx.$("pr-alert-title").textContent = title;
             ctx.$("pr-alert-sub").textContent = sub;
             ctx.$("pr-alert-status").textContent = "PENGINGAT";

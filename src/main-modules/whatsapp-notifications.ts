@@ -25,7 +25,7 @@ function ensureWrapStyle(): void {
   const style = document.createElement("style");
   style.id = STYLE_ID;
   style.textContent = `
-    .moment-bubble .mb-text, .moment-bubble .mb-sub, #dev-sub.wa-oneline {
+    .moment-bubble.mb-oneline .mb-text, .moment-bubble.mb-oneline .mb-sub, #dev-sub.wa-oneline {
       display: block; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
   `;

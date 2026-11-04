@@ -15,7 +15,7 @@ import "../css/price-alert.css";
 
 export type PriceAlertHooks = {
   canShow: () => boolean;                                  // notch bebas (tak ada kartu/hub/adzan)
-  card: (title: string, sub: string, ms: number) => void;  // tampilkan kartu teks
+  card: (title: string, sub: string, ms: number, emoji?: string) => boolean | void; // true = tampil sebagai awan
   mood: (m: string, ms: number) => void;                   // ekspresi mata sementara
 };
 
@@ -120,8 +120,9 @@ export function initPriceAlert(h: PriceAlertHooks) {
     const name = rule.code;
     const title = `${name} ${rule.dir === "above" ? "naik ke" : "turun ke"} ${fmtPrice(price)}`;
     const sub = `Alert ${dirSign(rule.dir)} ${fmtPrice(rule.target)} tercapai · ${rule.kind === "fx" ? "kurs" : "saham"}`;
-    h.card(title, sub, SHOW_MS);
-    setCardEmoji([rule.kind === "fx" ? "💱" : rule.dir === "above" ? "📈" : "📉"]);
+    const emoji = rule.kind === "fx" ? "💱" : rule.dir === "above" ? "📈" : "📉";
+    const asBubble = h.card(title, sub, SHOW_MS, emoji) === true;
+    if (!asBubble) setCardEmoji([emoji]);
     h.mood(rule.dir === "above" ? "happy" : "surprised", SHOW_MS + 2000);
     rule.shown = true;
     save();
