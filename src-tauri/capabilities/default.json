@@ -98,6 +98,7 @@
     "allow-whatsapp-unlock",
     "allow-whatsapp-lock",
     "allow-whatsapp-set-notifications",
+    "allow-whatsapp-set-background",
     "allow-whatsapp-set-blur",
     "allow-whatsapp-close-manager",
     "allow-lyrics-fetch",

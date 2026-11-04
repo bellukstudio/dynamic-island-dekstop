@@ -77,6 +77,7 @@ fn main() {
             "whatsapp_unlock",
             "whatsapp_lock",
             "whatsapp_set_notifications",
+            "whatsapp_set_background",
             "whatsapp_set_blur",
             "whatsapp_close_manager",
             "lyrics_fetch",
