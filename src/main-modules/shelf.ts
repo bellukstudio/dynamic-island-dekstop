@@ -1,5 +1,13 @@
 // @ts-nocheck
 // Shelf file.
+import { startDrag } from "@crabnebula/tauri-plugin-drag";
+
+// Ikon seret: PNG 1x1 transparan (plugin mewajibkan gambar; sistem tetap memakai ikon file bawaan di banyak OS).
+const DRAG_ICON = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="),
+  (c) => c.charCodeAt(0),
+);
+const DRAG_THRESHOLD_PX = 6;
 // ---------- shelf file ----------
 type ShelfItem = {
     path: string;
@@ -24,7 +32,7 @@ export function register(ctx: Record<string, any>): void {
       items.forEach((it) => {
           const b = document.createElement("button"); // button: tidak memicu geser halaman
           b.className = "sh-item";
-          b.title = `${it.path}\nKlik: buka · Klik kanan: tampilkan di folder`;
+          b.title = `${it.path}\nKlik: buka · Seret: salin keluar · Klik kanan: tampilkan di folder`;
           const ic = document.createElement("span");
           ic.className = "ic";
           ic.textContent = ctx.iconFor(it);
@@ -35,8 +43,38 @@ export function register(ctx: Record<string, any>): void {
           x.className = "x";
           x.textContent = "×";
           b.append(ic, nm, x);
+          // Seret keluar ke File Explorer / aplikasi lain. Klik biasa tetap membuka file, jadi drag baru
+          // dimulai setelah pointer bergeser melewati ambang; klik sesudah drag diabaikan.
+          let downX = 0, downY = 0, armed = false, dragged = false;
+          b.addEventListener("pointerdown", (e) => {
+              if (e.button !== 0 || (e.target as HTMLElement).closest(".x"))
+                  return;
+              downX = e.clientX;
+              downY = e.clientY;
+              armed = true;
+              dragged = false;
+          });
+          b.addEventListener("pointermove", (e) => {
+              if (!armed || dragged)
+                  return;
+              if (Math.hypot(e.clientX - downX, e.clientY - downY) < DRAG_THRESHOLD_PX)
+                  return;
+              armed = false;
+              dragged = true;
+              void ctx.invoke("set_drag_out", { active: true }); // jaga jendela notch tetap menerima event selama drag
+              startDrag({ item: [it.path], icon: DRAG_ICON })
+                  .catch((err) => console.error("shelf: drag keluar gagal", err))
+                  .finally(() => {
+                  void ctx.invoke("set_drag_out", { active: false });
+                  window.setTimeout(() => { dragged = false; }, 0);
+              });
+          });
+          b.addEventListener("pointerup", () => { armed = false; });
+          b.addEventListener("pointercancel", () => { armed = false; });
           b.addEventListener("click", (e) => {
               e.stopPropagation();
+              if (dragged)
+                  return;
               if ((e.target as HTMLElement).closest(".x")) {
                   ctx.invoke<ShelfItem[]>("shelf_remove", { path: it.path }).then(ctx.paintShelf).catch(() => { });
               }
