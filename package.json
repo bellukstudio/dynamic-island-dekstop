@@ -13,6 +13,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "@crabnebula/tauri-plugin-drag": "^2",
     "firebase": "^13.1.0"
   },
   "devDependencies": {
