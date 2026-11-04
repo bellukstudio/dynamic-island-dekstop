@@ -153,9 +153,9 @@ fn verify_pin(record: &PinRecord, pin: &str) -> bool {
 // WhatsApp Web sering mengganti markup. Semua di-scope ke root panel (#main / #pane-side)
 // atau padanan testid-nya.
 const LIST_SELECTORS: &[&str] = &[
-    ":is(#pane-side, [data-testid=\"chat-list\"]) [data-testid=\"cell-frame-container\"]",
-    ":is(#pane-side, [data-testid=\"chat-list\"]) [role=\"listitem\"]",
-    ":is(#pane-side, [data-testid=\"chat-list\"]) [role=\"row\"]",
+    "[data-testid=\"cell-frame-container\"]",
+    ":is(#pane-side, [data-testid=\"chat-list\"], [data-testid=\"archived-chatlist\"]) [role=\"listitem\"]",
+    ":is(#pane-side, [data-testid=\"chat-list\"], [data-testid=\"archived-chatlist\"]) [role=\"row\"]",
     "[data-testid*=\"yourself\" i]",
 ];
 const HEADER_SELECTORS: &[&str] = &[
@@ -172,12 +172,12 @@ const MESSAGE_SELECTOR: &str =
 /// Avatar daftar chat berupa SVG (<image xlink:href> di dalam cincin status), bukan <img>.
 const STATUS_RING_SELECTOR: &str = "[data-testid*=\"status-ring\" i], svg:has(> g > image), svg:has(> image)";
 /// Semua avatar di daftar chat, apa pun struktur barisnya.
-const AVATAR_SELECTOR: &str = ":is(#pane-side, [data-testid=\"chat-list\"]) :is(img, canvas, [data-icon*=\"default\" i], [data-icon*=\"user\" i], [data-icon*=\"group\" i], [data-icon*=\"avatar\" i])";
+const AVATAR_SELECTOR: &str = ":is(#pane-side, [data-testid=\"chat-list\"], [data-testid=\"archived-chatlist\"]) :is(img, canvas, [data-icon*=\"default\" i], [data-icon*=\"user\" i], [data-icon*=\"group\" i], [data-icon*=\"avatar\" i])";
 
 /// Foto profil di mana pun (daftar chat, header, rail kiri, chat ke nomor sendiri), dikenali dari
 /// sumbernya, bukan dari struktur baris. Foto di dalam bubble pesan dikecualikan (sudah ditutup
 /// lapisan blur pesan) begitu pula dialog (penampil media).
-const PROFILE_IMG_SELECTOR: &str = "img:is([src*=\"pps.whatsapp.net\"], [src^=\"blob:\"], [src^=\"data:image/jpeg\"], [src^=\"data:image/webp\"])";
+const PROFILE_IMG_SELECTOR: &str = "img:is([src*=\"whatsapp.net\"], [src^=\"blob:\"], [src^=\"data:image/jpeg\"], [src^=\"data:image/webp\"])";
 
 /// Atribut penanda elemen yang sedang dibuka (di-hover). Diatur oleh skrip, bukan `:hover`.
 const REVEAL_ATTR: &str = "data-nw-reveal";
@@ -949,7 +949,9 @@ mod tests {
         assert!(all_hover.contains("yourself"));
         assert!(all_hover.contains("msg-container"));
         assert!(all_hover.contains("status-ring"));
-        assert!(all_hover.contains("pps.whatsapp.net"));
+        assert!(all_hover.contains("whatsapp.net"));
+        assert!(all_hover.contains("archived-chatlist"));
+        assert!(all_hover.contains("[data-testid=\"cell-frame-container\"]"));
         assert!(!blur_css("all_always").contains("data-nw-reveal"));
         let chat_hover = blur_css("chat_hover");
         assert!(chat_hover.contains("msg-container"));
