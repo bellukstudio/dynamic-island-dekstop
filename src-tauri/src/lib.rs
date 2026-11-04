@@ -29,6 +29,7 @@ mod share;
 mod android;
 mod whatsapp;
 mod foreground;
+mod pip;
 
 #[cfg(target_os = "linux")]
 mod osd_control;
@@ -686,6 +687,9 @@ pub fn run() {
                 }
             });
 
+            // Prototipe: jendela PiP Chrome/Edge yang dijatuhkan di notch menempel di bawah panel media.
+            pip::start(win.clone());
+
             // Inisialisasi posisi kustom jika ada di konfigurasi
             let initial_cfg = config::get();
             if initial_cfg.position.custom {
@@ -791,6 +795,7 @@ pub fn run() {
             media::media_seek,
             set_size,
             set_hit_area,
+            pip::pip_set_visible,
             set_drag_out,
             shelf::shelf_log,
             quick::quick_state,

@@ -322,17 +322,22 @@ export function register(ctx: Record<string, any>): void {
         const height = ramadanExpanded ? 540 : reminderExpanded ? (weeklyExpanded ? 270 : 230) : notesExpanded ? 300 : currencyExpanded ? 520 : ctx.BASE_SIZES.hub[1];
         const hitWidth = (currencyExpanded || ramadanExpanded) ? 770 : ctx.BASE_HIT.hub[0];
         const hitHeight = ramadanExpanded ? 580 : reminderExpanded ? (weeklyExpanded ? 282 : 242) : notesExpanded ? 330 : currencyExpanded ? 560 : ctx.BASE_HIT.hub[1];
+        // Jendela PiP yang menempel di bawah panel media: panel membesar memuat slotnya.
+        const pipExtra = ctx.pipExtra?.() ?? 0;
+        ctx.pipFreezeMedia?.(pipExtra > 0); // harus sebelum --hub-h berubah
+        ctx.notch.classList.toggle("pip-expanded", pipExtra > 0);
         ctx.SIZES.hub[0] = Math.round(width * ctx.CFG.scale);
-        ctx.SIZES.hub[1] = Math.round(height * ctx.CFG.scale);
+        ctx.SIZES.hub[1] = Math.round((height + pipExtra) * ctx.CFG.scale);
         ctx.HIT.hub[0] = Math.round(hitWidth * ctx.CFG.scale);
-        ctx.HIT.hub[1] = Math.round(hitHeight * ctx.CFG.scale);
+        ctx.HIT.hub[1] = Math.round((hitHeight + pipExtra) * ctx.CFG.scale);
         // Variabel CSS ditempatkan langsung pada notch supaya track, page, dan nav ikut melebar.
         // "ramadan-expanded" harus ikut berpindah halaman; kalau tertinggal, CSS (width: 780px !important)
         // tetap melebarkan hub padahal jendela native sudah kembali ke ukuran normal.
         ctx.notch.classList.toggle("ramadan-expanded", ramadanExpanded);
         ctx.notch.classList.toggle("currency-expanded", currencyExpanded || ramadanExpanded);
         ctx.notch.style.setProperty("--hub-w", `${width}px`);
-        ctx.notch.style.setProperty("--hub-h", `${height}px`);
+        ctx.notch.style.setProperty("--hub-h", `${height + pipExtra}px`);
+        ctx.pipSync?.();
         if (ctx.notch.dataset.view === "hub") {
             void ctx.syncNativeWindowSize("hub").then(() => {
                 if (ctx.notch.dataset.view !== "hub")

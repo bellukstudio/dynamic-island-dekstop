@@ -85,6 +85,7 @@ export function register(ctx: Record<string, any>): void {
     ctx.setHit = function setHit(view: string) {
         const r = ctx.hitRect(view, true);
         ctx.invoke("set_hit_area", { x: r.x, y: r.y, w: r.w, h: r.h });
+        ctx.pipSync?.(view);
     };
     ctx.syncWindow = async function syncWindow() {
         // Ambil geometri monitor dari sisi Rust (jika tersedia)
@@ -120,7 +121,11 @@ export function init(ctx: Record<string, any>): void {
         number,
         number
     ] => {
-        const [w, h] = (ctx.isCurrencyHub(view) || ctx.isRamadanHub(view)) ? ctx.CURRENCY_WIN_BASE : ctx.WIN_BASE;
+        let [w, h] = (ctx.isCurrencyHub(view) || ctx.isRamadanHub(view)) ? ctx.CURRENCY_WIN_BASE : ctx.WIN_BASE;
+        // Panel media yang memuat jendela PiP lebih tinggi dari ukuran jendela biasa.
+        const pip = view === "hub" ? (ctx.pipExtra?.() ?? 0) : 0;
+        if (pip > 0)
+            h = Math.max(h, ctx.BASE_HIT.hub[1] + pip + 20);
         return [Math.round(w * ctx.CFG.scale), Math.round(h * ctx.CFG.scale)];
     };
     ctx.nativeSizeKey = "";

@@ -79,6 +79,7 @@ fn main() {
             "whatsapp_set_notifications",
             "whatsapp_set_background",
             "whatsapp_set_blur",
+            "pip_set_visible",
             "whatsapp_close_manager",
             "lyrics_fetch",
             "shelf_list",
