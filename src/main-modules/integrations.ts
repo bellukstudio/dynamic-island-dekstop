@@ -94,11 +94,6 @@ export function init(ctx: Record<string, any>): void {
     ctx.pipSlot = 0;     // tinggi slot PiP dalam satuan dasar (sebelum skala), termasuk jarak
     ctx.pipHover = false;
     ctx.pipShownKey = "";
-    // Jeda sebelum PiP muncul setelah panel media mulai terbuka (samakan dengan durasi transisi CSS notch).
-    // UI notch (panel media) tampil dulu, baru PiP menyusul.
-    const PIP_REVEAL_DELAY_MS = 380;
-    ctx.pipRevealed = false;   // true = PiP boleh langsung tampil tanpa menunggu animasi panel
-    ctx.pipRevealTimer = 0;
     // Saat panel membesar, isi halaman media ikut tersebar ke seluruh tinggi baru dan menutupi slot PiP.
     // Bekukan tinggi halaman media pada ukuran aslinya (menempel di atas); slot di bawahnya dibiarkan kosong.
     ctx.pipFreezeMedia = (on: boolean) => {
@@ -127,36 +122,27 @@ export function init(ctx: Record<string, any>): void {
         const v = view ?? ctx.notch.dataset.view ?? "idle";
         const show = ctx.pipDocked && v === "hub" && ctx.names[ctx.page] === "media";
         // Tepat setelah PiP dijatuhkan, panel media belum sempat terbuka: jangan kirim "sembunyi" dulu,
-        // supaya PiP tidak berkedip hilang sebelum panelnya muncul. (Dicek SEBELUM reset jeda di bawah,
-        // supaya drop pertama tetap langsung tampil.)
+        // supaya PiP tidak berkedip hilang sebelum panelnya muncul.
         if (!show && ctx.pipAwaitUntil && Date.now() < ctx.pipAwaitUntil)
             return;
-        // Notch menutup / pindah halaman: batalkan jadwal tampil dan sembunyikan PiP seketika.
-        if (!show) {
-            clearTimeout(ctx.pipRevealTimer);
-            ctx.pipRevealTimer = 0;
-            ctx.pipRevealed = false;
-        }
         if (show)
             ctx.pipAwaitUntil = 0;
-        // Panel baru mulai terbuka: tunggu seluruh UI notch tampil dulu, baru PiP muncul.
-        if (show && !ctx.pipRevealed) {
-            if (!ctx.pipRevealTimer) {
-                ctx.pipRevealTimer = window.setTimeout(() => {
-                    ctx.pipRevealTimer = 0;
-                    ctx.pipRevealed = true;
-                    ctx.pipSync();
-                }, PIP_REVEAL_DELAY_MS);
-            }
-            return;
-        }
-        // jarak PiP dari sisi atas panel: tinggi dasar panel media + jarak kecil (piksel logis nyata)
-        const y = Math.round((ctx.BASE_SIZES.hub[1] + 6) * ctx.CFG.scale);
-        const key = `${show}:${y}`;
+        // Posisi PiP diukur dari halaman media yang sebenarnya (koordinat viewport): tengah-atas = tengah
+        // halaman media, sisi atas = tepi bawah halaman + jarak kecil, supaya tombol media tetap terlihat.
+        const page = (ctx.allHubPages ?? []).find((p: HTMLElement) => p.dataset.page === "media");
+        const r = page ? page.getBoundingClientRect() : null;
+        const x = r ? Math.round(r.left + r.width / 2) : Math.round(window.innerWidth / 2);
+        const y = r ? Math.round(r.bottom + 8 * ctx.CFG.scale) : Math.round((ctx.BASE_SIZES.hub[1] + 6) * ctx.CFG.scale);
+        const key = `${show}:${x}:${y}`;
         if (key === ctx.pipShownKey)
             return;
         ctx.pipShownKey = key;
-        ctx.invoke("pip_set_visible", { visible: show, y }).catch((err) => console.warn("[PiP] pip_set_visible gagal:", err));
+        if (show && !ctx.pipRemeasure) {
+            // Panel membesar dengan animasi: ukur ulang setelah selesai agar posisi PiP tepat.
+            ctx.pipRemeasure = true;
+            window.setTimeout(() => { ctx.pipRemeasure = false; ctx.pipSync(); }, 380);
+        }
+        ctx.invoke("pip_set_visible", { visible: show, x, y }).catch((err) => console.warn("[PiP] pip_set_visible gagal:", err));
     };
     new MutationObserver(() => ctx.pipSync()).observe(ctx.notch, { attributes: true, attributeFilter: ["data-view"] });
     ctx.listen("pip-dock", (e: { payload: { docked: boolean; h?: number } }) => {
@@ -167,10 +153,6 @@ export function init(ctx: Record<string, any>): void {
             ctx.pipHover = false;
         ctx.pipShownKey = "";
         ctx.pipAwaitUntil = p.docked ? Date.now() + 1500 : 0;
-        // Drop pertama: PiP sudah terlihat (masa tunggu GRACE di Rust), jadi lewati jeda supaya tidak berkedip.
-        ctx.pipRevealed = !!p.docked;
-        clearTimeout(ctx.pipRevealTimer);
-        ctx.pipRevealTimer = 0;
         if (p.docked) {
             try {
                 ctx.openHub(ctx.pageOf("media"), ctx.T.hub_auto_ms);
