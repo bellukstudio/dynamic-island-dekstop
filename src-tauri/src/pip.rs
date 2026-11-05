@@ -125,7 +125,8 @@ mod imp {
     }
 
     unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
-        let find = &mut *(lparam.0 as *mut Find);
+        // SAFETY: lparam dibuat dari `&mut Find` di `pip_at` dan hanya hidup selama EnumWindows berjalan.
+        let find = unsafe { &mut *(lparam.0 as *mut Find) };
         if let Some(r) = pip_rect(hwnd) {
             if find.x >= r.left && find.x <= r.right && find.y >= r.top && find.y <= r.bottom {
                 find.found = Some((hwnd.0 as isize, r));
