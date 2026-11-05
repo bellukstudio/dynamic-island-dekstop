@@ -76,6 +76,7 @@ windows = { version = "0.61", features = [
   "Devices_Portable",              # MTP: StorageDevice
   "Storage",                       # MTP: StorageFolder/StorageFile
   "Storage_FileProperties",        # MTP: ukuran file
+  "Storage_Search",                # MTP: StorageFolder & StorageDevice::FromId ada di balik fitur ini
   "Win32_System_Time",             # MTP: waktu lokal untuk tanggal file
   "Devices_Radios",
   "Win32_UI_WindowsAndMessaging",
