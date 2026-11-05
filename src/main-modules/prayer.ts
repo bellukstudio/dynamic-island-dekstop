@@ -328,18 +328,20 @@ function checkReminders() {
             const k = `${c.at.toDateString()}|${c.key}|${kind}`;
             if (fired.has(k)) continue;
             markFired(k);
+            console.info(`[Prayer] Memicu ${kind === "pre" ? "pengingat" : "waktu"} ${c.name} (${hhmm(c.at)}), mode: ${prefs.mode}`);
+            const safe = (fn: () => void) => { try { fn(); } catch (e) { console.warn("[Prayer] hook gagal:", e); } };
 
             if (kind === "pre") {
-                hooks.card(`Menjelang ${c.name}`, `${prefs.remind_min} menit lagi · ${hhmm(c.at)}`, 8000);
-                hooks.mood("surprised", 3000);
+                safe(() => hooks.card(`Menjelang ${c.name}`, `${prefs.remind_min} menit lagi · ${hhmm(c.at)}`, 8000));
+                safe(() => hooks.mood("surprised", 3000));
                 if (prefs.mode !== "silent") tone(1);
             } else {
-                hooks.mood("love", 4000);
+                safe(() => hooks.mood("love", 4000));
                 if (prefs.mode === "adzan") {
                     // Kartu tetap terbuka hingga HTMLAudioElement memicu ended (atau gagal).
                     adzan(c.name, true);
                 } else {
-                    hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${prefs.kabkota}`, 15000);
+                    safe(() => hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${prefs.kabkota}`, 15000));
                     if (prefs.mode === "tone") tone(3);
                 }
             }
@@ -496,6 +498,19 @@ function wire() {
 
 export function initPrayer(h: Hooks) {
     hooks = h;
+    // Diagnosa: ketik __prayerDebug() di konsol DevTools untuk melihat kenapa adzan/pengingat tidak menyala.
+    (window as unknown as Record<string, unknown>).__prayerDebug = () => {
+        const today = dayEntries(new Date());
+        return {
+            sekarang: new Date().toString(),
+            prefs,
+            galat: err || null,
+            jadwalHariIniTermuat: !!today,
+            jadwalHariIni: today?.list.map((x) => `${x.name} ${hhmm(x.at)}`) ?? null,
+            sudahDipicu: [...fired],
+            bulanTermuat: [...months.keys()],
+        };
+    };
     wire();
     build();
     installRamadanUi();
