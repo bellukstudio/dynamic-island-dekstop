@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 
-interface Device { serial: string; state: string; model: string; wifi: boolean }
+interface Device { serial: string; state: string; model: string; wifi: boolean; mtp?: boolean }
 interface Entry { name: string; is_dir: boolean; size: number; date: string }
 interface PushResult { name: string; ok: boolean; error: string | null }
 interface Op { id: number; label: string; state: "running" | "ok" | "error"; detail: string; path?: string }
@@ -118,11 +118,12 @@ function devicesHtml(): string {
         return `<div class="hint-card"><b>Belum ada HP terdeteksi.</b><ol>
           <li>Di HP: <i>Pengaturan → Tentang ponsel</i>, ketuk <i>Nomor build</i> 7 kali untuk membuka Opsi Pengembang.</li>
           <li>Aktifkan <i>Opsi pengembang → Debugging USB</i>.</li>
-          <li>Sambungkan kabel USB (mode <i>Transfer file</i>), lalu setujui dialog <i>Izinkan debugging USB</i> di HP.</li></ol></div>`;
+          <li>Sambungkan kabel USB (mode <i>Transfer file</i>), lalu setujui dialog <i>Izinkan debugging USB</i> di HP.</li></ol>
+          <p>Hanya butuh file? Cukup sambungkan kabel USB, buka kunci layar HP, dan pilih mode <i>Transfer file</i> (MTP), tanpa debugging. Mirror layar tetap butuh USB debugging.</p></div>`;
     }
     return `<div class="devs">${state.devices.map((d) => {
         const ok = d.state === "device";
-        const note = d.state === "unauthorized" ? "setujui dialog di HP" : d.state === "offline" ? "offline" : d.wifi ? "Wi-Fi" : "USB";
+        const note = d.state === "unauthorized" ? "setujui dialog di HP" : d.state === "offline" ? "offline" : d.mtp ? "MTP · file saja" : d.wifi ? "Wi-Fi" : "USB";
         return `<div class="dev${d.serial === state.serial ? " on" : ""}${ok ? "" : " bad"}" data-dev="${esc(d.serial)}">
           <b>${esc(d.model)}</b><small>${note}</small></div>`;
     }).join("")}</div>`;
@@ -262,7 +263,7 @@ function renderInner() {
       ${browser}
       ${ops.length ? `<div class="sec-t">Aktivitas</div><section class="list">${ops.map(opRow).join("")}</section>` : ""}`;
 
-    acts.innerHTML = `<button class="btn" id="mirror" ${dev ? "" : "disabled"}>Mirror layar</button>
+    acts.innerHTML = `<button class="btn" id="mirror" ${dev && !dev.mtp ? "" : "disabled"} ${dev?.mtp ? 'title="Mirror layar butuh USB debugging"' : ""}>Mirror layar</button>
       <button class="btn" id="send" ${dev ? "" : "disabled"}>${ICON.plus}Kirim file ke folder ini</button>
       <button class="btn" id="refresh">Segarkan</button>`;
 }
@@ -639,6 +640,13 @@ function mirrorFeed(chunk: Bytes) {
 async function mirrorStart() {
     const dev = ready();
     if (!dev || mirror.on) return;
+    if (dev.mtp) {
+        const op = addOp("Mirror layar");
+        op.state = "error";
+        op.detail = "Mirror layar butuh USB debugging. HP ini terhubung lewat MTP (file saja). Nyalakan USB debugging di HP, lalu sambungkan lagi.";
+        render();
+        return;
+    }
     if (typeof (globalThis as { VideoDecoder?: unknown }).VideoDecoder === "undefined") {
         const op = addOp("Mirror layar");
         op.state = "error";

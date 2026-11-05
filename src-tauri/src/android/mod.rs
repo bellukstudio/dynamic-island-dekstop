@@ -2,6 +2,8 @@
 //! (atau Wi-Fi debugging) memakai `adb`. Tidak perlu aplikasi di HP.
 //! adb dicari di folder resource `adb/` (dibundel), env ADB_PATH, PATH, atau Android SDK.
 mod adb;
+#[cfg(target_os = "windows")]
+mod mtp;
 mod mirror;
 
 use adb::{Adb, Device, Entry};
@@ -33,6 +35,55 @@ fn get_adb() -> Option<Adb> {
 
 const NO_ADB: &str = "ADB_MISSING";
 
+// ---- MTP (file saja, tanpa USB debugging; hanya Windows) ----
+fn is_mtp(serial: &str) -> bool {
+    serial.starts_with("mtp:")
+}
+
+#[cfg(target_os = "windows")]
+fn mtp_devices() -> Vec<Device> {
+    mtp::devices().unwrap_or_else(|err| {
+        eprintln!("android: MTP tidak bisa dibaca: {err}");
+        Vec::new()
+    })
+}
+#[cfg(not(target_os = "windows"))]
+fn mtp_devices() -> Vec<Device> {
+    Vec::new()
+}
+
+#[cfg(target_os = "windows")]
+fn mtp_list(serial: &str, path: &str) -> Result<Vec<Entry>, String> {
+    mtp::list_dir(serial, path)
+}
+#[cfg(not(target_os = "windows"))]
+fn mtp_list(_serial: &str, _path: &str) -> Result<Vec<Entry>, String> {
+    Err("MTP hanya tersedia di Windows".into())
+}
+
+#[cfg(target_os = "windows")]
+fn mtp_push(serial: &str, local: &Path, remote_dir: &str) -> Result<(), String> {
+    mtp::push(serial, local, remote_dir)
+}
+#[cfg(not(target_os = "windows"))]
+fn mtp_push(_serial: &str, _local: &Path, _remote_dir: &str) -> Result<(), String> {
+    Err("MTP hanya tersedia di Windows".into())
+}
+
+#[cfg(target_os = "windows")]
+fn mtp_pull(serial: &str, remote: &str, dest_dir: &Path) -> Result<PathBuf, String> {
+    mtp::pull(serial, remote, dest_dir)
+}
+#[cfg(not(target_os = "windows"))]
+fn mtp_pull(_serial: &str, _remote: &str, _dest_dir: &Path) -> Result<PathBuf, String> {
+    Err("MTP hanya tersedia di Windows".into())
+}
+
+/// Nama model disamakan untuk mencocokkan HP yang sama di adb dan MTP.
+fn norm_model(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_lowercase()
+}
+
 #[derive(Serialize)]
 pub struct Status {
     found: bool,
@@ -53,16 +104,34 @@ pub async fn android_status() -> Status {
 
 #[tauri::command]
 pub async fn android_devices() -> Result<Vec<Device>, String> {
-    tauri::async_runtime::spawn_blocking(|| get_adb().ok_or_else(|| NO_ADB.to_string())?.devices())
-        .await
-        .map_err(err)?
+    tauri::async_runtime::spawn_blocking(|| {
+        let adb_result = get_adb().ok_or_else(|| NO_ADB.to_string()).and_then(|a| a.devices());
+        let mtp = mtp_devices();
+        let mut devices = match adb_result {
+            Ok(list) => list,
+            // adb tidak ada/gagal: tetap tampilkan HP yang terbaca lewat MTP
+            Err(_) if !mtp.is_empty() => Vec::new(),
+            Err(e) => return Err(e),
+        };
+        // HP yang sama di adb dan MTP: pakai adb (lebih cepat dan bisa mirror), sembunyikan MTP-nya.
+        let adb_models: Vec<String> = devices.iter().map(|d| norm_model(&d.model)).collect();
+        devices.extend(mtp.into_iter().filter(|m| !adb_models.contains(&norm_model(&m.model))));
+        Ok(devices)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]
 pub async fn android_ls(serial: String, path: String) -> Result<Vec<Entry>, String> {
-    tauri::async_runtime::spawn_blocking(move || get_adb().ok_or_else(|| NO_ADB.to_string())?.list_dir(&serial, &path))
-        .await
-        .map_err(err)?
+    tauri::async_runtime::spawn_blocking(move || {
+        if is_mtp(&serial) {
+            return mtp_list(&serial, &path);
+        }
+        get_adb().ok_or_else(|| NO_ADB.to_string())?.list_dir(&serial, &path)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[derive(Serialize)]
@@ -76,12 +145,17 @@ pub struct PushResult {
 #[tauri::command]
 pub async fn android_push(serial: String, paths: Vec<String>, remote_dir: String) -> Result<Vec<PushResult>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let a = get_adb().ok_or_else(|| NO_ADB.to_string())?;
+        let over_mtp = is_mtp(&serial);
+        let adb = if over_mtp { None } else { Some(get_adb().ok_or_else(|| NO_ADB.to_string())?) };
         let mut out = Vec::new();
         for p in paths {
             let pb = PathBuf::from(&p);
             let name = pb.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone());
-            match a.push(&serial, &pb, &remote_dir) {
+            let sent = match &adb {
+                Some(a) => a.push(&serial, &pb, &remote_dir),
+                None => mtp_push(&serial, &pb, &remote_dir),
+            };
+            match sent {
                 Ok(()) => out.push(PushResult { name, ok: true, error: None }),
                 Err(e) => out.push(PushResult { name, ok: false, error: Some(e) }),
             }
@@ -115,8 +189,12 @@ fn unique_path(dir: &Path, name: &str) -> PathBuf {
 pub async fn android_pull(app: AppHandle, serial: String, remote: String) -> Result<PullResult, String> {
     let dest_dir = app.path().download_dir().unwrap_or_else(|_| std::env::temp_dir()).join("Notch").join("Android");
     tauri::async_runtime::spawn_blocking(move || {
-        let a = get_adb().ok_or_else(|| NO_ADB.to_string())?;
         std::fs::create_dir_all(&dest_dir).map_err(|e| format!("Folder tujuan tidak bisa dibuat: {e}"))?;
+        if is_mtp(&serial) {
+            let local = mtp_pull(&serial, &remote, &dest_dir)?;
+            return Ok(PullResult { local_path: local.to_string_lossy().into_owned() });
+        }
+        let a = get_adb().ok_or_else(|| NO_ADB.to_string())?;
         let name = remote.trim_end_matches('/').rsplit('/').next().filter(|n| !n.is_empty()).unwrap_or("file").to_string();
         // nama bersih untuk Windows (karakter terlarang)
         let name: String = name.chars().map(|c| if "<>:\"\\|?*".contains(c) || c.is_control() { '_' } else { c }).collect();
@@ -373,6 +451,9 @@ mod qr_tests {
 /// Mulai mirror layar HP. Mengembalikan port WebSocket lokal + ukuran layar.
 #[tauri::command]
 pub async fn android_mirror_start(app: AppHandle, serial: String) -> Result<mirror::MirrorInfo, String> {
+    if is_mtp(&serial) {
+        return Err("Mirror layar butuh USB debugging. Nyalakan USB debugging di HP, lalu sambungkan lagi.".into());
+    }
     // pastikan RESOURCE_DIR terisi walau jendela tidak dibuka lewat shortcut
     if let Ok(d) = app.path().resource_dir() {
         let _ = RESOURCE_DIR.set(d);

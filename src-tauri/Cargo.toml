@@ -1,6 +1,6 @@
 [package]
 name = "WellNotch"
-version = "1.2.9"
+version = "1.3.0"
 description = "A Tauri App"
 authors = ["bellukstudio"]
 edition = "2024"
@@ -72,6 +72,11 @@ windows = { version = "0.61", features = [
   "Win32_Media_Audio_Endpoints",
   "Win32_Media_MediaFoundation",   # <-- BARU: IMFSensorActivityMonitor (indikator kamera)
   "Devices",
+  "Devices_Enumeration",           # MTP: cari HP (DeviceInformation)
+  "Devices_Portable",              # MTP: StorageDevice
+  "Storage",                       # MTP: StorageFolder/StorageFile
+  "Storage_FileProperties",        # MTP: ukuran file
+  "Win32_System_Time",             # MTP: waktu lokal untuk tanggal file
   "Devices_Radios",
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Shell",

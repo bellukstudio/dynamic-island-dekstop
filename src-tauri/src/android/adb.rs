@@ -13,6 +13,8 @@ pub struct Device {
     pub state: String,
     pub model: String,
     pub wifi: bool,
+    /// true = terhubung lewat MTP (hanya file, tanpa USB debugging; tidak bisa mirror layar).
+    pub mtp: bool,
 }
 
 #[derive(Clone, Serialize, Debug, PartialEq)]
@@ -149,6 +151,7 @@ pub fn parse_devices(text: &str) -> Vec<Device> {
             state: state.to_string(),
             model: if model.is_empty() { serial.to_string() } else { model },
             wifi: serial.contains(':') || serial.contains("_adb-tls"),
+            mtp: false,
         });
     }
     v
