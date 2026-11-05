@@ -9,9 +9,7 @@
 //!    (ShowWindow SW_HIDE) saat notch menutup. Audio tetap berjalan karena videonya tetap di tab.
 //! 3. Karena PiP adalah jendela lain di atas notch, kursor di atas PiP membuat webview notch
 //!    mengira pointer keluar. Rust mengirim event `pip-hover` supaya notch tetap terbuka.
-//! 4. Menyeret PiP menjauh (ke arah mana pun: samping, bawah, atau atas) lalu melepasnya melebihi
-//!    `UNDOCK_DIST` dari posisi tempel melepas tempelannya, walau masih di dalam zona notch;
-//!    melepasnya di luar zona notch juga melepas tempelan; menutup PiP juga.
+//! 4. Menyeret PiP menjauh dan melepasnya di luar area notch melepas tempelannya; menutup PiP juga.
 //!
 //! Hemat sumber daya: saat tidak ada PiP yang menempel, thread hanya membaca status tombol mouse
 //! tiap 100 ms. Matikan fitur dengan env `NOTCH_PIP_DOCK=0`.
@@ -21,15 +19,16 @@
 
 use std::sync::Mutex;
 
-/// Permintaan dari frontend: (tampilkan?, jarak y dari sisi atas area klik notch ke sisi atas PiP
-/// dalam piksel logis, nomor urut yang bertambah setiap kali frontend menjawab).
-static REQUEST: Mutex<(bool, f64, u64)> = Mutex::new((false, 0.0, 0));
+/// Permintaan dari frontend: (tampilkan?, x tengah-atas PiP, y sisi atas PiP, nomor urut yang
+/// bertambah setiap kali frontend menjawab). x dan y adalah koordinat viewport webview notch
+/// dalam piksel logis, jadi posisi PiP mengikuti tata letak halaman media yang sebenarnya.
+static REQUEST: Mutex<(bool, f64, f64, u64)> = Mutex::new((false, 0.0, 0.0, 0));
 
 /// Dipanggil frontend setiap kali panel media (dengan PiP) tampil atau hilang.
 #[tauri::command]
-pub fn pip_set_visible(visible: bool, y: f64) {
+pub fn pip_set_visible(visible: bool, x: f64, y: f64) {
     if let Ok(mut r) = REQUEST.lock() {
-        *r = (visible, y, r.2.wrapping_add(1));
+        *r = (visible, x, y, r.3.wrapping_add(1));
     }
 }
 
@@ -63,9 +62,6 @@ mod imp {
     const DROP_BELOW: f64 = 260.0;
     /// Selisih (px logis) sebelum PiP dianggap sengaja digeser pengguna.
     const MOVE_TOLERANCE: f64 = 12.0;
-    /// Jarak seret (px logis) dari posisi tempel yang dianggap sengaja melepas PiP, ke arah mana pun.
-    /// Berlaku walau tombol dilepas masih di dalam zona jatuh notch.
-    const UNDOCK_DIST: f64 = 80.0;
     /// Setelah menempel, tahan PiP tetap terlihat sampai frontend menjawab (membuka panel media),
     /// paling lama selama ini. Begitu frontend menjawab, PiP mengikuti notch persis.
     const GRACE: Duration = Duration::from_millis(1800);
@@ -73,6 +69,7 @@ mod imp {
     #[derive(Clone, Copy)]
     struct Geo {
         scale: f64,
+        origin: (i32, i32),        // pojok kiri-atas viewport notch (piksel fisik)
         hit: (i32, i32, i32, i32), // l, t, r, b (piksel fisik)
     }
 
@@ -149,12 +146,14 @@ mod imp {
 
     fn geometry(win: &tauri::WebviewWindow) -> Option<Geo> {
         let pos = win.outer_position().ok()?;
+        let origin = win.inner_position().map(|p| (p.x, p.y)).unwrap_or((pos.x, pos.y));
         let scale = win.scale_factor().ok()?.max(0.1);
         let (hx, hy, hw, hh) = *crate::HIT.lock().ok()?;
         let l = pos.x + (hx as f64 * scale) as i32;
         let t = pos.y + (hy as f64 * scale) as i32;
         Some(Geo {
             scale,
+            origin,
             hit: (l, t, l + (hw as f64 * scale) as i32, t + (hh as f64 * scale) as i32),
         })
     }
@@ -176,19 +175,16 @@ mod imp {
         Dock { hwnd, w, h }
     }
 
-    /// Pojok kiri-atas PiP: di tengah area klik notch, `y_logical` di bawah sisinya yang atas.
-    fn desired(d: &Dock, g: &Geo, y_logical: f64) -> (i32, i32) {
-        ((g.hit.0 + g.hit.2) / 2 - d.w / 2, g.hit.1 + (y_logical * g.scale).round() as i32)
+    /// Pojok kiri-atas PiP dari titik tengah-atas (x, y) dalam koordinat viewport notch (piksel logis).
+    fn desired(d: &Dock, g: &Geo, x_logical: f64, y_logical: f64) -> (i32, i32) {
+        (
+            g.origin.0 + (x_logical * g.scale).round() as i32 - d.w / 2,
+            g.origin.1 + (y_logical * g.scale).round() as i32,
+        )
     }
 
     fn moved_away(r: &RECT, want: (i32, i32), scale: f64) -> bool {
         let tol = (MOVE_TOLERANCE * scale) as i32;
-        (r.left - want.0).abs() > tol || (r.top - want.1).abs() > tol
-    }
-
-    /// PiP diseret jauh dari posisi tempel (ke arah mana pun) = pengguna sengaja mengeluarkannya.
-    fn dragged_far(r: &RECT, want: (i32, i32), scale: f64) -> bool {
-        let tol = (UNDOCK_DIST * scale) as i32;
         (r.left - want.0).abs() > tol || (r.top - want.1).abs() > tol
     }
 
@@ -248,7 +244,7 @@ mod imp {
                     continue;
                 };
                 let (cx, cy) = (cur.x as i32, cur.y as i32);
-                let (want_visible, y_off, seq) = *super::REQUEST.lock().unwrap_or_else(|e| e.into_inner());
+                let (want_visible, x_off, y_off, seq) = *super::REQUEST.lock().unwrap_or_else(|e| e.into_inner());
 
                 if let Some(d) = docked {
                     if unsafe { !IsWindow(Some(hwnd_of(d.hwnd))).as_bool() } {
@@ -261,37 +257,25 @@ mod imp {
                 }
 
                 if released {
-                    // PiP yang sudah menempel lalu diseret jauh (ke bawah/samping/atas) dilepas dari notch,
-                    // walau tombol dilepas masih di dalam zona jatuh. Tanpa ini, seretan ke bawah
-                    // selalu snap balik karena zona jatuh memanjang jauh di bawah panel.
-                    if let Some(d) = docked {
-                        if shown {
-                            if let Some(r) = rect_of(hwnd_of(d.hwnd)) {
-                                if dragged_far(&r, desired(&d, &g, y_off), g.scale) {
-                                    undock(&mut docked, &mut shown, &mut hovering);
-                                    let _ = win.emit("pip-dock", serde_json::json!({ "docked": false }));
-                                    let _ = win.emit("pip-hover", serde_json::json!({ "hover": false }));
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-
                     let target = if in_zone(&g, cx, cy) { pip_at(cx, cy) } else { None };
                     match (target, docked) {
                         (Some((h, r)), prev) => {
                             let same = prev.map(|d| d.hwnd) == Some(h);
                             let still = prev
-                                .map(|d| !moved_away(&r, desired(&d, &g, y_off), g.scale))
+                                .map(|d| !moved_away(&r, desired(&d, &g, x_off, y_off), g.scale))
                                 .unwrap_or(false);
                             if !(same && still) {
                                 let d = make_dock(h, &r, &g);
-                                let (x, y) = desired(&d, &g, y_off);
-                                place(&d, x, y, true);
+                                // Kunci ukuran saja; posisi tetap di tempat PiP dijatuhkan sampai frontend
+                                // mengirim posisi yang benar (jangan pakai permintaan lama).
+                                place(&d, r.left, r.top, true);
                                 docked = Some(d);
                                 shown = true;
                                 grace_until = Instant::now() + GRACE;
-                                dock_seq = seq;
+                                if let Ok(mut req) = super::REQUEST.lock() {
+                                    req.0 = false; // buang permintaan "tampil" lama
+                                    dock_seq = req.3;
+                                }
                                 let _ = win.emit(
                                     "pip-dock",
                                     serde_json::json!({
@@ -306,7 +290,7 @@ mod imp {
                             // Dilepas di luar area notch: lepas tempelan bila PiP memang digeser menjauh.
                             if shown {
                                 if let Some(r) = rect_of(hwnd_of(d.hwnd)) {
-                                    if moved_away(&r, desired(&d, &g, y_off), g.scale) {
+                                    if moved_away(&r, desired(&d, &g, x_off, y_off), g.scale) {
                                         undock(&mut docked, &mut shown, &mut hovering);
                                         let _ = win.emit("pip-dock", serde_json::json!({ "docked": false }));
                                         let _ = win.emit("pip-hover", serde_json::json!({ "hover": false }));
@@ -323,8 +307,10 @@ mod imp {
                 let in_grace = seq == dock_seq && Instant::now() < grace_until;
                 let visible_now = want_visible || in_grace;
 
-                if visible_now {
-                    let (x, y) = desired(&d, &g, y_off);
+                if visible_now && in_grace && !want_visible {
+                    // Menunggu frontend membuka panel dan mengirim posisi: jangan pindahkan PiP dulu.
+                } else if visible_now {
+                    let (x, y) = desired(&d, &g, x_off, y_off);
                     let cur_rect = if shown { rect_of(hwnd_of(d.hwnd)) } else { None };
                     let dragging_pip = down
                         && cur_rect
@@ -362,7 +348,7 @@ mod imp {
         use super::*;
 
         fn geo() -> Geo {
-            Geo { scale: 1.0, hit: (680, 0, 1240, 242) }
+            Geo { scale: 1.0, origin: (660, 0), hit: (680, 0, 1240, 242) }
         }
 
         #[test]
@@ -380,9 +366,9 @@ mod imp {
             let r = RECT { left: 0, top: 0, right: 400, bottom: 300 };
             let d = make_dock(1, &r, &g);
             assert!(d.h <= 240);
-            let (x, y) = desired(&d, &g, 208.0);
+            let (x, y) = desired(&d, &g, 300.0, 208.0);
             assert_eq!(y, 208);
-            assert_eq!(x, 960 - d.w / 2);
+            assert_eq!(x, 660 + 300 - d.w / 2);
         }
 
         #[test]
@@ -398,18 +384,6 @@ mod imp {
             let r = RECT { left: 772, top: 175, right: 1152, bottom: 400 };
             assert!(!moved_away(&r, (770, 172), 1.0));
             assert!(moved_away(&r, (400, 172), 1.0));
-        }
-
-        #[test]
-        fn dragging_down_far_undocks_even_inside_zone() {
-            let want = (770, 208);
-            // geser ke bawah 150 px: masih di dalam zona jatuh, tapi sudah melewati UNDOCK_DIST
-            let r = RECT { left: 770, top: 358, right: 1130, bottom: 538 };
-            assert!(dragged_far(&r, want, 1.0));
-            assert!(in_zone(&geo(), 960, 400));
-            // seretan kecil tidak melepas
-            let near = RECT { left: 780, top: 240, right: 1140, bottom: 420 };
-            assert!(!dragged_far(&near, want, 1.0));
         }
     }
 }
