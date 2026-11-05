@@ -162,6 +162,110 @@ mod imp {
     use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::Media::Audio::{eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+    use windows::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        CallNextHookEx, GetMessageW, SetWindowsHookExW, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN,
+        WM_SYSKEYDOWN,
+    };
+    use std::sync::mpsc::{channel, Sender};
+    use std::sync::OnceLock;
+
+    // ---- Tombol volume: ditelan supaya panel volume bawaan Windows tidak muncul ----
+    // Tombol F/Fn volume dikirim sebagai VK_VOLUME_UP/DOWN/MUTE. Hook keyboard tingkat rendah menelan
+    // tombol itu, lalu volume diubah sendiri lewat IAudioEndpointVolume. HUD notch tetap muncul karena
+    // perubahan volume dibaca seperti biasa. Matikan dengan env `NOTCH_NATIVE_OSD=1`.
+    // Kecerahan TIDAK bisa diperlakukan sama: tombol itu ditangani firmware/driver dan tidak lewat hook.
+    #[derive(Clone, Copy)]
+    enum Key {
+        Up,
+        Down,
+        Mute,
+    }
+    static KEY_TX: OnceLock<Sender<Key>> = OnceLock::new();
+    const VK_VOLUME_MUTE: u32 = 0xAD;
+    const VK_VOLUME_DOWN: u32 = 0xAE;
+    const VK_VOLUME_UP: u32 = 0xAF;
+    const STEP: f32 = 0.02; // sama dengan langkah volume Windows
+
+    unsafe extern "system" fn key_hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+        if code == 0 {
+            // SAFETY: untuk WH_KEYBOARD_LL dengan code == HC_ACTION, lparam menunjuk KBDLLHOOKSTRUCT yang valid.
+            let kb = unsafe { &*(lparam.0 as *const KBDLLHOOKSTRUCT) };
+            let key = match kb.vkCode {
+                VK_VOLUME_UP => Some(Key::Up),
+                VK_VOLUME_DOWN => Some(Key::Down),
+                VK_VOLUME_MUTE => Some(Key::Mute),
+                _ => None,
+            };
+            if let Some(k) = key {
+                let down = wparam.0 as u32 == WM_KEYDOWN || wparam.0 as u32 == WM_SYSKEYDOWN;
+                if down {
+                    if let Some(tx) = KEY_TX.get() {
+                        let _ = tx.send(k);
+                    }
+                }
+                return LRESULT(1); // telan tombol (tekan dan lepas)
+            }
+        }
+        unsafe { CallNextHookEx(None, code, wparam, lparam) }
+    }
+
+    fn apply_key(en: &IMMDeviceEnumerator, key: Key) -> windows::core::Result<(u8, bool)> {
+        unsafe {
+            let dev = en.GetDefaultAudioEndpoint(eRender, eMultimedia)?;
+            let vol = dev.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)?;
+            let cur = vol.GetMasterVolumeLevelScalar()?;
+            let mut muted = vol.GetMute()?.as_bool();
+            let mut level = cur;
+            match key {
+                Key::Up => {
+                    level = (cur + STEP).min(1.0);
+                    muted = false;
+                }
+                Key::Down => level = (cur - STEP).max(0.0),
+                Key::Mute => muted = !muted,
+            }
+            vol.SetMasterVolumeLevelScalar(level, std::ptr::null())?;
+            vol.SetMute(muted, std::ptr::null())?;
+            Ok(((level * 100.0).round() as u8, muted))
+        }
+    }
+
+    fn start_key_hook(app: AppHandle) {
+        let (tx, rx) = channel::<Key>();
+        if KEY_TX.set(tx).is_err() {
+            return; // sudah aktif
+        }
+        // Pekerja: mengubah volume (COM) dan langsung memberi tahu HUD supaya terasa instan.
+        std::thread::spawn(move || {
+            unsafe {
+                let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
+            }
+            let mut en = enumerator();
+            for key in rx {
+                if en.is_none() {
+                    en = enumerator();
+                }
+                match en.as_ref().map(|e| apply_key(e, key)) {
+                    Some(Ok((value, muted))) => {
+                        let _ = app.emit("hud", HudEvent { kind: "volume", value, muted });
+                    }
+                    Some(Err(_)) => en = None,
+                    None => {}
+                }
+            }
+        });
+        // Hook membutuhkan thread dengan message loop sendiri.
+        std::thread::spawn(|| unsafe {
+            match SetWindowsHookExW(WH_KEYBOARD_LL, Some(key_hook), None, 0) {
+                Ok(_hook) => {
+                    let mut msg = MSG::default();
+                    while GetMessageW(&mut msg, None, 0, 0).as_bool() {}
+                }
+                Err(e) => eprintln!("hud: hook tombol volume gagal: {e}"),
+            }
+        });
+    }
 
     // enumerator dibuat sekali dan dipakai ulang (dulu: CoCreateInstance baru tiap 250 ms)
     fn enumerator() -> Option<IMMDeviceEnumerator> {
@@ -194,6 +298,9 @@ mod imp {
     }
 
     pub fn start(app: AppHandle) {
+        if std::env::var_os("NOTCH_NATIVE_OSD").is_none() {
+            start_key_hook(app.clone());
+        }
         let rx = crate::winps::subscribe("H");
         let a = app.clone();
         std::thread::spawn(move || brightness_watcher(a, rx));
