@@ -1,300 +1,326 @@
-// @ts-nocheck
-// Lirik, sinkronisasi, dan lebar compact lyrics.
-// ---------- lirik lagu (diperluas dari halaman media) ----------
-type LyLine = {
-    t: number;
-    text: string;
-};
-type Lyrics = {
-    synced: boolean;
-    lines: LyLine[];
-};
+//! Pengambilan lirik dari LRCLIB + parser LRC.
+//! Dipanggil frontend lewat: invoke("lyrics_fetch", { title, artist, length })
 
-export function register(ctx: Record<string, any>): void {
-  ctx.onMediaForLyrics = function onMediaForLyrics(m: Media) {
-      const nowMs = performance.now();
-      const playingNow = m.active && m.playing;
-      // Posisi dari pemutar datang tiap ±1 detik dan sedikit bergetar (snapshot SMTC kasar). Bila lagu terus
-      // berjalan dan selisihnya kecil, koreksi hanya sebagian supaya lirik tidak maju-mundur; selisih besar
-      // (seek, ganti lagu, jeda) langsung diikuti.
-      const predicted = ctx.nowPos();
-      const drift = m.position - predicted;
-      if (ctx.clockPlaying && playingNow && m.length === ctx.clockLen && Math.abs(drift) < 1.0) {
-          ctx.clockPos = predicted + drift * 0.4;
-      }
-      else {
-          ctx.clockPos = m.position;
-      }
-      ctx.clockLen = m.length;
-      ctx.clockAt = nowMs;
-      ctx.clockPlaying = playingNow;
-      // Pencarian lirik untuk compact view tetap aktif meskipun halaman Lyrics
-      // tidak dimasukkan ke daftar halaman konfigurasi.
-      const key = m.active && m.title ? `${m.artist}|${m.title}` : "";
-      if (key === ctx.lyKey) {
-          ctx.scheduleLyricTick(); // jam baru: jadwalkan ulang pergantian baris
-          return;
-      }
-      ctx.lyKey = key;
-      ctx.ly = null;
-      const token = ++ctx.lyToken;
-      if (!key) {
-          ctx.lyState = "idle";
-          ctx.updateCompactLyric();
-          ctx.renderLyrics();
-          return;
-      }
-      ctx.lyState = "loading";
-      ctx.renderLyrics();
-      ctx.invoke<Lyrics | null>("lyrics_fetch", { title: m.title, artist: m.artist, length: m.length })
-          .then((r) => {
-          if (token !== ctx.lyToken)
-              return; // lagu sudah ganti
-          ctx.ly = r && r.lines.length ? r : null;
-          ctx.lyState = ctx.ly ? "ok" : "none";
-          ctx.renderLyrics();
-          ctx.scheduleLyricTick();
-      })
-          .catch(() => {
-          if (token !== ctx.lyToken)
-              return;
-          ctx.lyState = "none";
-          ctx.renderLyrics();
-      });
-  };
-  ctx.renderLyrics = function renderLyrics() {
-      document.getElementById("m-lyrics")?.classList.toggle("off", ctx.lyState === "idle" || ctx.lyState === "none");
-      ctx.lyLines.classList.toggle("plain", !!ctx.ly && !ctx.ly.synced);
-      ctx.lyLines.replaceChildren();
-      ctx.lyIdx = -2;
-      ctx.updateCompactLyric();
-      if (ctx.lyState !== "ok" || !ctx.ly) {
-          const d = document.createElement("div");
-          d.className = "ly-msg";
-          d.textContent =
-              ctx.lyState === "loading" ? "Mencari lirik…"
-                  : ctx.lyState === "none" ? "Lirik tidak ditemukan"
-                      : "Putar musik untuk melihat lirik";
-          ctx.lyLines.appendChild(d);
-          return;
-      }
-      if (!ctx.ly.synced) {
-          const note = document.createElement("div");
-          note.className = "ly-note";
-          note.textContent = "Lirik tanpa waktu — gulir otomatis hanya perkiraan";
-          ctx.lyLines.appendChild(note);
-      }
-      ctx.ly.lines.forEach((l) => {
-          const d = document.createElement("div");
-          d.className = "ly-l";
-          d.textContent = l.text || "♪";
-          ctx.lyLines.appendChild(d);
-      });
-      if (ctx.notch.dataset.view === "lyr")
-          ctx.tickLyrics(true);
-      ctx.scheduleLyricTick();
-  };
-  // Pergantian baris dijadwalkan tepat pada waktunya (setTimeout ke baris berikutnya), bukan menunggu
-  // polling 500 ms yang bisa terlambat setengah detik: pada lagu cepat (baris < 1-2 detik) itu terasa
-  // sebagai lirik yang selalu "ketinggalan". Dijadwalkan ulang tiap jam berubah (update media, seek, ganti lirik).
-  ctx.scheduleLyricTick = function scheduleLyricTick() {
-      if (ctx.lyTimer) {
-          clearTimeout(ctx.lyTimer);
-          ctx.lyTimer = 0;
-      }
-      if (ctx.lyState !== "ok" || !ctx.ly?.synced || !ctx.clockPlaying)
-          return;
-      const next = ctx.ly.lines[ctx.lyIndex() + 1];
-      if (!next)
-          return;
-      const wait = Math.max(15, Math.min(4000, (next.t - (ctx.nowPos() + ctx.LY_LEAD)) * 1000));
-      ctx.lyTimer = window.setTimeout(() => {
-          ctx.lyTimer = 0;
-          // Panel lirik terbuka: perbarui sorotan + autoscroll. Selain itu cukup lirik compact
-          // (tanpa menyentuh DOM panel lirik yang tersembunyi).
-          if (ctx.notch.dataset.view === "lyr")
-              ctx.tickLyrics();
-          else
-              ctx.updateCompactLyric();
-          ctx.scheduleLyricTick();
-      }, wait);
-  };
-  // Geser sinkron lirik: Alt + roda mouse di atas lirik. Naik = lirik lebih awal, turun = lebih lambat.
-  ctx.adjustLyricLead = function adjustLyricLead(delta: number) {
-      ctx.LY_LEAD = Math.round(Math.max(-2, Math.min(2, ctx.LY_LEAD + delta)) * 10) / 10;
-      try {
-          localStorage.setItem("notch.lyLead", String(ctx.LY_LEAD));
-      }
-      catch { /* penyimpanan tidak tersedia */ }
-      if (ctx.notch.dataset.view === "lyr")
-          ctx.tickLyrics(true);
-      else
-          ctx.updateCompactLyric();
-      ctx.scheduleLyricTick();
-      const v = ctx.LY_LEAD;
-      ctx.momentBubble?.show("Sinkron lirik", v === 0 ? "Tepat waktu" : `${Math.abs(v).toFixed(1)} dtk lebih ${v > 0 ? "awal" : "lambat"}`, 1200);
-  };
-  ctx.lyIndex = function lyIndex(): number {
-      if (!ctx.ly)
-          return -1;
-      const p = ctx.nowPos() + ctx.LY_LEAD;
-      // Lirik tersinkronisasi menggunakan timestamp LRC.
-      if (ctx.ly.synced) {
-          let lo = 0, hi = ctx.ly.lines.length - 1, r = -1;
-          while (lo <= hi) {
-              const mid = (lo + hi) >> 1;
-              if (ctx.ly.lines[mid].t <= p) {
-                  r = mid;
-                  lo = mid + 1;
-              }
-              else
-                  hi = mid - 1;
-          }
-          return r;
-      }
-      // Lirik tanpa timestamp tidak bisa benar-benar sinkron; estimasikan dari progres lagu.
-      if (ctx.clockLen <= 0 || !ctx.ly.lines.length)
-          return 0;
-      return Math.min(ctx.ly.lines.length - 1, Math.floor(Math.max(0, Math.min(0.999, p / ctx.clockLen)) * ctx.ly.lines.length));
-  };
-  ctx.measureLyric = function measureLyric(text: string): number {
-      ctx.clCtx ??= document.createElement("canvas").getContext("2d");
-      if (!ctx.clCtx)
-          return text.length * 6.5;
-      const cs = getComputedStyle(ctx.compactLyrics);
-      ctx.clCtx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-      return ctx.clCtx.measureText(text).width;
-  };
-  ctx.fitCompactLyricWidth = function fitCompactLyricWidth(line: string) {
-      // 48 = padding l-compact + ruang telinga; 16 = margin kiri/kanan lirik; 8 = kelonggaran
-      const overhead = 48 + (ctx.cArtEl.offsetWidth || 22) + 16 + (ctx.compactBars?.offsetWidth || 18) + 8;
-      const screenMax = Math.floor(ctx.MON.w / ctx.CFG.scale) - 60;
-      const max = Math.max(ctx.CL_MIN, Math.min(ctx.CL_MAX, screenMax));
-      const target = Math.round(ctx.clamp(ctx.measureLyric(line) + overhead, ctx.CL_MIN, max));
-      if (Math.abs(target - ctx.clWidth) < 3)
-          return;
-      ctx.clWidth = target;
-      ctx.notch.style.setProperty("--cl-w", String(target));
-      ctx.BASE_SIZES.compactLyrics[0] = target + 20; // pil + 10px telinga tiap sisi
-      ctx.BASE_HIT.compactLyrics[0] = target;
-      ctx.SIZES.compactLyrics[0] = Math.round((target + 20) * ctx.CFG.scale);
-      ctx.HIT.compactLyrics[0] = Math.round(target * ctx.CFG.scale);
-      if (ctx.notch.dataset.view === "compactLyrics") {
-          ctx.placeShell("compactLyrics"); // jendela native tetap, cukup tengahkan ulang + perbarui area klik
-          ctx.setHit("compactLyrics");
-      }
-  };
-  ctx.updateCompactLyric = function updateCompactLyric() {
-      const visible = ctx.playing && ctx.lyState === "ok" && !!ctx.ly?.lines.length;
-      ctx.compactLyrics.classList.toggle("visible", visible);
-      if (!visible || !ctx.ly) {
-          if (ctx.compactLyrics.textContent) ctx.compactLyrics.textContent = "";
-          if (ctx.compactLyrics.hasAttribute("title")) ctx.compactLyrics.removeAttribute("title");
-          return;
-      }
-      const i = ctx.lyIndex();
-      const line = i >= 0 ? (ctx.ly.lines[i]?.text || "♪") : "♪";
-      if (ctx.compactLyrics.textContent !== line) {
-          ctx.compactLyrics.textContent = line;
-          ctx.compactLyrics.title = line;
-          ctx.fitCompactLyricWidth(line);
-          ctx.compactLyrics.classList.remove("lyric-change");
-          // Paksa animasi transisi berjalan kembali setiap pergantian baris.
-          void ctx.compactLyrics.offsetWidth;
-          ctx.compactLyrics.classList.add("lyric-change");
-      }
-  };
-  ctx.centerLyric = function centerLyric(instant: boolean) {
-      const el = ctx.lyLines.querySelector<HTMLElement>(".ly-l.cur");
-      if (!el)
-          return;
-      ctx.lyScroll.scrollTo({
-          top: el.offsetTop - ctx.lyScroll.clientHeight / 2 + el.offsetHeight / 2,
-          behavior: instant ? "auto" : "smooth",
-      });
-  };
-  ctx.tickLyrics = function tickLyrics(force = false) {
-      ctx.updateCompactLyric();
-      if (ctx.lyState !== "ok" || !ctx.ly)
-          return;
-      const manual = Date.now() - ctx.lyManualAt < 4000; // pengguna baru menggulir: jangan ditarik balik
-      if (!ctx.ly.synced) {
-          if (ctx.clockLen <= 0 || (manual && !force))
-              return;
-          const max = ctx.lyScroll.scrollHeight - ctx.lyScroll.clientHeight;
-          ctx.lyScroll.scrollTop = Math.max(0, Math.min(1, ctx.nowPos() / ctx.clockLen)) * max;
-          return;
-      }
-      const i = ctx.lyIndex();
-      if (i === ctx.lyIdx && !force)
-          return;
-      ctx.lyIdx = i;
-      ctx.lyLines.querySelector(".cur")?.classList.remove("cur");
-      const el = i >= 0 ? ctx.lyLines.querySelectorAll(".ly-l")[i] : undefined;
-      el?.classList.add("cur");
-      if (!manual || force)
-          ctx.centerLyric(force);
-  };
-  ctx.openLyrics = function openLyrics() {
-      ctx.hubByHover = true; // menutup otomatis saat kursor keluar, seperti hub
-      ctx.closeAt = 0;
-      ctx.expand("lyr", 0);
-      ctx.tickLyrics(true);
-  };
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+use std::time::Duration;
+
+const API: &str = "https://lrclib.net/api";
+const USER_AGENT: &str = "WellNotch/0.1 (https://github.com/your-name/WellNotch)";
+/// Selisih durasi maksimum (detik) agar hasil pencarian dianggap lagu yang sama.
+const MAX_DURATION_DIFF: f64 = 6.0;
+
+#[derive(Serialize, Clone, Debug)]
+pub struct LyLine {
+    /// Waktu mulai baris, dalam detik.
+    pub t: f64,
+    pub text: String,
 }
 
-export function init(ctx: Record<string, any>): void {
-  ctx.ly = null;
-  ctx.lyKey = "";
-  ctx.lyState = "idle";
-  ctx.lyToken = 0;
-  ctx.lyIdx = -2;
-  ctx.LY_LEAD = 0.3;
-  try {
-      const saved = parseFloat(localStorage.getItem("notch.lyLead") ?? "");
-      if (Number.isFinite(saved))
-          ctx.LY_LEAD = Math.max(-2, Math.min(2, saved));
-  }
-  catch { /* penyimpanan tidak tersedia */ }
-  ctx.lyTimer = 0;
-  ctx.lyLines = ctx.$("ly-lines");
-  ctx.lyScroll = ctx.$("ly-scroll");
-  ctx.markManual = () => { ctx.lyManualAt = Date.now(); };
-  ctx.lyScroll.addEventListener("wheel", ctx.markManual, { passive: true });
-  ctx.lyScroll.addEventListener("pointerdown", ctx.markManual);
-  ctx.clockPos = 0;
-  ctx.clockLen = 0;
-  ctx.clockAt = 0;
-  ctx.clockPlaying = false;
-  ctx.lyManualAt = 0;
-  ctx.nowPos = () => ctx.clockPos + (ctx.clockPlaying ? (performance.now() - ctx.clockAt) / 1000 : 0);
-  ctx.CL_MIN = 230;
-  ctx.CL_MAX = 520;
-  ctx.clWidth = 340;
-  ctx.clCtx = null;
-  // Lirik cukup diperbarui dua kali per detik; saat tidak ada lirik, hindari kerja DOM.
-  setInterval(() => {
-      if (ctx.notch.dataset.view === "lyr") {
-          ctx.tickLyrics();
-      } else if (ctx.playing && ctx.lyState === "ok" && ctx.ly?.lines.length) {
-          ctx.updateCompactLyric();
-      } else if (ctx.compactLyrics.classList.contains("visible")) {
-          ctx.updateCompactLyric();
-      }
-  }, 500);
-  if (!ctx.featureOn("lyrics"))
-      document.getElementById("m-lyrics")?.remove();
-  document.getElementById("m-lyrics")?.addEventListener("click", (e) => { e.stopPropagation(); ctx.openLyrics(); });
-  ctx.$("ly-back").addEventListener("click", (e) => { e.stopPropagation(); ctx.openHub(ctx.pageOf("media")); });
-  // Alt + roda mouse di atas lirik menggeser sinkron (naik = lebih awal, turun = lebih lambat).
-  const lyWheel = (e: WheelEvent) => {
-      if (!e.altKey)
-          return;
-      e.preventDefault();
-      ctx.adjustLyricLead(e.deltaY < 0 ? 0.1 : -0.1);
-  };
-  ctx.lyScroll.addEventListener("wheel", lyWheel, { passive: false });
-  ctx.compactLyrics?.addEventListener("wheel", lyWheel, { passive: false });
-  ctx.renderLyrics(); // pesan awal "Putar musik..."
-  
+#[derive(Serialize, Clone, Debug)]
+pub struct Lyrics {
+    pub synced: bool,
+    pub lines: Vec<LyLine>,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct LrcRecord {
+    #[serde(default)]
+    synced_lyrics: Option<String>,
+    #[serde(default)]
+    plain_lyrics: Option<String>,
+    #[serde(default)]
+    instrumental: bool,
+    #[serde(default)]
+    duration: Option<f64>,
+}
+
+// ---------- klien & cache ----------
+
+fn client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(Duration::from_secs(8))
+            .build()
+            .expect("gagal membuat HTTP client")
+    })
+}
+
+fn cache() -> &'static Mutex<HashMap<String, Option<Lyrics>>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Option<Lyrics>>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+// ---------- command Tauri ----------
+
+#[tauri::command]
+pub async fn lyrics_fetch(
+    title: String,
+    artist: String,
+    length: f64,
+) -> Result<Option<Lyrics>, String> {
+    let title = clean_title(&title);
+    let artist = clean_artist(&artist);
+    if title.is_empty() {
+        return Ok(None);
+    }
+
+    let key = format!("{}|{}|{}", artist.to_lowercase(), title.to_lowercase(), length.round() as i64);
+    if let Some(hit) = cache().lock().ok().and_then(|c| c.get(&key).cloned()) {
+        return Ok(hit);
+    }
+
+    let result = fetch_lrclib(&title, &artist, length).await?;
+
+    // Hanya hasil sukses (ada/tidak ada) yang disimpan; error jaringan dilempar tanpa cache.
+    if let Ok(mut c) = cache().lock() {
+        if c.len() > 200 {
+            c.clear();
+        }
+        c.insert(key, result.clone());
+    }
+    Ok(result)
+}
+
+// ---------- LRCLIB ----------
+
+async fn fetch_lrclib(title: &str, artist: &str, length: f64) -> Result<Option<Lyrics>, String> {
+    // 1) Pencocokan tepat (dengan durasi bila ada).
+    let mut params: Vec<(&str, String)> = vec![
+        ("track_name", title.to_string()),
+        ("artist_name", artist.to_string()),
+    ];
+    if length > 0.0 {
+        params.push(("duration", (length.round() as i64).to_string()));
+    }
+    if let Some(rec) = get_exact(&params).await? {
+        if let Some(l) = record_to_lyrics(&rec) {
+            return Ok(Some(l));
+        }
+    }
+
+    // 2) Pencarian lebih longgar, pilih kandidat terbaik.
+    let resp = client()
+        .get(format!("{API}/search"))
+        .query(&[("track_name", title), ("artist_name", artist)])
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Ok(None);
+    }
+    let records: Vec<LrcRecord> = resp.json().await.map_err(|e| e.to_string())?;
+
+    Ok(pick_best(&records, length))
+}
+
+async fn get_exact(params: &[(&str, String)]) -> Result<Option<LrcRecord>, String> {
+    let resp = client()
+        .get(format!("{API}/get"))
+        .query(params)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    match resp.status().as_u16() {
+        200 => Ok(Some(resp.json::<LrcRecord>().await.map_err(|e| e.to_string())?)),
+        404 => Ok(None),
+        s => Err(format!("LRCLIB mengembalikan status {s}")),
+    }
+}
+
+fn pick_best(records: &[LrcRecord], length: f64) -> Option<Lyrics> {
+    let mut best: Option<(f64, Lyrics)> = None;
+
+    for rec in records {
+        let Some(lyrics) = record_to_lyrics(rec) else { continue };
+
+        let diff = match (length > 0.0, rec.duration) {
+            (true, Some(d)) => (d - length).abs(),
+            _ => 0.0,
+        };
+        if length > 0.0 && rec.duration.is_some() && diff > MAX_DURATION_DIFF {
+            continue;
+        }
+
+        // Skor: lirik bersinkron lebih disukai, lalu durasi paling dekat.
+        let score = diff + if lyrics.synced { 0.0 } else { 100.0 };
+        if best.as_ref().map_or(true, |(s, _)| score < *s) {
+            best = Some((score, lyrics));
+        }
+    }
+    best.map(|(_, l)| l)
+}
+
+fn record_to_lyrics(rec: &LrcRecord) -> Option<Lyrics> {
+    if rec.instrumental {
+        return None;
+    }
+    if let Some(s) = rec.synced_lyrics.as_deref() {
+        let lines = parse_lrc(s);
+        if !lines.is_empty() {
+            return Some(Lyrics { synced: true, lines });
+        }
+    }
+    if let Some(p) = rec.plain_lyrics.as_deref() {
+        let lines = parse_plain(p);
+        if !lines.is_empty() {
+            return Some(Lyrics { synced: false, lines });
+        }
+    }
+    None
+}
+
+// ---------- parser ----------
+
+/// Mengurai LRC: `[mm:ss.xx] teks`, mendukung beberapa timestamp per baris,
+/// mengabaikan tag metadata (`[ar:..]`, `[ti:..]`, `[offset:..]`) dan tag kata `<mm:ss.xx>`.
+pub fn parse_lrc(src: &str) -> Vec<LyLine> {
+    let mut out: Vec<LyLine> = Vec::new();
+
+    for raw in src.lines() {
+        let mut rest = raw.trim();
+        let mut times: Vec<f64> = Vec::new();
+
+        while rest.starts_with('[') {
+            let Some(end) = rest.find(']') else { break };
+            match parse_timestamp(&rest[1..end]) {
+                Some(t) => {
+                    times.push(t);
+                    rest = rest[end + 1..].trim_start();
+                }
+                None => break, // tag metadata
+            }
+        }
+
+        if times.is_empty() {
+            continue;
+        }
+
+        let text = strip_word_tags(rest).trim().to_string();
+        for t in times {
+            out.push(LyLine { t, text: text.clone() });
+        }
+    }
+
+    out.sort_by(|a, b| a.t.partial_cmp(&b.t).unwrap_or(std::cmp::Ordering::Equal));
+    out
+}
+
+/// Lirik tanpa waktu: satu baris per entri, waktu 0 (frontend memperkirakan dari progres lagu).
+fn parse_plain(src: &str) -> Vec<LyLine> {
+    let lines: Vec<LyLine> = src
+        .lines()
+        .map(|l| LyLine { t: 0.0, text: l.trim().to_string() })
+        .collect();
+    if lines.iter().all(|l| l.text.is_empty()) {
+        return Vec::new();
+    }
+    lines
+}
+
+/// "mm:ss", "mm:ss.xx" atau "mm:ss.xxx" -> detik.
+fn parse_timestamp(s: &str) -> Option<f64> {
+    let (m, sec) = s.split_once(':')?;
+    let m: u32 = m.trim().parse().ok()?;
+    let sec = sec.trim().replace(',', ".");
+    if sec.is_empty() || !sec.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        return None;
+    }
+    let sec: f64 = sec.parse().ok()?;
+    Some(m as f64 * 60.0 + sec)
+}
+
+/// Hapus tag waktu per kata ala "enhanced LRC": `<00:12.34>`.
+fn strip_word_tags(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '<' {
+            let mut tag = String::new();
+            let mut closed = false;
+            for n in chars.by_ref() {
+                if n == '>' {
+                    closed = true;
+                    break;
+                }
+                tag.push(n);
+            }
+            if closed && parse_timestamp(&tag).is_some() {
+                continue; // buang tag waktu
+            }
+            out.push('<');
+            out.push_str(&tag);
+            if closed {
+                out.push('>');
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+// ---------- pembersihan judul/artis ----------
+
+fn clean_title(s: &str) -> String {
+    let mut t = s.trim().to_string();
+
+    // Buang sufiks dalam kurung yang biasanya mengganggu pencarian.
+    const NOISE: [&str; 9] = [
+        "official", "video", "audio", "lyric", "lyrics", "visualizer", "hd", "4k", "remaster",
+    ];
+    loop {
+        let open = t.rfind(|c| c == '(' || c == '[');
+        let Some(i) = open else { break };
+        let tail = t[i..].to_lowercase();
+        if tail.ends_with(')') || tail.ends_with(']') {
+            if NOISE.iter().any(|n| tail.contains(n)) {
+                t.truncate(i);
+                t = t.trim_end().to_string();
+                continue;
+            }
+        }
+        break;
+    }
+    t.trim().to_string()
+}
+
+fn clean_artist(s: &str) -> String {
+    let a = s.trim();
+    a.strip_suffix(" - Topic").unwrap_or(a).trim().to_string()
+}
+
+// ---------- tes ----------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_basic() {
+        let l = parse_lrc("[ar:Foo]\n[00:12.50]Halo\n[01:02.5][00:05.00]Dunia\n[00:20.00]");
+        assert_eq!(l.len(), 4);
+        assert_eq!(l[0].text, "Dunia");
+        assert!((l[0].t - 5.0).abs() < 1e-6);
+        assert!((l[2].t - 20.0).abs() < 1e-6);
+        assert_eq!(l[2].text, "");
+        assert!((l[3].t - 62.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn word_tags() {
+        assert_eq!(strip_word_tags("<00:01.00>Ha<00:01.50>lo"), "Halo");
+    }
+
+    #[test]
+    fn title_cleaning() {
+        assert_eq!(clean_title("Lagu Ini (Official Video)"), "Lagu Ini");
+        assert_eq!(clean_title("Lagu (feat. X)"), "Lagu (feat. X)");
+    }
 }
