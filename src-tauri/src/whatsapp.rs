@@ -353,7 +353,16 @@ fn initialization_script(account: u8, preferences: &Preferences) -> String {
       const unreadLabel = /^\s*\d+\s+(?:unread messages?|pesan belum dibaca)\s*/i;
       const sender = (title?.getAttribute("title")?.trim() || textOf(title)).replace(unreadLabel, "");
       const secondary = row.querySelector('[data-testid="cell-frame-secondary"]');
-      let preview = textOf(secondary);
+      // Jangan memakai textContent seluruh baris: lencana "jumlah belum dibaca" (angka di kanan baris)
+      // ikut tergabung ke ujung pesan, jadi muncul "Haduh 4". Pakai atribut title pesan terakhir,
+      // atau salinan baris tanpa lencana/ikon.
+      const clean = (t) => (t || "").replace(/[\u202a-\u202e\u2066-\u2069]/g, "").replace(/\s+/g, " ").trim();
+      let preview = clean(secondary?.querySelector('[data-testid="last-msg-status"]')?.getAttribute("title"));
+      if (!preview && secondary) {{
+        const copy = secondary.cloneNode(true);
+        copy.querySelectorAll('[data-testid="icon-unread-count"], [aria-label*="unread" i], [data-testid="chat-msg-symbol"], [aria-hidden="true"]').forEach((n) => n.remove());
+        preview = clean(copy.textContent);
+      }}
       if (!preview) {{
         const spans = [...row.querySelectorAll('span[dir="auto"]')];
         preview = spans.map(textOf).filter((text) => text && text !== sender).at(-1) || "";
