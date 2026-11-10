@@ -313,7 +313,8 @@ const markFired = (k: string) => {
 };
 
 function checkReminders() {
-    if (!prefs) return;
+    const p = prefs; // salinan lokal: `prefs` bisa null lagi di dalam closure, `p` tidak
+    if (!p) return;
     const now = new Date();
     const today = dayEntries(now);
     const tm = dayEntries(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
@@ -322,25 +323,27 @@ function checkReminders() {
 
     for (const c of cands) {
         for (const kind of ["pre", "at"] as const) {
-            if (kind === "pre" && !prefs.remind_before) continue;
-            const trig = c.at.getTime() - (kind === "pre" ? prefs.remind_min * 60_000 : 0);
+            if (kind === "pre" && !p.remind_before) continue;
+            const trig = c.at.getTime() - (kind === "pre" ? p.remind_min * 60_000 : 0);
             if (nowMs < trig || nowMs >= trig + 90_000) continue; // jendela 90 dtk: tidak menembak ulang saat app dibuka telat
             const k = `${c.at.toDateString()}|${c.key}|${kind}`;
             if (fired.has(k)) continue;
             markFired(k);
+            console.info(`[Prayer] Memicu ${kind === "pre" ? "pengingat" : "waktu"} ${c.name} (${hhmm(c.at)}), mode: ${p.mode}`);
+            const safe = (fn: () => void) => { try { fn(); } catch (e) { console.warn("[Prayer] hook gagal:", e); } };
 
             if (kind === "pre") {
-                hooks.card(`Menjelang ${c.name}`, `${prefs.remind_min} menit lagi · ${hhmm(c.at)}`, 8000);
-                hooks.mood("surprised", 3000);
-                if (prefs.mode !== "silent") tone(1);
+                safe(() => hooks.card(`Menjelang ${c.name}`, `${p.remind_min} menit lagi · ${hhmm(c.at)}`, 8000));
+                safe(() => hooks.mood("surprised", 3000));
+                if (p.mode !== "silent") tone(1);
             } else {
-                hooks.mood("love", 4000);
-                if (prefs.mode === "adzan") {
+                safe(() => hooks.mood("love", 4000));
+                if (p.mode === "adzan") {
                     // Kartu tetap terbuka hingga HTMLAudioElement memicu ended (atau gagal).
                     adzan(c.name, true);
                 } else {
-                    hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${prefs.kabkota}`, 15000);
-                    if (prefs.mode === "tone") tone(3);
+                    safe(() => hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${p.kabkota}`, 15000));
+                    if (p.mode === "tone") tone(3);
                 }
             }
         }
@@ -496,6 +499,19 @@ function wire() {
 
 export function initPrayer(h: Hooks) {
     hooks = h;
+    // Diagnosa: ketik __prayerDebug() di konsol DevTools untuk melihat kenapa adzan/pengingat tidak menyala.
+    (window as unknown as Record<string, unknown>).__prayerDebug = () => {
+        const today = dayEntries(new Date());
+        return {
+            sekarang: new Date().toString(),
+            prefs,
+            galat: err || null,
+            jadwalHariIniTermuat: !!today,
+            jadwalHariIni: today?.list.map((x) => `${x.name} ${hhmm(x.at)}`) ?? null,
+            sudahDipicu: [...fired],
+            bulanTermuat: [...months.keys()],
+        };
+    };
     wire();
     build();
     installRamadanUi();
