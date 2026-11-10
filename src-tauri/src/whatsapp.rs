@@ -169,6 +169,10 @@ const HEADER_SELECTORS: &[&str] = &[
 /// hover lewat atribut dari skrip dan ditahan selama scroll, jadi tidak ada hitung ulang `:hover`.
 const MESSAGE_SELECTOR: &str =
     ":is(#main, [data-testid=\"conversation-panel-wrapper\"]) [data-testid=\"msg-container\"]";
+/// Pratinjau pesan terakhir di baris daftar chat (nama pengirim pada grup + cuplikan isi pesan
+/// terakhir, mis. "Mas Moko (KAI): Iya mas dr byyk"). Testid ini khusus dipakai di situ saja oleh
+/// WhatsApp Web, jadi aman tanpa perlu di-scope ke #pane-side segala.
+const LAST_MESSAGE_SELECTOR: &str = "[data-testid=\"last-msg-status\"]";
 /// Avatar daftar chat berupa SVG (<image xlink:href> di dalam cincin status), bukan <img>.
 const STATUS_RING_SELECTOR: &str = "[data-testid*=\"status-ring\" i], svg:has(> g > image), svg:has(> image)";
 /// Semua avatar di daftar chat, apa pun struktur barisnya.
@@ -182,12 +186,22 @@ const PROFILE_IMG_SELECTOR: &str = "img:is([src*=\"whatsapp.net\"], [src^=\"blob
 /// Atribut penanda elemen yang sedang dibuka (di-hover). Diatur oleh skrip, bukan `:hover`.
 const REVEAL_ATTR: &str = "data-nw-reveal";
 
-/// Daftar chat + header: teks disamarkan lewat text-shadow, gambar lewat filter.
+/// Daftar chat + header: teks disamarkan lewat text-shadow, gambar lewat filter. Memicu blok
+/// avatar/foto profil di blur_css -- hanya dipakai mode yang memang mau menyamarkan seluruh baris
+/// daftar chat ("all_hover"/"all_always"), BUKAN "chat_hover" (lihat preview_text_selectors).
 fn text_selectors(mode: &str) -> Vec<&'static str> {
     match mode {
         "off" | "chat_hover" => Vec::new(),
         _ => LIST_SELECTORS.iter().chain(HEADER_SELECTORS).copied().collect(),
     }
+}
+
+/// Pratinjau pesan terakhir di daftar chat ("last-msg-status"): diblur sebagai teks biasa, TANPA
+/// ikut memicu blok avatar/foto profil di blur_css (itu cuma relevan buat mode yang menyamarkan
+/// seluruh baris). Dipakai khusus mode "chat_hover" -- isi chat tetap isi chat walau yang tampil
+/// cuma cuplikannya di daftar, bukan di jendela percakapan.
+fn preview_text_selectors(mode: &str) -> Vec<&'static str> {
+    if mode == "chat_hover" { vec![LAST_MESSAGE_SELECTOR] } else { Vec::new() }
 }
 
 /// Bubble pesan: diblur di semua mode kecuali "off".
@@ -206,6 +220,7 @@ fn reveal_selector(mode: &str) -> String {
     }
     text_selectors(mode)
         .into_iter()
+        .chain(preview_text_selectors(mode))
         .chain(message_selectors(mode))
         .collect::<Vec<_>>()
         .join(", ")
@@ -213,8 +228,9 @@ fn reveal_selector(mode: &str) -> String {
 
 fn blur_css(mode: &str) -> String {
     let texts = text_selectors(mode);
+    let previews = preview_text_selectors(mode);
     let messages = message_selectors(mode);
-    if texts.is_empty() && messages.is_empty() {
+    if texts.is_empty() && previews.is_empty() && messages.is_empty() {
         return String::new();
     }
     let hover = reveals_on_hover(mode);
@@ -228,6 +244,14 @@ fn blur_css(mode: &str) -> String {
     let mut css = String::new();
     // Bubble pesan: satu filter per bubble.
     css.push_str(&format!("{} {{ filter: blur(8px) !important; }} ", join(&messages, "")));
+    // Pratinjau pesan terakhir di daftar chat: teks biasa, tidak ikut blok avatar di bawah.
+    if !previews.is_empty() {
+        css.push_str(&format!(
+            "{}, {} {{ color: transparent !important; text-shadow: 0 0 8px rgba(150,160,155,.9) !important; }} ",
+            join(&previews, ""),
+            join(&previews, " *")
+        ));
+    }
     if !texts.is_empty() {
         css.push_str(&format!(
             "{}, {} {{ color: transparent !important; text-shadow: 0 0 8px rgba(150,160,155,.9) !important; }} ",
@@ -352,10 +376,18 @@ fn initialization_script(account: u8, preferences: &Preferences) -> String {
       const title = row.querySelector('[data-testid="cell-frame-title"]') || row.querySelector('span[title]');
       const unreadLabel = /^\s*\d+\s+(?:unread messages?|pesan belum dibaca)\s*/i;
       const sender = (title?.getAttribute("title")?.trim() || textOf(title)).replace(unreadLabel, "");
-      const secondary = row.querySelector('[data-testid="cell-frame-secondary"]');
-      let preview = textOf(secondary);
+      // "last-msg-status" sudah punya atribut title berisi teks pesan bersih (tanpa label "N pesan
+      // belum dibaca", tanpa nama pengirim grup) -- jauh lebih andal daripada menebak lewat
+      // span[dir], yang sebelumnya cuma cek dir="auto" padahal teks pesan aslinya sering dir="ltr",
+      // jadi yang ketangkep malah elemen lain (nama pengirim grup dsb), bukan isi pesannya.
+      const status = row.querySelector('[data-testid="last-msg-status"]');
+      let preview = status?.getAttribute("title")?.trim() || "";
       if (!preview) {{
-        const spans = [...row.querySelectorAll('span[dir="auto"]')];
+        const secondary = row.querySelector('[data-testid="cell-frame-secondary"]');
+        preview = textOf(secondary);
+      }}
+      if (!preview) {{
+        const spans = [...row.querySelectorAll('span[dir]')];
         preview = spans.map(textOf).filter((text) => text && text !== sender).at(-1) || "";
       }}
       if (sender && preview && !ignored.has(sender.toLocaleLowerCase()) &&
@@ -961,6 +993,18 @@ mod tests {
         assert_eq!(reveal_selector("off"), "");
         assert!(reveal_selector("all_hover").contains("#pane-side"));
         assert!(reveal_selector("chat_hover").contains("msg-container"));
+    }
+
+    #[test]
+    fn chat_hover_also_blurs_last_message_preview_in_chat_list() {
+        let css = blur_css("chat_hover");
+        // Cuplikan pesan terakhir di daftar chat ikut diblur sebagai teks...
+        assert!(css.contains("last-msg-status"));
+        // ...tapi TIDAK ikut memicu blok avatar/foto profil (itu cuma buat all_hover/all_always).
+        assert!(!css.contains("status-ring"));
+        assert!(!css.contains("whatsapp.net"));
+        // Dan bisa dibuka saat diarahkan, sama seperti bubble pesan.
+        assert!(reveal_selector("chat_hover").contains("last-msg-status"));
     }
 
     #[test]
