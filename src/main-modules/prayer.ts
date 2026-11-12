@@ -278,9 +278,22 @@ async function adzan(prayerName = "Adzan", showNotch = true) {
         candidate.src = src;
         candidate.load();
         console.info(`[Prayer] Memuat audio adzan dari: ${src}`);
-        void candidate.play().then(() => {
-            console.info(`[Prayer] Audio adzan mulai diputar: ${src}`);
-        }).catch(fail);
+        const started = () => console.info(`[Prayer] Audio adzan mulai diputar: ${src}`);
+        void candidate.play().then(started).catch((e) => {
+            // Autoplay diblokir (belum ada interaksi pengguna di halaman ini). Ini BUKAN file hilang,
+            // jadi jangan lanjut ke URL lain: tahan siklus dan putar ulang pada interaksi pertama.
+            if (e?.name === "NotAllowedError") {
+                console.warn("[Prayer] Autoplay audio diblokir; adzan diputar saat ada klik/tombol pertama.");
+                const retry = () => {
+                    if (finished || audio !== candidate || attemptFailed) return;
+                    candidate.play().then(started).catch(fail);
+                };
+                window.addEventListener("pointerdown", retry, { once: true, capture: true });
+                window.addEventListener("keydown", retry, { once: true, capture: true });
+                return;
+            }
+            fail(e);
+        });
     };
 
     // Pemanggilan ini dimulai sebagai kandidat pertama; bila gagal, URL berikutnya dicoba.

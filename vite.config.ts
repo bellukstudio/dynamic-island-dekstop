@@ -64,6 +64,7 @@ export default defineConfig(({ mode }) => {
           "share": resolve(import.meta.dirname, "share.html"),
           "android": resolve(import.meta.dirname, "android.html"),
           "whatsapp": resolve(import.meta.dirname, "whatsapp.html"),
+          "whats-new":  resolve(import.meta.dirname, "whats-new.html"),
         },
       },
     },

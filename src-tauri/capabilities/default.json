@@ -9,7 +9,8 @@
     "convert",
     "share",
     "android",
-    "whatsapp"
+    "whatsapp",
+    "whats-new"
   ],
   "permissions": [
     "core:default",
@@ -139,6 +140,8 @@
     "allow-notch-get-position",
     "allow-notch-monitor",
     "allow-open-note-detail",
+    "allow-open-whats-new",
+    "allow-close-whats-new",
     "allow-fetch-yahoo-chart",
     "allow-open-url",
     "allow-whatsapp-set-view",

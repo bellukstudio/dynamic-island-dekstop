@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ringkasan pembaruan</title>
+  <style>
+    :root {
+      --bg: #0d0d10;
+      --fg: #f4f4f6;
+      --muted: rgba(244, 244, 246, 0.62);
+      --line: rgba(255, 255, 255, 0.09);
+      --accent: 255, 159, 10;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      overflow: hidden;
+      font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+    .wrap { height: 100%; padding: 12px; }
+    .card {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(120% 60% at 50% 0%, rgba(var(--accent), 0.14), transparent 60%),
+        var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+      overflow: hidden;
+      animation: pop 0.38s cubic-bezier(0.34, 1.4, 0.5, 1) both;
+    }
+    @keyframes pop {
+      from { opacity: 0; transform: translateY(10px) scale(0.96); }
+      to   { opacity: 1; transform: none; }
+    }
+    header { padding: 26px 28px 14px; text-align: center; }
+    .badge {
+      width: 52px; height: 52px; margin: 0 auto 12px;
+      display: grid; place-items: center;
+      font-size: 26px;
+      border-radius: 50%;
+      background: rgba(var(--accent), 0.16);
+      box-shadow: 0 0 0 1px rgba(var(--accent), 0.35), 0 0 24px rgba(var(--accent), 0.25);
+    }
+    h1 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+    .ver {
+      display: inline-block; margin-top: 8px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: 12px; font-weight: 600;
+      color: rgb(var(--accent));
+      background: rgba(var(--accent), 0.14);
+    }
+    .notes {
+      flex: 1; min-height: 0;
+      overflow-y: auto;
+      margin: 6px 0 0; padding: 8px 28px 14px;
+      user-select: text;
+    }
+    .notes::-webkit-scrollbar { width: 6px; }
+    .notes::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 3px; }
+    .item {
+      position: relative;
+      padding: 7px 0 7px 20px;
+      font-size: 13.5px; line-height: 1.5;
+      color: var(--fg);
+    }
+    .item::before {
+      content: ""; position: absolute; left: 4px; top: 15px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgb(var(--accent));
+    }
+    .sub {
+      padding: 14px 0 4px;
+      font-size: 11.5px; font-weight: 650;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .plain { padding: 5px 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+    footer { padding: 14px 28px 24px; border-top: 1px solid var(--line); }
+    button {
+      width: 100%; height: 42px;
+      border: 0; border-radius: 13px;
+      font: inherit; font-size: 14px; font-weight: 650;
+      color: #1a1100;
+      background: rgb(var(--accent));
+      cursor: pointer;
+      transition: transform 0.12s, filter 0.12s;
+    }
+    button:hover { filter: brightness(1.08); }
+    button:active { transform: scale(0.98); }
+    @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <header>
+        <div class="badge">✨</div>
+        <h1>Yang baru di Notch</h1>
+        <span class="ver" id="wn-version"></span>
+      </header>
+      <div class="notes" id="wn-notes"></div>
+      <footer>
+        <button id="wn-close" type="button">Mengerti</button>
+      </footer>
+    </div>
+  </div>
+  <script type="module" src="/src/main-modules/whats-new.ts"></script>
+</body>
+</html>

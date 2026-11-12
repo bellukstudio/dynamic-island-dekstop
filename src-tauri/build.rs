@@ -118,6 +118,8 @@ fn main() {
             "notch_get_position",
             "notch_monitor",
             "open_note_detail",
+            "open_whats_new",
+            "close_whats_new",
             "fetch_yahoo_chart",
             "open_url",
             "whatsapp_set_view",

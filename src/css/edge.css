@@ -284,18 +284,26 @@
   );
 }
 
-/* indikator privasi */
+/* indikator privasi: di dock bawah tetap berada di bagian PALING ATAS notch
+   (sebelumnya di-anchor ke bawah sehingga jatuh di antara mata dan mulut / di dasar kartu) */
 #notch.is-bottom #privacy {
-  top: auto;
-  bottom: 6px;
+  top: 6px;
+  bottom: auto;
+}
+#notch.is-bottom[data-view="bottomIdle"] #privacy,
+#notch.is-bottom[data-view="bottomMedia"] #privacy {
+  top: 5px;
+  bottom: auto;
+  right: 50%;
+  transform: translateX(50%);
 }
 #notch.is-bottom[data-view="idle"] #privacy {
-  top: auto;
-  bottom: 4px;
+  top: 4px;
+  bottom: auto;
 }
 #notch.is-bottom[data-view="compact"] #privacy {
-  top: auto;
-  bottom: 9px;
+  top: 9px;
+  bottom: auto;
 }
 
 

@@ -115,6 +115,8 @@ const ctx: Record<string, any> = {
     notch: ctx.notch,
     // awan bertombol (pengingat) harus ikut masuk area klik native, kalau tidak klik tembus ke aplikasi lain
     onLayout: () => ctx.setHit?.(ctx.notch.dataset.view ?? "idle"),
+    // mode rapat: awan timer tetap tampil saat notch di-hover
+    keepOnHover: () => !!ctx.meetingMode,
   });
   // Restore idle mood-mouth and adhan mouth/face animations.
   initMoodMouth(ctx.eyes);

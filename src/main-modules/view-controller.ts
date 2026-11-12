@@ -51,8 +51,10 @@ export function register(ctx: Record<string, any>): void {
       // Saat pointer baru masuk, tahan state mini sampai hover delay terpenuhi.
       // Dengan begitu expand langsung ke hub, bukan lewat tampilan horizontal perantara.
       const hoverPending = ctx.inside && Date.now() - ctx.insideSince < ctx.T.hover_open_ms;
+      // Mode rapat: bentuk bubble dipertahankan walau di-hover, supaya tidak berganti ke wajah "idle"
+      // (dan awan rapat tidak hilang-muncul) setiap kali kursor lewat.
       const bubble = (atSide || atBottom) && !ctx.override && !ctx.isDraggingWindow &&
-          (!ctx.inside || hoverPending || ctx.holdHover);
+          (!ctx.inside || hoverPending || ctx.holdHover || ctx.meetingMode);
       const view = ctx.override ?? (bubble
           ? (atSide ? (ctx.playing ? "edgeMedia" : "edgeIdle") : (ctx.playing ? "bottomMedia" : "bottomIdle"))
           : ctx.playing ? (hasCompactLyrics ? "compactLyrics" : "compact")

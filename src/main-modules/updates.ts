@@ -68,6 +68,37 @@ export function register(ctx: Record<string, any>): void {
       }
       return 0;
   };
+  // Ringkasan update: muncul SEKALI saja, saat versi terpasang == new_version dan field notes terisi.
+  // Penanda "sudah tampil" disimpan per versi di localStorage. Kalau notes kosong, penanda tidak
+  // ditulis, jadi ringkasan tetap muncul begitu notes ditambahkan di Firestore.
+  ctx.maybeShowWhatsNew = async function maybeShowWhatsNew(installed: string, config: RemoteUpdateConfig) {
+      const SEEN_KEY = "notch.whatsnew.seen";
+      // Di konsol: __resetWhatsNew() menghapus penanda "sudah tampil" supaya bisa dites ulang.
+      window.__resetWhatsNew = () => { try { localStorage.removeItem(SEEN_KEY); } catch { /* abaikan */ } };
+      if (ctx.compareVersionStrings(installed, config.new_version) !== 0) {
+          console.info(`[WhatsNew] Dilewati: versi terpasang ${installed} != new_version ${config.new_version}.`);
+          return;
+      }
+      const notes = (config.notes ?? "").trim();
+      if (!notes) {
+          console.info("[WhatsNew] Dilewati: field notes di Firestore kosong / tidak ada.");
+          return;
+      }
+      let seen = "";
+      try { seen = localStorage.getItem(SEEN_KEY) ?? ""; } catch { /* abaikan */ }
+      if (seen === installed) {
+          console.info(`[WhatsNew] Dilewati: ringkasan versi ${installed} sudah pernah tampil. Jalankan __resetWhatsNew() untuk tes ulang.`);
+          return;
+      }
+      console.info("[WhatsNew] Membuka popup ringkasan update...");
+      try {
+          await ctx.invoke("open_whats_new", { version: installed, notes });
+          try { localStorage.setItem(SEEN_KEY, installed); } catch { /* abaikan */ }
+      }
+      catch (error) {
+          console.warn("[WhatsNew] Gagal membuka jendela ringkasan (cek: Rust sudah di-restart? whats-new.html ada?):", error);
+      }
+  };
   ctx.decideUpdate = function decideUpdate(installed: string, config: RemoteUpdateConfig): UpdateDecision | null {
       const vsLatest = ctx.compareVersionStrings(installed, config.latest_version);
       if (vsLatest !== null && vsLatest < 0) {
@@ -146,6 +177,7 @@ export function init(ctx: Record<string, any>): void {
               });
               return;
           }
+          console.info(`[WhatsNew] Terpasang ${currentVersion}, keputusan update: ${decision.kind}, new_version ${config.new_version}, notes ${config.notes ? "ada" : "KOSONG"}.`);
           if (decision.kind === "required") {
               console.warn(`[Firebase] Update WAJIB: ${currentVersion} < versi minimum ${config.latest_version} -> ${decision.target}`);
               ctx.pendingRequiredUpdate = { installed: currentVersion, config, decision };
@@ -157,6 +189,7 @@ export function init(ctx: Record<string, any>): void {
           }
           else {
               console.info(`[Firebase] Aplikasi sudah terbaru (terpasang ${currentVersion}).`);
+              void ctx.maybeShowWhatsNew(currentVersion, config);
           }
       }
       catch (error) {

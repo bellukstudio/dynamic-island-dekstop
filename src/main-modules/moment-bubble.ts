@@ -11,6 +11,8 @@ export type MomentBubbleHooks = {
   notch: HTMLElement;
   /** Dipanggil saat awan bertombol muncul/berpindah/hilang, supaya area klik native ikut diperbarui. */
   onLayout?: () => void;
+  /** true = awan tidak disembunyikan saat kursor masuk ke notch (mis. mode rapat). */
+  keepOnHover?: () => boolean;
 };
 
 /** Tombol di dalam awan (dipakai pengingat: Tunda / Selesai). */
@@ -38,7 +40,7 @@ const BUBBLE_ON_RIGHT = true;
 
 type Side = "bottom" | "left" | "right";
 
-export function initMomentBubble({ shell, notch, onLayout }: MomentBubbleHooks): MomentBubble {
+export function initMomentBubble({ shell, notch, onLayout, keepOnHover }: MomentBubbleHooks): MomentBubble {
   const el = document.createElement("div");
   el.className = "moment-bubble";
   el.setAttribute("aria-hidden", "true");
@@ -225,7 +227,7 @@ export function initMomentBubble({ shell, notch, onLayout }: MomentBubbleHooks):
   }
 
   // Hover membuka hub, atau notch berpindah/berganti bentuk: awan harus hilang.
-  notch.addEventListener("mouseenter", () => hide());
+  notch.addEventListener("mouseenter", () => { if (!keepOnHover?.()) hide(); });
   new MutationObserver(() => {
     if (!on) return;
     const side = dockSide(sticky);

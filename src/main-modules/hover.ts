@@ -89,7 +89,7 @@ export function init(ctx: Record<string, any>): void {
         }
         else {
             ctx.closeAt = 0;
-            if (!ctx.override && ctx.inside && !ctx.holdHover && !ctx.prayerAdhanActive && now - ctx.insideSince > ctx.T.hover_open_ms)
+            if (!ctx.override && ctx.inside && !ctx.holdHover && !ctx.meetingMode && !ctx.prayerAdhanActive && now - ctx.insideSince > ctx.T.hover_open_ms)
                 ctx.openHub(ctx.homePage());
         }
     }, 250);

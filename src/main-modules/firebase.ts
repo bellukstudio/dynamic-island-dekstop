@@ -6,6 +6,8 @@ export type RemoteUpdateConfig = {
   latest_version: string;
   link_update: string;
   new_version: string;
+  /** Ringkasan update (opsional). Boleh String (satu baris per poin) atau Array of String. */
+  notes: string;
 };
 
 let firebaseApp: FirebaseApp | undefined;
@@ -65,9 +67,18 @@ export async function loadRemoteUpdateConfig(): Promise<RemoteUpdateConfig> {
     );
   }
 
+  // notes opsional: String (baris baru = poin baru) atau Array of String. Selain itu dianggap kosong.
+  const rawNotes = data.notes;
+  const notes = Array.isArray(rawNotes)
+    ? rawNotes.filter((n): n is string => typeof n === "string").join("\n")
+    : typeof rawNotes === "string"
+      ? rawNotes
+      : "";
+
   return {
     latest_version: latestVersion,
     link_update: updateLink,
     new_version: newVersion,
+    notes: notes.trim(),
   };
 }

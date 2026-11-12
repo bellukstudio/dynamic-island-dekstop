@@ -65,8 +65,25 @@ export function init(ctx: Record<string, any>): void {
           : `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
+  // Notch menempel di dasar atau sisi layar? (kelas dock dibaca dari notch dan shell)
+  const isSideOrBottomDock = () =>
+      ["is-bottom", "is-edge-left", "is-edge-right"].some((c) =>
+          ctx.notch.classList.contains(c) || ctx.$("shell").classList.contains(c));
+
   const paintMeetingTimer = () => {
       if (!ctx.meetingMode) return;
+      if (isSideOrBottomDock()) {
+          // Pengguna sedang memakai hub/kartu lain: jangan ditimpa, awan muncul lagi di tik berikutnya.
+          if (ctx.override !== null && !(ctx.override === "dev" && ctx.meetingCard)) return;
+          // Kartu rapat lama (mis. dibuat sebelum posisi dock selesai dipulihkan) dilepas
+          // supaya notch kembali ke bentuk bubble dan timer tampil sebagai awan.
+          if (ctx.override === "dev" && ctx.meetingCard) {
+              window.clearTimeout(ctx.hideTimer);
+              ctx.override = null;
+              ctx.meetingCard = false;
+              ctx.render();
+          }
+      }
       const sub = `${elapsedLabel()} · ${ctx.priv?.cam && ctx.priv?.mic ? "Kamera & mikrofon aktif" : ctx.priv?.cam ? "Kamera aktif" : "Mikrofon aktif"}`;
       meetingUsesBubble = ctx.momentBubble?.show("Mode rapat", sub, 1800) === true;
       if (!meetingUsesBubble) {

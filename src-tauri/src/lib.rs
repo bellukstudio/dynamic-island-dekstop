@@ -228,6 +228,46 @@ async fn open_note_detail(app: tauri::AppHandle, id: String) -> Result<(), Strin
     .map_err(|e| e.to_string())
 }
 
+// ringkasan update: popup di tengah layar, tampil sekali per versi (pemicunya di updates.ts)
+#[tauri::command]
+async fn open_whats_new(app: tauri::AppHandle, version: String, notes: String) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window("whats-new") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let data = serde_json::json!({ "version": version, "notes": notes });
+    let script = format!(
+        "window.__WHATS_NEW__ = {};",
+        serde_json::to_string(&data).map_err(|e| e.to_string())?
+    );
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        "whats-new",
+        tauri::WebviewUrl::App("whats-new.html".into()),
+    )
+    .title("Ringkasan pembaruan")
+    .inner_size(460.0, 560.0)
+    .center()
+    .resizable(false)
+    .decorations(false)
+    .transparent(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .focused(true)
+    .initialization_script(&script)
+    .build()
+    .map(|_| ())
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn close_whats_new(app: tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("whats-new") {
+        let _ = w.close();
+    }
+}
+
 // #[tauri::command]
 // async fn set_size(window: tauri::WebviewWindow, w: f64, h: f64) {
 //     use std::sync::atomic::Ordering;
@@ -435,6 +475,7 @@ pub fn run() {
                 std::env::set_var(
                     "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
                     "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+                     --autoplay-policy=no-user-gesture-required \
                      --disable-background-networking \
                      --disable-component-update \
                      --disable-domain-reliability \
@@ -907,6 +948,8 @@ pub fn run() {
             notch_get_position,
             notch_monitor,
             open_note_detail,
+            open_whats_new,
+            close_whats_new,
             currency::fetch_yahoo_chart,
             open_url::open_url
         ])
