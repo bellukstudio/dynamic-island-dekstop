@@ -251,7 +251,7 @@ async fn open_whats_new(app: tauri::AppHandle, version: String, notes: String) -
     .center()
     .resizable(false)
     .decorations(false)
-    .transparent(false)
+    .transparent(true)
     .always_on_top(true)
     .skip_taskbar(true)
     .focused(true)

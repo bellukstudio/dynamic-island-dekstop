@@ -325,11 +325,22 @@ const markFired = (k: string) => {
     try { localStorage.setItem(FIRED_KEY, JSON.stringify([...fired].slice(-60))); } catch { /* abaikan */ }
 };
 
+let lastWarnAt = 0;
+let lastTickAt = 0;
+let lastTickError = "";
+const warnThrottled = (msg: string) => {
+    if (Date.now() - lastWarnAt < 60_000) return;
+    lastWarnAt = Date.now();
+    console.warn(msg);
+};
+
 function checkReminders() {
+    lastTickAt = Date.now();
     const p = prefs; // salinan lokal: `prefs` bisa null lagi di dalam closure, `p` tidak
-    if (!p) return;
+    if (!p) { warnThrottled("[Prayer] Pengingat tidak jalan: prefs belum termuat (prayer_info gagal?)."); return; }
     const now = new Date();
     const today = dayEntries(now);
+    if (!today) warnThrottled(`[Prayer] Pengingat tidak jalan: jadwal hari ini belum termuat${err ? ` (${err})` : ""}.`);
     const tm = dayEntries(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
     const cands = [...(today?.list ?? []), ...(tm ? [tm.list[0]] : [])]; // Subuh besok ikut (pengingat lewat tengah malam)
     const nowMs = now.getTime();
@@ -338,27 +349,32 @@ function checkReminders() {
         for (const kind of ["pre", "at"] as const) {
             if (kind === "pre" && !p.remind_before) continue;
             const trig = c.at.getTime() - (kind === "pre" ? p.remind_min * 60_000 : 0);
-            if (nowMs < trig || nowMs >= trig + 90_000) continue; // jendela 90 dtk: tidak menembak ulang saat app dibuka telat
+            if (nowMs < trig || nowMs >= trig + 150_000) continue; // jendela 150 dtk: tahan timer tertunda, tapi tidak menembak ulang saat app dibuka telat
             const k = `${c.at.toDateString()}|${c.key}|${kind}`;
             if (fired.has(k)) continue;
             markFired(k);
-            console.info(`[Prayer] Memicu ${kind === "pre" ? "pengingat" : "waktu"} ${c.name} (${hhmm(c.at)}), mode: ${p.mode}`);
-            const safe = (fn: () => void) => { try { fn(); } catch (e) { console.warn("[Prayer] hook gagal:", e); } };
+            fireReminder(kind, c, p);
+        }
+    }
+}
 
-            if (kind === "pre") {
-                safe(() => hooks.card(`Menjelang ${c.name}`, `${p.remind_min} menit lagi · ${hhmm(c.at)}`, 8000));
-                safe(() => hooks.mood("surprised", 3000));
-                if (p.mode !== "silent") tone(1);
-            } else {
-                safe(() => hooks.mood("love", 4000));
-                if (p.mode === "adzan") {
-                    // Kartu tetap terbuka hingga HTMLAudioElement memicu ended (atau gagal).
-                    adzan(c.name, true);
-                } else {
-                    safe(() => hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${p.kabkota}`, 15000));
-                    if (p.mode === "tone") tone(3);
-                }
-            }
+/** Menjalankan satu pengingat ("pre") atau waktu shalat ("at") sesuai mode. Dipisah agar bisa dites lewat __prayerFire(). */
+function fireReminder(kind: "pre" | "at", c: Entry, p: Prefs) {
+    console.info(`[Prayer] Memicu ${kind === "pre" ? "pengingat" : "waktu"} ${c.name} (${hhmm(c.at)}), mode: ${p.mode}`);
+    const safe = (fn: () => void) => { try { fn(); } catch (e) { console.warn("[Prayer] hook gagal:", e); } };
+
+    if (kind === "pre") {
+        safe(() => hooks.card(`Menjelang ${c.name}`, `${p.remind_min} menit lagi · ${hhmm(c.at)}`, 8000));
+        safe(() => hooks.mood("surprised", 3000));
+        if (p.mode !== "silent") tone(1);
+    } else {
+        safe(() => hooks.mood("love", 4000));
+        if (p.mode === "adzan") {
+            // Kartu tetap terbuka hingga HTMLAudioElement memicu ended (atau gagal).
+            adzan(c.name, true);
+        } else {
+            safe(() => hooks.card(`Waktu ${c.name}`, `${hhmm(c.at)} · ${p.kabkota}`, 15000));
+            if (p.mode === "tone") tone(3);
         }
     }
 }
@@ -522,8 +538,18 @@ export function initPrayer(h: Hooks) {
             jadwalHariIniTermuat: !!today,
             jadwalHariIni: today?.list.map((x) => `${x.name} ${hhmm(x.at)}`) ?? null,
             sudahDipicu: [...fired],
+            tickTerakhir: lastTickAt ? new Date(lastTickAt).toString() : "BELUM PERNAH (interval tidak jalan)",
+            errorTick: lastTickError || null,
             bulanTermuat: [...months.keys()],
         };
+    };
+    // Tes alur ASLI (kartu notch + suara sesuai mode): __prayerFire() atau __prayerFire("pre").
+    (window as unknown as Record<string, unknown>).__prayerFire = (kind: "pre" | "at" = "at") => {
+        if (!prefs) return "prefs belum termuat";
+        const n = nextPrayer();
+        const c: Entry = n ?? { key: "subuh", name: "Tes", at: new Date() };
+        fireReminder(kind, c, prefs);
+        return `dipicu: ${kind} ${c.name}, mode ${prefs.mode}`;
     };
     wire();
     build();
@@ -545,10 +571,15 @@ export function initPrayer(h: Hooks) {
     // checkReminders() tidak menyentuh DOM, jadi tetap tiap detik supaya adzan/pengingat tepat waktu.
     let lastRender = 0;
     setInterval(() => {
-        const now = Date.now();
-        const c = el("pr-count");
-        const shown = !!c && ((c as any).checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) ?? true);
-        if (shown || now - lastRender >= 20_000) { lastRender = now; render(); }
-        checkReminders();
+        // Pemicu dijalankan PERTAMA dan dibungkus try/catch: error di render() tidak boleh mematikan adzan.
+        try { checkReminders(); } catch (e) { lastTickError = String(e); console.error("[Prayer] checkReminders error:", e); }
+        try {
+            const now = Date.now();
+            const c = el("pr-count");
+            const shown = !!c && ((c as any).checkVisibility?.({ checkOpacity: true, checkVisibilityCSS: true }) ?? true);
+            if (shown || now - lastRender >= 20_000) { lastRender = now; render(); }
+        } catch (e) { console.error("[Prayer] render error:", e); }
     }, 1000);
+    // Timer WebView bisa tertahan saat jendela disembunyikan: cek segera begitu aktif kembali.
+    document.addEventListener("visibilitychange", () => { try { checkReminders(); } catch { /* abaikan */ } });
 }
