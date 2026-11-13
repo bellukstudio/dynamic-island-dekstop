@@ -6,31 +6,32 @@
  *  - Token tiap tema ada pada selector [data-notch-theme="..."], jadi bisa dipakai di mana saja
  *    (notch utama, pratinjau #pill, dan kartu pilihan di Settings).
  *  - config-state.ts memasang data-notch-theme pada <html>. Selector :root[data-notch-theme] di bawah
- *    meneruskan token ke --bg / --fg / --fg-rgb / --accent yang sudah dipakai seluruh widget,
- *    sehingga semua halaman notch otomatis ikut warna tema.
+ *    meneruskan token ke --bg / --fg / --fg-rgb / --accent yang sudah dipakai seluruh widget.
  *  - Aksen manual dari Pengaturan (appearance.accent) tetap menang: html diberi data-accent-fixed.
  *
  * Tema: aurora | obsidian | neon | sakura | matcha   (kosong / "default" = tampilan lama)
  *
  * Token per tema:
- *   --nt-bg       warna dasar
- *   --nt-fg       warna teks, --nt-fg-rgb versi "r, g, b"
- *   --nt-accent   aksen "r, g, b"
- *   --nt-deco     daftar background-image (kilau, gradasi, pola)
- *   --nt-size     daftar background-size, urutannya sama dengan --nt-deco
- *   --nt-rim / --nt-rim-w     warna & tebal garis tepi 1 lapis
- *   --nt-lip / --nt-lip-w     warna & tebal "bibir" di sisi bebas notch (bawah saat dock atas)
- *   --nt-glow-top/-bottom     cahaya dalam (versi dock atas & dock bawah)
+ *   --nt-bg / --nt-fg / --nt-fg-rgb / --nt-accent
+ *   --nt-deco          hiasan untuk dock ATAS (sisi bebas = bawah)
+ *   --nt-deco-b/-l/-r  hiasan untuk dock bawah / kiri / kanan (opsional; kosong = pakai --nt-deco)
+ *   --nt-size          background-size untuk --nt-deco
+ *   --nt-rim(-w)       garis tepi 1 lapis di sisi bebas
+ *   --nt-lip(-w)       "bibir" di sisi bebas
+ *   --nt-glow-top/-bottom/-left/-right   cahaya dalam, menyala di sisi bebas tiap dock
+ *   --nt-fade-y        lebar pudar di sisi yang menempel layar (0 = tidak)
  *
- * Telinga lengkung (#shell::before/::after, position.css) digambar polos dengan var(--bg). Agar
- * sambungannya mulus, tepi kiri/kanan (dan atas, atau bawah di dock bawah) badan notch dipudarkan ke warna
- * dasar tema (--nt-edge-x/-t/-b), cahaya tema ditaruh di bagian bawah, dan
- * garis tepi di sisi yang menempel layar dibuang (lihat bagian "Penerapan" di bawah).
+ * ARAH: "sisi bebas" adalah sisi yang menjauh dari tepi layar.
+ *   dock atas  -> bebas = bawah      dock bawah  -> bebas = atas
+ *   dock kiri  -> bebas = kanan      dock kanan  -> bebas = kiri
+ * Hiasan, cahaya, dan garis tepi digambar di sisi bebas; sisi yang menempel layar dipudarkan ke
+ * warna dasar dan tanpa garis, supaya menyatu dengan telinga lengkung (#shell::before/::after,
+ * position.css) yang digambar polos dengan var(--bg).
  */
 
 /* ============ 1. AURORA — modern, cahaya utara teal + ungu ============ */
 [data-notch-theme="aurora"] {
-  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-fade-y: 7px;
   --nt-bg: #070b1a;
   --nt-fg: #e8f4ff;
   --nt-fg-rgb: 232, 244, 255;
@@ -38,6 +39,15 @@
   --nt-deco:
     radial-gradient(85% 140% at 12% 155%, rgba(82, 226, 200, .50), transparent 62%),
     radial-gradient(85% 140% at 92% 165%, rgba(139, 92, 246, .56), transparent 64%);
+  --nt-deco-b:
+    radial-gradient(85% 140% at 12% -55%, rgba(82, 226, 200, .50), transparent 62%),
+    radial-gradient(85% 140% at 92% -65%, rgba(139, 92, 246, .56), transparent 64%);
+  --nt-deco-l:
+    radial-gradient(140% 85% at 155% 12%, rgba(82, 226, 200, .50), transparent 62%),
+    radial-gradient(140% 85% at 165% 92%, rgba(139, 92, 246, .56), transparent 64%);
+  --nt-deco-r:
+    radial-gradient(140% 85% at -55% 12%, rgba(82, 226, 200, .50), transparent 62%),
+    radial-gradient(140% 85% at -65% 92%, rgba(139, 92, 246, .56), transparent 64%);
   --nt-size: 100% 100%;
   --nt-rim: rgba(130, 235, 255, .16);
   --nt-rim-w: 1px;
@@ -45,11 +55,13 @@
   --nt-lip-w: 1px;
   --nt-glow-top: inset 0 -10px 18px -12px rgba(82, 226, 200, .38);
   --nt-glow-bottom: inset 0 10px 18px -12px rgba(82, 226, 200, .38);
+  --nt-glow-left: inset -10px 0 18px -12px rgba(82, 226, 200, .38);
+  --nt-glow-right: inset 10px 0 18px -12px rgba(82, 226, 200, .38);
 }
 
 /* ============ 2. OBSIDIAN GOLD — elegan, hitam pekat + emas ============ */
 [data-notch-theme="obsidian"] {
-  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-fade-y: 7px;
   --nt-bg: #0c0c0e;
   --nt-fg: #f6efe0;
   --nt-fg-rgb: 246, 239, 224;
@@ -57,6 +69,15 @@
   --nt-deco:
     linear-gradient(0deg, rgba(255, 235, 190, .07), transparent 45%),
     radial-gradient(120% 90% at 50% 140%, rgba(240, 190, 90, .30), transparent 62%);
+  --nt-deco-b:
+    linear-gradient(180deg, rgba(255, 235, 190, .07), transparent 45%),
+    radial-gradient(120% 90% at 50% -40%, rgba(240, 190, 90, .30), transparent 62%);
+  --nt-deco-l:
+    linear-gradient(270deg, rgba(255, 235, 190, .07), transparent 45%),
+    radial-gradient(90% 120% at 140% 50%, rgba(240, 190, 90, .30), transparent 62%);
+  --nt-deco-r:
+    linear-gradient(90deg, rgba(255, 235, 190, .07), transparent 45%),
+    radial-gradient(90% 120% at -40% 50%, rgba(240, 190, 90, .30), transparent 62%);
   --nt-size: 100% 100%;
   --nt-rim: rgba(240, 190, 90, .28);
   --nt-rim-w: 1px;
@@ -64,11 +85,13 @@
   --nt-lip-w: 1px;
   --nt-glow-top: inset 0 0 0 0 transparent;
   --nt-glow-bottom: inset 0 0 0 0 transparent;
+  --nt-glow-left: inset 0 0 0 0 transparent;
+  --nt-glow-right: inset 0 0 0 0 transparent;
 }
 
 /* ============ 3. NEON TOKYO — cyber, magenta + cyan + garis scan ============ */
 [data-notch-theme="neon"] {
-  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-fade-y: 7px;
   --nt-bg: #0a0714;
   --nt-fg: #f4eaff;
   --nt-fg-rgb: 244, 234, 255;
@@ -77,6 +100,18 @@
     radial-gradient(70% 130% at 0% 125%, rgba(255, 43, 214, .46), transparent 62%),
     radial-gradient(70% 130% at 100% 130%, rgba(0, 229, 255, .36), transparent 62%),
     repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+  --nt-deco-b:
+    radial-gradient(70% 130% at 0% -25%, rgba(255, 43, 214, .46), transparent 62%),
+    radial-gradient(70% 130% at 100% -30%, rgba(0, 229, 255, .36), transparent 62%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+  --nt-deco-l:
+    radial-gradient(130% 70% at 125% 0%, rgba(255, 43, 214, .46), transparent 62%),
+    radial-gradient(130% 70% at 130% 100%, rgba(0, 229, 255, .36), transparent 62%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+  --nt-deco-r:
+    radial-gradient(130% 70% at -25% 0%, rgba(255, 43, 214, .46), transparent 62%),
+    radial-gradient(130% 70% at -30% 100%, rgba(0, 229, 255, .36), transparent 62%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
   --nt-size: 100% 100%;
   --nt-rim: rgba(0, 229, 255, .45);
   --nt-rim-w: 1px;
@@ -84,15 +119,18 @@
   --nt-lip-w: 1px;
   --nt-glow-top: inset 0 -8px 14px -9px rgba(255, 43, 214, .45);
   --nt-glow-bottom: inset 0 8px 14px -9px rgba(255, 43, 214, .45);
+  --nt-glow-left: inset -8px 0 14px -9px rgba(255, 43, 214, .45);
+  --nt-glow-right: inset 8px 0 14px -9px rgba(255, 43, 214, .45);
 }
 
 /* ============ 4. SAKURA BOBA — lucu, permen pink + polkadot ============ */
 [data-notch-theme="sakura"] {
-  --nt-fade-y: 0px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-fade-y: 0px;
   --nt-bg: #ffe4ef;
   --nt-fg: #5a2340;
   --nt-fg-rgb: 90, 35, 64;
   --nt-accent: 255, 92, 150;
+  /* polkadot & kilau tidak bergantung arah, jadi satu set --nt-deco dipakai semua dock */
   --nt-deco:
     radial-gradient(circle, rgba(255, 255, 255, .62) 1.7px, transparent 2.2px),
     radial-gradient(120% 160% at 50% -30%, rgba(255, 92, 150, .22), transparent 60%),
@@ -104,11 +142,13 @@
   --nt-lip-w: 3px;
   --nt-glow-top: inset 0 0 0 0 transparent;
   --nt-glow-bottom: inset 0 0 0 0 transparent;
+  --nt-glow-left: inset 0 0 0 0 transparent;
+  --nt-glow-right: inset 0 0 0 0 transparent;
 }
 
 /* ============ 5. MATCHA KODOK — lucu, hijau mint + garis miring ============ */
 [data-notch-theme="matcha"] {
-  --nt-fade-y: 0px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-fade-y: 0px;
   --nt-bg: #d9f5df;
   --nt-fg: #174a2c;
   --nt-fg-rgb: 23, 74, 44;
@@ -124,32 +164,59 @@
   --nt-lip-w: 3px;
   --nt-glow-top: inset 0 0 0 0 transparent;
   --nt-glow-bottom: inset 0 0 0 0 transparent;
+  --nt-glow-left: inset 0 0 0 0 transparent;
+  --nt-glow-right: inset 0 0 0 0 transparent;
 }
 
 /* ============ Komposisi bersama (token turunan) ============ */
 [data-notch-theme] {
-  /* pudar ke warna dasar di tepi kiri/kanan: menyatu dengan telinga lengkung yang berwarna polos */
-  --nt-edge-x: linear-gradient(90deg, var(--nt-bg) 0, transparent 16px, transparent calc(100% - 16px), var(--nt-bg) 100%);
-  --nt-edge-t: linear-gradient(180deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
-  --nt-edge-b: linear-gradient(0deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
-  /* dock atas / pratinjau (rata di atas): tanpa garis di atas & samping, hanya bibir bawah */
+  --nt-fade-x: 14px; /* jari-jari pudar di sudut yang bersentuhan dengan telinga */
+
+  /* Pudar SUDUT (radial), bukan pita lurus: mengikuti lengkung telinga dan tidak memadamkan
+     cahaya di sudut sisi bebas. Hanya sudut di sisi yang menempel layar yang dipakai. */
+  --nt-c-tl: radial-gradient(circle at 0 0, var(--nt-bg) 0, transparent var(--nt-fade-x));
+  --nt-c-tr: radial-gradient(circle at 100% 0, var(--nt-bg) 0, transparent var(--nt-fade-x));
+  --nt-c-bl: radial-gradient(circle at 0 100%, var(--nt-bg) 0, transparent var(--nt-fade-x));
+  --nt-c-br: radial-gradient(circle at 100% 100%, var(--nt-bg) 0, transparent var(--nt-fade-x));
+
+  /* Pudar sisi yang menempel layar */
+  --nt-e-t: linear-gradient(180deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+  --nt-e-b: linear-gradient(0deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+  --nt-e-l: linear-gradient(90deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+  --nt-e-r: linear-gradient(270deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+
+  /* tiap dock = 3 lapis (dua sudut + satu sisi); ukuran semuanya penuh */
+  --nt-edge-top: var(--nt-c-tl), var(--nt-c-tr), var(--nt-e-t);
+  --nt-edge-bottom: var(--nt-c-bl), var(--nt-c-br), var(--nt-e-b);
+  --nt-edge-left: var(--nt-c-tl), var(--nt-c-bl), var(--nt-e-l);
+  --nt-edge-right: var(--nt-c-tr), var(--nt-c-br), var(--nt-e-r);
+  --nt-edge-size: 100% 100%, 100% 100%, 100% 100%;
+
+  /* Garis tepi + bibir + cahaya: hanya di sisi bebas; sisi yang menempel layar tanpa garis */
   --nt-ring-top:
     inset 0 calc(var(--nt-rim-w) * -1) 0 var(--nt-rim),
     inset 0 calc(var(--nt-lip-w) * -1) 0 var(--nt-lip),
     var(--nt-glow-top);
-  /* dock bawah: kebalikannya, bibir di sisi atas */
   --nt-ring-bottom:
     inset 0 var(--nt-rim-w) 0 var(--nt-rim),
     inset 0 var(--nt-lip-w) 0 var(--nt-lip),
     var(--nt-glow-bottom);
-  /* melayang / dock samping: tidak ada telinga, garis tepi penuh */
+  --nt-ring-left:
+    inset calc(var(--nt-rim-w) * -1) 0 0 var(--nt-rim),
+    inset calc(var(--nt-lip-w) * -1) 0 0 var(--nt-lip),
+    var(--nt-glow-left);
+  --nt-ring-right:
+    inset var(--nt-rim-w) 0 0 var(--nt-rim),
+    inset var(--nt-lip-w) 0 0 var(--nt-lip),
+    var(--nt-glow-right);
+  /* melayang: tidak ada telinga, garis tepi penuh mengikuti lengkung badan */
   --nt-ring-full:
     inset 0 0 0 var(--nt-rim-w) var(--nt-rim),
     inset 0 calc(var(--nt-lip-w) * -1) 0 var(--nt-lip),
     var(--nt-glow-top);
 }
 
-/* ============ Penerapan ke notch utama (hanya di halaman notch: <html> diberi atribut) ============ */
+/* ============ Penerapan ke notch utama ============ */
 :root[data-notch-theme] {
   --bg: var(--nt-bg);
   --fg: var(--nt-fg);
@@ -158,26 +225,47 @@
 :root[data-notch-theme]:not([data-accent-fixed]) {
   --accent: var(--nt-accent);
 }
-/* bawaan = menempel di atas layar (ada telinga) */
+
+/* dock atas (bawaan) */
 :root[data-notch-theme] #notch {
   background-color: var(--nt-bg);
-  background-image: var(--nt-edge-x), var(--nt-edge-t), var(--nt-deco);
-  background-size: 100% 100%, 100% 100%, var(--nt-size, 100% 100%);
+  background-image: var(--nt-edge-top), var(--nt-deco);
+  background-size: var(--nt-edge-size), var(--nt-size, 100% 100%);
   background-position: 0 0;
   box-shadow: var(--nt-ring-top);
 }
-/* dock bawah: telinga ada di dasar layar, jadi pudar tepi bawah (bukan atas) */
+/* dock atas saat benar-benar menempel (.is-top): notes-expand.css memaksa
+   "background: var(--bg) !important" yang menghapus hiasan tema, jadi harus dilawan dengan !important */
+:root[data-notch-theme] #notch.is-top {
+  background-color: var(--nt-bg) !important;
+  background-image: var(--nt-edge-top), var(--nt-deco) !important;
+  background-size: var(--nt-edge-size), var(--nt-size, 100% 100%) !important;
+  background-position: 0 0 !important;
+}
+/* dock bawah: telinga di dasar layar, sisi bebas = atas */
 :root[data-notch-theme] #notch.is-bottom {
-  background-image: var(--nt-edge-x), var(--nt-edge-b), var(--nt-deco);
+  background-image: var(--nt-edge-bottom), var(--nt-deco-b, var(--nt-deco));
   box-shadow: var(--nt-ring-bottom);
 }
-/* tanpa telinga: pudar tepi tidak perlu, garis tepi penuh mengikuti lengkung badan */
-:root[data-notch-theme] #notch:is(.is-floating, .is-edge-left, .is-edge-right) {
+/* dock kiri: menempel di tepi kiri, sisi bebas = kanan */
+:root[data-notch-theme] #notch.is-edge-left {
+  background-image: var(--nt-edge-left), var(--nt-deco-l, var(--nt-deco));
+  box-shadow: var(--nt-ring-left);
+}
+/* dock kanan: menempel di tepi kanan, sisi bebas = kiri */
+:root[data-notch-theme] #notch.is-edge-right {
+  background-image: var(--nt-edge-right), var(--nt-deco-r, var(--nt-deco));
+  box-shadow: var(--nt-ring-right);
+}
+/* melayang MURNI (bukan dock): tanpa telinga, tanpa pudar tepi. Penting: di dock samping kelas
+   .is-floating ikut aktif bersama .is-edge-left/right, jadi dock harus dikecualikan di sini,
+   kalau tidak aturan ini menimpa dock (garis penuh di sisi layar + hiasan salah arah).
+   Ukuran direset karena hanya ada lapisan hiasan (tanpa 3 lapisan pudar). */
+:root[data-notch-theme] #notch.is-floating:not(.is-top):not(.is-bottom):not(.is-edge-left):not(.is-edge-right) {
   background-image: var(--nt-deco);
   background-size: var(--nt-size, 100% 100%);
   box-shadow: var(--nt-ring-full);
 }
-
 /* ============ Penerapan ke pratinjau #pill di Settings (rata di atas, tanpa telinga) ============ */
 #pill[data-notch-theme] {
   --p-bg: var(--nt-bg);
