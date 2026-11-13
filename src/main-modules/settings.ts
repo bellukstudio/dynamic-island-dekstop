@@ -183,6 +183,10 @@ async function save(restart: boolean) {
     say("Menyimpan…");
     let path = "";
     try {
+        // Field yang tidak dikelola di jendela ini (mis. prayer.mode) bisa saja sudah
+        // diubah dari jendela notch sejak Settings dibuka; ambil ulang dari disk dulu
+        // supaya "Simpan" tidak menimpa balik ke nilai lama (basi) untuk field tsb.
+        cfg = await invoke<Cfg>("cfg_get");
         path = await invoke<string>("cfg_save", { cfg: collect() });
         cfg = collect();
         say(`Tersimpan ✓  ${path}`, "ok");

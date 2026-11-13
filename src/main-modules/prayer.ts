@@ -349,7 +349,7 @@ function checkReminders() {
         for (const kind of ["pre", "at"] as const) {
             if (kind === "pre" && !p.remind_before) continue;
             const trig = c.at.getTime() - (kind === "pre" ? p.remind_min * 60_000 : 0);
-            if (nowMs < trig || nowMs >= trig + 150_000) continue; // jendela 150 dtk: tahan timer tertunda, tapi tidak menembak ulang saat app dibuka telat
+            if (nowMs < trig || nowMs >= trig + 600_000) continue; // jendela 10 mnt: tahan timer yg tertunda lama (laptop sleep/minimize), tapi tidak menembak ulang saat app dibuka sangat telat
             const k = `${c.at.toDateString()}|${c.key}|${kind}`;
             if (fired.has(k)) continue;
             markFired(k);
