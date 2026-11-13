@@ -85,6 +85,7 @@
     }
     .plain { padding: 5px 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
     footer { padding: 14px 28px 24px; border-top: 1px solid var(--line); }
+    .btns { display: flex; flex-direction: column; gap: 8px; }
     button {
       width: 100%; height: 42px;
       border: 0; border-radius: 13px;
@@ -96,6 +97,10 @@
     }
     button:hover { filter: brightness(1.08); }
     button:active { transform: scale(0.98); }
+    button.secondary {
+      color: var(--fg);
+      background: rgba(255, 255, 255, 0.08);
+    }
     @media (prefers-reduced-motion: reduce) { .card { animation: none; } }
   </style>
 </head>
@@ -103,13 +108,16 @@
   <div class="wrap">
     <div class="card">
       <header>
-        <div class="badge">✨</div>
-        <h1>Yang baru di Notch</h1>
+        <div class="badge" id="wn-badge">✨</div>
+        <h1 id="wn-title">Yang baru di Notch</h1>
         <span class="ver" id="wn-version"></span>
       </header>
       <div class="notes" id="wn-notes"></div>
       <footer>
-        <button id="wn-close" type="button">Mengerti</button>
+        <div class="btns">
+          <button id="wn-update" type="button" style="display:none;">⬇ Perbarui sekarang</button>
+          <button id="wn-close" type="button">Mengerti</button>
+        </div>
       </footer>
     </div>
   </div>

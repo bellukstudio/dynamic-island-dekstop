@@ -99,6 +99,39 @@ export function register(ctx: Record<string, any>): void {
           console.warn("[WhatsNew] Gagal membuka jendela ringkasan (cek: Rust sudah di-restart? whats-new.html ada?):", error);
       }
   };
+  // Pengingat update opsional: jendela "whats-new" dipakai ulang dengan mode "reminder",
+  // berisi catatan rilis versi yang BELUM terpasang (bukan versi yang sudah dipasang seperti
+  // maybeShowWhatsNew di atas) + tombol "Perbarui sekarang". Dibatasi sekali per REMIND_INTERVAL_MS
+  // untuk target versi yang sama, supaya tidak mengganggu tiap kali app dibuka.
+  ctx.maybeShowUpdateReminder = async function maybeShowUpdateReminder(installed: string, config: RemoteUpdateConfig, decision: UpdateDecision) {
+      const REMIND_KEY = "notch.whatsnew.remind";
+      const REMIND_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 jam
+      // Di konsol: __resetUpdateReminder() menghapus penanda supaya bisa dites ulang.
+      window.__resetUpdateReminder = () => { try { localStorage.removeItem(REMIND_KEY); } catch { /* abaikan */ } };
+      const notes = (config.notes ?? "").trim();
+      if (!notes) {
+          console.info("[WhatsNew] Pengingat update dilewati: field notes di Firestore kosong / tidak ada.");
+          return;
+      }
+      let last: { target?: string; at?: number } = {};
+      try { last = JSON.parse(localStorage.getItem(REMIND_KEY) ?? "{}"); } catch { /* abaikan */ }
+      if (last.target === decision.target && typeof last.at === "number" && Date.now() - last.at < REMIND_INTERVAL_MS) {
+          console.info(`[WhatsNew] Pengingat update dilewati: versi ${decision.target} baru saja diingatkan.`);
+          return;
+      }
+      console.info(`[WhatsNew] Menampilkan pengingat update ${installed} -> ${decision.target}...`);
+      try {
+          await ctx.invoke("open_whats_new", {
+              version: decision.target,
+              notes,
+              mode: "reminder",
+              updateUrl: ctx.updateTargetUrl || null,
+          });
+          try { localStorage.setItem(REMIND_KEY, JSON.stringify({ target: decision.target, at: Date.now() })); } catch { /* abaikan */ }
+      } catch (error) {
+          console.warn("[WhatsNew] Gagal membuka pengingat update:", error);
+      }
+  };
   ctx.decideUpdate = function decideUpdate(installed: string, config: RemoteUpdateConfig): UpdateDecision | null {
       const vsLatest = ctx.compareVersionStrings(installed, config.latest_version);
       if (vsLatest !== null && vsLatest < 0) {
@@ -186,6 +219,8 @@ export function init(ctx: Record<string, any>): void {
           else if (decision.kind === "optional") {
               console.info(`[Firebase] Update opsional tersedia: ${currentVersion} -> ${decision.target}`);
               ctx.showUpdateBanner(currentVersion, config, decision);
+              // showUpdateBanner mengisi ctx.updateTargetUrl dulu, baru popup pengingat dibuka.
+              void ctx.maybeShowUpdateReminder(currentVersion, config, decision);
           }
           else {
               console.info(`[Firebase] Aplikasi sudah terbaru (terpasang ${currentVersion}).`);

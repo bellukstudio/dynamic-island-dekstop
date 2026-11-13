@@ -228,15 +228,29 @@ async fn open_note_detail(app: tauri::AppHandle, id: String) -> Result<(), Strin
     .map_err(|e| e.to_string())
 }
 
-// ringkasan update: popup di tengah layar, tampil sekali per versi (pemicunya di updates.ts)
+// ringkasan update: popup di tengah layar. Dua mode (pemicunya di updates.ts):
+//  - "release" (bawaan): tampil sekali per versi, begitu versi terpasang == new_version.
+//  - "reminder": tampil berkala saat ada update opsional yang belum dipasang, berisi catatan
+//    rilis versi BARU itu + tombol "Perbarui sekarang" (update_url).
 #[tauri::command]
-async fn open_whats_new(app: tauri::AppHandle, version: String, notes: String) -> Result<(), String> {
+async fn open_whats_new(
+    app: tauri::AppHandle,
+    version: String,
+    notes: String,
+    mode: Option<String>,
+    update_url: Option<String>,
+) -> Result<(), String> {
     if let Some(w) = app.get_webview_window("whats-new") {
         let _ = w.show();
         let _ = w.set_focus();
         return Ok(());
     }
-    let data = serde_json::json!({ "version": version, "notes": notes });
+    let data = serde_json::json!({
+        "version": version,
+        "notes": notes,
+        "mode": mode.unwrap_or_else(|| "release".into()),
+        "updateUrl": update_url,
+    });
     let script = format!(
         "window.__WHATS_NEW__ = {};",
         serde_json::to_string(&data).map_err(|e| e.to_string())?
