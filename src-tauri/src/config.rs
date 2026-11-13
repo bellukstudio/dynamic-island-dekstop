@@ -62,6 +62,7 @@ pub struct Appearance {
     pub accent: String,     // kosong = otomatis dari cover album
     pub default_mood: String, // ekspresi mata bawaan saat idle (tidak tidur/tidak memutar lagu)
     pub eye_theme: String, // lihat EYE_THEMES di bawah untuk daftar lengkap (20 skin)
+    pub notch_theme: String, // tema badan notch: default | aurora | obsidian | neon | sakura | matcha
 }
 impl Default for Appearance {
     fn default() -> Self {
@@ -74,6 +75,7 @@ impl Default for Appearance {
             accent: String::new(),
             default_mood: "normal".into(),
             eye_theme: "aurora".into(),
+            notch_theme: "default".into(),
         }
     }
 }
@@ -84,8 +86,14 @@ const MOODS: &[&str] =
 const EYE_THEMES: &[&str] = &["aurora", "neon", "pastel", "pixel", "holo", "ember", "ocean", "sakura", "cyber", "monochrome",
     "kawaii", "boba", "galaxy", "matcha", "candy", "synthwave", "slime", "cotton", "pumpkin", "frost"];
 
+// "default" = tampilan lama (warna dari theme/dark_bg/light_bg/background). Selain itu: tema siap pakai (css/notch-themes.css).
+const NOTCH_THEMES: &[&str] = &["default", "aurora", "obsidian", "neon", "sakura", "matcha"];
+
 impl Appearance {
     fn sanitize(&mut self) {
+        if !NOTCH_THEMES.contains(&self.notch_theme.as_str()) {
+            self.notch_theme = Appearance::default().notch_theme;
+        }
         if !MOODS.contains(&self.default_mood.as_str()) {
             self.default_mood = Appearance::default().default_mood;
         }
@@ -302,6 +310,7 @@ light_bg = "#f5f5f7"
 accent = ""             # kosong = otomatis dari cover album, contoh: "#ff6b6b"
 eye_theme = "aurora"  # aurora | neon | pastel | pixel | holo | ember | ocean | sakura | cyber | monochrome
                       # kawaii | boba | galaxy | matcha | candy | synthwave | slime | cotton | pumpkin | frost
+notch_theme = "default"  # default | aurora | obsidian | neon | sakura | matcha  (menggantikan warna latar & aksen)
 "##;
 
 // ditambahkan ke config.toml lama maupun template bawaan yang belum punya section [prayer]

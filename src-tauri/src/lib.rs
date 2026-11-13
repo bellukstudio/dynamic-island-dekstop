@@ -197,6 +197,7 @@ fn open_settings(app: &tauri::AppHandle) {
     )
     .title("Notch — Pengaturan")
     .inner_size(440.0, 660.0)
+    .center() // buka tepat di tengah layar
     .resizable(false)
     .build();
 }

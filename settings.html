@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Notch — Pengaturan</title>
   <link rel="stylesheet" href="/src/css/eye-themes.css" />
+  <link rel="stylesheet" href="/src/css/notch-themes.css" />
   <style>
     :root {
       color-scheme: light dark;
@@ -1474,6 +1475,60 @@
     input[type="number"] {
       font-variant-numeric: tabular-nums;
     }
+
+    /* tema notch */
+    .nt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 9px;
+      margin: 6px 0 4px;
+    }
+
+    /* nilai bawaan hanya untuk kartu "Bawaan" (tanpa data-notch-theme), supaya tidak menimpa token tema */
+    .nt-swatch:not([data-notch-theme]) {
+      --nt-bg: #000;
+      --nt-fg: #fff;
+      --nt-accent: 120, 140, 255;
+    }
+
+    .nt-swatch {
+      height: 38px;
+      margin: 6px 14px 0;
+      border-radius: 0 0 14px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--nt-fg);
+      background-color: var(--nt-bg);
+      background-image: var(--nt-deco, none);
+      background-size: var(--nt-size, 100% 100%);
+      box-shadow: var(--nt-ring-top, none);
+      overflow: hidden;
+    }
+
+    .nt-swatch i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgb(var(--nt-accent));
+      box-shadow: 0 0 6px rgba(var(--nt-accent), .7);
+    }
+
+    .nt-stage {
+      display: block;
+      padding: 0 0 8px;
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--text) 8%, var(--surface));
+    }
+
+    .nt-option[aria-pressed="true"] .eye-theme-name::after {
+      content: "✓";
+      color: var(--accent);
+      font-size: 13px;
+    }
   </style>
   <script type="module" src="/src/main-modules/settings-adhan-test.ts"></script>
   <script type="module" src="/src/main-modules/settings-greeting.ts"></script>
@@ -1601,6 +1656,37 @@
                 <option value="suspicious">Curiga</option>
                 <option value="sad">Sedih</option>
               </select>
+            </div>
+          </div>
+          <div class="card full">
+            <h2>Tema notch</h2>
+            <p class="hint">Tema siap pakai untuk badan notch (latar, warna teks, dan aksen). "Bawaan" memakai warna manual di bawah. Aksen manual tetap diutamakan.</p>
+            <input type="hidden" id="notch-theme" value="default" />
+            <div class="nt-grid" id="nt-grid" aria-label="Pilihan tema notch">
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="default" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch"><i></i><i></i><span>Bawaan</span></span></span>
+                <span class="eye-theme-name">Bawaan <small>Warna manual</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="aurora" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="aurora"><i></i><i></i><span>Aurora</span></span></span>
+                <span class="eye-theme-name">Aurora <small>Modern</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="obsidian" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="obsidian"><i></i><i></i><span>Obsidian</span></span></span>
+                <span class="eye-theme-name">Obsidian <small>Elegan</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="neon" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="neon"><i></i><i></i><span>Neon Tokyo</span></span></span>
+                <span class="eye-theme-name">Neon Tokyo <small>Cyber</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="sakura" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="sakura"><i></i><i></i><span>Sakura Boba</span></span></span>
+                <span class="eye-theme-name">Sakura Boba <small>Lucu</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="matcha" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="matcha"><i></i><i></i><span>Matcha Kodok</span></span></span>
+                <span class="eye-theme-name">Matcha Kodok <small>Lucu</small></span>
+              </button>
             </div>
           </div>
           <div class="card full">
@@ -1989,7 +2075,8 @@
         light_bg: "#f5f5f7",
         accent: "",
         default_mood: "normal",
-        eye_theme: "aurora"
+        eye_theme: "aurora",
+        notch_theme: "default"
       },
       nudge: {
         enabled: true,
@@ -2497,6 +2584,7 @@
       inp("accent").value = norm(a.accent, "#788cff");
       inp("default-mood").value = a.default_mood || "normal";
       inp("eye-theme").value = a.eye_theme || "aurora";
+      inp("notch-theme").value = a.notch_theme || "default";
       inp("scale").value = String(c.scale);
       inp("hide_fullscreen").checked = c.hide_fullscreen;
 
@@ -2542,7 +2630,8 @@
         text: inp("text_auto").checked ? "" : inp("text").value,
         accent: inp("accent_auto").checked ? "" : inp("accent").value,
         default_mood: inp("default-mood").value || "normal",
-        eye_theme: inp("eye-theme").value || "aurora"
+        eye_theme: inp("eye-theme").value || "aurora",
+        notch_theme: inp("notch-theme").value || "default"
       };
       c.scale = parseFloat(inp("scale").value);
       c.hide_fullscreen = inp("hide_fullscreen").checked;
@@ -2615,6 +2704,13 @@
       });
     }
 
+    function syncNotchThemePicker() {
+      const selected = inp("notch-theme").value || "default";
+      document.querySelectorAll("[data-notch-theme-option]").forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.notchThemeOption === selected));
+      });
+    }
+
     function sync() {
       const t = theme();
       const on = {
@@ -2635,6 +2731,7 @@
       const city = inp("w-city").value.trim() || "—";
       $("w-current").textContent = weatherValid() ? `${city} (${inp("w-lat").value}, ${inp("w-lon").value})` : "koordinat tidak valid";
       syncEyeThemePicker();
+      syncNotchThemePicker();
       updatePill();
     }
 
@@ -2646,10 +2743,20 @@
       const bg = rgb(norm(bgHex, "#000000"));
       const fg = a.text ? rgb(norm(a.text, "#ffffff")) : (luma(bg) > 0.55 ? [17, 17, 17] : [255, 255, 255]);
 
-      pill.style.setProperty("--p-bg", `rgb(${bg.join(",")})`);
-      pill.style.setProperty("--p-fg", `rgb(${fg.join(",")})`);
-      pill.style.setProperty("--p-fg-rgb", fg.join(","));
-      pill.style.setProperty("--p-accent", a.accent ? rgb(norm(a.accent, "#788cff")).join(",") : "120,140,255");
+      const nt = a.notch_theme && a.notch_theme !== "default" ? a.notch_theme : "";
+      if (nt) {
+        // warna latar/teks dari css/notch-themes.css: buang nilai inline supaya tidak menimpa
+        pill.dataset.notchTheme = nt;
+        ["--p-bg", "--p-fg", "--p-fg-rgb"].forEach((k) => pill.style.removeProperty(k));
+      } else {
+        delete pill.dataset.notchTheme;
+        pill.style.setProperty("--p-bg", `rgb(${bg.join(",")})`);
+        pill.style.setProperty("--p-fg", `rgb(${fg.join(",")})`);
+        pill.style.setProperty("--p-fg-rgb", fg.join(","));
+      }
+      pill.toggleAttribute("data-accent-fixed", !!a.accent);
+      if (a.accent || !nt) pill.style.setProperty("--p-accent", a.accent ? rgb(norm(a.accent, "#788cff")).join(",") : "120,140,255");
+      else pill.style.removeProperty("--p-accent");
       pill.style.setProperty("--p-scale", String(c.scale));
     }
 
@@ -2668,6 +2775,14 @@
     document.querySelectorAll("[data-eye-theme-option]").forEach((el) => {
       el.addEventListener("click", () => {
         inp("eye-theme").value = el.dataset.eyeThemeOption || "aurora";
+        sync();
+        preview();
+      });
+    });
+
+    document.querySelectorAll("[data-notch-theme-option]").forEach((el) => {
+      el.addEventListener("click", () => {
+        inp("notch-theme").value = el.dataset.notchThemeOption || "default";
         sync();
         preview();
       });

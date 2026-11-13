@@ -10,6 +10,7 @@ type Appearance = {
     accent: string; // kosong = otomatis dari cover album
     default_mood: string; // ekspresi mata bawaan saat idle
     eye_theme?: string; // skin mata: aurora | neon | ... | kawaii | boba | galaxy | frost
+    notch_theme?: string; // tema notch: default | aurora | obsidian | neon | sakura | matcha
 };
 type Cfg = {
     scale: number;
@@ -36,15 +37,30 @@ type View = "bt" | "dev" | "hub" | "hud" | "lyr" | "cal" | "rem" | "prayerAlert"
 export function register(ctx: Record<string, any>): void {
   ctx.applyTheme = function applyTheme() {
       const a = ctx.CFG.appearance;
-      const light = a.theme === "light" || (a.theme === "auto" && ctx.osLight.matches);
-      const bgHex = a.theme === "custom" ? a.background : light ? a.light_bg : a.dark_bg;
-      const bg = ctx.hexRgb(bgHex) ?? [0, 0, 0];
-      const fg = ctx.hexRgb(a.text) ?? (ctx.luma(bg) > 0.55 ? [17, 17, 17] : [255, 255, 255]);
-      const st = document.documentElement.style;
-      st.setProperty("--bg", `rgb(${bg.join(",")})`);
-      st.setProperty("--fg", `rgb(${fg.join(",")})`);
-      st.setProperty("--fg-rgb", fg.join(","));
+      const root = document.documentElement;
+      const st = root.style;
+      // Tema notch siap pakai (css/notch-themes.css). "default"/kosong = warna manual seperti biasa.
+      const nt = a.notch_theme && a.notch_theme !== "default" ? a.notch_theme : "";
       const acc = ctx.hexRgb(a.accent);
+      if (nt) {
+          root.dataset.notchTheme = nt;
+          // CSS tema yang mengatur --bg/--fg/--fg-rgb: buang nilai inline lama supaya tidak menimpa.
+          st.removeProperty("--bg");
+          st.removeProperty("--fg");
+          st.removeProperty("--fg-rgb");
+      }
+      else {
+          delete root.dataset.notchTheme;
+          const light = a.theme === "light" || (a.theme === "auto" && ctx.osLight.matches);
+          const bgHex = a.theme === "custom" ? a.background : light ? a.light_bg : a.dark_bg;
+          const bg = ctx.hexRgb(bgHex) ?? [0, 0, 0];
+          const fg = ctx.hexRgb(a.text) ?? (ctx.luma(bg) > 0.55 ? [17, 17, 17] : [255, 255, 255]);
+          st.setProperty("--bg", `rgb(${bg.join(",")})`);
+          st.setProperty("--fg", `rgb(${fg.join(",")})`);
+          st.setProperty("--fg-rgb", fg.join(","));
+      }
+      // Aksen manual selalu menang atas aksen tema.
+      root.toggleAttribute("data-accent-fixed", !!acc);
       if (acc)
           st.setProperty("--accent", acc.join(", "));
       else
@@ -69,7 +85,7 @@ export function init(ctx: Record<string, any>): void {
       pages: ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer"],
       timing: { hub_auto_ms: 4000, card_ms: 3500, hud_ms: 1500, hover_open_ms: 150, hover_close_ms: 450, sleep_after_s: 60 },
       pomodoro: { focus_min: 25, break_min: 5, long_break_min: 15, rounds: 4 },
-      appearance: { theme: "auto", background: "#000000", text: "", dark_bg: "#000000", light_bg: "#f5f5f7", accent: "", default_mood: "normal", eye_theme: "aurora" },
+      appearance: { theme: "auto", background: "#000000", text: "", dark_bg: "#000000", light_bg: "#f5f5f7", accent: "", default_mood: "normal", eye_theme: "aurora", notch_theme: "default" },
   };
   ctx.CFG = { ...ctx.FALLBACK, ...((window as any).__CFG__ ?? {}) };
   ctx.T = ctx.CFG.timing;
@@ -181,7 +197,9 @@ export function init(ctx: Record<string, any>): void {
       return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   };
   ctx.luma = (c: number[]) => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
-  ctx.fixedAccent = () => ctx.hexRgb(ctx.CFG.appearance.accent) !== null;
+  // Aksen dianggap tetap bila diisi manual ATAU memakai tema notch (aksen dari tema, bukan dari cover album).
+  ctx.fixedAccent = () => ctx.hexRgb(ctx.CFG.appearance.accent) !== null ||
+      (!!ctx.CFG.appearance.notch_theme && ctx.CFG.appearance.notch_theme !== "default");
   ctx.osLight = matchMedia("(prefers-color-scheme: light)");
   ctx.applyTheme();
   ctx.osLight.addEventListener("change", ctx.applyTheme); // ikut berubah saat tema OS diganti

@@ -1,0 +1,194 @@
+/*
+ * Notch Themes — 5 tema bawaan untuk badan notch (latar, warna teks, aksen, hiasan).
+ * Link SETELAH semua stylesheet notch lain di index.html (dan di settings.html untuk pratinjau).
+ *
+ * Cara kerja:
+ *  - Token tiap tema ada pada selector [data-notch-theme="..."], jadi bisa dipakai di mana saja
+ *    (notch utama, pratinjau #pill, dan kartu pilihan di Settings).
+ *  - config-state.ts memasang data-notch-theme pada <html>. Selector :root[data-notch-theme] di bawah
+ *    meneruskan token ke --bg / --fg / --fg-rgb / --accent yang sudah dipakai seluruh widget,
+ *    sehingga semua halaman notch otomatis ikut warna tema.
+ *  - Aksen manual dari Pengaturan (appearance.accent) tetap menang: html diberi data-accent-fixed.
+ *
+ * Tema: aurora | obsidian | neon | sakura | matcha   (kosong / "default" = tampilan lama)
+ *
+ * Token per tema:
+ *   --nt-bg       warna dasar
+ *   --nt-fg       warna teks, --nt-fg-rgb versi "r, g, b"
+ *   --nt-accent   aksen "r, g, b"
+ *   --nt-deco     daftar background-image (kilau, gradasi, pola)
+ *   --nt-size     daftar background-size, urutannya sama dengan --nt-deco
+ *   --nt-rim / --nt-rim-w     warna & tebal garis tepi 1 lapis
+ *   --nt-lip / --nt-lip-w     warna & tebal "bibir" di sisi bebas notch (bawah saat dock atas)
+ *   --nt-glow-top/-bottom     cahaya dalam (versi dock atas & dock bawah)
+ *
+ * Telinga lengkung (#shell::before/::after, position.css) digambar polos dengan var(--bg). Agar
+ * sambungannya mulus, tepi kiri/kanan (dan atas, atau bawah di dock bawah) badan notch dipudarkan ke warna
+ * dasar tema (--nt-edge-x/-t/-b), cahaya tema ditaruh di bagian bawah, dan
+ * garis tepi di sisi yang menempel layar dibuang (lihat bagian "Penerapan" di bawah).
+ */
+
+/* ============ 1. AURORA — modern, cahaya utara teal + ungu ============ */
+[data-notch-theme="aurora"] {
+  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-bg: #070b1a;
+  --nt-fg: #e8f4ff;
+  --nt-fg-rgb: 232, 244, 255;
+  --nt-accent: 82, 226, 200;
+  --nt-deco:
+    radial-gradient(85% 140% at 12% 155%, rgba(82, 226, 200, .50), transparent 62%),
+    radial-gradient(85% 140% at 92% 165%, rgba(139, 92, 246, .56), transparent 64%);
+  --nt-size: 100% 100%;
+  --nt-rim: rgba(130, 235, 255, .16);
+  --nt-rim-w: 1px;
+  --nt-lip: rgba(130, 235, 255, .22);
+  --nt-lip-w: 1px;
+  --nt-glow-top: inset 0 -10px 18px -12px rgba(82, 226, 200, .38);
+  --nt-glow-bottom: inset 0 10px 18px -12px rgba(82, 226, 200, .38);
+}
+
+/* ============ 2. OBSIDIAN GOLD — elegan, hitam pekat + emas ============ */
+[data-notch-theme="obsidian"] {
+  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-bg: #0c0c0e;
+  --nt-fg: #f6efe0;
+  --nt-fg-rgb: 246, 239, 224;
+  --nt-accent: 240, 190, 90;
+  --nt-deco:
+    linear-gradient(0deg, rgba(255, 235, 190, .07), transparent 45%),
+    radial-gradient(120% 90% at 50% 140%, rgba(240, 190, 90, .30), transparent 62%);
+  --nt-size: 100% 100%;
+  --nt-rim: rgba(240, 190, 90, .28);
+  --nt-rim-w: 1px;
+  --nt-lip: rgba(255, 225, 150, .38);
+  --nt-lip-w: 1px;
+  --nt-glow-top: inset 0 0 0 0 transparent;
+  --nt-glow-bottom: inset 0 0 0 0 transparent;
+}
+
+/* ============ 3. NEON TOKYO — cyber, magenta + cyan + garis scan ============ */
+[data-notch-theme="neon"] {
+  --nt-fade-y: 7px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-bg: #0a0714;
+  --nt-fg: #f4eaff;
+  --nt-fg-rgb: 244, 234, 255;
+  --nt-accent: 0, 229, 255;
+  --nt-deco:
+    radial-gradient(70% 130% at 0% 125%, rgba(255, 43, 214, .46), transparent 62%),
+    radial-gradient(70% 130% at 100% 130%, rgba(0, 229, 255, .36), transparent 62%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 3px);
+  --nt-size: 100% 100%;
+  --nt-rim: rgba(0, 229, 255, .45);
+  --nt-rim-w: 1px;
+  --nt-lip: rgba(255, 43, 214, .55);
+  --nt-lip-w: 1px;
+  --nt-glow-top: inset 0 -8px 14px -9px rgba(255, 43, 214, .45);
+  --nt-glow-bottom: inset 0 8px 14px -9px rgba(255, 43, 214, .45);
+}
+
+/* ============ 4. SAKURA BOBA — lucu, permen pink + polkadot ============ */
+[data-notch-theme="sakura"] {
+  --nt-fade-y: 0px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-bg: #ffe4ef;
+  --nt-fg: #5a2340;
+  --nt-fg-rgb: 90, 35, 64;
+  --nt-accent: 255, 92, 150;
+  --nt-deco:
+    radial-gradient(circle, rgba(255, 255, 255, .62) 1.7px, transparent 2.2px),
+    radial-gradient(120% 160% at 50% -30%, rgba(255, 92, 150, .22), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .5), transparent 50%);
+  --nt-size: 16px 16px, 100% 100%, 100% 100%;
+  --nt-rim: rgba(255, 120, 170, .55);
+  --nt-rim-w: 1.5px;
+  --nt-lip: rgba(255, 120, 170, .36);
+  --nt-lip-w: 3px;
+  --nt-glow-top: inset 0 0 0 0 transparent;
+  --nt-glow-bottom: inset 0 0 0 0 transparent;
+}
+
+/* ============ 5. MATCHA KODOK — lucu, hijau mint + garis miring ============ */
+[data-notch-theme="matcha"] {
+  --nt-fade-y: 0px; /* pudar tepi atas/bawah ke warna dasar (0 = tidak) */
+  --nt-bg: #d9f5df;
+  --nt-fg: #174a2c;
+  --nt-fg-rgb: 23, 74, 44;
+  --nt-accent: 38, 166, 91;
+  --nt-deco:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, .38) 0 6px, transparent 6px 12px),
+    radial-gradient(120% 160% at 50% -30%, rgba(38, 166, 91, .22), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, .45), transparent 50%);
+  --nt-size: 100% 100%;
+  --nt-rim: rgba(38, 166, 91, .5);
+  --nt-rim-w: 1.5px;
+  --nt-lip: rgba(38, 166, 91, .3);
+  --nt-lip-w: 3px;
+  --nt-glow-top: inset 0 0 0 0 transparent;
+  --nt-glow-bottom: inset 0 0 0 0 transparent;
+}
+
+/* ============ Komposisi bersama (token turunan) ============ */
+[data-notch-theme] {
+  /* pudar ke warna dasar di tepi kiri/kanan: menyatu dengan telinga lengkung yang berwarna polos */
+  --nt-edge-x: linear-gradient(90deg, var(--nt-bg) 0, transparent 16px, transparent calc(100% - 16px), var(--nt-bg) 100%);
+  --nt-edge-t: linear-gradient(180deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+  --nt-edge-b: linear-gradient(0deg, var(--nt-bg) 0, transparent var(--nt-fade-y, 0px));
+  /* dock atas / pratinjau (rata di atas): tanpa garis di atas & samping, hanya bibir bawah */
+  --nt-ring-top:
+    inset 0 calc(var(--nt-rim-w) * -1) 0 var(--nt-rim),
+    inset 0 calc(var(--nt-lip-w) * -1) 0 var(--nt-lip),
+    var(--nt-glow-top);
+  /* dock bawah: kebalikannya, bibir di sisi atas */
+  --nt-ring-bottom:
+    inset 0 var(--nt-rim-w) 0 var(--nt-rim),
+    inset 0 var(--nt-lip-w) 0 var(--nt-lip),
+    var(--nt-glow-bottom);
+  /* melayang / dock samping: tidak ada telinga, garis tepi penuh */
+  --nt-ring-full:
+    inset 0 0 0 var(--nt-rim-w) var(--nt-rim),
+    inset 0 calc(var(--nt-lip-w) * -1) 0 var(--nt-lip),
+    var(--nt-glow-top);
+}
+
+/* ============ Penerapan ke notch utama (hanya di halaman notch: <html> diberi atribut) ============ */
+:root[data-notch-theme] {
+  --bg: var(--nt-bg);
+  --fg: var(--nt-fg);
+  --fg-rgb: var(--nt-fg-rgb);
+}
+:root[data-notch-theme]:not([data-accent-fixed]) {
+  --accent: var(--nt-accent);
+}
+/* bawaan = menempel di atas layar (ada telinga) */
+:root[data-notch-theme] #notch {
+  background-color: var(--nt-bg);
+  background-image: var(--nt-edge-x), var(--nt-edge-t), var(--nt-deco);
+  background-size: 100% 100%, 100% 100%, var(--nt-size, 100% 100%);
+  background-position: 0 0;
+  box-shadow: var(--nt-ring-top);
+}
+/* dock bawah: telinga ada di dasar layar, jadi pudar tepi bawah (bukan atas) */
+:root[data-notch-theme] #notch.is-bottom {
+  background-image: var(--nt-edge-x), var(--nt-edge-b), var(--nt-deco);
+  box-shadow: var(--nt-ring-bottom);
+}
+/* tanpa telinga: pudar tepi tidak perlu, garis tepi penuh mengikuti lengkung badan */
+:root[data-notch-theme] #notch:is(.is-floating, .is-edge-left, .is-edge-right) {
+  background-image: var(--nt-deco);
+  background-size: var(--nt-size, 100% 100%);
+  box-shadow: var(--nt-ring-full);
+}
+
+/* ============ Penerapan ke pratinjau #pill di Settings (rata di atas, tanpa telinga) ============ */
+#pill[data-notch-theme] {
+  --p-bg: var(--nt-bg);
+  --p-fg: var(--nt-fg);
+  --p-fg-rgb: var(--nt-fg-rgb);
+  background-color: var(--nt-bg);
+  background-image: var(--nt-deco);
+  background-size: var(--nt-size, 100% 100%);
+  background-position: 0 0;
+  box-shadow: var(--nt-ring-top);
+}
+#pill[data-notch-theme]:not([data-accent-fixed]) {
+  --p-accent: var(--nt-accent);
+}
