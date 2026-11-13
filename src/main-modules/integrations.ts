@@ -203,6 +203,7 @@ export function init(ctx: Record<string, any>): void {
             ctx.expand("prayerAlert", ms);
         },
         mood: (m, ms) => ctx.flash(m as Mood, ms),
+        adhanError: (msg) => ctx.showNotice("Adzan gagal diputar", msg, 8000, "⚠️"),
         adhanStart: (prayerName, sub) => {
             if (ctx.prayerAdhanActive)
                 return;

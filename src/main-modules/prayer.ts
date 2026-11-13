@@ -171,7 +171,7 @@ function tone(times: number) {
 // MP3 utama dibundle oleh Vite. Dua jalur tambahan menangani proyek yang menyimpan aset
 // di public/adzan.mp3 (produksi) atau src/public/adzan.mp3 (mode dev).
 const ADZAN_URLS = [...new Set([
-    new URL("./public/adzan.mp3", import.meta.url).href,
+    new URL("../public/adzan.mp3", import.meta.url).href,
     "/adzan.mp3",
     "/src/public/adzan.mp3",
 ])];
