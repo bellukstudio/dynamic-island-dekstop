@@ -510,7 +510,7 @@ function wire() {
             e.stopPropagation();
             if (!prefs) return;
             prefs.mode = b.dataset.mode as Mode;
-            if (prefs.mode === "adzan") adzan("Tes adzan", false); else if (prefs.mode === "tone") tone(1); // pratinjau suara
+            if (prefs.mode === "tone") tone(1); // pratinjau nada singkat (adzan penuh tidak dipratinjau: gunakan tombol "Tes adzan")
             render(); savePrefs();
         }));
     el("pr-remind")?.addEventListener("click", (e) => {
