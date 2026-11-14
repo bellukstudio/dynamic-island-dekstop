@@ -5,24 +5,52 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use notch_core::battery::{BatteryMonitor, Reading};
+use notch_core::config::Config;
 use notch_core::notes::{Note, NotesStore};
+use notch_core::pomodoro::{Phase, Pomodoro};
+use notch_core::quick::{self, Quick};
 use notch_core::stats::StatsMonitor;
-use slint::{ComponentHandle, Image, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel, SharedPixelBuffer, Timer, TimerMode, VecModel};
+use notch_core::theme::{Palette, Rgba};
+use slint::{
+    ComponentHandle, Global, Image, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel,
+    SharedPixelBuffer, SharedString, Timer, TimerMode, VecModel, Weak,
+};
 
 slint::include_modules!();
 
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
 const COLLAPSED: (u32, u32) = (152, 38);
-const EXPANDED: (u32, u32) = (592, 202);
-const PAGE_STATS: i32 = 3;
-const PAGE_BATTERY: i32 = 4;
-const PAGE_NOTES: i32 = 5;
-const POMO_SECS: u32 = 25 * 60;
+const EXPANDED: (u32, u32) = (592, 212);
 
 mod platform {
+    /// Apakah Windows memakai tema aplikasi terang (untuk `theme = "auto"`). Di OS lain: gelap.
+    pub fn os_light() -> bool {
+        #[cfg(windows)]
+        unsafe {
+            use windows::core::w;
+            use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+            let mut data: u32 = 0;
+            let mut size = std::mem::size_of::<u32>() as u32;
+            let r = RegGetValueW(
+                HKEY_CURRENT_USER,
+                w!(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"),
+                w!("AppsUseLightTheme"),
+                RRF_RT_REG_DWORD,
+                None,
+                Some(&mut data as *mut u32 as *mut core::ffi::c_void),
+                Some(&mut size),
+            );
+            r.is_ok() && data == 1
+        }
+        #[cfg(not(windows))]
+        false
+    }
+
     /// Posisi kursor global (piksel fisik).
     pub fn cursor_pos() -> Option<(i32, i32)> {
         #[cfg(windows)]
@@ -139,8 +167,63 @@ fn show_notes(model: &VecModel<NoteItem>, notes: Vec<Note>) {
     );
 }
 
-fn fmt_mmss(secs: u32) -> String {
-    format!("{:02}:{:02}", secs / 60, secs % 60)
+
+fn col(c: Rgba) -> slint::Color {
+    slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
+}
+
+fn apply_theme(w: &NotchWindow, p: &Palette) {
+    let t = Theme::get(w);
+    t.set_body(col(p.body));
+    t.set_text(col(p.text));
+    t.set_text_dim(col(p.text_dim));
+    t.set_text_faint(col(p.text_faint));
+    t.set_accent(col(p.accent));
+    t.set_on_accent(col(p.on_accent));
+    t.set_ok(col(p.ok));
+    t.set_chip(col(p.chip));
+    t.set_chip_hover(col(p.chip_hover));
+    t.set_track(col(p.track));
+    t.set_glow_a(col(p.glow_a));
+    t.set_glow_b(col(p.glow_b));
+    t.set_rim(col(p.rim));
+}
+
+/// None -> -1 (tidak didukung/belum terbaca), false -> 0, true -> 1.
+fn tri(v: Option<bool>) -> i32 {
+    match v {
+        None => -1,
+        Some(false) => 0,
+        Some(true) => 1,
+    }
+}
+
+fn apply_quick(w: &NotchWindow, q: &Quick) {
+    w.set_q_mic(tri(q.mic));
+    w.set_q_wifi(tri(q.wifi));
+    w.set_q_bt(tri(q.bt));
+    w.set_q_awake(tri(q.awake));
+    w.set_q_dark(tri(q.dark));
+}
+
+/// Baca keadaan Quick di thread lain (bisa sampai 3 detik) lalu tampilkan di thread UI.
+fn refresh_quick(weak: Weak<NotchWindow>, busy: Arc<AtomicBool>) {
+    if busy.swap(true, Ordering::SeqCst) {
+        return; // pembacaan sebelumnya masih berjalan
+    }
+    std::thread::spawn(move || {
+        let q = quick::state();
+        let _ = weak.upgrade_in_event_loop(move |w| apply_quick(&w, &q));
+        busy.store(false, Ordering::SeqCst);
+    });
+}
+
+fn show_pomo(w: &NotchWindow, p: &Pomodoro) {
+    w.set_pomo_text(p.time_text().into());
+    w.set_pomo_label(p.label().into());
+    w.set_pomo_progress(p.progress());
+    w.set_pomo_running(p.running());
+    w.set_pomo_rest(p.phase() != Phase::Focus);
 }
 
 /// Letakkan jendela di tengah atas layar untuk ukuran tertentu.
@@ -152,18 +235,26 @@ fn place(win: &NotchWindow, size: (u32, u32)) {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // Config dibaca saja (tidak pernah ditulis/dibuat dari sini).
+    let cfg = Config::load_readonly(&notch_core::paths::config_path());
+
     let win = NotchWindow::new()?;
+    apply_theme(&win, &Palette::from_appearance(&cfg.appearance, platform::os_light()));
     place(&win, COLLAPSED);
+
+    // Tab mengikuti daftar dan urutan `pages` di config. Halaman yang belum ada di versi Slint
+    // tampil sebagai placeholder, jadi urutan dan jumlah tab sama dengan versi Tauri.
+    let pages: Vec<String> = cfg.pages.clone();
+    win.set_tabs(ModelRc::from(Rc::new(VecModel::from(
+        pages.iter().map(|p| SharedString::from(p.as_str())).collect::<Vec<_>>(),
+    ))));
+    win.set_page_id(pages[0].as_str().into());
 
     win.set_emoji_coffee(load_png(include_bytes!("../assets/emoji/2615.png")));
     win.set_emoji_tomato(load_png(include_bytes!("../assets/emoji/1f345.png")));
     win.set_emoji_moon(load_png(include_bytes!("../assets/emoji/1f319.png")));
 
-    // --- Hover + halaman aktif ---
-    // Setiap halaman hanya bekerja saat notch melebar DAN halamannya terlihat (seperti versi Tauri):
-    // Stats disampel tiap 1 dtk, Baterai dibaca tiap 5 dtk, Catatan dimuat ulang dari disk
-    // setiap halamannya dibuka (supaya perubahan dari versi Tauri ikut terbaca).
-    let shrink_timer = Rc::new(Timer::default());
+    // --- State halaman ---
     let stats_timer = Rc::new(Timer::default());
     let battery_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
@@ -172,20 +263,26 @@ fn main() -> Result<(), slint::PlatformError> {
     let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
+    let quick_busy = Arc::new(AtomicBool::new(false));
 
+    // Setiap halaman hanya bekerja saat notch melebar DAN halamannya terlihat (seperti versi Tauri):
+    // Stats disampel tiap 1 dtk, Baterai dibaca tiap 5 dtk, Quick/Tools dibaca ulang saat dibuka,
+    // Catatan dimuat ulang dari disk setiap dibuka (perubahan dari versi Tauri ikut terbaca).
     let sync_pages: Rc<dyn Fn()> = {
         let weak = win.as_weak();
         let (stats_timer, battery_timer) = (stats_timer.clone(), battery_timer.clone());
         let (monitor, battery) = (monitor.clone(), battery.clone());
         let (notes_store, notes_model, notes_path) =
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        let quick_busy = quick_busy.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             let visible = w.get_expanded();
-            let page = w.get_page();
+            let page = w.get_page_id();
+            let page = page.as_str();
 
             // Stats
-            if visible && page == PAGE_STATS {
+            if visible && page == "stats" {
                 if !stats_timer.running() {
                     monitor.borrow_mut().get_or_insert_with(StatsMonitor::new).resume();
                     let weak_s = weak.clone();
@@ -210,7 +307,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             // Baterai
-            if visible && page == PAGE_BATTERY {
+            if visible && page == "battery" {
                 if !battery_timer.running() {
                     apply_battery(&w, battery.read());
                     let weak_b = weak.clone();
@@ -225,8 +322,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 battery_timer.stop();
             }
 
-            // Catatan: muat ulang dari disk setiap halaman dibuka
-            if visible && page == PAGE_NOTES {
+            // Quick / Tools
+            if visible && (page == "quick" || page == "tools") {
+                refresh_quick(weak.clone(), quick_busy.clone());
+            }
+
+            // Catatan
+            if visible && page == "notes" {
                 let store = NotesStore::open(&notes_path);
                 show_notes(&notes_model, store.list());
                 *notes_store.borrow_mut() = Some(store);
@@ -234,6 +336,10 @@ fn main() -> Result<(), slint::PlatformError> {
         })
     };
 
+    {
+        let sync = sync_pages.clone();
+        win.on_page_changed(move |_| sync());
+    }
     {
         let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
         win.on_add_note(move |text| {
@@ -251,28 +357,82 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // --- Quick / Tools: aksi jalan di thread lain (bisa sampai 4 detik) ---
     {
+        let weak = win.as_weak();
+        win.on_quick_toggle(move |kind| {
+            if kind.as_str() == "center" {
+                // Notch selalu di tengah atas; posisi kustom belum didukung di versi Slint.
+                if let Some(w) = weak.upgrade() {
+                    place(&w, EXPANDED);
+                }
+                return;
+            }
+            let weak = weak.clone();
+            let kind = kind.to_string();
+            std::thread::spawn(move || {
+                let q = quick::toggle(&kind);
+                let _ = weak.upgrade_in_event_loop(move |w| apply_quick(&w, &q));
+            });
+        });
+    }
+
+    // --- Hover dengan jeda dari config: timing.hover_open_ms / hover_close_ms ---
+    let open_timer = Rc::new(Timer::default());
+    let close_timer = Rc::new(Timer::default());
+    let shrink_timer = Rc::new(Timer::default());
+    let (open_ms, close_ms) = (
+        u64::from(cfg.timing.hover_open_ms),
+        u64::from(cfg.timing.hover_close_ms),
+    );
+    let expand: Rc<dyn Fn()> = {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
         let sync = sync_pages.clone();
+        Rc::new(move || {
+            let Some(w) = weak.upgrade() else { return };
+            shrink.stop();
+            place(&w, EXPANDED);
+            w.set_expanded(true);
+            sync();
+        })
+    };
+    let collapse: Rc<dyn Fn()> = {
+        let weak = win.as_weak();
+        let shrink = shrink_timer.clone();
+        let sync = sync_pages.clone();
+        Rc::new(move || {
+            let Some(w) = weak.upgrade() else { return };
+            w.set_expanded(false);
+            sync();
+            // jendela baru diperkecil setelah animasi menciut selesai
+            let weak2 = weak.clone();
+            shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
+                if let Some(w) = weak2.upgrade() {
+                    if !w.get_expanded() {
+                        place(&w, COLLAPSED);
+                    }
+                }
+            });
+        })
+    };
+    {
+        let weak = win.as_weak();
+        let (open_timer, close_timer) = (open_timer.clone(), close_timer.clone());
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
             if hovered {
-                shrink.stop();
-                place(&w, EXPANDED);
-                w.set_expanded(true);
-                sync();
+                close_timer.stop();
+                if !w.get_expanded() {
+                    let e = expand.clone();
+                    open_timer.start(TimerMode::SingleShot, Duration::from_millis(open_ms), move || e());
+                }
             } else {
-                w.set_expanded(false);
-                sync();
-                let weak2 = weak.clone();
-                shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
-                    if let Some(w) = weak2.upgrade() {
-                        if !w.get_expanded() {
-                            place(&w, COLLAPSED);
-                        }
-                    }
-                });
+                open_timer.stop();
+                if w.get_expanded() {
+                    let c = collapse.clone();
+                    close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms), move || c());
+                }
             }
         });
     }
@@ -295,47 +455,46 @@ fn main() -> Result<(), slint::PlatformError> {
         clock_timer.start(TimerMode::Repeated, Duration::from_secs(1), tick);
     }
 
-    // --- Pomodoro ---
-    let remaining = Rc::new(Cell::new(POMO_SECS));
-    let running = Rc::new(Cell::new(false));
+    // --- Pomodoro (state machine dari notch-core, sama dengan pomodoro.ts) ---
+    let pomo = Rc::new(RefCell::new(Pomodoro::new(&cfg.pomodoro)));
+    show_pomo(&win, &pomo.borrow());
     let pomo_timer = Timer::default();
     {
         let weak = win.as_weak();
-        let (rem, run) = (remaining.clone(), running.clone());
+        let pomo = pomo.clone();
         pomo_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
-            if !run.get() { return; }
-            let Some(w) = weak.upgrade() else { return };
-            let left = rem.get().saturating_sub(1);
-            rem.set(left);
-            if left == 0 {
-                run.set(false);
-                w.set_pomo_running(false);
+            let mut p = pomo.borrow_mut();
+            if !p.running() {
+                return;
             }
-            w.set_pomo_text(fmt_mmss(left).into());
+            let _finished = p.tick(Instant::now());
+            if let Some(w) = weak.upgrade() {
+                show_pomo(&w, &p);
+            }
         });
     }
     {
-        let weak = win.as_weak();
-        let (rem, run) = (remaining.clone(), running.clone());
+        let (weak, pomo) = (win.as_weak(), pomo.clone());
         win.on_toggle_pomo(move || {
-            if rem.get() == 0 { rem.set(POMO_SECS); }
-            run.set(!run.get());
-            if let Some(w) = weak.upgrade() {
-                w.set_pomo_running(run.get());
-                w.set_pomo_text(fmt_mmss(rem.get()).into());
-            }
+            let mut p = pomo.borrow_mut();
+            p.toggle(Instant::now());
+            if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
         });
     }
     {
-        let weak = win.as_weak();
-        let (rem, run) = (remaining.clone(), running.clone());
+        let (weak, pomo) = (win.as_weak(), pomo.clone());
         win.on_reset_pomo(move || {
-            rem.set(POMO_SECS);
-            run.set(false);
-            if let Some(w) = weak.upgrade() {
-                w.set_pomo_running(false);
-                w.set_pomo_text(fmt_mmss(POMO_SECS).into());
-            }
+            let mut p = pomo.borrow_mut();
+            p.reset();
+            if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
+        });
+    }
+    {
+        let (weak, pomo) = (win.as_weak(), pomo.clone());
+        win.on_skip_pomo(move || {
+            let mut p = pomo.borrow_mut();
+            p.skip();
+            if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
         });
     }
 

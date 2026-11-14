@@ -5,20 +5,37 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 `src/` tidak diubah.
 
 ## Isi prototipe
-- Jendela tanpa bingkai, transparan, selalu di atas, di tengah atas layar
-- Bentuk notch dengan **bahu cekung** di kiri/kanan atas (menyatu dengan tepi layar)
-- Menciut: pil dengan mata yang mengikuti kursor dan berkedip. Hover: melebar jadi hub
-- Hub dengan baris ikon tab (ikon digambar dengan `Path`, tanpa decoder gambar/SVG):
-  Media (tampilan saja, belum terhubung ke pemutar), Jam, Timer fokus, Stats (CPU/RAM/disk/jaringan),
-  Baterai, Catatan (tambah dengan Enter/tombol, hapus dengan x; menampilkan 3 terbaru), dan halaman
-  uji render sementara (teks Arab asli + emoji sebagai gambar PNG, lihat `assets/emoji/NOTICE.md`).
-  Stats, Baterai, dan Catatan memakai crate bersama `../notch-core`; tiap halaman hanya bekerja saat
-  halamannya terlihat
+- Jendela tanpa bingkai, transparan, selalu di atas, di tengah atas layar, dengan **bahu cekung**
+  di kiri/kanan atas yang menyatu dengan tepi layar
+- Menciut: pil dengan mata yang mengikuti kursor dan berkedip. Hover melebar jadi hub, dengan jeda
+  `timing.hover_open_ms` / `hover_close_ms` dari config
+- **Config dibaca dari `%APPDATA%\notch\config.toml`** (hanya dibaca, tidak pernah ditulis):
+  - `pages`: tab hub mengikuti daftar dan urutan ini. Halaman yang belum dibuat di Slint tampil
+    sebagai placeholder "Belum tersedia di versi Slint". Tambah `"uji"` ke `pages` untuk halaman uji render
+  - `[appearance]`: `notch_theme` (default/aurora/obsidian/neon/sakura/matcha), `theme`, `dark_bg`,
+    `light_bg`, `background`, `text`, `accent`. Default = hitam polos. `theme = "auto"` mengikuti tema aplikasi Windows
+  - `[pomodoro]` dan `[timing]`
+- Halaman yang sudah ada: Media (tampilan saja), Jam, Timer (fokus/istirahat/istirahat panjang, ronde,
+  progress, reset/skip), Stats, Baterai, Catatan, Quick (Mic/Wi-Fi/Bluetooth), Tools (Keep awake/Tema/Kunci/Pusatkan)
+- Stats, Baterai, Quick/Tools, dan Catatan memakai crate bersama `../notch-core`; tiap halaman hanya
+  bekerja saat halamannya terlihat
 - **Catatan membaca/menulis `%APPDATA%\notch\notes.json`, file yang sama dengan versi Tauri.**
   Jangan mengedit catatan di kedua aplikasi sekaligus: Tauri menyimpan salinan di memori dan
   penulisan terakhir yang menang
-- Tema lewat `Theme` global di `ui/notch.slint`. Default hitam polos; tema bergradasi seperti di
-  pengaturan versi Tauri belum dibuat, tinggal menambah set nilai `Theme`
+- **Quick/Tools mengubah pengaturan Windows sungguhan** (mic, Wi-Fi, Bluetooth, tema gelap, kunci layar)
+
+## Belum ada
+Media sungguhan (pemutar, cover, lirik), Cuaca, Jadwal Shalat/Ramadan, Pengingat, Clipboard, Shelf,
+Lirik, Privasi, Currency, posisi kustom/dock tepi (tombol "Pusatkan" belum menggeser apa pun),
+`scale`, tampilan otomatis saat timer selesai, dan tekstur garis-garis tema neon. Cahaya tema
+berbentuk lingkaran, sedangkan versi Tauri lebih lebar (elips).
+
+## Pratinjau tanpa jendela
+```
+cargo run --example preview -- preview-out
+```
+Merender halaman dan tema ke PNG memakai renderer software (data contoh, bukan data sistem). Berguna
+untuk memeriksa tata letak di mesin tanpa Windows/layar.
 
 ## Menjalankan (Windows)
 ```
@@ -33,7 +50,7 @@ cargo run --release --no-default-features --features femtovg
 ## Yang perlu dicek di Windows
 1. Teks Arab tersambung dan arahnya benar? Emoji tampil berwarna?
 2. Area transparan di sekitar pil (terutama saat melebar) menangkap klik atau tembus?
-3. Hover tidak berkedip saat kursor di atas tombol/tab; klik tab dan tombol Mulai/Reset berfungsi.
+3. Hover tidak berkedip saat kursor di atas tombol/tab; klik tab, tombol timer, dan tombol Quick berfungsi.
 4. Posisi di layar DPI tinggi (>100%): `place()` memakai piksel fisik.
 5. RAM dan CPU idle (Task Manager, kolom "Memory" dan "CPU") dibanding `npm run tauri dev`/rilis Tauri.
 
@@ -52,6 +69,7 @@ bebas oleh pengguna (mis. pesan pointer diam) perlu daftar pilihan atau pemetaan
 - Feature `femtovg` belum dikompilasi.
 
 ## Rencana berikutnya
-`stats`, `battery`, `notes`, dan `paths` sudah di `../notch-core` (dipakai Tauri dan Slint). Lanjutkan modul lain yang
-masih menempel ke `tauri::*`: clipboard, reminder, lalu media dan sisanya;
+`stats`, `battery`, `notes`, `paths`, `config`, `quick`, `pomodoro`, dan `theme` sudah di `../notch-core`
+(dipakai Tauri dan/atau Slint). Lanjutkan modul lain yang masih menempel ke `tauri::*`: clipboard, reminder,
+weather, prayer, lalu media dan sisanya;
 shelf/WhatsApp/mirror paling akhir.
