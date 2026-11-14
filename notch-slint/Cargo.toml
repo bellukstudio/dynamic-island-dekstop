@@ -17,7 +17,7 @@ png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar em
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.54", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation"] }
 
 [build-dependencies]
 slint-build = "1"

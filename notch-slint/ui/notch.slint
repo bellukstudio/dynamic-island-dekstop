@@ -1,6 +1,8 @@
 // Notch (Slint). Cangkang hub: bentuk dengan bahu melengkung, baris tab, dan halaman.
 // Gradasi/tema lain nanti cukup mengubah nilai di `Theme` (default: hitam polos).
 
+export struct NoteItem { id: string, text: string }
+
 export global Theme {
     in-out property <brush> body: #000000;
     in-out property <color> text: #f5f5f7;
@@ -19,6 +21,9 @@ global Icons {
     out property <string> clock: "M 2 12 A 10 10 0 1 0 22 12 A 10 10 0 1 0 2 12 M 12 6 V 12 L 16 14";
     out property <string> timer: "M 10 2 H 14 M 12 14 L 15 11 M 4 14 A 8 8 0 1 0 20 14 A 8 8 0 1 0 4 14";
     out property <string> stats: "M 12 14 L 16 10 M 3.34 19 A 10 10 0 1 1 20.66 19";
+    out property <string> battery: "M 4 7 H 16 A 2 2 0 0 1 18 9 V 15 A 2 2 0 0 1 16 17 H 4 A 2 2 0 0 1 2 15 V 9 A 2 2 0 0 1 4 7 Z M 22 11 V 13";
+    out property <string> notes: "M 6 2 H 14 L 20 8 V 20 A 2 2 0 0 1 18 22 H 6 A 2 2 0 0 1 4 20 V 4 A 2 2 0 0 1 6 2 Z M 8 13 H 16 M 8 17 H 13";
+    out property <string> close: "M 6 6 L 18 18 M 18 6 L 6 18";
     out property <string> grid: "M 3 3 H 10 V 10 H 3 Z M 14 3 H 21 V 10 H 14 Z M 14 14 H 21 V 21 H 14 Z M 3 14 H 10 V 21 H 3 Z";
 }
 
@@ -274,6 +279,100 @@ component StatsPage inherits VerticalLayout {
     }
 }
 
+component BatteryPage inherits VerticalLayout {
+    in property <bool> present: true;
+    in property <int> percent: 0;
+    in property <bool> charging: false;
+    alignment: center;
+    spacing: 8px;
+    padding-left: 60px;
+    padding-right: 60px;
+    if !root.present: Text {
+        text: "Tidak ada baterai (PC desktop)";
+        color: Theme.text-dim;
+        font-size: 14px;
+        horizontal-alignment: center;
+    }
+    if root.present: Text {
+        text: root.percent + "%";
+        color: root.percent <= 20 && !root.charging ? #ff6b6b : Theme.text;
+        font-size: 44px;
+        font-weight: 700;
+        horizontal-alignment: center;
+    }
+    if root.present: Rectangle {
+        height: 10px;
+        border-radius: 5px;
+        background: Theme.track;
+        Rectangle {
+            width: parent.width * clamp(root.percent, 0, 100) / 100;
+            height: parent.height;
+            border-radius: 5px;
+            background: root.charging ? Theme.ok : (root.percent <= 20 ? #ff6b6b : Theme.text);
+            animate width { duration: 300ms; easing: ease-out; }
+        }
+    }
+    if root.present: Text {
+        text: root.charging ? "Mengisi daya" : "Tidak mengisi";
+        color: Theme.text-dim;
+        font-size: 12px;
+        horizontal-alignment: center;
+    }
+}
+
+component NotesPage inherits VerticalLayout {
+    in property <[NoteItem]> notes;
+    callback add(string);
+    callback remove(string);
+    padding-left: 24px;
+    padding-right: 24px;
+    spacing: 8px;
+
+    HorizontalLayout {
+        spacing: 8px;
+        height: 30px;
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 15px;
+            background: Theme.chip;
+            input := TextInput {
+                x: 12px;
+                width: parent.width - 24px;
+                color: Theme.text;
+                font-size: 13px;
+                vertical-alignment: center;
+                single-line: true;
+                accepted => {
+                    root.add(self.text);
+                    self.text = "";
+                }
+            }
+            if input.text == "": Text {
+                x: 12px;
+                text: "Tulis catatan lalu Enter...";
+                color: Theme.text-faint;
+                font-size: 13px;
+                vertical-alignment: center;
+            }
+        }
+        Chip { label: "Tambah"; clicked => { root.add(input.text); input.text = ""; } }
+    }
+
+    if root.notes.length == 0: Text {
+        text: "Belum ada catatan";
+        color: Theme.text-faint;
+        font-size: 12px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    for n in root.notes: HorizontalLayout {
+        height: 24px;
+        spacing: 6px;
+        Text { text: n.text; color: Theme.text; font-size: 13px; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
+        RoundButton { size: 24px; commands: Icons.close; clicked => { root.remove(n.id); } }
+    }
+}
+
 // Halaman uji render sementara: teks Arab (teks asli) dan emoji (gambar).
 component RenderTestPage inherits VerticalLayout {
     in property <image> coffee;
@@ -303,7 +402,7 @@ export component NotchWindow inherits Window {
     title: "Notch";
 
     in property <bool> expanded: false;
-    in-out property <int> page: 0;   // 0 media, 1 jam, 2 timer, 3 stats, 4 uji render
+    in-out property <int> page: 0;   // 0 media, 1 jam, 2 timer, 3 stats, 4 baterai, 5 catatan, 6 uji render
 
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
@@ -322,6 +421,11 @@ export component NotchWindow inherits Window {
     in property <string> net-text: "";
     in property <string> sys-text: "";
 
+    in property <bool> battery-present: true;
+    in property <int> battery-percent: 0;
+    in property <bool> battery-charging: false;
+    in property <[NoteItem]> notes;
+
     in property <image> emoji-coffee;
     in property <image> emoji-tomato;
     in property <image> emoji-moon;
@@ -330,6 +434,8 @@ export component NotchWindow inherits Window {
     callback page-changed(int);
     callback toggle-pomo();
     callback reset-pomo();
+    callback add-note(string);
+    callback remove-note(string);
 
     pill := Rectangle {
         x: (root.width - self.width) / 2;
@@ -375,7 +481,9 @@ export component NotchWindow inherits Window {
                     TabIcon { commands: Icons.clock; active: root.page == 1; clicked => { root.page = 1; root.page-changed(1); } }
                     TabIcon { commands: Icons.timer; active: root.page == 2; clicked => { root.page = 2; root.page-changed(2); } }
                     TabIcon { commands: Icons.stats; active: root.page == 3; clicked => { root.page = 3; root.page-changed(3); } }
-                    TabIcon { commands: Icons.grid;  active: root.page == 4; clicked => { root.page = 4; root.page-changed(4); } }
+                    TabIcon { commands: Icons.battery; active: root.page == 4; clicked => { root.page = 4; root.page-changed(4); } }
+                    TabIcon { commands: Icons.notes; active: root.page == 5; clicked => { root.page = 5; root.page-changed(5); } }
+                    TabIcon { commands: Icons.grid;  active: root.page == 6; clicked => { root.page = 6; root.page-changed(6); } }
                 }
 
                 Rectangle {
@@ -394,7 +502,13 @@ export component NotchWindow inherits Window {
                         cpu-text: root.cpu-text; ram-text: root.ram-text; disk-text: root.disk-text;
                         net-text: root.net-text; sys-text: root.sys-text;
                     }
-                    if root.page == 4: RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
+                    if root.page == 4: BatteryPage { present: root.battery-present; percent: root.battery-percent; charging: root.battery-charging; }
+                    if root.page == 5: NotesPage {
+                        notes: root.notes;
+                        add(t) => { root.add-note(t); }
+                        remove(id) => { root.remove-note(id); }
+                    }
+                    if root.page == 6: RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                 }
             }
 

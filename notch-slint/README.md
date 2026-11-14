@@ -9,9 +9,14 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - Bentuk notch dengan **bahu cekung** di kiri/kanan atas (menyatu dengan tepi layar)
 - Menciut: pil dengan mata yang mengikuti kursor dan berkedip. Hover: melebar jadi hub
 - Hub dengan baris ikon tab (ikon digambar dengan `Path`, tanpa decoder gambar/SVG):
-  Media (tampilan saja, belum terhubung ke pemutar), Jam, Timer fokus, Stats (CPU/RAM/disk/jaringan
-  dari `../notch-core`, hanya disampel saat halaman ini terlihat), dan halaman uji render sementara
-  (teks Arab asli + emoji sebagai gambar PNG, lihat `assets/emoji/NOTICE.md`)
+  Media (tampilan saja, belum terhubung ke pemutar), Jam, Timer fokus, Stats (CPU/RAM/disk/jaringan),
+  Baterai, Catatan (tambah dengan Enter/tombol, hapus dengan x; menampilkan 3 terbaru), dan halaman
+  uji render sementara (teks Arab asli + emoji sebagai gambar PNG, lihat `assets/emoji/NOTICE.md`).
+  Stats, Baterai, dan Catatan memakai crate bersama `../notch-core`; tiap halaman hanya bekerja saat
+  halamannya terlihat
+- **Catatan membaca/menulis `%APPDATA%\notch\notes.json`, file yang sama dengan versi Tauri.**
+  Jangan mengedit catatan di kedua aplikasi sekaligus: Tauri menyimpan salinan di memori dan
+  penulisan terakhir yang menang
 - Tema lewat `Theme` global di `ui/notch.slint`. Default hitam polos; tema bergradasi seperti di
   pengaturan versi Tauri belum dibuat, tinggal menambah set nilai `Theme`
 
@@ -47,6 +52,6 @@ bebas oleh pengguna (mis. pesan pointer diam) perlu daftar pilihan atau pemetaan
 - Feature `femtovg` belum dikompilasi.
 
 ## Rencana berikutnya
-`stats` sudah dipindah ke `../notch-core` (dipakai Tauri dan Slint). Lanjutkan modul lain yang
-sekarang menempel ke `tauri::*`: battery, clipboard, notes, reminder, lalu media dan sisanya;
+`stats`, `battery`, `notes`, dan `paths` sudah di `../notch-core` (dipakai Tauri dan Slint). Lanjutkan modul lain yang
+masih menempel ke `tauri::*`: clipboard, reminder, lalu media dan sisanya;
 shelf/WhatsApp/mirror paling akhir.

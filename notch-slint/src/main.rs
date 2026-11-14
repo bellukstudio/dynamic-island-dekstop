@@ -7,8 +7,10 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
+use notch_core::battery::{BatteryMonitor, Reading};
+use notch_core::notes::{Note, NotesStore};
 use notch_core::stats::StatsMonitor;
-use slint::{ComponentHandle, Image, PhysicalPosition, PhysicalSize, Rgba8Pixel, SharedPixelBuffer, Timer, TimerMode};
+use slint::{ComponentHandle, Image, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel, SharedPixelBuffer, Timer, TimerMode, VecModel};
 
 slint::include_modules!();
 
@@ -16,6 +18,8 @@ slint::include_modules!();
 const COLLAPSED: (u32, u32) = (152, 38);
 const EXPANDED: (u32, u32) = (592, 202);
 const PAGE_STATS: i32 = 3;
+const PAGE_BATTERY: i32 = 4;
+const PAGE_NOTES: i32 = 5;
 const POMO_SECS: u32 = 25 * 60;
 
 mod platform {
@@ -112,6 +116,29 @@ fn fmt_rate(bps: f64) -> String {
     }
 }
 
+fn apply_battery(w: &NotchWindow, reading: Reading) {
+    match reading {
+        Reading::Present(b) => {
+            w.set_battery_present(true);
+            w.set_battery_percent(i32::from(b.percent));
+            w.set_battery_charging(b.charging);
+        }
+        Reading::Absent => w.set_battery_present(false),
+        Reading::Unavailable => {}
+    }
+}
+
+/// Isi daftar catatan di UI (maksimal 3 terbaru; halaman ini belum bisa menggulir).
+fn show_notes(model: &VecModel<NoteItem>, notes: Vec<Note>) {
+    model.set_vec(
+        notes
+            .into_iter()
+            .take(3)
+            .map(|n| NoteItem { id: n.id.into(), text: n.text.replace('\n', " ").into() })
+            .collect::<Vec<_>>(),
+    );
+}
+
 fn fmt_mmss(secs: u32) -> String {
     format!("{:02}:{:02}", secs / 60, secs % 60)
 }
@@ -133,58 +160,101 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_emoji_moon(load_png(include_bytes!("../assets/emoji/1f319.png")));
 
     // --- Hover + halaman aktif ---
-    // Stats (dari crate notch-core) hanya dibuat saat pertama dibutuhkan dan hanya disampel
-    // selama notch melebar DAN halaman Stats terlihat, sama seperti versi Tauri.
+    // Setiap halaman hanya bekerja saat notch melebar DAN halamannya terlihat (seperti versi Tauri):
+    // Stats disampel tiap 1 dtk, Baterai dibaca tiap 5 dtk, Catatan dimuat ulang dari disk
+    // setiap halamannya dibuka (supaya perubahan dari versi Tauri ikut terbaca).
     let shrink_timer = Rc::new(Timer::default());
     let stats_timer = Rc::new(Timer::default());
+    let battery_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
+    let battery = Rc::new(BatteryMonitor::new());
+    let notes_path = notch_core::paths::data_file("notes.json");
+    let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
+    let notes_model = Rc::new(VecModel::<NoteItem>::default());
+    win.set_notes(ModelRc::from(notes_model.clone()));
 
-    let sync_stats: Rc<dyn Fn()> = {
+    let sync_pages: Rc<dyn Fn()> = {
         let weak = win.as_weak();
-        let stats_timer = stats_timer.clone();
-        let monitor = monitor.clone();
+        let (stats_timer, battery_timer) = (stats_timer.clone(), battery_timer.clone());
+        let (monitor, battery) = (monitor.clone(), battery.clone());
+        let (notes_store, notes_model, notes_path) =
+            (notes_store.clone(), notes_model.clone(), notes_path.clone());
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
-            let wanted = w.get_expanded() && w.get_page() == PAGE_STATS;
-            if !wanted {
-                stats_timer.stop();
-                return;
-            }
-            if stats_timer.running() {
-                return;
-            }
-            monitor.borrow_mut().get_or_insert_with(StatsMonitor::new).resume();
-            let weak_s = weak.clone();
-            let monitor = monitor.clone();
-            stats_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
-                let Some(w) = weak_s.upgrade() else { return };
-                if let Some(m) = monitor.borrow_mut().as_mut() {
-                    let s = m.sample();
-                    w.set_cpu(s.cpu);
-                    w.set_ram(s.ram);
-                    w.set_disk(s.disk);
-                    w.set_cpu_text(format!("{:.0}%", s.cpu).into());
-                    w.set_ram_text(format!("{:.1} / {:.1} GiB", gib(s.ram_used), gib(s.ram_total)).into());
-                    w.set_disk_text(
-                        format!("{:.0} / {:.0} GiB", gib(s.disk_used), gib(s.disk_total)).into(),
-                    );
-                    w.set_net_text(
-                        format!("\u{2193} {}   \u{2191} {}", fmt_rate(s.down), fmt_rate(s.up)).into(),
-                    );
-                    w.set_sys_text(format!("{} threads \u{00B7} {} proses", s.cpu_cores, s.processes).into());
+            let visible = w.get_expanded();
+            let page = w.get_page();
+
+            // Stats
+            if visible && page == PAGE_STATS {
+                if !stats_timer.running() {
+                    monitor.borrow_mut().get_or_insert_with(StatsMonitor::new).resume();
+                    let weak_s = weak.clone();
+                    let monitor = monitor.clone();
+                    stats_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+                        let Some(w) = weak_s.upgrade() else { return };
+                        if let Some(m) = monitor.borrow_mut().as_mut() {
+                            let s = m.sample();
+                            w.set_cpu(s.cpu);
+                            w.set_ram(s.ram);
+                            w.set_disk(s.disk);
+                            w.set_cpu_text(format!("{:.0}%", s.cpu).into());
+                            w.set_ram_text(format!("{:.1} / {:.1} GiB", gib(s.ram_used), gib(s.ram_total)).into());
+                            w.set_disk_text(format!("{:.0} / {:.0} GiB", gib(s.disk_used), gib(s.disk_total)).into());
+                            w.set_net_text(format!("\u{2193} {}   \u{2191} {}", fmt_rate(s.down), fmt_rate(s.up)).into());
+                            w.set_sys_text(format!("{} threads \u{00B7} {} proses", s.cpu_cores, s.processes).into());
+                        }
+                    });
                 }
-            });
+            } else {
+                stats_timer.stop();
+            }
+
+            // Baterai
+            if visible && page == PAGE_BATTERY {
+                if !battery_timer.running() {
+                    apply_battery(&w, battery.read());
+                    let weak_b = weak.clone();
+                    let battery = battery.clone();
+                    battery_timer.start(TimerMode::Repeated, Duration::from_secs(5), move || {
+                        if let Some(w) = weak_b.upgrade() {
+                            apply_battery(&w, battery.read());
+                        }
+                    });
+                }
+            } else {
+                battery_timer.stop();
+            }
+
+            // Catatan: muat ulang dari disk setiap halaman dibuka
+            if visible && page == PAGE_NOTES {
+                let store = NotesStore::open(&notes_path);
+                show_notes(&notes_model, store.list());
+                *notes_store.borrow_mut() = Some(store);
+            }
         })
     };
 
     {
-        let sync = sync_stats.clone();
-        win.on_page_changed(move |_| sync());
+        let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        win.on_add_note(move |text| {
+            let mut guard = store.borrow_mut();
+            let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+            show_notes(&model, s.add(text.as_str()));
+        });
     }
+    {
+        let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        win.on_remove_note(move |id| {
+            let mut guard = store.borrow_mut();
+            let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+            show_notes(&model, s.remove(id.as_str()));
+        });
+    }
+
     {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
-        let sync = sync_stats.clone();
+        let sync = sync_pages.clone();
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
             if hovered {
