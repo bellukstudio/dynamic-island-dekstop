@@ -6,13 +6,14 @@ description = "Prototipe Notch dengan Slint (Windows dulu)"
 
 [features]
 default = ["software"]
-# Renderer paling hemat RAM. Uji render teks Arab/emoji di Windows.
+# Default. Terukur di Windows: ~2,4 MB RAM idle. Emoji ditampilkan sebagai gambar (assets/emoji).
 software = ["slint/renderer-software"]
-# Alternatif berbasis GPU (OpenGL). Belum diuji, bandingkan RAM/CPU dan kualitas teks.
+# Renderer GPU (OpenGL). Terukur di Windows: emoji berwarna, tapi ~108 MB RAM. Tidak disarankan.
 femtovg = ["slint/renderer-femtovg"]
 
 [dependencies]
 notch-core = { path = "../notch-core" }
+png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
 
 [target.'cfg(windows)'.dependencies]

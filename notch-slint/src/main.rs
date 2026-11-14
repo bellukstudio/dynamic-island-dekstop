@@ -8,7 +8,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use notch_core::stats::StatsMonitor;
-use slint::{ComponentHandle, PhysicalPosition, PhysicalSize, Timer, TimerMode};
+use slint::{ComponentHandle, Image, PhysicalPosition, PhysicalSize, Rgba8Pixel, SharedPixelBuffer, Timer, TimerMode};
 
 slint::include_modules!();
 
@@ -79,6 +79,24 @@ mod platform {
     }
 }
 
+/// Decode PNG kecil yang ditanam di binary menjadi Image Slint. Tanpa decoder gambar umum,
+/// jadi binary dan RAM tetap kecil. Mengembalikan gambar kosong jika formatnya bukan RGBA8.
+fn load_png(bytes: &'static [u8]) -> Image {
+    let mut decoder = png::Decoder::new(bytes);
+    decoder.set_transformations(png::Transformations::EXPAND);
+    let Ok(mut reader) = decoder.read_info() else { return Image::default() };
+    let mut buf = vec![0; reader.output_buffer_size()];
+    let Ok(info) = reader.next_frame(&mut buf) else { return Image::default() };
+    if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
+        return Image::default();
+    }
+    Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+        &buf[..info.buffer_size()],
+        info.width,
+        info.height,
+    ))
+}
+
 fn fmt_mmss(secs: u32) -> String {
     format!("{:02}:{:02}", secs / 60, secs % 60)
 }
@@ -94,6 +112,10 @@ fn place(win: &NotchWindow, size: (u32, u32)) {
 fn main() -> Result<(), slint::PlatformError> {
     let win = NotchWindow::new()?;
     place(&win, COLLAPSED);
+
+    win.set_emoji_coffee(load_png(include_bytes!("../assets/emoji/2615.png")));
+    win.set_emoji_tomato(load_png(include_bytes!("../assets/emoji/1f345.png")));
+    win.set_emoji_moon(load_png(include_bytes!("../assets/emoji/1f319.png")));
 
     // --- Hover: lebarkan jendela saat masuk, kecilkan setelah animasi saat keluar ---
     // Stats (dari crate notch-core) hanya dibuat saat pertama melebar dan hanya disampel

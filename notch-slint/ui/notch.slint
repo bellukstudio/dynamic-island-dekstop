@@ -55,6 +55,9 @@ export component NotchWindow inherits Window {
     in property <float> eye-dy: 0;
     in property <bool> blink: false;
     in property <string> stats-text: "";
+    in property <image> emoji-coffee;
+    in property <image> emoji-tomato;
+    in property <image> emoji-moon;
 
     callback hover-changed(bool);
     callback toggle-pomo();
@@ -100,7 +103,15 @@ export component NotchWindow inherits Window {
                     spacing: 2px;
                     Text { text: root.clock-text; color: #fff; font-size: 38px; font-weight: 700; }
                     Text { text: root.date-text; color: #9a9aa2; font-size: 12px; }
-                    Text { text: "☕ 🍅 🌙"; color: #fff; font-size: 14px; }
+                    // Emoji sebagai gambar (diisi dari Rust): renderer software tidak menampilkan emoji berwarna.
+                    HorizontalLayout {
+                        spacing: 6px;
+                        height: 20px;
+                        alignment: start;
+                        Image { source: root.emoji-coffee; width: 20px; height: 20px; image-fit: contain; }
+                        Image { source: root.emoji-tomato; width: 20px; height: 20px; image-fit: contain; }
+                        Image { source: root.emoji-moon; width: 20px; height: 20px; image-fit: contain; }
+                    }
                     Text {
                         text: "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ";
                         color: #7bdc9a;
