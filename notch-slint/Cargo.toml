@@ -12,6 +12,7 @@ software = ["slint/renderer-software"]
 femtovg = ["slint/renderer-femtovg"]
 
 [dependencies]
+notch-core = { path = "../notch-core" }
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
 
 [target.'cfg(windows)'.dependencies]

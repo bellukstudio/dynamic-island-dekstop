@@ -9,6 +9,7 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - Pil yang melebar saat hover (animasi di dalam, jendela di-resize dari Rust)
 - Mata yang mengikuti kursor (`GetCursorPos`, ~20 fps, hanya update jika kursor bergerak) dan berkedip
 - Kartu jam/tanggal + timer fokus 25 menit (Mulai/Jeda/Reset)
+- Baris CPU/RAM dari crate bersama `../notch-core` (hanya disampel saat notch melebar)
 - Uji render: teks Arab dan emoji berwarna
 
 ## Menjalankan (Windows)
@@ -33,5 +34,6 @@ cargo run --release --no-default-features --features femtovg
 - Feature `femtovg` belum dikompilasi.
 
 ## Rencana berikutnya
-Pisahkan backend Rust dari `src-tauri/src/*` menjadi crate bersama (tanpa `tauri::*`),
-lalu porting fitur bertahap: media, stats, pengingat, catatan, clipboard, baru shelf/WhatsApp/mirror.
+`stats` sudah dipindah ke `../notch-core` (dipakai Tauri dan Slint). Lanjutkan modul lain yang
+sekarang menempel ke `tauri::*`: battery, clipboard, notes, reminder, lalu media dan sisanya;
+shelf/WhatsApp/mirror paling akhir.

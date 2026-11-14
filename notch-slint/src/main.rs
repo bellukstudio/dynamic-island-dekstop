@@ -3,10 +3,11 @@
 
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::time::Duration;
 
+use notch_core::stats::StatsMonitor;
 use slint::{ComponentHandle, PhysicalPosition, PhysicalSize, Timer, TimerMode};
 
 slint::include_modules!();
@@ -95,17 +96,35 @@ fn main() -> Result<(), slint::PlatformError> {
     place(&win, COLLAPSED);
 
     // --- Hover: lebarkan jendela saat masuk, kecilkan setelah animasi saat keluar ---
+    // Stats (dari crate notch-core) hanya dibuat saat pertama melebar dan hanya disampel
+    // selama notch melebar, sama seperti perilaku halaman Stats di versi Tauri.
     let shrink_timer = Rc::new(Timer::default());
+    let stats_timer = Rc::new(Timer::default());
+    let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
+        let stats_timer = stats_timer.clone();
+        let monitor = monitor.clone();
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
             if hovered {
                 shrink.stop();
                 place(&w, EXPANDED);
                 w.set_expanded(true);
+
+                monitor.borrow_mut().get_or_insert_with(StatsMonitor::new).resume();
+                let weak_s = weak.clone();
+                let monitor = monitor.clone();
+                stats_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+                    let Some(w) = weak_s.upgrade() else { return };
+                    if let Some(m) = monitor.borrow_mut().as_mut() {
+                        let s = m.sample();
+                        w.set_stats_text(format!("CPU {:.0}% · RAM {:.0}%", s.cpu, s.ram).into());
+                    }
+                });
             } else {
+                stats_timer.stop();
                 w.set_expanded(false);
                 let weak2 = weak.clone();
                 shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
