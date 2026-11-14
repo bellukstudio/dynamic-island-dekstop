@@ -3088,7 +3088,9 @@ name = "notch-core"
 version = "0.1.0"
 dependencies = [
  "serde",
+ "serde_json",
  "sysinfo",
+ "windows 0.61.3",
 ]
 
 [[package]]

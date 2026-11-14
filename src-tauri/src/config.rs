@@ -285,14 +285,8 @@ impl Default for Config {
 static CFG: OnceLock<Config> = OnceLock::new();
 
 pub fn path() -> PathBuf {
-    #[cfg(target_os = "windows")]
-    let base = std::env::var_os("APPDATA").map(PathBuf::from);
-    #[cfg(not(target_os = "windows"))]
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")));
-
-    base.unwrap_or_else(|| PathBuf::from(".")).join("notch").join("config.toml")
+    // penentuan lokasi ada di notch-core supaya UI Tauri dan Slint memakai folder data yang sama
+    notch_core::paths::config_path()
 }
 
 // template bawaan (lengkap dengan komentar) untuk instalasi baru
