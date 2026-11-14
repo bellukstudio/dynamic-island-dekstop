@@ -1,5 +1,26 @@
-// Prototipe Notch (Slint). Tahap 1: pil + mata, kartu jam + timer fokus,
-// dan uji render teks Arab / emoji.
+// Notch (Slint). Cangkang hub: bentuk dengan bahu melengkung, baris tab, dan halaman.
+// Gradasi/tema lain nanti cukup mengubah nilai di `Theme` (default: hitam polos).
+
+export global Theme {
+    in-out property <brush> body: #000000;
+    in-out property <color> text: #f5f5f7;
+    in-out property <color> text-dim: #9a9aa2;
+    in-out property <color> text-faint: #6c6c74;
+    in-out property <color> accent: #ff8a65;
+    in-out property <color> ok: #7bdc9a;
+    in-out property <color> chip: #2a2a2e;
+    in-out property <color> chip-hover: #3a3a3f;
+    in-out property <color> track: #26262a;
+}
+
+// Ikon garis (kotak 24x24), digambar dengan Path agar tidak perlu decoder gambar/SVG.
+global Icons {
+    out property <string> media: "M 9 18 V 5 L 21 3 V 16 M 3 18 A 3 3 0 1 0 9 18 A 3 3 0 1 0 3 18 M 15 16 A 3 3 0 1 0 21 16 A 3 3 0 1 0 15 16";
+    out property <string> clock: "M 2 12 A 10 10 0 1 0 22 12 A 10 10 0 1 0 2 12 M 12 6 V 12 L 16 14";
+    out property <string> timer: "M 10 2 H 14 M 12 14 L 15 11 M 4 14 A 8 8 0 1 0 20 14 A 8 8 0 1 0 4 14";
+    out property <string> stats: "M 12 14 L 16 10 M 3.34 19 A 10 10 0 1 1 20.66 19";
+    out property <string> grid: "M 3 3 H 10 V 10 H 3 Z M 14 3 H 21 V 10 H 14 Z M 14 14 H 21 V 21 H 14 Z M 3 14 H 10 V 21 H 3 Z";
+}
 
 component Eye inherits Rectangle {
     in property <float> dx: 0;   // -1..1
@@ -27,17 +48,252 @@ component Chip inherits Rectangle {
     in property <string> label;
     callback clicked;
     height: 28px;
+    min-width: 64px;
     border-radius: 14px;
-    background: ta.has-hover ? #3a3a3f : #2a2a2e;
+    background: ta.has-hover ? Theme.chip-hover : Theme.chip;
     animate background { duration: 120ms; }
     Text {
         text: root.label;
-        color: #f5f5f7;
+        color: Theme.text;
         font-size: 12px;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
     ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component TabIcon inherits Rectangle {
+    in property <string> commands;
+    in property <bool> active;
+    callback clicked;
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    background: active ? Theme.chip : (ta.has-hover ? Theme.track : transparent);
+    animate background { duration: 120ms; }
+    Path {
+        x: 6px;
+        y: 6px;
+        width: 18px;
+        height: 18px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.commands;
+        fill: transparent;
+        stroke: root.active ? Theme.text : Theme.text-dim;
+        stroke-width: 1.8px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+// Bahu cekung di kiri/kanan atas pil: menyatukan notch dengan tepi layar.
+component Shoulder inherits Path {
+    in property <bool> right: false;
+    width: 14px;
+    height: 14px;
+    viewbox-width: 14;
+    viewbox-height: 14;
+    fill: Theme.body;
+    commands: right ? "M 14 0 L 0 0 L 0 14 A 14 14 0 0 1 14 0 Z"
+                    : "M 0 0 L 14 0 L 14 14 A 14 14 0 0 0 0 0 Z";
+}
+
+component StatBar inherits VerticalLayout {
+    in property <string> label;
+    in property <float> value;   // 0..100
+    in property <string> text;
+    spacing: 3px;
+    HorizontalLayout {
+        Text { text: root.label; color: Theme.text-dim; font-size: 11px; horizontal-stretch: 1; }
+        Text { text: root.text; color: Theme.text; font-size: 11px; horizontal-alignment: right; }
+    }
+    Rectangle {
+        height: 6px;
+        border-radius: 3px;
+        background: Theme.track;
+        Rectangle {
+            x: 0px;
+            width: parent.width * clamp(root.value, 0, 100) / 100;
+            height: parent.height;
+            border-radius: 3px;
+            background: Theme.accent;
+            animate width { duration: 300ms; easing: ease-out; }
+        }
+    }
+}
+
+component RoundButton inherits Rectangle {
+    in property <string> commands;
+    in property <length> size: 36px;
+    in property <bool> primary: false;
+    callback clicked;
+    width: size;
+    height: size;
+    border-radius: size / 2;
+    background: primary ? Theme.text : (ta.has-hover ? Theme.chip-hover : transparent);
+    animate background { duration: 120ms; }
+    Path {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: root.size * 0.42;
+        height: root.size * 0.42;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.commands;
+        fill: root.primary ? #000000 : Theme.text;
+        stroke: root.primary ? #000000 : Theme.text;
+        stroke-width: 1px;
+        stroke-line-join: round;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component MediaPage inherits HorizontalLayout {
+    in property <string> title: "Tidak ada media";
+    in property <string> artist: "Putar musik untuk memulai";
+    in property <string> pos-text: "0:00";
+    in property <string> dur-text: "0:00";
+    in property <float> progress: 0;     // 0..1
+    in property <bool> playing: false;
+    callback prev;
+    callback toggle;
+    callback next;
+
+    spacing: 18px;
+    padding-left: 20px;
+    padding-right: 20px;
+
+    Rectangle {
+        width: 96px;
+        height: 96px;
+        y: 0px;
+        border-radius: 18px;
+        background: Theme.chip;
+        Path {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 40px;
+            height: 40px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: Icons.media;
+            fill: transparent;
+            stroke: Theme.text-faint;
+            stroke-width: 1.6px;
+            stroke-line-cap: round;
+            stroke-line-join: round;
+        }
+    }
+
+    VerticalLayout {
+        spacing: 4px;
+        alignment: center;
+        Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
+        Text { text: root.artist; color: Theme.text-dim; font-size: 12px; overflow: elide; }
+        Rectangle { height: 8px; }
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: root.pos-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 4px;
+                y: (parent.height - self.height) / 2;
+                border-radius: 2px;
+                background: Theme.track;
+                Rectangle {
+                    width: parent.width * clamp(root.progress, 0, 1);
+                    height: parent.height;
+                    border-radius: 2px;
+                    background: Theme.text;
+                }
+            }
+            Text { text: root.dur-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 14px;
+            RoundButton { commands: "M 19 20 L 9 12 L 19 4 Z M 5 19 V 5"; clicked => { root.prev(); } }
+            RoundButton {
+                primary: true;
+                size: 42px;
+                commands: root.playing ? "M 6 4 H 10 V 20 H 6 Z M 14 4 H 18 V 20 H 14 Z" : "M 7 4 L 20 12 L 7 20 Z";
+                clicked => { root.toggle(); }
+            }
+            RoundButton { commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
+        }
+    }
+}
+
+component ClockPage inherits VerticalLayout {
+    in property <string> clock-text;
+    in property <string> date-text;
+    alignment: center;
+    spacing: 2px;
+    Text { text: root.clock-text; color: Theme.text; font-size: 48px; font-weight: 700; horizontal-alignment: center; }
+    Text { text: root.date-text; color: Theme.text-dim; font-size: 13px; horizontal-alignment: center; }
+}
+
+component TimerPage inherits VerticalLayout {
+    in property <string> pomo-text;
+    in property <bool> pomo-running;
+    callback toggle;
+    callback reset;
+    alignment: center;
+    spacing: 8px;
+    Text { text: "Fokus"; color: Theme.text-dim; font-size: 12px; horizontal-alignment: center; }
+    Text { text: root.pomo-text; color: Theme.accent; font-size: 44px; font-weight: 700; horizontal-alignment: center; }
+    HorizontalLayout {
+        alignment: center;
+        spacing: 8px;
+        Chip { label: root.pomo-running ? "Jeda" : "Mulai"; clicked => { root.toggle(); } }
+        Chip { label: "Reset"; clicked => { root.reset(); } }
+    }
+}
+
+component StatsPage inherits VerticalLayout {
+    in property <float> cpu;
+    in property <float> ram;
+    in property <float> disk;
+    in property <string> cpu-text;
+    in property <string> ram-text;
+    in property <string> disk-text;
+    in property <string> net-text;
+    in property <string> sys-text;
+    alignment: center;
+    spacing: 7px;
+    padding-left: 28px;
+    padding-right: 28px;
+    StatBar { label: "CPU"; value: root.cpu; text: root.cpu-text; }
+    StatBar { label: "RAM"; value: root.ram; text: root.ram-text; }
+    StatBar { label: "Penyimpanan"; value: root.disk; text: root.disk-text; }
+    HorizontalLayout {
+        Text { text: root.net-text; color: Theme.text-dim; font-size: 11px; horizontal-stretch: 1; }
+        Text { text: root.sys-text; color: Theme.text-faint; font-size: 11px; horizontal-alignment: right; }
+    }
+}
+
+// Halaman uji render sementara: teks Arab (teks asli) dan emoji (gambar).
+component RenderTestPage inherits VerticalLayout {
+    in property <image> coffee;
+    in property <image> tomato;
+    in property <image> moon;
+    alignment: center;
+    spacing: 8px;
+    HorizontalLayout {
+        alignment: center;
+        spacing: 10px;
+        Image { source: root.coffee; width: 28px; height: 28px; image-fit: contain; }
+        Image { source: root.tomato; width: 28px; height: 28px; image-fit: contain; }
+        Image { source: root.moon; width: 28px; height: 28px; image-fit: contain; }
+    }
+    Text {
+        text: "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ";
+        color: Theme.ok;
+        font-size: 22px;
+        horizontal-alignment: center;
+    }
 }
 
 export component NotchWindow inherits Window {
@@ -47,6 +303,8 @@ export component NotchWindow inherits Window {
     title: "Notch";
 
     in property <bool> expanded: false;
+    in-out property <int> page: 0;   // 0 media, 1 jam, 2 timer, 3 stats, 4 uji render
+
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
     in property <string> pomo-text: "25:00";
@@ -54,88 +312,95 @@ export component NotchWindow inherits Window {
     in property <float> eye-dx: 0;
     in property <float> eye-dy: 0;
     in property <bool> blink: false;
-    in property <string> stats-text: "";
+
+    in property <float> cpu: 0;
+    in property <float> ram: 0;
+    in property <float> disk: 0;
+    in property <string> cpu-text: "-";
+    in property <string> ram-text: "-";
+    in property <string> disk-text: "-";
+    in property <string> net-text: "";
+    in property <string> sys-text: "";
+
     in property <image> emoji-coffee;
     in property <image> emoji-tomato;
     in property <image> emoji-moon;
 
     callback hover-changed(bool);
+    callback page-changed(int);
     callback toggle-pomo();
     callback reset-pomo();
 
-    // Ukuran jendela diatur dari Rust; isi dianimasikan di dalam.
     pill := Rectangle {
         x: (root.width - self.width) / 2;
         y: 0px;
-        width: root.expanded ? 400px : 120px;
-        height: root.expanded ? 170px : 34px;
-        background: #000;
-        border-bottom-left-radius: root.expanded ? 28px : 17px;
-        border-bottom-right-radius: root.expanded ? 28px : 17px;
+        width: root.expanded ? 560px : 120px;
+        height: root.expanded ? 200px : 34px;
+        background: Theme.body;
+        border-bottom-left-radius: root.expanded ? 30px : 17px;
+        border-bottom-right-radius: root.expanded ? 30px : 17px;
         clip: true;
         animate width { duration: 220ms; easing: ease-out-quart; }
         animate height { duration: 220ms; easing: ease-out-quart; }
 
-        // Mata (selalu terlihat di bagian atas pil)
-        HorizontalLayout {
-            y: 9px;
-            height: 16px;
-            alignment: center;
-            spacing: 14px;
-            Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
-            Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
-        }
-
-        // Kartu (hanya saat melebar)
-        Rectangle {
-            visible: root.expanded;
-            opacity: root.expanded ? 1 : 0;
-            animate opacity { duration: 180ms; delay: 80ms; }
-            y: 40px;
-            height: parent.height - 40px;
-
-            HorizontalLayout {
-                padding: 16px;
-                padding-top: 4px;
-                spacing: 18px;
-
-                VerticalLayout {
-                    spacing: 2px;
-                    Text { text: root.clock-text; color: #fff; font-size: 38px; font-weight: 700; }
-                    Text { text: root.date-text; color: #9a9aa2; font-size: 12px; }
-                    // Emoji sebagai gambar (diisi dari Rust): renderer software tidak menampilkan emoji berwarna.
-                    HorizontalLayout {
-                        spacing: 6px;
-                        height: 20px;
-                        alignment: start;
-                        Image { source: root.emoji-coffee; width: 20px; height: 20px; image-fit: contain; }
-                        Image { source: root.emoji-tomato; width: 20px; height: 20px; image-fit: contain; }
-                        Image { source: root.emoji-moon; width: 20px; height: 20px; image-fit: contain; }
-                    }
-                    Text {
-                        text: "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ";
-                        color: #7bdc9a;
-                        font-size: 15px;
-                    }
-                }
-
-                VerticalLayout {
-                    spacing: 8px;
-                    alignment: center;
-                    Text { text: "Fokus"; color: #9a9aa2; font-size: 11px; horizontal-alignment: center; }
-                    Text { text: root.pomo-text; color: #ff8a65; font-size: 30px; font-weight: 700; horizontal-alignment: center; }
-                    HorizontalLayout {
-                        spacing: 6px;
-                        Chip { label: root.pomo-running ? "Jeda" : "Mulai"; clicked => { root.toggle-pomo(); } }
-                        Chip { label: "Reset"; clicked => { root.reset-pomo(); } }
-                    }
-                    Text { text: root.stats-text; color: #7a7a82; font-size: 10px; horizontal-alignment: center; }
-                }
-            }
-        }
-
+        // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
+        // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
             changed has-hover => { root.hover-changed(self.has-hover); }
+
+            // Mata: hanya saat menciut
+            HorizontalLayout {
+                y: 9px;
+                height: 16px;
+                alignment: center;
+                spacing: 14px;
+                opacity: root.expanded ? 0 : 1;
+                animate opacity { duration: 120ms; }
+                Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
+                Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
+            }
+
+            // Hub: tab + halaman
+            Rectangle {
+                visible: root.expanded;
+                opacity: root.expanded ? 1 : 0;
+                animate opacity { duration: 180ms; delay: 80ms; }
+
+                HorizontalLayout {
+                    x: 20px;
+                    y: 14px;
+                    height: 30px;
+                    spacing: 6px;
+                    TabIcon { commands: Icons.media; active: root.page == 0; clicked => { root.page = 0; root.page-changed(0); } }
+                    TabIcon { commands: Icons.clock; active: root.page == 1; clicked => { root.page = 1; root.page-changed(1); } }
+                    TabIcon { commands: Icons.timer; active: root.page == 2; clicked => { root.page = 2; root.page-changed(2); } }
+                    TabIcon { commands: Icons.stats; active: root.page == 3; clicked => { root.page = 3; root.page-changed(3); } }
+                    TabIcon { commands: Icons.grid;  active: root.page == 4; clicked => { root.page = 4; root.page-changed(4); } }
+                }
+
+                Rectangle {
+                    y: 56px;
+                    height: parent.height - 56px - 12px;
+                    if root.page == 0: MediaPage { }
+                    if root.page == 1: ClockPage { clock-text: root.clock-text; date-text: root.date-text; }
+                    if root.page == 2: TimerPage {
+                        pomo-text: root.pomo-text;
+                        pomo-running: root.pomo-running;
+                        toggle => { root.toggle-pomo(); }
+                        reset => { root.reset-pomo(); }
+                    }
+                    if root.page == 3: StatsPage {
+                        cpu: root.cpu; ram: root.ram; disk: root.disk;
+                        cpu-text: root.cpu-text; ram-text: root.ram-text; disk-text: root.disk-text;
+                        net-text: root.net-text; sys-text: root.sys-text;
+                    }
+                    if root.page == 4: RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
+                }
+            }
+
         }
     }
+
+    Shoulder { x: pill.x - 14px; y: 0px; }
+    Shoulder { x: pill.x + pill.width; y: 0px; right: true; }
 }

@@ -6,11 +6,14 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 
 ## Isi prototipe
 - Jendela tanpa bingkai, transparan, selalu di atas, di tengah atas layar
-- Pil yang melebar saat hover (animasi di dalam, jendela di-resize dari Rust)
-- Mata yang mengikuti kursor (`GetCursorPos`, ~20 fps, hanya update jika kursor bergerak) dan berkedip
-- Kartu jam/tanggal + timer fokus 25 menit (Mulai/Jeda/Reset)
-- Baris CPU/RAM dari crate bersama `../notch-core` (hanya disampel saat notch melebar)
-- Uji render: teks Arab (teks asli) dan emoji (sebagai gambar PNG 48 px, lihat `assets/emoji/NOTICE.md`)
+- Bentuk notch dengan **bahu cekung** di kiri/kanan atas (menyatu dengan tepi layar)
+- Menciut: pil dengan mata yang mengikuti kursor dan berkedip. Hover: melebar jadi hub
+- Hub dengan baris ikon tab (ikon digambar dengan `Path`, tanpa decoder gambar/SVG):
+  Media (tampilan saja, belum terhubung ke pemutar), Jam, Timer fokus, Stats (CPU/RAM/disk/jaringan
+  dari `../notch-core`, hanya disampel saat halaman ini terlihat), dan halaman uji render sementara
+  (teks Arab asli + emoji sebagai gambar PNG, lihat `assets/emoji/NOTICE.md`)
+- Tema lewat `Theme` global di `ui/notch.slint`. Default hitam polos; tema bergradasi seperti di
+  pengaturan versi Tauri belum dibuat, tinggal menambah set nilai `Theme`
 
 ## Menjalankan (Windows)
 ```
@@ -24,9 +27,10 @@ cargo run --release --no-default-features --features femtovg
 
 ## Yang perlu dicek di Windows
 1. Teks Arab tersambung dan arahnya benar? Emoji tampil berwarna?
-2. Area transparan di sekitar pil menangkap klik/hover atau tembus?
-3. Posisi di layar DPI tinggi (>100%): `place()` memakai piksel fisik.
-4. RAM dan CPU idle (Task Manager, kolom "Memory" dan "CPU") dibanding `npm run tauri dev`/rilis Tauri.
+2. Area transparan di sekitar pil (terutama saat melebar) menangkap klik atau tembus?
+3. Hover tidak berkedip saat kursor di atas tombol/tab; klik tab dan tombol Mulai/Reset berfungsi.
+4. Posisi di layar DPI tinggi (>100%): `place()` memakai piksel fisik.
+5. RAM dan CPU idle (Task Manager, kolom "Memory" dan "CPU") dibanding `npm run tauri dev`/rilis Tauri.
 
 ## Hasil ukur di Windows
 | Renderer | RAM idle | Teks Arab | Emoji teks |
