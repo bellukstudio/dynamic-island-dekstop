@@ -1,0 +1,28 @@
+[package]
+name = "notch-slint"
+version = "0.1.0"
+edition = "2021"
+description = "Prototipe Notch dengan Slint (Windows dulu)"
+
+[features]
+default = ["software"]
+# Renderer paling hemat RAM. Uji render teks Arab/emoji di Windows.
+software = ["slint/renderer-software"]
+# Alternatif berbasis GPU (OpenGL). Belum diuji, bandingkan RAM/CPU dan kualitas teks.
+femtovg = ["slint/renderer-femtovg"]
+
+[dependencies]
+slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.54", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation"] }
+
+[build-dependencies]
+slint-build = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+panic = "abort"
