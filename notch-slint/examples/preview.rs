@@ -85,7 +85,7 @@ fn main() {
 
     let pages = [
         "media", "clock", "weather", "battery", "timer", "quick", "tools", "stats",
-        "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer",
+        "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "uji",
     ];
     win.set_tabs(ModelRc::from(Rc::new(VecModel::from(
         pages.iter().map(|p| SharedString::from(*p)).collect::<Vec<_>>(),
@@ -131,7 +131,7 @@ fn main() {
 
         win.set_expanded(true);
         let list: Vec<&str> = if theme == "default" {
-            pages.to_vec().into_iter().chain(["uji"]).collect()
+            pages.to_vec()
         } else {
             vec!["media", "timer", "quick"]
         };

@@ -111,7 +111,10 @@ component TabIcon inherits Rectangle {
     in property <string> commands;
     in property <bool> active;
     callback clicked;
-    width: 30px;
+    // Menyusut otomatis kalau tab terlalu banyak untuk lebar pil (preferensi 30 px, minimum 20 px).
+    preferred-width: 30px;
+    min-width: 20px;
+    max-width: 30px;
     height: 30px;
     border-radius: 9px;
     background: active ? Theme.accent.with-alpha(0.22) : (ta.has-hover ? Theme.chip : transparent);
@@ -119,7 +122,7 @@ component TabIcon inherits Rectangle {
     border-color: Theme.accent.with-alpha(0.45);
     animate background { duration: 120ms; }
     Path {
-        x: 6px;
+        x: (parent.width - self.width) / 2;
         y: 6px;
         width: 18px;
         height: 18px;
@@ -687,8 +690,10 @@ export component NotchWindow inherits Window {
                 HorizontalLayout {
                     x: 20px;
                     y: 14px;
+                    width: parent.width - 40px;
                     height: 30px;
                     spacing: 4px;
+                    alignment: start;
                     for id in root.tabs: TabIcon {
                         commands: Icons.for-page(id);
                         active: root.page-id == id;
