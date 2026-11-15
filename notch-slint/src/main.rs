@@ -11,6 +11,8 @@ use std::time::{Duration, Instant};
 
 use notch_core::battery::{BatteryMonitor, Reading};
 use notch_core::config::Config;
+use notch_core::decor;
+use notch_core::layout::{self, Dock};
 use notch_core::notes::{Note, NotesStore};
 use notch_core::pomodoro::{Phase, Pomodoro};
 use notch_core::quick::{self, Quick};
@@ -25,9 +27,11 @@ slint::include_modules!();
 
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
 const COLLAPSED: (u32, u32) = (152, 38);
-const EXPANDED: (u32, u32) = (592, 212);
+const EXPANDED: (u32, u32) = (612, 206);
 
 mod platform {
+    use notch_core::layout::WorkArea;
+
     /// Apakah Windows memakai tema aplikasi terang (untuk `theme = "auto"`). Di OS lain: gelap.
     pub fn os_light() -> bool {
         #[cfg(windows)]
@@ -65,15 +69,32 @@ mod platform {
         None
     }
 
-    /// Lebar layar utama (piksel fisik).
-    pub fn screen_width() -> i32 {
+    /// Area kerja monitor (di luar taskbar) tempat notch berada, dalam piksel fisik: lebar penuh monitor,
+    /// vertikal mengikuti area kerja (sama dengan `monitor_work_area` di src-tauri/src/lib.rs).
+    /// `near` = titik (mis. tengah posisi kustom) untuk memilih monitor; `None` = monitor utama.
+    pub fn work_area(near: Option<(i32, i32)>) -> WorkArea {
         #[cfg(windows)]
         unsafe {
-            use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CXSCREEN};
-            GetSystemMetrics(SM_CXSCREEN)
+            use windows::Win32::Foundation::POINT;
+            use windows::Win32::Graphics::Gdi::{
+                GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTOPRIMARY,
+            };
+            let (pt, flag) = match near {
+                // y bisa 100000 (menempel di dasar layar): jepit supaya titik tetap dekat monitor
+                Some((x, y)) => (POINT { x, y: y.min(50_000) }, MONITOR_DEFAULTTONEAREST),
+                None => (POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY),
+            };
+            let hmon = MonitorFromPoint(pt, flag);
+            let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+            if GetMonitorInfoW(hmon, &mut mi).as_bool() {
+                let (m, r) = (mi.rcMonitor, mi.rcWork);
+                if r.bottom - r.top > 0 {
+                    return WorkArea { x: m.left, y: r.top, w: m.right - m.left, h: r.bottom - r.top };
+                }
+            }
         }
-        #[cfg(not(windows))]
-        1920
+        let _ = near;
+        WorkArea { x: 0, y: 0, w: 1920, h: 1080 }
     }
 
     /// (jam, menit, hari, bulan, tahun) waktu lokal.
@@ -184,9 +205,6 @@ fn apply_theme(w: &NotchWindow, p: &Palette) {
     t.set_chip(col(p.chip));
     t.set_chip_hover(col(p.chip_hover));
     t.set_track(col(p.track));
-    t.set_glow_a(col(p.glow_a));
-    t.set_glow_b(col(p.glow_b));
-    t.set_rim(col(p.rim));
 }
 
 /// None -> -1 (tidak didukung/belum terbaca), false -> 0, true -> 1.
@@ -226,21 +244,73 @@ fn show_pomo(w: &NotchWindow, p: &Pomodoro) {
     w.set_pomo_rest(p.phase() != Phase::Focus);
 }
 
-/// Letakkan jendela di tengah atas layar untuk ukuran tertentu.
-fn place(win: &NotchWindow, size: (u32, u32)) {
-    let w = win.window();
-    w.set_size(PhysicalSize::new(size.0, size.1));
-    let x = (platform::screen_width() - size.0 as i32) / 2;
-    w.set_position(PhysicalPosition::new(x, 0));
+// Ukuran pil saat melebar (px logis); harus sama dengan `pill` di ui/notch.slint.
+const PILL_W: f32 = 580.0;
+const PILL_H: f32 = 202.0;
+
+/// Penempatan jendela + bentuk tepi + gambar hiasan tema. Hiasan dirender ulang hanya saat mode tepi
+/// (atas/melayang/bawah) atau faktor DPI berubah.
+struct Shell {
+    pos: Cell<Option<(i32, i32)>>, // posisi kustom (pusat x, atas y) atau None = tengah atas
+    theme: String,
+    body: Rgba,
+    scale: f32,
+    memo: Cell<(Option<Dock>, u32)>, // (dock, bit faktor DPI) yang sedang terpasang
+}
+
+impl Shell {
+    /// Letakkan jendela sesuai posisi config dan atur bentuk tepinya (menempel atas / melayang / bawah).
+    fn place(&self, win: &NotchWindow, size: (u32, u32)) {
+        let pos = self.pos.get();
+        let work = platform::work_area(pos);
+        let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
+        let sf = win.window().scale_factor();
+        if self.memo.get() != (Some(dock), sf.to_bits()) {
+            self.memo.set((Some(dock), sf.to_bits()));
+            win.set_dock(match dock {
+                Dock::Top => 0,
+                Dock::Floating => 1,
+                Dock::Bottom => 2,
+            });
+            self.rebuild_decor(win, dock, sf);
+        }
+        let w = win.window();
+        w.set_size(PhysicalSize::new(size.0, size.1));
+        w.set_position(PhysicalPosition::new(origin.0, origin.1));
+    }
+
+    fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
+        let (w, h) = ((PILL_W * sf).round() as u32, (PILL_H * sf).round() as u32);
+        let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * self.scale * sf;
+        match decor::render(&self.theme, self.body, dock, w, h, r, sf) {
+            Some(buf) => {
+                win.set_decor(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, w, h)));
+                win.set_has_decor(true);
+            }
+            None => win.set_has_decor(false), // tema default: tanpa hiasan
+        }
+    }
 }
 
 fn main() -> Result<(), slint::PlatformError> {
     // Config dibaca saja (tidak pernah ditulis/dibuat dari sini).
     let cfg = Config::load_readonly(&notch_core::paths::config_path());
 
+    let palette = Palette::from_appearance(&cfg.appearance, platform::os_light());
+    // Posisi notch: kustom dari config (pusat x, atas y; piksel fisik) atau None = tengah atas.
+    // Tombol "Pusatkan" hanya mengembalikannya ke tengah selama sesi ini (config tidak ditulis dari sini).
+    let shell = Rc::new(Shell {
+        pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
+        theme: cfg.appearance.notch_theme.clone(),
+        body: palette.body,
+        scale: cfg.scale as f32,
+        memo: Cell::new((None, 0)),
+    });
+
     let win = NotchWindow::new()?;
-    apply_theme(&win, &Palette::from_appearance(&cfg.appearance, platform::os_light()));
-    place(&win, COLLAPSED);
+    apply_theme(&win, &palette);
+    win.set_ui_scale(cfg.scale as f32);
+    shell.place(&win, COLLAPSED);
 
     // Tab mengikuti daftar dan urutan `pages` di config. Halaman yang belum ada di versi Slint
     // tampil sebagai placeholder, jadi urutan dan jumlah tab sama dengan versi Tauri.
@@ -360,11 +430,13 @@ fn main() -> Result<(), slint::PlatformError> {
     // --- Quick / Tools: aksi jalan di thread lain (bisa sampai 4 detik) ---
     {
         let weak = win.as_weak();
+        let shell = shell.clone();
         win.on_quick_toggle(move |kind| {
             if kind.as_str() == "center" {
-                // Notch selalu di tengah atas; posisi kustom belum didukung di versi Slint.
+                // Kembali ke tengah atas (hanya untuk sesi ini; config tidak ditulis dari Slint).
+                shell.pos.set(None);
                 if let Some(w) = weak.upgrade() {
-                    place(&w, EXPANDED);
+                    shell.place(&w, EXPANDED);
                 }
                 return;
             }
@@ -389,10 +461,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
         let sync = sync_pages.clone();
+        let shell = shell.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             shrink.stop();
-            place(&w, EXPANDED);
+            shell.place(&w, EXPANDED);
             w.set_expanded(true);
             sync();
         })
@@ -401,16 +474,18 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
         let sync = sync_pages.clone();
+        let shell = shell.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             w.set_expanded(false);
             sync();
             // jendela baru diperkecil setelah animasi menciut selesai
             let weak2 = weak.clone();
+            let shell = shell.clone();
             shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
                 if let Some(w) = weak2.upgrade() {
                     if !w.get_expanded() {
-                        place(&w, COLLAPSED);
+                        shell.place(&w, COLLAPSED);
                     }
                 }
             });
@@ -508,9 +583,11 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some((cx, cy)) = platform::cursor_pos() else { return };
             if last.get() == (cx, cy) { return; }
             last.set((cx, cy));
-            let mid_x = platform::screen_width() / 2;
+            // relatif terhadap notch (bukan tengah layar), supaya benar juga untuk posisi kustom
+            let (wp, ws) = (w.window().position(), w.window().size());
+            let mid_x = wp.x + ws.width as i32 / 2;
             let dx = ((cx - mid_x) as f32 / 400.0).clamp(-1.0, 1.0);
-            let dy = (cy as f32 / 300.0).clamp(0.0, 1.0) * 2.0 - 1.0;
+            let dy = ((cy - wp.y) as f32 / 300.0).clamp(0.0, 1.0) * 2.0 - 1.0;
             w.set_eye_dx(dx);
             w.set_eye_dy(dy);
         });

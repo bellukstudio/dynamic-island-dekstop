@@ -5,8 +5,12 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 `src/` tidak diubah.
 
 ## Isi prototipe
-- Jendela tanpa bingkai, transparan, selalu di atas, di tengah atas layar, dengan **bahu cekung**
-  di kiri/kanan atas yang menyatu dengan tepi layar
+- Jendela tanpa bingkai, transparan, selalu di atas. **Bentuk tepi mengikuti posisi di config** (`[position]`),
+  sama seperti Tauri:
+  - menempel di atas (bawaan, atau `y` dekat tepi atas): sisi atas rata, **telinga cekung 10 px**, bawah membulat 32 px
+  - melayang (`custom = true`, `y` > 8 px dari tepi atas): keempat sudut membulat 28 px, tanpa telinga, rim keliling
+  - menempel di bawah (`y` >= 50000): versi terbalik
+  Ukuran hub 580 x 202 px seperti `--hub-w`/`--hub-h` di Tauri. Posisi `x`/`y` (piksel fisik) dijepit ke area kerja monitor
 - Menciut: pil dengan mata yang mengikuti kursor dan berkedip. Hover melebar jadi hub, dengan jeda
   `timing.hover_open_ms` / `hover_close_ms` dari config
 - **Config dibaca dari `%APPDATA%\notch\config.toml`** (hanya dibaca, tidak pernah ditulis):
@@ -22,13 +26,18 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - **Catatan membaca/menulis `%APPDATA%\notch\notes.json`, file yang sama dengan versi Tauri.**
   Jangan mengedit catatan di kedua aplikasi sekaligus: Tauri menyimpan salinan di memori dan
   penulisan terakhir yang menang
+- **Hiasan tema (cahaya, garis scan, rim) digambar Rust ke satu gambar RGBA** berukuran hub (`notch-core/src/decor.rs`),
+  bukan lewat clip UI, karena renderer software Slint tidak memotong anak elemen mengikuti radius sudut. Gambar ini
+  menambah memori kira-kira 0,5 MB (1x DPI) sampai 2 MB (2x) hanya untuk tema selain default
 - **Quick/Tools mengubah pengaturan Windows sungguhan** (mic, Wi-Fi, Bluetooth, tema gelap, kunci layar)
 
 ## Belum ada
-Media sungguhan (pemutar, cover, lirik), Cuaca, Jadwal Shalat/Ramadan, Pengingat, Clipboard, Shelf,
-Lirik, Privasi, Currency, posisi kustom/dock tepi (tombol "Pusatkan" belum menggeser apa pun),
-`scale`, tampilan otomatis saat timer selesai, dan tekstur garis-garis tema neon. Cahaya tema
-berbentuk lingkaran, sedangkan versi Tauri lebih lebar (elips).
+- Media sungguhan (pemutar, cover album, lirik), Cuaca, Jadwal Shalat/Ramadan, Pengingat, Clipboard, Shelf,
+  Lirik, Privasi, Currency (halamannya tampil sebagai placeholder)
+- Menggeser notch dengan mouse dan dock samping (kiri/kanan). Posisi dibaca dari config; dock samping
+  sementara diperlakukan seperti posisi melayang. Tombol "Pusatkan" mengembalikan ke tengah atas hanya untuk sesi ini
+- `scale` baru memengaruhi radius dan telinga, belum ukuran seluruh isi UI
+- Tampilan otomatis saat timer selesai
 
 ## Pratinjau tanpa jendela
 ```

@@ -14,9 +14,6 @@ export global Theme {
     in-out property <color> chip: #ffffff1a;
     in-out property <color> chip-hover: #ffffff2e;
     in-out property <color> track: #ffffff1f;
-    in-out property <color> glow-a: #00000000;
-    in-out property <color> glow-b: #00000000;
-    in-out property <color> rim: #00000000;
 }
 
 // Ikon garis (kotak 24x24), digambar dengan Path agar tidak perlu decoder gambar/SVG.
@@ -138,16 +135,19 @@ component TabIcon inherits Rectangle {
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
-// Bahu cekung di kiri/kanan atas pil: menyatukan notch dengan tepi layar.
-component Shoulder inherits Path {
+// "Telinga" cekung di sisi pil (radius 10 px seperti `--e` di position.css). Menyatukan notch dengan
+// tepi layar: di atas saat menempel ke atas, di bawah (dibalik) saat menempel ke dasar layar.
+component Ear inherits Path {
     in property <bool> right: false;
-    width: 14px;
-    height: 14px;
-    viewbox-width: 14;
-    viewbox-height: 14;
+    in property <bool> bottom: false;
+    in property <float> s: 1.0;      // skala dari config (telinga 10 px x scale)
+    width: 10px * s;
+    height: 10px * s;
+    viewbox-width: 10;
+    viewbox-height: 10;
     fill: Theme.body;
-    commands: right ? "M 14 0 L 0 0 L 0 14 A 14 14 0 0 1 14 0 Z"
-                    : "M 0 0 L 14 0 L 14 14 A 14 14 0 0 0 0 0 Z";
+    commands: bottom ? (right ? "M 10 10 L 0 10 L 0 0 A 10 10 0 0 0 10 10 Z" : "M 0 10 L 10 10 L 10 0 A 10 10 0 0 1 0 10 Z")
+                     : (right ? "M 10 0 L 0 0 L 0 10 A 10 10 0 0 1 10 0 Z" : "M 0 0 L 10 0 L 10 10 A 10 10 0 0 0 0 0 Z");
 }
 
 component StatBar inherits VerticalLayout {
@@ -572,6 +572,13 @@ export component NotchWindow inherits Window {
     title: "Notch";
 
     in property <bool> expanded: false;
+    // 0 = menempel di atas, 1 = melayang (digeser dari tepi), 2 = menempel di dasar layar.
+    in property <int> dock: 0;
+    // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
+    in property <float> ui-scale: 1.0;
+    // Gambar hiasan tema (cahaya, scan, rim) yang dirender Rust dengan mask sudut akurat.
+    in property <image> decor;
+    in property <bool> has-decor: false;
     in-out property <string> page-id: "media";
     in property <[string]> tabs;
 
@@ -620,46 +627,32 @@ export component NotchWindow inherits Window {
     callback quick-toggle(string);
 
     pill := Rectangle {
+        // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
+        property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale : 17px;
         x: (root.width - self.width) / 2;
-        y: 0px;
-        width: root.expanded ? 560px : 120px;
-        height: root.expanded ? 208px : 34px;
+        y: root.dock == 2 ? root.height - self.height : 0px;
+        // Ukuran hub sama dengan Tauri (--hub-w / --hub-h di hub-compact.css): 580 x 202
+        width: root.expanded ? 580px : 120px;
+        height: root.expanded ? 202px : 34px;
         background: Theme.body;
-        border-bottom-left-radius: root.expanded ? 30px : 17px;
-        border-bottom-right-radius: root.expanded ? 30px : 17px;
+        // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
+        border-top-left-radius: root.dock == 0 ? 0px : self.r;
+        border-top-right-radius: root.dock == 0 ? 0px : self.r;
+        border-bottom-left-radius: root.dock == 2 ? 0px : self.r;
+        border-bottom-right-radius: root.dock == 2 ? 0px : self.r;
+        animate r { duration: 220ms; easing: ease-out-quart; }
         clip: true;
         animate width { duration: 220ms; easing: ease-out-quart; }
         animate height { duration: 220ms; easing: ease-out-quart; }
 
-        // Cahaya tema di sisi bawah (transparan pada tema default). Kotak persegi dengan gradien yang
-        // sudah transparan sebelum menyentuh tepi kotak, dan memudar ke warna yang sama (alpha 0)
-        // supaya tidak ada semburat gelap di tema terang.
-        Rectangle {
-            x: parent.width * 0.12 - 130px;
-            y: parent.height - 120px;
-            width: 260px;
-            height: 260px;
-            opacity: root.expanded ? 1 : 0;
-            animate opacity { duration: 220ms; }
-            background: @radial-gradient(circle, Theme.glow-a 0%, Theme.glow-a.with-alpha(0) 68%);
-        }
-        Rectangle {
-            x: parent.width * 0.88 - 130px;
-            y: parent.height - 120px;
-            width: 260px;
-            height: 260px;
-            opacity: root.expanded ? 1 : 0;
-            animate opacity { duration: 220ms; }
-            background: @radial-gradient(circle, Theme.glow-b 0%, Theme.glow-b.with-alpha(0) 68%);
-        }
-        // Garis tepi tipis tema; sisi atasnya digeser keluar pil supaya tidak tergambar di tepi layar
-        Rectangle {
-            y: -3px;
-            height: parent.height + 3px;
-            border-width: 1px;
-            border-color: Theme.rim;
-            border-bottom-left-radius: parent.border-bottom-left-radius;
-            border-bottom-right-radius: parent.border-bottom-right-radius;
+        // Hiasan tema (cahaya, scan, rim). Digambar sebagai gambar karena clip UI tidak mengikuti radius
+        // sudut di renderer software; gambar ini sudah ber-mask sudut bulat dan sisi bebas yang benar.
+        Image {
+            source: root.decor;
+            width: parent.width;
+            height: parent.height;
+            image-fit: fill;
+            visible: root.has-decor;
             opacity: root.expanded ? 1 : 0;
             animate opacity { duration: 220ms; }
         }
@@ -745,6 +738,6 @@ export component NotchWindow inherits Window {
         }
     }
 
-    Shoulder { x: pill.x - 14px; y: 0px; }
-    Shoulder { x: pill.x + pill.width; y: 0px; right: true; }
+    Ear { s: root.ui-scale; visible: root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }
+    Ear { s: root.ui-scale; visible: root.dock != 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; right: true; bottom: root.dock == 2; }
 }

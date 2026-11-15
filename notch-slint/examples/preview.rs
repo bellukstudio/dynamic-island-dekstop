@@ -10,10 +10,12 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use notch_core::config::Appearance;
+use notch_core::decor;
+use notch_core::layout::Dock;
 use notch_core::theme::{Palette, Rgba};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, PremultipliedRgbaColor, RepaintBufferType};
 use slint::platform::{Platform, WindowAdapter};
-use slint::{Global, ModelRc, PhysicalSize, PlatformError, SharedString, VecModel};
+use slint::{Global, Image, ModelRc, PhysicalSize, PlatformError, Rgba8Pixel, SharedPixelBuffer, SharedString, VecModel};
 
 slint::include_modules!();
 
@@ -45,9 +47,19 @@ fn apply_theme(w: &NotchWindow, p: &Palette) {
     t.set_chip(col(p.chip));
     t.set_chip_hover(col(p.chip_hover));
     t.set_track(col(p.track));
-    t.set_glow_a(col(p.glow_a));
-    t.set_glow_b(col(p.glow_b));
-    t.set_rim(col(p.rim));
+}
+
+/// Sama dengan `Shell::rebuild_decor` di main.rs (tanpa faktor DPI).
+fn set_decor(win: &NotchWindow, theme: &str, body: Rgba, dock: Dock, scale: f32) {
+    let (w, h) = (580u32, 202u32);
+    let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * scale;
+    match decor::render(theme, body, dock, w, h, r, 1.0) {
+        Some(buf) => {
+            win.set_decor(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, w, h)));
+            win.set_has_decor(true);
+        }
+        None => win.set_has_decor(false),
+    }
 }
 
 fn snap(window: &MinimalSoftwareWindow, size: (u32, u32), path: &str) {
@@ -118,12 +130,14 @@ fn main() {
     ]))));
 
     let themes = ["default", "neon", "aurora", "obsidian", "sakura", "matcha"];
-    let expanded = (592, 212);
+    let expanded = (612, 206);
 
     for theme in themes {
         let mut a = Appearance::default();
         a.notch_theme = theme.into();
-        apply_theme(&win, &Palette::from_appearance(&a, false));
+        let pal = Palette::from_appearance(&a, false);
+        apply_theme(&win, &pal);
+        set_decor(&win, theme, pal.body, Dock::Top, 1.0);
 
         // menciut
         win.set_expanded(false);
@@ -139,6 +153,22 @@ fn main() {
             win.set_page_id(page.into());
             snap(&window, expanded, &format!("{out}/{theme}_{page}.png"));
         }
+    }
+
+    // Mode tepi: menempel atas / melayang / menempel bawah (tema neon, skala 1.0 seperti config referensi)
+    let mut a = Appearance::default();
+    a.notch_theme = "neon".into();
+    let pal = Palette::from_appearance(&a, false);
+    apply_theme(&win, &pal);
+    win.set_ui_scale(1.0);
+    for (name, dock, d) in [("top", 0, Dock::Top), ("floating", 1, Dock::Floating), ("bottom", 2, Dock::Bottom)] {
+        win.set_dock(dock);
+        set_decor(&win, "neon", pal.body, d, 1.0);
+        win.set_expanded(false);
+        snap(&window, (152, 38), &format!("{out}/dock_{name}_collapsed.png"));
+        win.set_expanded(true);
+        win.set_page_id("media".into());
+        snap(&window, expanded, &format!("{out}/dock_{name}_media.png"));
     }
     println!("selesai: {out}");
 }
