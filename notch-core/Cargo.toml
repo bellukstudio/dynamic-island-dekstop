@@ -10,6 +10,13 @@ serde_json = "1"
 toml = "0.8"
 sysinfo = { version = "0.39.6", default-features = false, features = ["system", "network", "disk"] }
 
+ureq = { version = "3", optional = true }
+
+[features]
+default = []
+# HTTP (hari libur, cuaca, kurs, lirik). Dimatikan untuk pemakai yang tidak butuh jaringan.
+net = ["dep:ureq"]
+
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [
   "Foundation",

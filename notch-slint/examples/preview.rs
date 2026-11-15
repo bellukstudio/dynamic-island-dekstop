@@ -170,5 +170,49 @@ fn main() {
         win.set_page_id("media".into());
         snap(&window, expanded, &format!("{out}/dock_{name}_media.png"));
     }
+
+    // Kalender: data nyata dari notch_core::calendar, "hari ini" dikunci 15 Nov 2026 agar hasil stabil.
+    {
+        use notch_core::calendar::{self, Date, Holidays, View};
+        let pal = Palette::from_appearance(&Appearance::default(), false);
+        apply_theme(&win, &pal);
+        win.set_dock(0);
+        set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+        win.set_expanded(true);
+        win.set_page_id("clock".into());
+        win.set_cal_weekdays(ModelRc::from(Rc::new(VecModel::from(
+            calendar::weekday_headers().iter().map(|x| SharedString::from(*x)).collect::<Vec<_>>(),
+        ))));
+        let today = Date::new(2026, 11, 15);
+        let hol = Holidays::new();
+        for (name, y, m, pick) in [("nov2026", 2026, 11, None), ("agu2026", 2026, 8, Some(Date::new(2026, 8, 17))), ("mar2026", 2026, 3, Some(Date::new(2026, 3, 20)))] {
+            let mut v = View { year: y, month: m, selected: None };
+            v.pick_default(today, &hol);
+            if pick.is_some() {
+                v.selected = pick;
+            }
+            let cells: Vec<CalCell> = calendar::cells_for(y, m)
+                .iter()
+                .map(|c| CalCell {
+                    day: c.date.d as i32,
+                    in_month: c.in_month,
+                    sun: c.date.weekday() == 0,
+                    today: c.date == today,
+                    sel: v.selected == Some(c.date),
+                    kind: hol.events_on(c.date).first().map_or(0, |e| e.kind.code()),
+                })
+                .collect();
+            win.set_cal_cells(ModelRc::from(Rc::new(VecModel::from(cells))));
+            win.set_cal_title(calendar::title(y, m).into());
+            let (d, n, k) = v.footer(&hol);
+            win.set_cal_foot_date(d.into());
+            win.set_cal_foot_name(n.into());
+            win.set_cal_foot_kind(k);
+            win.set_cal_open(true);
+            snap(&window, expanded, &format!("{out}/calendar_{name}.png"));
+        }
+        win.set_cal_open(false);
+        snap(&window, expanded, &format!("{out}/clock_with_hint.png"));
+    }
     println!("selesai: {out}");
 }

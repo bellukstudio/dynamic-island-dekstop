@@ -6,12 +6,14 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use notch_core::battery::{BatteryMonitor, Reading};
+use notch_core::calendar::{self, Date, Holidays, Item, View as CalView};
 use notch_core::config::Config;
 use notch_core::decor;
+use notch_core::eyes::{self, Anim, EyeRenderer, Face, Morph, Mood, MoodState};
 use notch_core::layout::{self, Dock};
 use notch_core::notes::{Note, NotesStore};
 use notch_core::pomodoro::{Phase, Pomodoro};
@@ -28,6 +30,49 @@ slint::include_modules!();
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
 const COLLAPSED: (u32, u32) = (152, 38);
 const EXPANDED: (u32, u32) = (612, 206);
+
+// Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
+const EYES_W: f32 = 120.0;
+const EYES_H: f32 = 34.0;
+
+/// Pengacak ringan untuk kedip dan tatapan acak (tanpa dependensi `rand`).
+struct Rng(Cell<u64>);
+impl Rng {
+    fn new() -> Rng {
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0x9E37_79B9_7F4A_7C15);
+        Rng(Cell::new(seed | 1))
+    }
+    /// 0.0 ..< 1.0
+    fn next(&self) -> f32 {
+        let mut x = self.0.get();
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.0.set(x);
+        (x >> 40) as f32 / (1u64 << 24) as f32
+    }
+}
+
+/// Seluruh keadaan mata: mood, transisi, tatapan, kedip, dan frame terakhir yang digambar.
+struct EyeCtx {
+    renderer: EyeRenderer,
+    skin: usize,
+    mood: MoodState,
+    cur: Mood,
+    cur_since: f32,
+    morph: Morph,
+    look: (f32, f32),
+    last_cursor: (i32, i32),
+    last_move: f32,
+    next_random_look: f32,
+    blink_until: f32,
+    next_blink: f32,
+    last_key: Option<(i32, i32, bool, usize, i64, u32)>,
+    rng: Rng,
+}
 
 mod platform {
     use notch_core::layout::WorkArea;
@@ -225,12 +270,13 @@ fn apply_quick(w: &NotchWindow, q: &Quick) {
 }
 
 /// Baca keadaan Quick di thread lain (bisa sampai 3 detik) lalu tampilkan di thread UI.
-fn refresh_quick(weak: Weak<NotchWindow>, busy: Arc<AtomicBool>) {
+fn refresh_quick(weak: Weak<NotchWindow>, busy: Arc<AtomicBool>, awake: Arc<AtomicBool>) {
     if busy.swap(true, Ordering::SeqCst) {
         return; // pembacaan sebelumnya masih berjalan
     }
     std::thread::spawn(move || {
         let q = quick::state();
+        awake.store(q.awake == Some(true), Ordering::Relaxed); // mata tidak mengantuk saat keep-awake
         let _ = weak.upgrade_in_event_loop(move |w| apply_quick(&w, &q));
         busy.store(false, Ordering::SeqCst);
     });
@@ -292,6 +338,35 @@ impl Shell {
     }
 }
 
+/// Tanggal lokal hari ini.
+fn today() -> Date {
+    let (_, _, d, m, y) = platform::local_time();
+    Date::new(y as i32, m, d)
+}
+
+/// Isi ulang kisi kalender, judul, dan keterangan di UI dari keadaan `view` + data libur.
+fn show_calendar(w: &NotchWindow, model: &VecModel<CalCell>, view: &CalView, hol: &Holidays) {
+    let t = today();
+    model.set_vec(
+        calendar::cells_for(view.year, view.month)
+            .iter()
+            .map(|c| CalCell {
+                day: c.date.d as i32,
+                in_month: c.in_month,
+                sun: c.date.weekday() == 0,
+                today: c.date == t,
+                sel: view.selected == Some(c.date),
+                kind: hol.events_on(c.date).first().map_or(0, |e| e.kind.code()),
+            })
+            .collect::<Vec<_>>(),
+    );
+    w.set_cal_title(calendar::title(view.year, view.month).into());
+    let (date, name, kind) = view.footer(hol);
+    w.set_cal_foot_date(date.into());
+    w.set_cal_foot_name(name.into());
+    w.set_cal_foot_kind(kind);
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     // Config dibaca saja (tidak pernah ditulis/dibuat dari sini).
     let cfg = Config::load_readonly(&notch_core::paths::config_path());
@@ -334,6 +409,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
     let quick_busy = Arc::new(AtomicBool::new(false));
+    let keep_awake = Arc::new(AtomicBool::new(false));
 
     // Setiap halaman hanya bekerja saat notch melebar DAN halamannya terlihat (seperti versi Tauri):
     // Stats disampel tiap 1 dtk, Baterai dibaca tiap 5 dtk, Quick/Tools dibaca ulang saat dibuka,
@@ -345,6 +421,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (notes_store, notes_model, notes_path) =
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
         let quick_busy = quick_busy.clone();
+        let keep_awake = keep_awake.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             let visible = w.get_expanded();
@@ -394,7 +471,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Quick / Tools
             if visible && (page == "quick" || page == "tools") {
-                refresh_quick(weak.clone(), quick_busy.clone());
+                refresh_quick(weak.clone(), quick_busy.clone(), keep_awake.clone());
             }
 
             // Catatan
@@ -427,10 +504,103 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+
+    // --- Kalender + hari libur Indonesia ---
+    // Cache `holidays.json` dibaca sekarang (cepat); unduhan baru jalan di thread latar dan hasilnya
+    // diserahkan lewat slot bersama + callback `holidays-ready` supaya state tetap di thread UI.
+    let hol_path = notch_core::paths::data_file("holidays.json");
+    let hol = Rc::new(RefCell::new(Holidays::new()));
+    if let Some((_, items)) = calendar::read_cache(&hol_path) {
+        hol.borrow_mut().ingest(&items);
+    }
+    let cal_view = Rc::new(RefCell::new(CalView::new(today(), &hol.borrow())));
+    let cal_model = Rc::new(VecModel::<CalCell>::default());
+    win.set_cal_cells(ModelRc::from(cal_model.clone()));
+    win.set_cal_weekdays(ModelRc::from(Rc::new(VecModel::from(
+        calendar::weekday_headers().iter().map(|s| SharedString::from(*s)).collect::<Vec<_>>(),
+    ))));
+    let redraw_cal: Rc<dyn Fn()> = {
+        let (weak, model, view, hol) = (win.as_weak(), cal_model.clone(), cal_view.clone(), hol.clone());
+        Rc::new(move || {
+            if let Some(w) = weak.upgrade() {
+                show_calendar(&w, &model, &view.borrow(), &hol.borrow());
+            }
+        })
+    };
+    let hol_slot: Arc<Mutex<Option<Vec<Item>>>> = Arc::new(Mutex::new(None));
+    let hol_busy = Arc::new(AtomicBool::new(false));
+    let start_fetch: Rc<dyn Fn()> = {
+        let (weak, slot, busy, path) = (win.as_weak(), hol_slot.clone(), hol_busy.clone(), hol_path.clone());
+        Rc::new(move || {
+            if busy.swap(true, Ordering::SeqCst) {
+                return;
+            }
+            let (weak, slot, busy, path) = (weak.clone(), slot.clone(), busy.clone(), path.clone());
+            std::thread::spawn(move || {
+                // gagal (offline, belum ada cache) = tetap memakai data bawaan
+                if let Ok(items) = calendar::fetch(&path) {
+                    if let Ok(mut g) = slot.lock() {
+                        *g = Some(items);
+                    }
+                    let _ = weak.upgrade_in_event_loop(|w| w.invoke_holidays_ready());
+                }
+                busy.store(false, Ordering::SeqCst);
+            });
+        })
+    };
+    {
+        let (hol, slot, redraw) = (hol.clone(), hol_slot.clone(), redraw_cal.clone());
+        win.on_holidays_ready(move || {
+            let items = slot.lock().ok().and_then(|mut g| g.take());
+            if let Some(items) = items {
+                hol.borrow_mut().ingest(&items);
+                redraw();
+            }
+        });
+    }
+    {
+        let (view, hol, redraw, fetch) = (cal_view.clone(), hol.clone(), redraw_cal.clone(), start_fetch.clone());
+        win.on_cal_opened(move || {
+            view.borrow_mut().go_today(today(), &hol.borrow());
+            redraw();
+            fetch(); // paling sering sekali per 12 jam (cache)
+        });
+    }
+    {
+        let (view, hol, redraw) = (cal_view.clone(), hol.clone(), redraw_cal.clone());
+        win.on_cal_prev(move || {
+            view.borrow_mut().shift_month(-1, today(), &hol.borrow());
+            redraw();
+        });
+    }
+    {
+        let (view, hol, redraw) = (cal_view.clone(), hol.clone(), redraw_cal.clone());
+        win.on_cal_next(move || {
+            view.borrow_mut().shift_month(1, today(), &hol.borrow());
+            redraw();
+        });
+    }
+    {
+        let (view, hol, redraw) = (cal_view.clone(), hol.clone(), redraw_cal.clone());
+        win.on_cal_today(move || {
+            view.borrow_mut().go_today(today(), &hol.borrow());
+            redraw();
+        });
+    }
+    {
+        let (view, redraw) = (cal_view.clone(), redraw_cal.clone());
+        win.on_cal_select(move |i| {
+            view.borrow_mut().select(i.max(0) as usize);
+            redraw();
+        });
+    }
+    start_fetch(); // data libur terbaru di latar belakang sejak aplikasi mulai
+
     // --- Quick / Tools: aksi jalan di thread lain (bisa sampai 4 detik) ---
     {
         let weak = win.as_weak();
         let shell = shell.clone();
+        let keep_awake = keep_awake.clone();
         win.on_quick_toggle(move |kind| {
             if kind.as_str() == "center" {
                 // Kembali ke tengah atas (hanya untuk sesi ini; config tidak ditulis dari Slint).
@@ -442,8 +612,10 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let weak = weak.clone();
             let kind = kind.to_string();
+            let keep_awake = keep_awake.clone();
             std::thread::spawn(move || {
                 let q = quick::toggle(&kind);
+                keep_awake.store(q.awake == Some(true), Ordering::Relaxed);
                 let _ = weak.upgrade_in_event_loop(move |w| apply_quick(&w, &q));
             });
         });
@@ -478,6 +650,7 @@ fn main() -> Result<(), slint::PlatformError> {
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             w.set_expanded(false);
+            w.set_cal_open(false); // kalender ikut menutup saat notch menciut
             sync();
             // jendela baru diperkecil setelah animasi menciut selesai
             let weak2 = weak.clone();
@@ -573,38 +746,137 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    // --- Mata mengikuti kursor (~20 fps, hanya set kalau berubah) ---
-    let eye_timer = Timer::default();
+    // --- Mata: 8 mood x 20 skin, dirender Rust (notch-core/src/eyes.rs) ---
+    let started = Instant::now();
+    let skin = eyes::skin_index(&cfg.appearance.eye_theme);
+    let default_mood = Mood::parse(&cfg.appearance.default_mood).unwrap_or(Mood::Normal);
+    let eye = Rc::new(RefCell::new(EyeCtx {
+        renderer: EyeRenderer::new(&cfg.appearance.eye_theme, EYES_W, EYES_H),
+        skin,
+        mood: MoodState::new(default_mood, cfg.timing.sleep_after_s, started),
+        cur: default_mood,
+        cur_since: 0.0,
+        morph: Morph::new(Face::for_mood(default_mood, skin)),
+        look: (0.0, 0.0),
+        last_cursor: (i32::MIN, i32::MIN),
+        last_move: 0.0,
+        next_random_look: 0.0,
+        blink_until: 0.0,
+        next_blink: 2.5,
+        last_key: None,
+        rng: Rng::new(),
+    }));
+
+    // Klik / dobel klik pada notch (Tauri: klik -> happy atau marah bila 5x dalam 2 dtk; dobel -> love)
     {
-        let weak = win.as_weak();
-        let last = Rc::new(Cell::new((0i32, 0i32)));
-        eye_timer.start(TimerMode::Repeated, Duration::from_millis(50), move || {
-            let Some(w) = weak.upgrade() else { return };
-            let Some((cx, cy)) = platform::cursor_pos() else { return };
-            if last.get() == (cx, cy) { return; }
-            last.set((cx, cy));
-            // relatif terhadap notch (bukan tengah layar), supaya benar juga untuk posisi kustom
-            let (wp, ws) = (w.window().position(), w.window().size());
-            let mid_x = wp.x + ws.width as i32 / 2;
-            let dx = ((cx - mid_x) as f32 / 400.0).clamp(-1.0, 1.0);
-            let dy = ((cy - wp.y) as f32 / 300.0).clamp(0.0, 1.0) * 2.0 - 1.0;
-            w.set_eye_dx(dx);
-            w.set_eye_dy(dy);
+        let eye = eye.clone();
+        win.on_pill_clicked(move || eye.borrow_mut().mood.click(Instant::now()));
+    }
+    {
+        let eye = eye.clone();
+        win.on_pill_double_clicked(move || eye.borrow_mut().mood.double_click(Instant::now()));
+    }
+
+    // Mood dasar (tidur saat idle/malam, musik, baterai) dinilai ulang tiap 10 dtk (mood.ts)
+    let base_timer = Timer::default();
+    {
+        let eye = eye.clone();
+        let keep_awake = keep_awake.clone();
+        base_timer.start(TimerMode::Repeated, Duration::from_secs(10), move || {
+            let mut e = eye.borrow_mut();
+            e.mood.keep_awake = keep_awake.load(Ordering::Relaxed);
+            e.mood.update_base(Instant::now(), platform::local_time().0);
         });
     }
 
-    // --- Kedip tiap ~4 detik ---
-    let blink_timer = Timer::default();
+    // Baterai dibaca tiap 30 dtk untuk mood (mengisi -> love, lemah -> mengantuk)
+    let mood_battery_timer = Timer::default();
+    {
+        let eye = eye.clone();
+        let battery = battery.clone();
+        let tick = move || {
+            if let Reading::Present(b) = battery.read() {
+                eye.borrow_mut().mood.on_battery(b.percent, b.charging, Instant::now(), platform::local_time().0);
+            }
+        };
+        tick();
+        mood_battery_timer.start(TimerMode::Repeated, Duration::from_secs(30), tick);
+    }
+
+    // Tick mata ~15 fps. Gambar baru dibuat hanya saat notch menciut DAN frame benar-benar berubah.
+    let eye_timer = Timer::default();
     {
         let weak = win.as_weak();
-        let unblink = Rc::new(Timer::default());
-        blink_timer.start(TimerMode::Repeated, Duration::from_millis(4000), move || {
+        let eye = eye.clone();
+        eye_timer.start(TimerMode::Repeated, Duration::from_millis(66), move || {
             let Some(w) = weak.upgrade() else { return };
-            w.set_blink(true);
-            let weak2 = weak.clone();
-            unblink.start(TimerMode::SingleShot, Duration::from_millis(120), move || {
-                if let Some(w) = weak2.upgrade() { w.set_blink(false); }
-            });
+            let now = Instant::now();
+            let ts = started.elapsed().as_secs_f32();
+            let hour = platform::local_time().0;
+            let mut guard = eye.borrow_mut();
+            let e = &mut *guard;
+
+            // Tatapan: ikuti kursor; bila diam > 5 dtk, melirik acak tiap 2,5 dtk (notch-face.ts)
+            if let Some((cx, cy)) = platform::cursor_pos() {
+                let (px, py) = e.last_cursor;
+                if (cx as f32 - px as f32).hypot(cy as f32 - py as f32) > 2.0 {
+                    e.last_move = ts;
+                    e.mood.activity(now, hour);
+                }
+                if (cx, cy) != e.last_cursor {
+                    e.last_cursor = (cx, cy);
+                    // relatif terhadap notch (bukan tengah layar), supaya benar juga untuk posisi kustom
+                    let (wp, ws) = (w.window().position(), w.window().size());
+                    let mid_x = wp.x + ws.width as i32 / 2;
+                    e.look = eyes::look_offset((cx - mid_x) as f32, (cy - wp.y) as f32);
+                }
+            }
+            if ts - e.last_move > 5.0 && ts >= e.next_random_look {
+                e.next_random_look = ts + 2.5;
+                e.look = eyes::look_offset((e.rng.next() - 0.5) * 300.0, (e.rng.next() - 0.5) * 60.0);
+            }
+
+            // Mood: transisi 250 ms ke mood baru
+            let m = e.mood.current(now);
+            if m != e.cur {
+                e.cur = m;
+                e.cur_since = ts;
+                let face = Face::for_mood(m, e.skin);
+                e.morph.set_target(ts, face);
+            }
+
+            // Kedip acak 2,5-6 dtk (mengantuk 1,5-5 dtk); mata "love" tidak berkedip; kedip 130 ms
+            if ts >= e.next_blink {
+                if e.cur != Mood::Love {
+                    e.blink_until = ts + 0.13;
+                }
+                let base = if e.cur == Mood::Sleepy { 1.5 } else { 2.5 };
+                e.next_blink = ts + base + e.rng.next() * 3.5;
+            }
+            let blink = ts < e.blink_until;
+
+            if w.get_expanded() {
+                return; // mata tersembunyi saat hub terbuka: tidak perlu menggambar
+            }
+
+            let sf = w.window().scale_factor();
+            let anim = Anim { mood: e.cur, t: ts, t_mood: ts - e.cur_since, look: e.look, blink };
+            let key = (
+                (e.look.0 * 4.0) as i32,
+                (e.look.1 * 4.0) as i32,
+                blink,
+                e.cur as usize,
+                eyes::frame_key(&anim, e.renderer.skin_name(), !e.morph.settled(ts)),
+                sf.to_bits(),
+            );
+            if e.last_key == Some(key) {
+                return;
+            }
+            e.last_key = Some(key);
+            let face = e.morph.current(ts);
+            let buf = e.renderer.render(&face, &anim, sf);
+            let (pw, ph) = e.renderer.size_px(sf);
+            w.set_eyes_image(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, pw, ph)));
         });
     }
 

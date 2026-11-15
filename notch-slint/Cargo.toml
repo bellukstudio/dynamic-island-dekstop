@@ -12,7 +12,7 @@ software = ["slint/renderer-software"]
 femtovg = ["slint/renderer-femtovg"]
 
 [dependencies]
-notch-core = { path = "../notch-core" }
+notch-core = { path = "../notch-core", features = ["net"] }
 png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
 

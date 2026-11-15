@@ -2,6 +2,8 @@
 // dan tema dari `[appearance]`. Semua warna berasal dari `Theme`, yang diisi Rust saat start.
 
 export struct NoteItem { id: string, text: string }
+// Satu sel kalender. kind: 0 = biasa, 1 = libur, 2 = cuti bersama, 3 = hari peringatan.
+export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
 export global Theme {
     in-out property <color> body: #000000;
@@ -61,28 +63,6 @@ global Icons {
         if id == "lyrics" { return Icons.lyrics; }
         if id == "privacy" { return Icons.privacy; }
         return Icons.test;
-    }
-}
-
-component Eye inherits Rectangle {
-    in property <float> dx: 0;   // -1..1
-    in property <float> dy: 0;   // -1..1
-    in property <bool> closed: false;
-
-    width: 16px;
-    height: closed ? 3px : 16px;
-    border-radius: 8px;
-    background: Theme.text;
-    animate height { duration: 80ms; easing: ease-in-out; }
-
-    Rectangle {
-        visible: !root.closed;
-        width: 7px;
-        height: 7px;
-        border-radius: 3.5px;
-        background: Theme.body;
-        x: (parent.width - self.width) / 2 + root.dx * 4px;
-        y: (parent.height - self.height) / 2 + root.dy * 4px;
     }
 }
 
@@ -281,12 +261,129 @@ component MediaPage inherits HorizontalLayout {
 component ClockPage inherits HorizontalLayout {
     in property <string> clock-text;
     in property <string> date-text;
+    callback open-calendar;
     padding-left: 28px;
     padding-right: 28px;
     alignment: stretch;
     Text { text: root.clock-text; color: Theme.text; font-size: 52px; font-weight: 700; vertical-alignment: center; }
     Rectangle { horizontal-stretch: 1; }
-    Text { text: root.date-text; color: Theme.text-dim; font-size: 14px; vertical-alignment: center; horizontal-alignment: right; }
+    // Klik tanggal membuka kalender bulanan (seperti di Tauri)
+    Rectangle {
+        width: 170px;
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text { text: root.date-text; color: da.has-hover ? Theme.text : Theme.text-dim; font-size: 14px; horizontal-alignment: right; }
+            Text { text: "Kalender \u{203A}"; color: Theme.text-faint; font-size: 10px; horizontal-alignment: right; }
+        }
+        da := TouchArea { clicked => { root.open-calendar(); } }
+    }
+}
+
+component CalDay inherits Rectangle {
+    in property <CalCell> c;
+    callback clicked;
+    width: 40px;
+    height: 18px;
+    border-radius: 9px;
+    // jenis terpenting menentukan warna: libur > cuti > peringatan
+    background: c.today ? Theme.accent
+        : c.kind == 1 && c.in-month ? #ff6b6b29
+        : c.kind == 2 && c.in-month ? #ffb34029
+        : (ta.has-hover && c.in-month ? Theme.chip : transparent);
+    border-width: c.sel ? 1.5px : 0px;
+    border-color: Theme.text.with-alpha(0.7);
+    Text {
+        text: "\{c.day}";
+        font-size: 11px;
+        font-weight: c.today || (c.in-month && (c.kind == 1 || c.kind == 2)) ? 700 : 400;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        color: c.today ? #000000
+            : !c.in-month ? Theme.text-faint
+            : c.kind == 1 ? #ff6b6b
+            : c.kind == 2 ? #ffb340
+            : c.sun ? #ff7a7a : Theme.text;
+    }
+    // titik kecil di bawah angka untuk hari peringatan
+    Rectangle {
+        visible: c.kind == 3 && c.in-month;
+        width: 3px;
+        height: 3px;
+        border-radius: 1.5px;
+        background: c.today ? #000000 : Theme.accent;
+        x: (parent.width - self.width) / 2;
+        y: parent.height - 4px;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component CalendarPage inherits Rectangle {
+    in property <[CalCell]> cells;
+    in property <[string]> weekdays;
+    in property <string> title;
+    in property <string> foot-date;
+    in property <string> foot-name;
+    in property <int> foot-kind;
+    callback prev;
+    callback next;
+    callback today;
+    callback select(int);
+    callback close;
+
+    // Kisi 7 x 6 di kiri
+    for wd[i] in root.weekdays: Text {
+        x: 24px + i * 40px;
+        y: 0px;
+        width: 40px;
+        height: 14px;
+        text: wd;
+        font-size: 10px;
+        horizontal-alignment: center;
+        color: i == 0 ? #ff7a7a : Theme.text-faint;
+    }
+    for cell[i] in root.cells: CalDay {
+        x: 24px + Math.mod(i, 7) * 40px;
+        y: 16px + Math.floor(i / 7) * 19px;
+        c: cell;
+        clicked => { root.select(i); }
+    }
+
+    // Judul, navigasi, dan keterangan di kanan
+    VerticalLayout {
+        x: 330px;
+        y: 0px;
+        width: parent.width - 330px - 20px;
+        spacing: 10px;
+        Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; height: 24px; overflow: elide; }
+        HorizontalLayout {
+            spacing: 6px;
+            height: 26px;
+            alignment: start;
+            RoundButton { size: 26px; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.prev(); } }
+            RoundButton { size: 26px; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.next(); } }
+            Chip { label: "Hari ini"; height: 26px; clicked => { root.today(); } }
+            RoundButton { size: 26px; outline: true; commands: Icons.close; clicked => { root.close(); } }
+        }
+        HorizontalLayout {
+            spacing: 10px;
+            alignment: start;
+            Rectangle {
+                width: 10px;
+                height: 10px;
+                y: 3px;
+                border-radius: 5px;
+                background: root.foot-kind == 1 ? #ff6b6b
+                    : root.foot-kind == 2 ? #ffb340
+                    : root.foot-kind == 3 ? Theme.accent : Theme.text-faint;
+            }
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: root.foot-date; color: Theme.text-dim; font-size: 11px; }
+                Text { text: root.foot-name; color: Theme.text; font-size: 13px; wrap: word-wrap; max-height: 44px; overflow: elide; }
+            }
+        }
+    }
 }
 
 component TimerPage inherits VerticalLayout {
@@ -589,9 +686,8 @@ export component NotchWindow inherits Window {
     in property <float> pomo-progress: 0;
     in property <bool> pomo-running: false;
     in property <bool> pomo-rest: false;
-    in property <float> eye-dx: 0;
-    in property <float> eye-dy: 0;
-    in property <bool> blink: false;
+    // Gambar mata (8 mood x 20 skin) dirender Rust: notch-core/src/eyes.rs. Ukuran logis 120 x 34.
+    in property <image> eyes-image;
 
     in property <float> cpu: 0;
     in property <float> ram: 0;
@@ -607,6 +703,14 @@ export component NotchWindow inherits Window {
     in property <bool> battery-charging: false;
     in property <[NoteItem]> notes;
 
+    in-out property <bool> cal-open: false;
+    in property <[CalCell]> cal-cells;
+    in property <[string]> cal-weekdays;
+    in property <string> cal-title;
+    in property <string> cal-foot-date;
+    in property <string> cal-foot-name;
+    in property <int> cal-foot-kind: 0;
+
     in property <int> q-mic: -1;
     in property <int> q-wifi: -1;
     in property <int> q-bt: -1;
@@ -618,6 +722,8 @@ export component NotchWindow inherits Window {
     in property <image> emoji-moon;
 
     callback hover-changed(bool);
+    callback pill-clicked();
+    callback pill-double-clicked();
     callback page-changed(string);
     callback toggle-pomo();
     callback reset-pomo();
@@ -625,6 +731,12 @@ export component NotchWindow inherits Window {
     callback add-note(string);
     callback remove-note(string);
     callback quick-toggle(string);
+    callback cal-opened();
+    callback cal-prev();
+    callback cal-next();
+    callback cal-today();
+    callback cal-select(int);
+    callback holidays-ready();
 
     pill := Rectangle {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
@@ -661,17 +773,19 @@ export component NotchWindow inherits Window {
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
             changed has-hover => { root.hover-changed(self.has-hover); }
+            clicked => { root.pill-clicked(); }
+            double-clicked => { root.pill-double-clicked(); }
 
-            // Mata: hanya saat menciut
-            HorizontalLayout {
-                y: 9px;
-                height: 16px;
-                alignment: center;
-                spacing: 14px;
+            // Mata: hanya saat menciut. Gambar dirender Rust sebesar pil kecil (120 x 34).
+            Image {
+                source: root.eyes-image;
+                x: (parent.width - 120px) / 2;
+                y: 0px;
+                width: 120px;
+                height: 34px;
+                image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
-                Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
-                Eye { dx: root.eye-dx; dy: root.eye-dy; closed: root.blink; }
             }
 
             // Hub: tab + halaman
@@ -698,7 +812,24 @@ export component NotchWindow inherits Window {
                     y: 56px;
                     height: parent.height - 56px - 12px;
                     if root.page-id == "media": MediaPage { }
-                    if root.page-id == "clock": ClockPage { clock-text: root.clock-text; date-text: root.date-text; }
+                    if root.page-id == "clock" && !root.cal-open: ClockPage {
+                        clock-text: root.clock-text;
+                        date-text: root.date-text;
+                        open-calendar => { root.cal-open = true; root.cal-opened(); }
+                    }
+                    if root.page-id == "clock" && root.cal-open: CalendarPage {
+                        cells: root.cal-cells;
+                        weekdays: root.cal-weekdays;
+                        title: root.cal-title;
+                        foot-date: root.cal-foot-date;
+                        foot-name: root.cal-foot-name;
+                        foot-kind: root.cal-foot-kind;
+                        prev => { root.cal-prev(); }
+                        next => { root.cal-next(); }
+                        today => { root.cal-today(); }
+                        select(i) => { root.cal-select(i); }
+                        close => { root.cal-open = false; }
+                    }
                     if root.page-id == "timer": TimerPage {
                         pomo-text: root.pomo-text;
                         pomo-label: root.pomo-label;
