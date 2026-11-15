@@ -3,6 +3,8 @@
 
 pub mod battery;
 pub mod config;
+pub mod decor;
+pub mod layout;
 pub mod notes;
 pub mod paths;
 pub mod pomodoro;
