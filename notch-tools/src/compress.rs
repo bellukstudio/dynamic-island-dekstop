@@ -156,6 +156,14 @@ mod tests {
     }
 
     #[test]
+    fn raster_profiles_progress_from_readable_to_aggressive() {
+        assert_eq!(super::RASTER_LADDER.first().unwrap().dpi, 110);
+        assert_eq!(super::RASTER_LADDER.last().unwrap().dpi, 30);
+        assert!(super::RASTER_LADDER.windows(2).all(|pair| pair[0].dpi > pair[1].dpi));
+        assert!(super::RASTER_LADDER.windows(2).all(|pair| pair[0].quality > pair[1].quality));
+    }
+
+    #[test]
     fn rejects_malformed_pdf_without_creating_an_output() {
         let path = std::env::temp_dir().join(format!("notch-tools-invalid-{}.pdf", std::process::id()));
         std::fs::write(&path, b"not a PDF").unwrap();
