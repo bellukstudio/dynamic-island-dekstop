@@ -1929,7 +1929,7 @@ export component NotchWindow inherits Window {
     in property <float> pomo-progress: 0;
     in property <bool> pomo-running: false;
     in property <bool> pomo-rest: false;
-    // Gambar mata (8 mood x 20 skin) dirender Rust: notch-core/src/eyes.rs. Ukuran logis 130 x 34.
+    // Gambar mata (8 mood x 20 skin) dirender Rust: 130 x 34 horizontal atau 34 x 130 untuk dock samping.
     in property <image> eyes-image;
 
     in property <float> cpu: 0;
@@ -2226,7 +2226,7 @@ export component NotchWindow inherits Window {
             clicked => { root.pill-clicked(); }
             double-clicked => { root.pill-double-clicked(); }
 
-            // Mata: hanya saat menciut. Gambar dirender Rust sebesar pil kecil (130 x 34).
+            // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
             Image {
                 source: root.eyes-image;
                 x: root.dock == 3 ? 0px : (root.dock == 4 ? 0px : (parent.width - 130px) / 2);
