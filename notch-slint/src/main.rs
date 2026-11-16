@@ -1243,7 +1243,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     }
                     hotkeys::Action::ColorPicker => {
-                        std::thread::spawn(|| { let _ = colorpick::pick_and_copy(); });
+                        colorpick::toggle();
                     }
                 }
             }
