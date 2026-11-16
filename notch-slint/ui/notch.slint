@@ -2291,6 +2291,7 @@ export component NotchWindow inherits Window {
     in property <string> meeting-finished: "";
     // 0 = atas, 1 = melayang, 2 = bawah, 3 = kiri, 4 = kanan.
     in property <int> dock: 0;
+    in property <bool> play-interaction-active: false;
     in property <bool> dock-play-enabled: true;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
     in property <float> ui-scale: 1.0;
