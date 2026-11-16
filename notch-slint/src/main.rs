@@ -1554,7 +1554,11 @@ fn main() -> Result<(), slint::PlatformError> {
         win.on_convert_reveal(move || {
             let output = last_output.lock().unwrap_or_else(|error| error.into_inner()).clone();
             if let Some(output) = output {
-                let folder = output.parent().unwrap_or_else(|| std::path::Path::new("."));
+                let folder = if output.is_dir() {
+                    output.as_path()
+                } else {
+                    output.parent().unwrap_or_else(|| std::path::Path::new("."))
+                };
                 if let Err(error) = transfer::open_inbox(folder) {
                     if let Some(w) = weak.upgrade() {
                         w.set_convert_status(format!("Gagal membuka folder hasil: {error}").into());
