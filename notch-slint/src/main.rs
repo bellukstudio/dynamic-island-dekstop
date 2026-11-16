@@ -63,7 +63,7 @@ fn format_convert_history() -> String {
         let status = entry.get("status").and_then(serde_json::Value::as_str).unwrap_or("?");
         let detail = entry.get("detail").and_then(serde_json::Value::as_str).unwrap_or("");
         format!("{name} → {target} · {status}{detail}")
-    }).collect::<Vec<_>>().join("\\n")
+    }).collect::<Vec<_>>().join("\n")
 }
 
 fn record_convert_history(input: &str, output: Option<&std::path::Path>, target: &str, status: &str) {
@@ -600,6 +600,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let win = NotchWindow::new()?;
+    win.set_convert_history_text(format_convert_history().into());
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
     let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
