@@ -1039,6 +1039,8 @@ component SpeechBubble inherits Rectangle {
     in property <string> message;
     in property <string> detail;
     in property <bool> bottom: false;
+    in property <bool> side: false;
+    in property <bool> side-right: false;
     height: 58px;
     width: 250px;
     border-radius: 14px;
@@ -1052,13 +1054,14 @@ component SpeechBubble inherits Rectangle {
         Text { text: root.detail; color: Theme.text-dim; font-size: 9px; overflow: elide; }
     }
     Path {
-        x: 116px;
-        y: root.bottom ? 0px : parent.height - 7px;
-        width: 16px;
-        height: 8px;
-        viewbox-width: 16;
-        viewbox-height: 8;
-        commands: root.bottom ? "M 0 8 L 8 0 L 16 8 Z" : "M 0 0 L 8 8 L 16 0 Z";
+        x: root.side ? (root.side-right ? parent.width - 8px : 0px) : 116px;
+        y: root.side ? (parent.height - 16px) / 2 : (root.bottom ? 0px : parent.height - 7px);
+        width: root.side ? 8px : 16px;
+        height: root.side ? 16px : 8px;
+        viewbox-width: root.side ? 8 : 16;
+        viewbox-height: root.side ? 16 : 8;
+        commands: root.side ? (root.side-right ? "M 0 0 L 8 8 L 0 16 Z" : "M 8 0 L 0 8 L 8 16 Z")
+            : (root.bottom ? "M 0 8 L 8 0 L 16 8 Z" : "M 0 0 L 8 8 L 16 0 Z");
         fill: #171923f5;
         stroke: Theme.accent.with-alpha(0.72);
         stroke-width: 1px;
@@ -1316,7 +1319,11 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
                 Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
             }
-            Text { text: "Mode samping kiri/kanan memerlukan layout vertikal dan renderer mata khusus."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            HorizontalLayout {
+                Chip { label: "Kiri"; selected: root.position-mode == "left"; clicked => { root.save-position("left"); } }
+                Chip { label: "Kanan"; selected: root.position-mode == "right"; clicked => { root.save-position("right"); } }
+            }
+            Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
     Text { text: "Perilaku notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1894,7 +1901,7 @@ export component NotchWindow inherits Window {
     in property <string> meeting-elapsed: "00:00";
     in property <string> meeting-source: "";
     in property <string> meeting-finished: "";
-    // 0 = menempel di atas, 1 = melayang (digeser dari tepi), 2 = menempel di dasar layar.
+    // 0 = atas, 1 = melayang, 2 = bawah, 3 = kiri, 4 = kanan.
     in property <int> dock: 0;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
     in property <float> ui-scale: 1.0;
@@ -2185,17 +2192,17 @@ export component NotchWindow inherits Window {
     pill := Rectangle {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale : 17px;
-        x: (root.width - self.width) / 2;
-        y: root.dock == 2 ? root.height - self.height : 0px;
-        // Ukuran hub sama dengan Tauri (--hub-w / --hub-h di hub-compact.css): 580 x 202
-        width: root.expanded ? 580px : 130px;
-        height: root.expanded ? 202px : 34px;
+        x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2);
+        y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 : 0px);
+        // Saat dock samping, pil kecil berorientasi portrait; hub terbuka tetap horizontal ke dalam layar.
+        width: root.expanded ? 580px : (root.dock >= 3 ? 34px : 130px);
+        height: root.expanded ? 202px : (root.dock >= 3 ? 130px : 34px);
         background: Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
-        border-top-left-radius: root.dock == 0 ? 0px : self.r;
-        border-top-right-radius: root.dock == 0 ? 0px : self.r;
-        border-bottom-left-radius: root.dock == 2 ? 0px : self.r;
-        border-bottom-right-radius: root.dock == 2 ? 0px : self.r;
+        border-top-left-radius: (root.dock == 0 || root.dock == 3) ? 0px : self.r;
+        border-top-right-radius: (root.dock == 0 || root.dock == 4) ? 0px : self.r;
+        border-bottom-left-radius: (root.dock == 2 || root.dock == 3) ? 0px : self.r;
+        border-bottom-right-radius: (root.dock == 2 || root.dock == 4) ? 0px : self.r;
         animate r { duration: 220ms; easing: ease-out-quart; }
         clip: true;
         animate width { duration: 220ms; easing: ease-out-quart; }
@@ -2222,10 +2229,10 @@ export component NotchWindow inherits Window {
             // Mata: hanya saat menciut. Gambar dirender Rust sebesar pil kecil (130 x 34).
             Image {
                 source: root.eyes-image;
-                x: (parent.width - 130px) / 2;
-                y: 0px;
-                width: 130px;
-                height: 34px;
+                x: root.dock == 3 ? 0px : (root.dock == 4 ? 0px : (parent.width - 130px) / 2);
+                y: root.dock >= 3 ? 0px : 0px;
+                width: root.dock >= 3 ? 34px : 130px;
+                height: root.dock >= 3 ? 130px : 34px;
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
@@ -2233,7 +2240,7 @@ export component NotchWindow inherits Window {
 
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
             Rectangle {
-                visible: (root.meeting-active || root.meeting-finished != "") && !root.expanded;
+                visible: (root.meeting-active || root.meeting-finished != "") && !root.expanded && root.dock < 3;
                 x: (parent.width - 130px) / 2;
                 y: 0px;
                 width: 130px;
@@ -2599,13 +2606,15 @@ export component NotchWindow inherits Window {
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
     if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
-        x: (root.width - self.width) / 2;
-        y: root.dock == 2 ? 0px : 42px;
+        x: root.dock == 3 ? 45px : (root.dock == 4 ? 5px : (root.width - self.width) / 2);
+        y: root.dock >= 3 ? (root.height - self.height) / 2 : (root.dock == 2 ? 0px : 42px);
         bottom: root.dock == 2;
+        side: root.dock >= 3;
+        side-right: root.dock == 4;
         message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text));
         detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub));
     }
 
-    Ear { s: root.ui-scale; visible: root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }
-    Ear { s: root.ui-scale; visible: root.dock != 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; right: true; bottom: root.dock == 2; }
+    Ear { s: root.ui-scale; visible: root.dock < 3 && root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }
+    Ear { s: root.ui-scale; visible: root.dock < 3 && root.dock != 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; right: true; bottom: root.dock == 2; }
 }
