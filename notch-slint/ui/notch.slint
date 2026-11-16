@@ -1274,6 +1274,7 @@ component ConvertPage inherits VerticalLayout {
     in property <string> file-path: "";
     in property <string> target-format: "auto";
     in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
+    in property <string> progress-text: "";
     in property <string> history-text: "Belum ada riwayat konversi";
     in property <string> files-text: "Belum ada file dipilih";
     in property <string> output-dir-text: "";
@@ -1314,7 +1315,7 @@ component ConvertPage inherits VerticalLayout {
             path-input := TextInput { text: root.file-path; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Format tujuan global: auto (disarankan) atau PNG/JPG/WebP/BMP/GIF/PDF."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
             format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Override per file (opsional): nama-file=png; dokumen.pdf=jpg"; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+            Text { text: "Override per file: nama-file=png@80; dokumen.pdf=jpg@70 (kualitas 40–100)"; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
             overrides-input := TextInput { text: ""; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Kualitas JPEG/PDF (40–100)"; color: Theme.text-faint; font-size: 10px; }
             quality-input := TextInput { text: "90"; color: Theme.text; font-size: 11px; single-line: true; }
@@ -1351,7 +1352,7 @@ component ConvertPage inherits VerticalLayout {
     }
     HorizontalLayout {
         Text { text: root.eta-text; color: Theme.text-faint; font-size: 9px; horizontal-stretch: 1; }
-        Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
+        Text { text: root.progress-text; color: Theme.accent; font-size: 10px; }
     }
     Text { text: root.queue-text; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
@@ -2219,6 +2220,7 @@ export component NotchWindow inherits Window {
                         eta-text: root.convert-eta-text;
                         queue-text: root.convert-queue-text;
                         progress-value: root.convert-progress-value;
+                        progress-text: root.convert-progress-text;
                         preview-page-text: root.convert-preview-page-text;
                         preview-status: root.convert-preview-status;
                         source-preview: root.convert-source-preview;
