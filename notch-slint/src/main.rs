@@ -858,7 +858,9 @@ impl Shell {
     /// Letakkan jendela sesuai posisi config dan atur bentuk tepinya (menempel atas / melayang / bawah).
     fn place(&self, win: &NotchWindow, size: (u32, u32)) {
         let pos = self.pos.get();
-        let work = platform::work_area(pos);
+        // Sentinel sisi bukan koordinat monitor; pilih monitor utama tanpa meneruskan x sentinel ke Win32.
+        let monitor_hint = pos.filter(|(x, _)| *x != layout::LEFT_TX && *x != layout::RIGHT_TX);
+        let work = platform::work_area(monitor_hint);
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
         let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
