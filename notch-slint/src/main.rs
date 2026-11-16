@@ -1217,12 +1217,12 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
+    let hotkey_poll_timer = Timer::default();
     {
         let (hotkey_rx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
         let (expand, collapse, pomo) = (expand.clone(), collapse.clone(), pomo.clone());
         let weak = win.as_weak();
-        let poll = Timer::default();
-        poll.start(TimerMode::Repeated, Duration::from_millis(60), move || {
+        hotkey_poll_timer.start(TimerMode::Repeated, Duration::from_millis(60), move || {
             while let Ok(action) = hotkey_rx.try_recv() {
                 match action {
                     hotkeys::Action::ToggleHub => {
