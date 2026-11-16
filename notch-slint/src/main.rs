@@ -1685,7 +1685,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
     let convert_preview_page = Rc::new(Cell::new(0usize));
-    let convert_preview_total = Rc::new(Cell::new(1usize));
     let convert_preview_path = Rc::new(RefCell::new(String::new()));
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -1700,7 +1699,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
         let preview_page = convert_preview_page.clone();
-        let preview_total = convert_preview_total.clone();
         let preview_path = convert_preview_path.clone();
         let weak_preview = weak.clone();
         win.on_convert_pick(move || {
@@ -1716,7 +1714,6 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_history_text(format_convert_history().into());
                 w.set_convert_files_text(format_convert_selection(&selected).into());
                 preview_page.set(0);
-                preview_total.set(1);
                 *preview_path.borrow_mut() = first.clone();
                 w.set_convert_preview_page_text("Memuat preview…".into());
                 w.set_convert_preview_status("".into());
@@ -1943,7 +1940,6 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let page = convert_preview_page.clone();
-        let total = convert_preview_total.clone();
         let path = convert_preview_path.clone();
         let weak_preview = weak.clone();
         win.on_convert_preview_prev(move || {
@@ -1960,7 +1956,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let path = convert_preview_path.clone();
         win.on_convert_preview_next(move || {
             let next = page.get().saturating_add(1);
-            if next >= total.get() { return; }
+            let Some(window) = weak.upgrade() else { return; };
+            if next >= window.get_convert_preview_total().max(1) as usize { return; }
             page.set(next);
             let selected = path.borrow().clone();
             if !selected.is_empty() { request_convert_document_preview(weak.clone(), selected, next); }
