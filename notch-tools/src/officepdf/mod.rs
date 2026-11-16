@@ -10,7 +10,7 @@ mod xlsx;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-static RESOURCE_DIR: OnceLock<PathBuf> = OnceLock::new;
+static RESOURCE_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 /// Configure the optional application resource directory used to locate bundled fonts.
 pub fn set_resource_dir(path: PathBuf) {
