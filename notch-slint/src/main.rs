@@ -1161,6 +1161,26 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_nudge_show_ms(cfg.nudge.show_ms.to_string().into());
     win.set_nudge_only_silent(cfg.nudge.only_silent);
     win.set_nudge_until_move(cfg.nudge.until_move);
+    win.set_greeting_enabled(cfg.greeting.enabled);
+    win.set_greeting_mode(cfg.greeting.mode.clone().into());
+    win.set_greeting_voice(cfg.greeting.voice.clone().into());
+    win.set_greeting_custom_text(cfg.greeting.custom_text.clone().into());
+    win.set_conversation_enabled(cfg.conversation_moments.enabled);
+    win.set_conversation_on_play(cfg.conversation_moments.on_play);
+    win.set_conversation_on_track_change(cfg.conversation_moments.on_track_change);
+    win.set_conversation_on_pause(cfg.conversation_moments.on_pause);
+    win.set_conversation_on_return(cfg.conversation_moments.on_return);
+    win.set_conversation_on_weather_change(cfg.conversation_moments.on_weather_change);
+    win.set_conversation_on_rain_soon(cfg.conversation_moments.on_rain_soon);
+    win.set_conversation_on_low_battery(cfg.conversation_moments.on_low_battery);
+    win.set_conversation_on_charging(cfg.conversation_moments.on_charging);
+    win.set_conversation_return_after_min(cfg.conversation_moments.return_after_min.to_string().into());
+    win.set_conversation_cooldown_min(cfg.conversation_moments.cooldown_min.to_string().into());
+    win.set_focus_companion_enabled(cfg.focus_companion.enabled);
+    win.set_focus_companion_on_start(cfg.focus_companion.on_start);
+    win.set_focus_companion_on_halfway(cfg.focus_companion.on_halfway);
+    win.set_focus_companion_on_focus_complete(cfg.focus_companion.on_focus_complete);
+    win.set_focus_companion_on_break_end(cfg.focus_companion.on_break_end);
     win.set_hub_pages(cfg.pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
@@ -3162,6 +3182,126 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 Err(error) => if let Some(w) = weak.upgrade() {
                     w.set_nudge_save_status(format!("Gagal menyimpan: {error}").into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_greeting(move |enabled, mode, voice, custom_text| {
+            let mut next = updated_config.clone();
+            next.greeting.enabled = enabled;
+            next.greeting.mode = mode.to_string();
+            next.greeting.voice = voice.to_string();
+            next.greeting.custom_text = custom_text.to_string();
+            next.greeting.sanitize();
+            if !["random", "auto", "halo", "morning", "noon", "afternoon", "evening", "custom"].contains(&next.greeting.mode.as_str()) {
+                if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Mode greeting tidak valid.".into()); }
+                return;
+            }
+            if !["cewek", "cowok", "anime-cewek", "anime-cowok", "system"].contains(&next.greeting.voice.as_str()) {
+                if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Mode suara tidak valid.".into()); }
+                return;
+            }
+            if next.greeting.mode == "custom" && next.greeting.custom_text.trim().is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Teks greeting kustom wajib diisi.".into()); }
+                return;
+            }
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    if let Some(w) = weak.upgrade() {
+                        w.set_greeting_enabled(next.greeting.enabled);
+                        w.set_greeting_mode(next.greeting.mode.clone().into());
+                        w.set_greeting_voice(next.greeting.voice.clone().into());
+                        w.set_greeting_custom_text(next.greeting.custom_text.clone().into());
+                        w.set_greeting_save_status("Preferensi greeting tersimpan.".into());
+                    }
+                }
+                Err(error) => if let Some(w) = weak.upgrade() {
+                    w.set_greeting_save_status(format!("Gagal menyimpan greeting: {error}").into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_conversation(move |enabled, on_play, on_track_change, on_pause, on_return, on_weather_change, on_rain_soon, on_low_battery, on_charging, return_after, cooldown| {
+            let return_after = return_after.parse::<u32>().ok().filter(|v| (5..=120).contains(v));
+            let cooldown = cooldown.parse::<u32>().ok().filter(|v| (1..=60).contains(v));
+            let (Some(return_after), Some(cooldown)) = (return_after, cooldown) else {
+                if let Some(w) = weak.upgrade() { w.set_conversation_save_status("Durasi kembali harus 5–120 menit dan jeda komentar 1–60 menit.".into()); }
+                return;
+            };
+            let mut next = updated_config.clone();
+            next.conversation_moments.enabled = enabled;
+            next.conversation_moments.on_play = on_play;
+            next.conversation_moments.on_track_change = on_track_change;
+            next.conversation_moments.on_pause = on_pause;
+            next.conversation_moments.on_return = on_return;
+            next.conversation_moments.on_weather_change = on_weather_change;
+            next.conversation_moments.on_rain_soon = on_rain_soon;
+            next.conversation_moments.on_low_battery = on_low_battery;
+            next.conversation_moments.on_charging = on_charging;
+            next.conversation_moments.return_after_min = return_after;
+            next.conversation_moments.cooldown_min = cooldown;
+            next.conversation_moments.sanitize();
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    if let Some(w) = weak.upgrade() {
+                        w.set_conversation_enabled(next.conversation_moments.enabled);
+                        w.set_conversation_on_play(next.conversation_moments.on_play);
+                        w.set_conversation_on_track_change(next.conversation_moments.on_track_change);
+                        w.set_conversation_on_pause(next.conversation_moments.on_pause);
+                        w.set_conversation_on_return(next.conversation_moments.on_return);
+                        w.set_conversation_on_weather_change(next.conversation_moments.on_weather_change);
+                        w.set_conversation_on_rain_soon(next.conversation_moments.on_rain_soon);
+                        w.set_conversation_on_low_battery(next.conversation_moments.on_low_battery);
+                        w.set_conversation_on_charging(next.conversation_moments.on_charging);
+                        w.set_conversation_return_after_min(return_after.to_string().into());
+                        w.set_conversation_cooldown_min(cooldown.to_string().into());
+                        w.set_conversation_save_status("Preferensi Conversation Moments tersimpan.".into());
+                    }
+                }
+                Err(error) => if let Some(w) = weak.upgrade() {
+                    w.set_conversation_save_status(format!("Gagal menyimpan Conversation Moments: {error}").into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_focus_companion(move |enabled, on_start, on_halfway, on_focus_complete, on_break_end| {
+            let mut next = updated_config.clone();
+            next.focus_companion.enabled = enabled;
+            next.focus_companion.on_start = on_start;
+            next.focus_companion.on_halfway = on_halfway;
+            next.focus_companion.on_focus_complete = on_focus_complete;
+            next.focus_companion.on_break_end = on_break_end;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    if let Some(w) = weak.upgrade() {
+                        w.set_focus_companion_enabled(next.focus_companion.enabled);
+                        w.set_focus_companion_on_start(next.focus_companion.on_start);
+                        w.set_focus_companion_on_halfway(next.focus_companion.on_halfway);
+                        w.set_focus_companion_on_focus_complete(next.focus_companion.on_focus_complete);
+                        w.set_focus_companion_on_break_end(next.focus_companion.on_break_end);
+                        w.set_focus_companion_save_status("Preferensi Focus Companion tersimpan.".into());
+                    }
+                }
+                Err(error) => if let Some(w) = weak.upgrade() {
+                    w.set_focus_companion_save_status(format!("Gagal menyimpan Focus Companion: {error}").into());
                 }
             }
         });
