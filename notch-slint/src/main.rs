@@ -4288,6 +4288,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let eye = eye.clone();
+        let battery = battery.clone();
         let mut next_at = Instant::now() + Duration::from_secs(6);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
         let mut last_choice: Option<u8> = None;
@@ -4363,7 +4364,8 @@ fn main() -> Result<(), slint::PlatformError> {
             if active.is_none() && (now >= next_at || test_requested || liquid_due) {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let roll = (seed >> 32) as u32;
-                let sleepy = w.get_eyes_mood().to_string() == "sleepy";
+                let low_battery = matches!(battery.read(), Reading::Present(value) if value.percent <= 15 && !value.charging);
+                let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
                 let playing = w.get_media_playing();
                 // Tes manual dan jadwal tiga rangkaian Liquid mendahului gerakan acak.
                 let choice = if test_requested {
@@ -4380,7 +4382,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 } else {
                     // Bobot sama dengan NORMAL/MUSIC/CALM di bottom-play.ts.
                     // Pilihan terakhir dikeluarkan agar gerakan tidak berulang berturut-turut.
-                    let weights: [u32; 8] = if sleepy {
+                    let weights: [u32; 8] = if calm {
                         [1, 0, 0, 0, 2, 3, 0, 3] // liquid, squish, sway, yawn
                     } else if playing {
                         [7, 3, 3, 2, 1, 0, 5, 0]
