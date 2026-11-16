@@ -114,8 +114,8 @@ pub fn compress_image_file(path: &Path, target_reduction_percent: u8) -> Result<
     let target_size = original_size * (100 - target_percent) / 100;
 
     let worst = render(&image, &ext, *LADDER.last().unwrap())?;
-    let (chosen, output) = if worst.len() as u64 > target_size {
-        (*LADDER.last().unwrap(), worst)
+    let output = if worst.len() as u64 > target_size {
+        worst
     } else {
         let (mut low, mut high) = (0usize, LADDER.len() - 1);
         while low < high {
@@ -128,10 +128,8 @@ pub fn compress_image_file(path: &Path, target_reduction_percent: u8) -> Result<
             }
         }
         let profile = LADDER[low];
-        (profile, render(&image, &ext, profile)?)
+        render(&image, &ext, profile)?
     };
-    let _ = chosen;
-
     let output_extension = if ext == "bmp" { "jpg" } else { ext.as_str() };
     let output_path = unique_output(path, output_extension);
     let output_size = output.len() as u64;
