@@ -1152,6 +1152,8 @@ component SettingsPage inherits VerticalLayout {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <bool> behavior-hide-fullscreen: true;
+    in property <bool> autostart-enabled: false;
+    in property <string> autostart-save-status: "";
     in property <string> behavior-save-status: "Skala, hover, idle, dan fullscreen";
     in property <bool> motion-enabled: false;
     in property <string> motion-interval: "180";
@@ -1176,6 +1178,7 @@ component SettingsPage inherits VerticalLayout {
     callback toggle-page(string, bool);
     pure function page-enabled(id: string) -> bool { for page in root.active-pages: { if page == id { return true; } } return false; }
     callback save-behavior(string, string, string, string, bool);
+    callback save-autostart(bool);
     callback save-position(string);
     callback save-routines(string, string, string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string, string, string);
@@ -1452,6 +1455,16 @@ component SettingsPage inherits VerticalLayout {
                 }
             }
             Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            HorizontalLayout {
+                Text { text: "Jalankan otomatis saat komputer login"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                Chip {
+                    label: root.autostart-enabled ? "Aktif" : "Nonaktif";
+                    selected: root.autostart-enabled;
+                    clicked => { root.save-autostart(!root.autostart-enabled); }
+                }
+            }
+            Text { text: root.autostart-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
     Text { text: "Liquid movement"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -2203,6 +2216,8 @@ export component NotchWindow inherits Window {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <bool> behavior-hide-fullscreen: true;
+    in property <bool> autostart-enabled: false;
+    in property <string> autostart-save-status: "";
     in property <string> behavior-save-status: "";
     in property <bool> motion-enabled: false;
     in property <string> motion-interval: "180";
@@ -2236,6 +2251,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-light-bg: "#f5f5f7";
     callback settings-save-appearance(string, string, string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string, bool);
+    callback settings-save-autostart(bool);
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge();
@@ -2728,6 +2744,8 @@ export component NotchWindow inherits Window {
                         behavior-hover-close: root.behavior-hover-close;
                         behavior-sleep-after: root.behavior-sleep-after;
                         behavior-hide-fullscreen: root.behavior-hide-fullscreen;
+                        autostart-enabled: root.autostart-enabled;
+                        autostart-save-status: root.autostart-save-status;
                         behavior-save-status: root.behavior-save-status;
                         motion-enabled: root.motion-enabled;
                         motion-interval: root.motion-interval;
@@ -2746,6 +2764,7 @@ export component NotchWindow inherits Window {
                         test-nudge => { root.settings-test-nudge(); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
+                        save-autostart(enabled) => { root.settings-save-autostart(enabled); }
                         save-position(mode) => { root.settings-save-position(mode); }
                         save-motion(enabled, interval, maximum) => { root.settings-save-motion(enabled, interval, maximum); }
                         active-pages: root.active-pages;

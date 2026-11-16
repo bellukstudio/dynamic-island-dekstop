@@ -38,6 +38,7 @@ mod convert;
 mod transfer;
 mod android;
 mod android_mirror;
+mod autostart;
 
 slint::include_modules!();
 
@@ -1148,6 +1149,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
     win.set_behavior_hide_fullscreen(cfg.hide_fullscreen);
+    win.set_autostart_enabled(autostart::is_enabled());
     win.set_motion_enabled(cfg.motion.enabled);
     win.set_motion_interval(cfg.motion.interval_secs.to_string().into());
     win.set_motion_max_moves(cfg.motion.max_moves.to_string().into());
@@ -1373,6 +1375,30 @@ fn main() -> Result<(), slint::PlatformError> {
                 Err(error) => {
                     if let Some(w) = weak.upgrade() {
                         w.set_settings_save_status(format!("Gagal menyimpan: {error}").into());
+                    }
+                }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        win.on_settings_save_autostart(move |enabled| {
+            match autostart::set(enabled) {
+                Ok(actual) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_autostart_enabled(actual);
+                        w.set_autostart_save_status(if actual {
+                            "Notch akan berjalan otomatis saat login.".into()
+                        } else {
+                            "Jalan otomatis dinonaktifkan.".into()
+                        });
+                    }
+                }
+                Err(error) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_autostart_enabled(autostart::is_enabled());
+                        w.set_autostart_save_status(format!("Gagal mengubah jalan otomatis: {error}").into());
                     }
                 }
             }
