@@ -2317,7 +2317,9 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             if pointer_move > *last_move + 0.001 {
-                let idle_secs = (pointer_move - *last_move).max(0.0);
+                // last_move adalah timestamp gerakan sebelumnya (detik sejak startup).
+                // Ukur sampai waktu sekarang, bukan selisih dua event pointer yang berdekatan.
+                let idle_secs = (started.elapsed().as_secs_f32() - *last_move).max(0.0);
                 if event.is_none() && cfg.on_return && idle_secs >= cfg.return_after_min as f32 * 60.0 {
                     event = Some(("Akhirnya kembali! Siap melanjutkan aktivitas? 👋", "Conversation Moments · kembali setelah lama tidak aktif"));
                 }
