@@ -148,6 +148,14 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn ghostscript_profiles_keep_quality_order() {
+        assert_eq!(super::GS_LADDER.first().unwrap().dpi, 300);
+        assert_eq!(super::GS_LADDER.last().unwrap().dpi, 50);
+        assert!(super::GS_LADDER.windows(2).all(|pair| pair[0].dpi > pair[1].dpi));
+        assert!(super::GS_LADDER.windows(2).all(|pair| pair[0].qfactor < pair[1].qfactor));
+    }
+
+    #[test]
     fn rejects_malformed_pdf_without_creating_an_output() {
         let path = std::env::temp_dir().join(format!("notch-tools-invalid-{}.pdf", std::process::id()));
         std::fs::write(&path, b"not a PDF").unwrap();
@@ -724,7 +732,7 @@ fn compress_pdf_with_profiles(
             low
         };
         let output = compress_pdf_with_ghostscript(executable, path, GS_LADDER[selected])?;
-        if output.len() as u64 < original_size {
+        if (output.len() as u64) < original_size {
             return Ok(output);
         }
     }
