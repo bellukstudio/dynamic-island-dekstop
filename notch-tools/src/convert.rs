@@ -270,20 +270,16 @@ fn configure_no_window(command: &mut std::process::Command) -> &mut std::process
 
 fn office_to_pdf_with_libreoffice(input: &Path) -> Result<Vec<u8>, String> {
     let executable = soffice().ok_or_else(|| "LibreOffice tidak ditemukan".to_string())?;
-    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     static TEMP_SEQUENCE: std::sync::atomic::AtomicU64 =
         std::sync::atomic::AtomicU64::new(0);
-    let _guard = LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let sequence = TEMP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     let temp = std::env::temp_dir();
-    let output_dir = temp.join(format!(
-        "notch-convert-{}-{}",
-        std::process::id(),
-        TEMP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-    ));
+    let job_id = format!("{}-{sequence}", std::process::id());
+    let output_dir = temp.join(format!("notch-convert-{job_id}"));
+    let profile = temp.join(format!("notch-lo-profile-{job_id}"));
     std::fs::create_dir_all(&output_dir)
         .map_err(|error| format!("Gagal membuat folder sementara: {error}"))?;
-    let profile = temp.join("notch-lo-profile");
 
     let result = (|| {
         let mut command = std::process::Command::new(executable);
@@ -325,6 +321,7 @@ fn office_to_pdf_with_libreoffice(input: &Path) -> Result<Vec<u8>, String> {
     })();
 
     let _ = std::fs::remove_dir_all(&output_dir);
+    let _ = std::fs::remove_dir_all(&profile);
     result
 }
 
