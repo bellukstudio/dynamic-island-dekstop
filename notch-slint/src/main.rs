@@ -128,6 +128,20 @@ fn convert_target_override(path: &std::path::Path, raw: &str) -> Option<String> 
     }).last()
 }
 
+fn format_convert_file_statuses(statuses: &[(String, String)]) -> String {
+    if statuses.is_empty() { return "Belum ada file dalam antrean".into(); }
+    let lines = statuses.iter().take(10).map(|(path, status)| {
+        let name = std::path::Path::new(path).file_name()
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.clone());
+        format!("[{status}] {name}")
+    }).collect::<Vec<_>>();
+    let suffix = if statuses.len() > lines.len() {
+        format!("\\n… dan {} file lainnya", statuses.len() - lines.len())
+    } else { String::new() };
+    format!("Status file ({}):\\n{}{}", statuses.len(), lines.join("\\n"), suffix)
+}
+
 fn format_convert_queue(queue: &std::collections::VecDeque<String>) -> String {
     if queue.is_empty() { return "Antrean kosong".into(); }
     let lines = queue.iter().take(8).map(|raw| {
@@ -1731,6 +1745,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_pause_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_queue = std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::<String>::new()));
     let convert_failed_files = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let convert_file_statuses = std::sync::Arc::new(std::sync::Mutex::new(Vec::<(String, String)>::new()));
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
@@ -1780,6 +1795,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let pause_requested = convert_pause_requested.clone();
         let queue = convert_queue.clone();
         let failed_files = convert_failed_files.clone();
+        let file_statuses = convert_file_statuses.clone();
         let output_dir = convert_output_dir.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
@@ -1814,13 +1830,14 @@ fn main() -> Result<(), slint::PlatformError> {
             cancel_requested.store(false, std::sync::atomic::Ordering::Release);
             pause_requested.store(false, std::sync::atomic::Ordering::Release);
             let total = paths.len();
-            *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.into_iter().collect();
+            *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().cloned().collect();
+            *file_statuses.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().map(|path| (path.clone(), "Menunggu".to_string())).collect();
             failed_files.lock().unwrap_or_else(|error| error.into_inner()).clear();
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
                 w.set_convert_progress_value(0.0);
                 w.set_convert_eta_text("Menyiapkan antrean…".into());
-                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                let queue_text = format_convert_file_statuses(&file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(queue_text.into());
             }
             let weak = weak.clone();
@@ -1828,6 +1845,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let pause_requested = pause_requested.clone();
             let queue = queue.clone();
             let failed_files = failed_files.clone();
+            let file_statuses = file_statuses.clone();
             let last_output = last_output.clone();
             let running_worker = running.clone();
             std::thread::spawn(move || {
@@ -1847,7 +1865,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     if cancel_requested.load(std::sync::atomic::Ordering::Acquire) { break; }
                     let next = queue.lock().unwrap_or_else(|error| error.into_inner()).pop_front();
                     let Some(path) = next else { break; };
-                    let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                    {
+                        let mut statuses = file_statuses.lock().unwrap_or_else(|error| error.into_inner());
+                        if let Some(item) = statuses.iter_mut().find(|(item_path, _)| item_path == &path) {
+                            item.1 = "Diproses".to_string();
+                        }
+                    }
+                    let queue_text = format_convert_file_statuses(&file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                     let weak_queue = weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(window) = weak_queue.upgrade() {
@@ -1937,6 +1961,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             match relocated {
                                 Ok(final_output) => {
                                     completed += 1;
+                                    if let Some(item) = file_statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) { item.1 = "Berhasil".to_string(); }
                                     record_convert_history(&path, Some(&final_output), &history_target, "OK");
                                     *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(final_output.clone());
                                     let preview_path = final_output.clone();
@@ -1951,6 +1976,7 @@ fn main() -> Result<(), slint::PlatformError> {
                                 Err(error) => {
                                     record_convert_history(&path, None, &history_target, "GAGAL");
                                     failed_files.lock().unwrap_or_else(|error| error.into_inner()).push(path.clone());
+                                    if let Some(item) = file_statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) { item.1 = "Gagal".to_string(); }
                                     failures.push(format!("{}: hasil dibuat tetapi gagal dipindahkan: {error}", display_name));
                                 }
                             }
@@ -1958,6 +1984,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         Err(error) => {
                             record_convert_history(&path, None, &history_target, "GAGAL");
                             failed_files.lock().unwrap_or_else(|error| error.into_inner()).push(path.clone());
+                            if let Some(item) = file_statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) { item.1 = "Gagal".to_string(); }
                             failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())));
                         }
                     }
@@ -1965,7 +1992,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let effective_total = (processed + remaining).max(1);
                     let percent = processed * 100 / effective_total;
                     let progress_text = format!("{percent}% ({processed}/{effective_total})");
-                    let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                    let queue_text = format_convert_file_statuses(&file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                     let elapsed = started.elapsed().as_secs_f64();
                     let eta_seconds = if processed > 0 {
                         (elapsed / processed as f64 * remaining as f64).ceil() as u64
@@ -2007,7 +2034,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(w) = weak.upgrade() {
                         w.set_convert_status(message.into());
-                        w.set_convert_queue_text("Antrean kosong".into());
+                        let status_text = format_convert_file_statuses(&file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
+                        w.set_convert_queue_text(status_text.into());
                         w.set_convert_eta_text("Selesai".into());
                         if !cancelled && !queue_cleared { w.set_convert_progress_value(100.0); }
                     }
