@@ -1277,6 +1277,7 @@ component ConvertPage inherits VerticalLayout {
     callback run(string, string, string, string);
     callback pick-file();
     callback reveal();
+    callback cancel();
     alignment: start;
     padding-left: 14px;
     padding-right: 14px;
@@ -1305,6 +1306,7 @@ component ConvertPage inherits VerticalLayout {
         alignment: end;
         Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
         Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text, quality-input.text, dpi-input.text); } }
+        Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
     Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
@@ -1788,6 +1790,7 @@ export component NotchWindow inherits Window {
     callback convert-run(string, string, string, string);
     callback convert-pick();
     callback convert-reveal();
+    callback convert-cancel();
     callback convert-selected-path(string);
     callback transfer-start();
     callback transfer-stop();
@@ -2083,6 +2086,7 @@ export component NotchWindow inherits Window {
                         run(path, format, quality, dpi) => { root.convert-run(path, format, quality, dpi); }
                         pick-file => { root.convert-pick(); }
                         reveal => { root.convert-reveal(); }
+                        cancel => { root.convert-cancel(); }
                     }
                     if root.page-id == "compress": CompressPage {
                         status: root.compress-status;
