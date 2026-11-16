@@ -1445,6 +1445,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
+    let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1467,6 +1468,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
+        let running = convert_running.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
@@ -1479,6 +1481,17 @@ fn main() -> Result<(), slint::PlatformError> {
             if paths.is_empty() {
                 if let Some(w) = weak.upgrade() {
                     w.set_convert_status("Pilih file terlebih dahulu".into());
+                }
+                return;
+            }
+            if running.compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::AcqRel,
+                std::sync::atomic::Ordering::Acquire,
+            ).is_err() {
+                if let Some(w) = weak.upgrade() {
+                    w.set_convert_status("Konversi sedang berjalan".into());
                 }
                 return;
             }
@@ -1528,6 +1541,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     message.push_str(" · Gagal: ");
                     message.push_str(&failures.join(" | "));
                 }
+                running.store(false, std::sync::atomic::Ordering::Release);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
