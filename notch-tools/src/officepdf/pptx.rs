@@ -199,7 +199,7 @@ impl<'a, 'b> R<'a, 'b> {
         }
         if let Some(m) = self.master.and_then(|m| find_ph(m, ty, idx, false)) {
             if let Some(v) = from(m) {
-                return Some(Xf::id().rect(v.0, v.1, v.2, v.3));
+                return Xf::id().rect(v.0, v.1, v.2, v.3);
             }
         }
         None
@@ -794,4 +794,24 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
         }
     }
     pdf.finish()
+}
+
+
+#[cfg(test)]
+mod geometry_tests {
+    use super::Xf;
+
+    #[test]
+    fn rejects_non_finite_or_extreme_shape_geometry() {
+        let xf = Xf::id();
+        assert!(xf.rect(f64::NAN, 0.0, 100.0, 100.0).is_none());
+        assert!(xf.rect(0.0, 0.0, f64::INFINITY, 100.0).is_none());
+        assert!(xf.rect(0.0, 0.0, 1.0e12, 100.0).is_none());
+        assert!(xf.rect(0.0, 0.0, -1.0, 100.0).is_none());
+    }
+
+    #[test]
+    fn preserves_normal_shape_geometry() {
+        assert_eq!(Xf::id().rect(12700.0, 25400.0, 38100.0, 50800.0), Some((1.0, 2.0, 3.0, 4.0)));
+    }
 }
