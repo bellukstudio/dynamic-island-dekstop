@@ -440,6 +440,8 @@ fn clear_convert_history() {
 
 // Ruang saat menciut mencakup pil serta balon notifikasi 250 px di luar area clip.
 const COLLAPSED: (u32, u32) = (262, 112);
+// Side dock: 34 px pill vertikal + balon notifikasi horizontal di area dalam layar.
+const COLLAPSED_SIDE: (u32, u32) = (300, 262);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
 const EXPANDED: (u32, u32) = (612, 240);
 
@@ -859,7 +861,9 @@ impl Shell {
         let work = platform::work_area(pos);
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
-        let size = ((size.0 as f32 * sf).round() as u32, (size.1 as f32 * sf).round() as u32);
+        let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
+        let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
+        let size = ((logical_size.0 as f32 * sf).round() as u32, (logical_size.1 as f32 * sf).round() as u32);
         let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
         if self.memo.get() != (Some(dock), sf.to_bits()) {
             self.memo.set((Some(dock), sf.to_bits()));
@@ -867,6 +871,8 @@ impl Shell {
                 Dock::Top => 0,
                 Dock::Floating => 1,
                 Dock::Bottom => 2,
+                Dock::Left => 3,
+                Dock::Right => 4,
             });
             self.rebuild_decor(win, dock, sf);
         }
@@ -876,6 +882,10 @@ impl Shell {
     }
 
     fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
+        if matches!(dock, Dock::Left | Dock::Right) {
+            win.set_has_decor(false);
+            return;
+        }
         let (w, h) = ((PILL_W * sf).round() as u32, (PILL_H * sf).round() as u32);
         let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * *self.scale.borrow() * sf;
         match decor::render(&self.theme.borrow(), *self.body.borrow(), dock, w, h, r, sf) {
@@ -988,6 +998,10 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_hub_pages(cfg.pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
+    } else if cfg.position.x == notch_core::layout::LEFT_TX {
+        "left"
+    } else if cfg.position.x == notch_core::layout::RIGHT_TX {
+        "right"
     } else if cfg.position.y >= notch_core::layout::BOTTOM_TY / 2 {
         "bottom"
     } else {
@@ -1056,16 +1070,19 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut updated_config = cfg.clone();
         win.on_settings_save_position(move |mode| {
             let mode = mode.to_string();
-            if !["top", "floating", "bottom"].contains(&mode.as_str()) {
+            if !["top", "floating", "bottom", "left", "right"].contains(&mode.as_str()) {
                 if let Some(w) = weak.upgrade() { w.set_behavior_save_status("Mode posisi tidak valid".into()); }
                 return;
             }
             let work = platform::work_area(None);
             let center_x = work.x + work.w / 2;
+            let center_y = work.y + work.h / 2;
             let next_pos = match mode.as_str() {
                 "top" => None,
                 "floating" => Some((center_x, work.y + 100)),
                 "bottom" => Some((center_x, notch_core::layout::BOTTOM_TY)),
+                "left" => Some((notch_core::layout::LEFT_TX, center_y)),
+                "right" => Some((notch_core::layout::RIGHT_TX, center_y)),
                 _ => None,
             };
             let mut next = updated_config.clone();
