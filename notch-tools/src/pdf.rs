@@ -59,6 +59,30 @@ pub fn is_available() -> bool {
     bind_pdfium().is_ok()
 }
 
+
+/// Render one zero-based page without decoding the remaining pages.
+pub fn render_page(source: &[u8], page_index: usize, dpi: u32) -> Result<(DynamicImage, usize), String> {
+    use pdfium_render::prelude::PdfRenderConfig;
+    let _guard = PDFIUM_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let pdfium = bind_pdfium()?;
+    let document = pdfium.load_pdf_from_byte_slice(source, None)
+        .map_err(|error| format!("PDF tidak dapat dibuka: {error}"))?;
+    let pages = document.pages();
+    let total = pages.len() as usize;
+    if page_index >= total {
+        return Err(format!("Halaman {} tidak tersedia (total {total})", page_index + 1));
+    }
+    let page = pages.get(page_index as u16).map_err(|error| error.to_string())?;
+    let dpi = dpi.clamp(36, 600);
+    let width = ((page.width().value / 72.0 * dpi as f32).round() as i32).max(1);
+    let height = ((page.height().value / 72.0 * dpi as f32).round() as i32).max(1);
+    let bitmap = page.render_with_config(&PdfRenderConfig::new().set_target_size(width, height))
+        .map_err(|error| error.to_string())?;
+    let image = bitmap.as_image().into_dynamic_image()
+        .ok_or_else(|| "Gagal membaca bitmap halaman PDF".to_string())?;
+    Ok((image, total))
+}
+
 /// Render all pages sequentially. Pdfium access is serialized because its bindings are not
 /// thread-safe. The callback receives a zero-based page index, total pages, and rendered image.
 pub fn for_each_page<F>(source: &[u8], dpi: u32, mut callback: F) -> Result<usize, String>
