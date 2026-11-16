@@ -1515,14 +1515,38 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     });
                     let source = std::path::Path::new(&path);
-                    let result = if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
-                        convert::convert_pdf_to_images(source, &format, dpi, quality)
-                            .map(|(output, pages, bytes)| (output, format!("{pages} halaman · {} KB", bytes / 1024)))
-                    } else if format.eq_ignore_ascii_case("pdf") {
-                        convert::convert_to_pdf_with_quality(source, quality).map(|output| (output, "PDF".to_string()))
-                    } else {
-                        convert::convert_image_with_quality(source, &format, quality).map(|output| (output, format.to_ascii_uppercase()))
-                    };
+                    let result: Result<(std::path::PathBuf, String), String> = (|| {
+                        let target = if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
+                            convert::default_target(source)
+                                .ok_or_else(|| format!("Format sumber tidak didukung: {}", source.display()))?
+                                .to_string()
+                        } else {
+                            format.trim().trim_start_matches('.').to_ascii_lowercase()
+                        };
+                        let available = convert::available_targets(source);
+                        if !available.iter().any(|candidate| *candidate == target) {
+                            let supported = if available.is_empty() {
+                                "tidak ada format tujuan yang tersedia (periksa Pdfium/LibreOffice)"
+                                    .to_string()
+                            } else {
+                                available.join(", ")
+                            };
+                            return Err(format!(
+                                "Format tujuan {target} tidak tersedia untuk {}. Pilihan: {supported}",
+                                source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())
+                            ));
+                        }
+                        if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
+                            convert::convert_pdf_to_images(source, &target, dpi, quality)
+                                .map(|(output, pages, bytes)| (output, format!("{target.to_ascii_uppercase()} · {pages} halaman · {} KB", bytes / 1024)))
+                        } else if target == "pdf" {
+                            convert::convert_to_pdf_with_quality(source, quality)
+                                .map(|output| (output, "PDF".to_string()))
+                        } else {
+                            convert::convert_image_with_quality(source, &target, quality)
+                                .map(|output| (output, target.to_ascii_uppercase()))
+                        }
+                    })();
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
