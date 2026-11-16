@@ -2822,6 +2822,39 @@ fn main() -> Result<(), slint::PlatformError> {
 }
 
 #[cfg(test)]
+mod convert_queue_display_tests {
+    use super::format_convert_queue;
+    use std::collections::VecDeque;
+
+    #[test]
+    fn empty_queue_has_clear_empty_state() {
+        assert_eq!(format_convert_queue(&VecDeque::new()), "Antrean kosong");
+    }
+
+    #[test]
+    fn queue_displays_pending_file_names_not_full_paths() {
+        let queue = VecDeque::from(vec![
+            "C:/input/first.pdf".to_string(),
+            "C:/input/second.docx".to_string(),
+        ]);
+        let display = format_convert_queue(&queue);
+        assert!(display.contains("first.pdf"));
+        assert!(display.contains("second.docx"));
+        assert!(!display.contains("C:/input"));
+    }
+
+    #[test]
+    fn queue_limits_visible_items_and_reports_the_remainder() {
+        let queue = (1..=10).map(|index| format!("file-{index}.pdf")).collect::<VecDeque<_>>();
+        let display = format_convert_queue(&queue);
+        assert!(display.contains("file-1.pdf"));
+        assert!(display.contains("file-8.pdf"));
+        assert!(!display.contains("file-9.pdf"));
+        assert!(display.contains("dan 2 file lainnya"));
+    }
+}
+
+#[cfg(test)]
 mod convert_target_override_tests {
     use super::{convert_quality_override, convert_target_override};
     use std::path::Path;
