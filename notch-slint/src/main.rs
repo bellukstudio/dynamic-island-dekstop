@@ -3697,7 +3697,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let eye = eye.clone();
         let config = nudge_runtime_config.clone();
-        let state = Rc::new(RefCell::new((false, 0.0_f32, 0.0_f32)));
+        // (aktif, waktu gerak terakhir, waktu pesan ditampilkan, sedang menampilkan kartu kembali)
+        let state = Rc::new(RefCell::new((false, 0.0_f32, 0.0_f32, false)));
         let state_tick = state.clone();
         nudge_timer.start(TimerMode::Repeated, Duration::from_secs(5), move || {
             let Some(w) = weak.upgrade() else { return };
@@ -3707,12 +3708,15 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut state = state_tick.borrow_mut();
             if last_move > state.1 + 0.001 {
                 let was_visible = state.0 && w.get_nudge_visible();
+                let was_return_card = state.3;
                 state.0 = false;
                 state.1 = last_move;
                 state.2 = 0.0;
-                if was_visible && cfg.enabled && cfg.until_move {
+                state.3 = false;
+                if was_visible && !was_return_card && cfg.enabled && cfg.until_move {
                     state.0 = true;
                     state.2 = elapsed;
+                    state.3 = true;
                     w.set_nudge_message("Akhirnya kamu kembali!".into());
                     w.set_nudge_detail("Senang melihatmu kembali".into());
                     eye.borrow_mut().mood.flash(Mood::Happy, u64::from(cfg.show_ms) + 5_000, Instant::now());
@@ -3724,11 +3728,17 @@ fn main() -> Result<(), slint::PlatformError> {
             if !cfg.enabled {
                 w.set_nudge_visible(false);
                 state.0 = false;
+                state.3 = false;
                 return;
             }
             if state.0 {
-                if elapsed - state.2 >= cfg.show_ms as f32 / 1000.0 {
+                // Sapaan awal bertahan sampai pointer bergerak. Kartu "kembali" tetap
+                // memiliki durasi sendiri, lalu menunggu periode idle berikutnya.
+                if (state.3 || !cfg.until_move)
+                    && elapsed - state.2 >= cfg.show_ms as f32 / 1000.0
+                {
                     w.set_nudge_visible(false);
+                    state.3 = false;
                 }
                 return;
             }
