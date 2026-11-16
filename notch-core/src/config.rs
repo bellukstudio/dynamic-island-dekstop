@@ -464,6 +464,14 @@ mod tests {
     }
 
     #[test]
+    fn migrate_adds_currency_to_older_page_configs() {
+        let mut c: Config = toml::from_str("pages = [\\"media\\", \\"battery\\"]\\n").unwrap();
+        c.normalize();
+        assert!(c.pages.iter().any(|p| p == "currency"));
+        assert_eq!(c.pages_version, PAGES_VERSION);
+    }
+
+    #[test]
     fn normalize_clamps_and_sanitizes() {
         let mut c: Config = toml::from_str("scale = 9.0\npages = []\n[appearance]\nnotch_theme = \"tidak-ada\"\n").unwrap();
         c.normalize();
@@ -484,7 +492,8 @@ mod tests {
         let mut c: Config = toml::from_str("pages = [\"media\", \"battery\"]\n").unwrap();
         c.normalize();
         assert_eq!(c.pages[1], "clock");
-        assert_eq!(c.pages_version, 6);
+        assert_eq!(c.pages_version, PAGES_VERSION);
+        assert!(c.pages.iter().any(|p| p == "currency"));
     }
 
     #[test]
