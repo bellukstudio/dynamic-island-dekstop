@@ -176,6 +176,28 @@ mod tests {
         let _ = std::fs::remove_file(source);
         let _ = std::fs::remove_file(output);
     }
+
+    #[test]
+    fn compresses_office_zip_and_keeps_its_package_entries() {
+        use std::io::Write;
+
+        let source = std::env::temp_dir().join(format!("notch-tools-test-{}.docx", std::process::id()));
+        let file = std::fs::File::create(&source).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive.start_file("word/document.xml", zip::write::SimpleFileOptions::default()).unwrap();
+        archive.write_all(&vec![b'x'; 4096]).unwrap();
+        archive.finish().unwrap();
+
+        let (output, before, after) = super::compress_office_file(&source, 30).unwrap();
+        let file = std::fs::File::open(&output).unwrap();
+        let mut result = zip::ZipArchive::new(file).unwrap();
+        assert!(result.by_name("word/document.xml").is_ok());
+        assert!(before > 0);
+        assert!(after > 0);
+
+        let _ = std::fs::remove_file(source);
+        let _ = std::fs::remove_file(output);
+    }
 }
 
 
