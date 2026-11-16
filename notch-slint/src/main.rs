@@ -160,7 +160,7 @@ fn format_convert_selection(paths: &[String]) -> String {
     lines.join("\n")
 }
 
-fn load_convert_document_preview(path: &std::path::Path, page: usize) -> Result<(Image, usize), String> {
+fn load_convert_document_preview(path: &std::path::Path, page: usize, dpi: u32) -> Result<(Image, usize), String> {
     let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
     let bytes = if extension == "pdf" {
         std::fs::read(path).map_err(|error| format!("PDF tidak dapat dibaca: {error}"))?
@@ -170,7 +170,7 @@ fn load_convert_document_preview(path: &std::path::Path, page: usize) -> Result<
         let image = Image::load_from_path(path).map_err(|error| format!("Preview tidak tersedia: {error}"))?;
         return Ok((image, 1));
     };
-    let (rendered, total) = notch_tools::pdf::render_page(&bytes, page, 110)?;
+    let (rendered, total) = notch_tools::pdf::render_page(&bytes, page, dpi)?;
     let rgba = rendered.to_rgba8();
     let image = Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
         rgba.as_raw(), rgba.width(), rgba.height(),
@@ -178,9 +178,9 @@ fn load_convert_document_preview(path: &std::path::Path, page: usize) -> Result<
     Ok((image, total))
 }
 
-fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page: usize) {
+fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page: usize, dpi: u32) {
     std::thread::spawn(move || {
-        let result = load_convert_document_preview(std::path::Path::new(&path), page);
+        let result = load_convert_document_preview(std::path::Path::new(&path), page, dpi);
         let _ = weak.upgrade_in_event_loop(move |window| {
             match result {
                 Ok((image, total)) => {
@@ -1723,6 +1723,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
     let convert_preview_page = Rc::new(Cell::new(0usize));
+    let convert_preview_dpi = Rc::new(Cell::new(110u32));
     let convert_preview_path = Rc::new(RefCell::new(String::new()));
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -1738,6 +1739,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
         let preview_page = convert_preview_page.clone();
+        let preview_dpi = convert_preview_dpi.clone();
         let preview_path = convert_preview_path.clone();
         let weak_preview = weak.clone();
         win.on_convert_pick(move || {
@@ -1753,11 +1755,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_history_text(format_convert_history().into());
                 w.set_convert_files_text(format_convert_selection(&selected).into());
                 preview_page.set(0);
+                preview_dpi.set(110);
+                w.set_convert_preview_zoom_text("110 DPI".into());
                 *preview_path.borrow_mut() = first.clone();
                 w.set_convert_preview_page_text("Memuat preview…".into());
                 w.set_convert_preview_total(1);
                 w.set_convert_preview_status("".into());
-                request_convert_document_preview(weak_preview.clone(), first.clone(), 0);
+                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, preview_dpi.get());
                 w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
@@ -2006,6 +2010,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let page = convert_preview_page.clone();
+        let dpi = convert_preview_dpi.clone();
         let path = convert_preview_path.clone();
         let weak_preview = weak.clone();
         win.on_convert_preview_prev(move || {
@@ -2014,10 +2019,11 @@ fn main() -> Result<(), slint::PlatformError> {
             let next = current - 1;
             page.set(next);
             let selected = path.borrow().clone();
-            if !selected.is_empty() { request_convert_document_preview(weak_preview.clone(), selected, next); }
+            if !selected.is_empty() { request_convert_document_preview(weak_preview.clone(), selected, next, dpi.get()); }
         });
         let weak = win.as_weak();
         let page = convert_preview_page.clone();
+        let dpi = convert_preview_dpi.clone();
         let path = convert_preview_path.clone();
         win.on_convert_preview_next(move || {
             let next = page.get().saturating_add(1);
@@ -2025,7 +2031,33 @@ fn main() -> Result<(), slint::PlatformError> {
             if next >= window.get_convert_preview_total().max(1) as usize { return; }
             page.set(next);
             let selected = path.borrow().clone();
-            if !selected.is_empty() { request_convert_document_preview(weak.clone(), selected, next); }
+            if !selected.is_empty() { request_convert_document_preview(weak.clone(), selected, next, dpi.get()); }
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let dpi = convert_preview_dpi.clone();
+        let page = convert_preview_page.clone();
+        let path = convert_preview_path.clone();
+        let weak_preview = weak.clone();
+        win.on_convert_preview_zoom_in(move || {
+            let next = (dpi.get() + 20).min(300);
+            dpi.set(next);
+            let selected = path.borrow().clone();
+            if let Some(window) = weak.upgrade() { window.set_convert_preview_zoom_text(format!("{next} DPI").into()); }
+            if !selected.is_empty() { request_convert_document_preview(weak_preview.clone(), selected, page.get(), next); }
+        });
+        let weak = win.as_weak();
+        let dpi = convert_preview_dpi.clone();
+        let page = convert_preview_page.clone();
+        let path = convert_preview_path.clone();
+        let weak_preview = weak.clone();
+        win.on_convert_preview_zoom_out(move || {
+            let next = dpi.get().saturating_sub(20).max(60);
+            dpi.set(next);
+            let selected = path.borrow().clone();
+            if let Some(window) = weak.upgrade() { window.set_convert_preview_zoom_text(format!("{next} DPI").into()); }
+            if !selected.is_empty() { request_convert_document_preview(weak_preview.clone(), selected, page.get(), next); }
         });
     }
     {
