@@ -91,6 +91,32 @@ enum Tk {
     Nl,
 }
 
+fn fallback_runs(fonts: &Fonts, runs: &[Run]) -> Vec<Run> {
+    let mut resolved = Vec::new();
+    for run in runs {
+        let mut active_face = None;
+        let mut text = String::new();
+        for ch in run.text.chars() {
+            let face = fonts.fallback_face(run.face, ch);
+            if active_face.map(|active| active != face).unwrap_or(false) && !text.is_empty() {
+                let mut part = run.clone();
+                part.face = active_face.unwrap();
+                part.text = std::mem::take(&mut text);
+                resolved.push(part);
+            }
+            active_face = Some(face);
+            text.push(ch);
+        }
+        if !text.is_empty() {
+            let mut part = run.clone();
+            part.face = active_face.unwrap_or(run.face);
+            part.text = text;
+            resolved.push(part);
+        }
+    }
+    resolved
+}
+
 fn tokenize(fonts: &Fonts, runs: &[Run]) -> Vec<Tk> {
     let mut out = Vec::new();
     for (ri, r) in runs.iter().enumerate() {
@@ -156,12 +182,16 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
     // posisi awal teks & label (bullet)
     let (first_x, label) = match &p.label {
         Some(l) => {
-            let lw = fonts.text_w(l.run.face, &l.text, l.run.size);
+            let mut label = l.clone();
+            if let Some(ch) = l.text.chars().find(|c| !c.is_whitespace()) {
+                label.run.face = fonts.fallback_face(l.run.face, ch);
+            }
+            let lw = fonts.text_w(label.run.face, &label.text, label.run.size);
             if p.first < 0.0 {
-                (p.left, Some((l.clone(), (p.left + p.first).max(0.0))))
+                (p.left, Some((label, (p.left + p.first).max(0.0))))
             } else {
                 let lx = p.left + p.first;
-                (lx + lw + 4.0, Some((l.clone(), lx)))
+                (lx + lw + 4.0, Some((label, lx)))
             }
         }
         None => ((p.left + p.first).max(0.0), None),
@@ -171,7 +201,8 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
     let avail_rest = (width - rest_x - p.right).max(8.0);
     let justify = p.align == Align::Justify;
 
-    let toks = tokenize(fonts, &p.runs);
+    let runs = fallback_runs(fonts, &p.runs);
+    let toks = tokenize(fonts, &runs);
     let mut lines: Vec<Line> = Vec::new();
     let mut cur = Build::new(false);
 
@@ -242,14 +273,14 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
                 let avail = if first { avail_first } else { avail_rest };
                 {
                     // kata lebih panjang dari baris: pecah per karakter
-                    let r = &p.runs[ri];
+                    let r = &runs[ri];
                     if w > avail && cur.x + w > avail {
                         let mut piece = String::new();
                         let mut pw = 0.0;
                         for c in s.chars() {
                             let cw = fonts.char_w(r.face, c, r.size);
                             if cur.x + pw + cw > avail && !(piece.is_empty() && cur.segs.is_empty()) {
-                                push_seg(&mut cur, p, ri, &piece, pw, justify);
+                                push_seg(&mut cur, &runs, ri, &piece, pw, justify);
                                 finish(&mut cur, &mut lines, false, &mut label);
                                 piece.clear();
                                 pw = 0.0;
@@ -261,7 +292,7 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
                             push_seg(&mut cur, p, ri, &piece, pw, justify);
                         }
                     } else {
-                        push_seg(&mut cur, p, ri, &s, w, justify);
+                        push_seg(&mut cur, &runs, ri, &s, w, justify);
                     }
                 }
             }
@@ -271,7 +302,7 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
     lines
 }
 
-fn push_seg(cur: &mut Build, p: &Para, ri: usize, text: &str, w: f32, justify: bool) {
+fn push_seg(cur: &mut Build, runs: &[Run], ri: usize, text: &str, w: f32, justify: bool) {
     // gabung dengan segmen sebelumnya bila gaya sama dan bersambung (hindari ribuan Tj)
     let merge = !justify
         && cur.last_ri == ri
@@ -281,7 +312,7 @@ fn push_seg(cur: &mut Build, p: &Para, ri: usize, text: &str, w: f32, justify: b
         l.run.text.push_str(text);
         l.w += w;
     } else {
-        let mut run = p.runs[ri].clone();
+        let mut run = runs[ri].clone();
         run.text = text.to_string();
         cur.segs.push(Seg { run, x: cur.x, w, sp: cur.sp_pending });
     }
