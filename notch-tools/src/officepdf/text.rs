@@ -459,6 +459,14 @@ pub fn draw_blocks(pdf: &mut Pdf, blocks: &[Block], x: f32, mut y: f32, width: f
 // =================================================================================================
 // Flow: aliran halaman
 // =================================================================================================
+fn section_needs_blank_page(page_number: usize, break_type: SectionBreak) -> bool {
+    match break_type {
+        SectionBreak::OddPage => page_number % 2 == 0,
+        SectionBreak::EvenPage => page_number % 2 == 1,
+        _ => false,
+    }
+}
+
 pub struct Flow {
     pub pw: f32,
     pub ph: f32,
@@ -524,14 +532,14 @@ impl Flow {
             SectionBreak::OddPage => {
                 self.page_break(pdf);
                 // Page numbers are one-based. If the new page is even, insert a blank page.
-                if self.open && pdf.page_count() % 2 == 0 {
+                if self.open && section_needs_blank_page(pdf.page_count(), SectionBreak::OddPage) {
                     self.page_break(pdf);
                 }
             }
             SectionBreak::EvenPage => {
                 self.page_break(pdf);
                 // If the new page is odd, insert a blank page before the section starts.
-                if self.open && pdf.page_count() % 2 == 1 {
+                if self.open && section_needs_blank_page(pdf.page_count(), SectionBreak::EvenPage) {
                     self.page_break(pdf);
                 }
             }
@@ -681,5 +689,29 @@ mod image_layout_tests {
         for image in invalid {
             assert_eq!(img_size(&image, 100.0), (0.0, 0.0));
         }
+    }
+}
+
+
+#[cfg(test)]
+mod section_break_tests {
+    use super::{section_needs_blank_page, SectionBreak};
+
+    #[test]
+    fn odd_page_section_inserts_blank_only_when_next_page_is_even() {
+        assert!(section_needs_blank_page(2, SectionBreak::OddPage));
+        assert!(!section_needs_blank_page(3, SectionBreak::OddPage));
+    }
+
+    #[test]
+    fn even_page_section_inserts_blank_only_when_next_page_is_odd() {
+        assert!(section_needs_blank_page(1, SectionBreak::EvenPage));
+        assert!(!section_needs_blank_page(2, SectionBreak::EvenPage));
+    }
+
+    #[test]
+    fn regular_and_continuous_sections_do_not_insert_parity_pages() {
+        assert!(!section_needs_blank_page(1, SectionBreak::NextPage));
+        assert!(!section_needs_blank_page(2, SectionBreak::Continuous));
     }
 }
