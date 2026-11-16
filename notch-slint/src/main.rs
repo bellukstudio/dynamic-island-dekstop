@@ -986,12 +986,13 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
     win.set_hub_pages(cfg.pages.join(", ").into());
+    win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(cfg.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_pages(move |value| {
-            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings"];
+            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
             let mut pages = Vec::<String>::new();
             for item in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
                 if !allowed.contains(&item) {
@@ -1027,6 +1028,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.set_page_id(tabs[0].as_str().into());
                         }
                         w.set_hub_pages(pages.join(", ").into());
+                        w.set_active_pages(ModelRc::from(Rc::new(VecModel::from(pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
                         w.set_pages_save_status("Halaman hub tersimpan dan langsung diperbarui.".into());
                     }
                 }
