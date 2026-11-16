@@ -1054,7 +1054,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         let mut was_down = false;
-        let mut drag: Option<((i32, i32), (i32, i32), bool)> = None;
+        let mut drag: Option<((i32, i32), (i32, i32), bool, (i32, i32))> = None;
         let click_suppress_timer = Timer::default();
         let drag_timer = Timer::default();
         drag_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
@@ -1069,24 +1069,31 @@ fn main() -> Result<(), slint::PlatformError> {
                         && cy >= p.y && cy < p.y + z.height as i32
                         && !w.get_expanded()
                     {
-                        drag = Some(((cx, cy), (p.x, p.y), false));
+                        drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
                         w.set_play_interaction_active(true);
                     }
                 }
             }
             if down {
-                if let (Some((cx, cy)), Some((start_cursor, start_window, moved))) = (cursor, drag) {
+                if let (Some((cx, cy)), Some((start_cursor, start_window, moved, mut orb_offset))) = (cursor, drag) {
                     let dx = cx - start_cursor.0;
                     let dy = cy - start_cursor.1;
                     let is_moved = moved || dx.abs() + dy.abs() >= 3;
                     if is_moved {
-                        w.set_dragging(true);
-                        w.window().set_position(PhysicalPosition::new(start_window.0 + dx, start_window.1 + dy));
-                        drag = Some((start_cursor, start_window, true));
+                        if !moved {
+                            let old_size = w.window().size();
+                            let sf = w.window().scale_factor();
+                            let orb_size = (64.0 * sf).round() as u32;
+                            orb_offset = ((old_size.width as i32 - orb_size as i32) / 2, (old_size.height as i32 - orb_size as i32) / 2);
+                            w.window().set_size(PhysicalSize::new(orb_size, orb_size));
+                            w.set_dragging(true);
+                        }
+                        w.window().set_position(PhysicalPosition::new(start_window.0 + dx + orb_offset.0, start_window.1 + dy + orb_offset.1));
+                        drag = Some((start_cursor, start_window, true, orb_offset));
                     }
                 }
             } else if was_down {
-                if let Some((_, _, moved)) = drag.take() {
+                if let Some((_, _, moved, _)) = drag.take() {
                     if moved {
                         if let Some((cx, cy)) = cursor {
                             w.set_suppress_next_pill_click(true);
