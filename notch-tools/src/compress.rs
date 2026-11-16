@@ -266,6 +266,10 @@ fn compress_office_bytes(source: &[u8], profile: Profile, fast: bool) -> Result<
         .compression_method(zip::CompressionMethod::Deflated)
         .compression_level(Some(if fast { 6 } else { 9 }));
 
+    const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
+    const MAX_TOTAL_BYTES: u64 = 1024 * 1024 * 1024;
+    let mut total_uncompressed = 0u64;
+
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
         let name = entry.name().to_string();
@@ -274,8 +278,26 @@ fn compress_office_bytes(source: &[u8], profile: Profile, fast: bool) -> Result<
             continue;
         }
 
-        let mut data = Vec::with_capacity(entry.size() as usize);
-        entry.read_to_end(&mut data).map_err(|error| error.to_string())?;
+        let declared_size = entry.size();
+        if declared_size > MAX_ENTRY_BYTES
+            || total_uncompressed.checked_add(declared_size).filter(|size| *size <= MAX_TOTAL_BYTES).is_none()
+        {
+            return Err("Paket Office melewati batas ukuran ekstraksi yang aman.".into());
+        }
+        let capacity = usize::try_from(declared_size)
+            .map_err(|_| "Ukuran entri Office tidak didukung pada perangkat ini.")?;
+        let mut data = Vec::with_capacity(capacity);
+        entry
+            .by_ref()
+            .take(MAX_ENTRY_BYTES + 1)
+            .read_to_end(&mut data)
+            .map_err(|error| error.to_string())?;
+        if data.len() as u64 > MAX_ENTRY_BYTES
+            || total_uncompressed.checked_add(data.len() as u64).filter(|size| *size <= MAX_TOTAL_BYTES).is_none()
+        {
+            return Err("Data hasil ekstraksi Office melewati batas ukuran yang aman.".into());
+        }
+        total_uncompressed += data.len() as u64;
         let lower_name = name.to_ascii_lowercase();
         if lower_name.contains("/media/") {
             if lower_name.ends_with(".jpg") || lower_name.ends_with(".jpeg") {
