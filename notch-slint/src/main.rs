@@ -32,6 +32,7 @@ mod privacy;
 mod hotkeys;
 mod colorpick;
 mod compress;
+mod convert;
 
 slint::include_modules!();
 
@@ -530,6 +531,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
     let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
@@ -1294,6 +1296,37 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let weak = win.as_weak();
+        win.on_convert_pick(move || {
+            let selected = rfd::FileDialog::new()
+                .add_filter("Gambar", &["jpg", "jpeg", "png", "webp", "bmp", "gif"])
+                .pick_file();
+            if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
+                w.set_convert_selected_path(path.to_string_lossy().to_string().into());
+                w.set_convert_status(format!("Dipilih: {}", path.display()).into());
+            }
+        });
+    }
+    {
+        let weak = win.as_weak();
+        win.on_convert_run(move |raw_path, raw_format| {
+            let path = raw_path.to_string();
+            let format = raw_format.to_string();
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let result = convert::convert_image(std::path::Path::new(&path), &format);
+                let message = match result {
+                    Ok(output) => format!("Konversi selesai: {}", output.display()),
+                    Err(error) => format!("Gagal: {error}"),
+                };
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
+                });
+            });
+        });
+    }
+
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
     {
@@ -1320,6 +1353,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     hotkeys::Action::ColorPicker => {
                         colorpick::toggle();
+                    }
+                    hotkeys::Action::OpenConvert => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("convert".into());
+                            expand();
+                        }
                     }
                     hotkeys::Action::OpenCompress => {
                         if let Some(w) = weak.upgrade() {

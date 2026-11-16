@@ -1109,6 +1109,39 @@ component CompressPage inherits VerticalLayout {
     }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
 }
+component ConvertPage inherits VerticalLayout {
+    in property <string> file-path: "";
+    in property <string> target-format: "png";
+    in property <string> status: "Pilih gambar untuk dikonversi";
+    callback run(string, string);
+    callback pick-file();
+    alignment: start;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 7px;
+    Text { text: "Convert"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Konversi format gambar"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #ffffff18;
+        VerticalLayout {
+            padding: 9px;
+            spacing: 5px;
+            Text { text: "File sumber"; color: Theme.text-faint; font-size: 10px; }
+            path-input := TextInput { text: root.file-path; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Format tujuan: png, jpg, webp, bmp, gif"; color: Theme.text-faint; font-size: 10px; }
+            format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
+        }
+    }
+    HorizontalLayout {
+        alignment: end;
+        Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
+        Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text); } }
+    }
+    Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+}
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1223,6 +1256,8 @@ export component NotchWindow inherits Window {
     in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
     in property <string> compress-selected-path: "";
+    in property <string> convert-selected-path: "";
+    in property <string> convert-status: "Pilih gambar untuk dikonversi";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1278,6 +1313,9 @@ export component NotchWindow inherits Window {
     callback compress-run(string);
     callback compress-pick();
     callback compress-selected-path(string);
+    callback convert-run(string, string);
+    callback convert-pick();
+    callback convert-selected-path(string);
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1502,6 +1540,12 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
+                    if root.page-id == "convert": ConvertPage {
+                        file-path: root.convert-selected-path;
+                        status: root.convert-status;
+                        run(path, format) => { root.convert-run(path, format); }
+                        pick-file => { root.convert-pick(); }
+                    }
                     if root.page-id == "compress": CompressPage {
                         status: root.compress-status;
                         file-path: root.compress-selected-path;

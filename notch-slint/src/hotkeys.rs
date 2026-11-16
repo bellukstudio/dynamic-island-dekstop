@@ -13,6 +13,7 @@ pub enum Action {
     ColorPicker,
     OpenSettings,
     OpenCompress,
+    OpenConvert,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -126,6 +127,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         (4i32, "Ctrl+Alt+Shift+P".to_string(), Action::ColorPicker),
                         (5i32, latest.open_settings.clone(), Action::OpenSettings),
                         (6i32, "Ctrl+Alt+Shift+K".to_string(), Action::OpenCompress),
+                        (7i32, "Ctrl+Alt+Shift+C".to_string(), Action::OpenConvert),
                     ];
                     let mut used = std::collections::HashSet::new();
                     for (id, combo, action) in entries {
