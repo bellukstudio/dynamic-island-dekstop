@@ -2657,6 +2657,8 @@ export component NotchWindow inherits Window {
         // Skala badan mengikuti pegas Bottom/Side Play, sementara titik docking tetap menjadi jangkar.
         width: root.expanded ? 580px : (root.dragging ? 58px : (root.dock >= 3 ? 34px : 130px) * root.play-body-scale-x);
         height: root.expanded ? 202px : (root.dragging ? 58px : (root.dock >= 3 ? 130px : 34px) * root.play-body-scale-y);
+        animate width { duration: 160ms; }
+        animate height { duration: 160ms; }
         background: Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
