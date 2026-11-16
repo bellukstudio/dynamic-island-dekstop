@@ -298,6 +298,7 @@ pub struct Config {
     pub nudge: Nudge,
     pub position: Position,
     pub prayer: Prayer,
+    pub shortcuts: Shortcuts,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -319,6 +320,7 @@ impl Default for Config {
             nudge: Nudge::default(),
             position: Position::default(),
             prayer: Prayer::default(),
+            shortcuts: Shortcuts::default(),
         }
     }
 }
@@ -333,7 +335,17 @@ impl Config {
         }
         self.nudge.sanitize();
         self.appearance.sanitize();
+        self.shortcuts.sanitize();
         migrate(self);
+    }
+
+    /// Simpan konfigurasi melalui file sementara agar file lama tidak terpotong bila gagal.
+    pub fn save(&self, path: &Path) -> std::io::Result<()> {
+        if let Some(parent) = path.parent() { std::fs::create_dir_all(parent)?; }
+        let content = toml::to_string_pretty(self).map_err(std::io::Error::other)?;
+        let temp = path.with_extension("toml.tmp");
+        std::fs::write(&temp, content)?;
+        std::fs::rename(temp, path)
     }
 
     /// Baca config.toml TANPA menulis apa pun (beda dengan `init` di Tauri yang membuat/menambah file).
@@ -386,6 +398,14 @@ mod tests {
         c.normalize();
         assert_eq!(c.pages[1], "clock");
         assert_eq!(c.pages_version, 6);
+    }
+
+    #[test]
+    fn shortcut_values_are_sanitized() {
+        let mut c: Config = toml::from_str("[shortcuts]\ntoggle_hub = \"\"\nopen_settings = \"Ctrl+Shift+S\"\n").unwrap();
+        c.normalize();
+        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
+        assert_eq!(c.shortcuts.open_settings, "Ctrl+Shift+S");
     }
 
     #[test]
