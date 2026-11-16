@@ -1142,6 +1142,45 @@ component ConvertPage inherits VerticalLayout {
     }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
 }
+component TransferPage inherits VerticalLayout {
+    in property <string> status: "Server belum aktif";
+    in property <string> address: "";
+    in property <int> shared-count: 0;
+    callback start();
+    callback stop();
+    callback add-files();
+    callback open-inbox();
+    alignment: start;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 8px;
+    Text { text: "File Transfer"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Berbagi file melalui jaringan lokal"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #ffffff18;
+        VerticalLayout {
+            padding: 9px;
+            spacing: 6px;
+            Text { text: root.status; color: Theme.text; font-size: 11px; wrap: word-wrap; }
+            Text { text: root.address; color: Theme.accent; font-size: 10px; wrap: word-wrap; }
+            Text { text: "File dibagikan: " + root.shared-count; color: Theme.text-faint; font-size: 10px; }
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Chip { label: "Mulai server"; clicked => { root.start(); } }
+        Chip { label: "Hentikan"; clicked => { root.stop(); } }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Chip { label: "Tambah file"; clicked => { root.add-files(); } }
+        Chip { label: "Folder masuk"; clicked => { root.open-inbox(); } }
+    }
+    Text { text: "Perangkat lain yang satu jaringan dapat membuka alamat di atas untuk mengunduh atau mengirim file."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+}
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1258,6 +1297,9 @@ export component NotchWindow inherits Window {
     in property <string> compress-selected-path: "";
     in property <string> convert-selected-path: "";
     in property <string> convert-status: "Pilih gambar untuk dikonversi";
+    in property <string> transfer-status: "Server belum aktif";
+    in property <string> transfer-address: "";
+    in property <int> transfer-shared-count: 0;
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1316,6 +1358,10 @@ export component NotchWindow inherits Window {
     callback convert-run(string, string);
     callback convert-pick();
     callback convert-selected-path(string);
+    callback transfer-start();
+    callback transfer-stop();
+    callback transfer-add-files();
+    callback transfer-open-inbox();
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1540,6 +1586,15 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
+                    if root.page-id == "transfer": TransferPage {
+                        status: root.transfer-status;
+                        address: root.transfer-address;
+                        shared-count: root.transfer-shared-count;
+                        start => { root.transfer-start(); }
+                        stop => { root.transfer-stop(); }
+                        add-files => { root.transfer-add-files(); }
+                        open-inbox => { root.transfer-open-inbox(); }
+                    }
                     if root.page-id == "convert": ConvertPage {
                         file-path: root.convert-selected-path;
                         status: root.convert-status;

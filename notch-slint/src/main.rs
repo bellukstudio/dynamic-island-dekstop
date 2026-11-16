@@ -33,6 +33,7 @@ mod hotkeys;
 mod colorpick;
 mod compress;
 mod convert;
+mod transfer;
 
 slint::include_modules!();
 
@@ -531,6 +532,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_dir().join("Notch"))));
     win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
@@ -1327,6 +1329,49 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let state = transfer_state.clone();
+        let weak = win.as_weak();
+        win.on_transfer_start(move || {
+            let result = state.lock().unwrap_or_else(|e| e.into_inner()).start();
+            if let Some(w) = weak.upgrade() {
+                match result {
+                    Ok(url) => { w.set_transfer_address(url.into()); w.set_transfer_status("Server aktif — bagikan alamat ini ke perangkat lain".into()); }
+                    Err(error) => w.set_transfer_status(format!("Gagal memulai server: {error}").into()),
+                }
+            }
+        });
+    }
+    {
+        let state = transfer_state.clone();
+        let weak = win.as_weak();
+        win.on_transfer_stop(move || {
+            state.lock().unwrap_or_else(|e| e.into_inner()).stop();
+            if let Some(w) = weak.upgrade() { w.set_transfer_address("".into()); w.set_transfer_status("Server dihentikan".into()); }
+        });
+    }
+    {
+        let state = transfer_state.clone();
+        let weak = win.as_weak();
+        win.on_transfer_add_files(move || {
+            if let Some(paths) = rfd::FileDialog::new().pick_files() {
+                let strings = paths.into_iter().map(|p| p.to_string_lossy().into_owned()).collect();
+                let count = state.lock().unwrap_or_else(|e| e.into_inner()).add_files(strings);
+                if let Some(w) = weak.upgrade() { w.set_transfer_shared_count(count as i32); w.set_transfer_status("Daftar file dibagikan diperbarui".into()); }
+            }
+        });
+    }
+    {
+        let inbox = notch_core::paths::data_dir().join("Notch");
+        let weak = win.as_weak();
+        win.on_transfer_open_inbox(move || {
+            let result = transfer::open_inbox(&inbox);
+            if let Err(error) = result {
+                if let Some(w) = weak.upgrade() { w.set_transfer_status(format!("Gagal membuka folder: {error}").into()); }
+            }
+        });
+    }
+
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
     {
@@ -1353,6 +1398,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     hotkeys::Action::ColorPicker => {
                         colorpick::toggle();
+                    }
+                    hotkeys::Action::OpenTransfer => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("transfer".into());
+                            expand();
+                        }
                     }
                     hotkeys::Action::OpenConvert => {
                         if let Some(w) = weak.upgrade() {
