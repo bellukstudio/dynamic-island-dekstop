@@ -140,6 +140,10 @@ fn copy_convert_directory(source: &std::path::Path, destination: &std::path::Pat
 
 fn relocate_convert_output(output: &std::path::Path, destination: &std::path::Path) -> Result<std::path::PathBuf, String> {
     std::fs::create_dir_all(destination).map_err(|error| format!("Folder output tidak dapat dibuat: {error}"))?;
+    let output_parent = output.parent().unwrap_or_else(|| std::path::Path::new("."));
+    if output_parent.canonicalize().ok() == destination.canonicalize().ok() {
+        return Ok(output.to_path_buf());
+    }
     let name = output.file_name().ok_or_else(|| "Nama hasil konversi tidak valid".to_string())?;
     let mut target = destination.join(name);
     let stem = output.file_stem().and_then(|value| value.to_str()).unwrap_or("hasil");
