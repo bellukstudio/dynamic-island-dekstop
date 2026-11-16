@@ -1496,6 +1496,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_progress_text("0%".into());
+            }
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let total = paths.len();
@@ -1555,6 +1558,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                         Err(error) => failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))),
                     }
+                    let percent = (index + 1) * 100 / total;
+                    let progress_text = format!("{percent}% ({}/{total})", index + 1);
+                    let weak_progress = weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(w) = weak_progress.upgrade() {
+                            w.set_convert_progress_text(progress_text.into());
+                        }
+                    });
                 }
                 let mut message = format!("Batch selesai: {completed}/{total} file berhasil");
                 if !outputs.is_empty() {
