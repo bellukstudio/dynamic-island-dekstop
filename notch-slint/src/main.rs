@@ -3549,10 +3549,15 @@ fn main() -> Result<(), slint::PlatformError> {
         let eye = appearance_eye.clone();
         let voice = greeting_voice_runtime.clone();
         let timer = Timer::default();
-        win.on_settings_test_greeting(move |mode, custom_text| {
+        win.on_settings_test_greeting(move |mode, custom_text, voice_preset| {
             let Some(w) = weak.upgrade() else { return };
             let mode = mode.to_string();
             let custom_text = custom_text.to_string().trim().to_string();
+            let voice_preset = voice_preset.to_string();
+            if !["cewek", "cowok", "anime-cewek", "anime-cowok", "system"].contains(&voice_preset.as_str()) {
+                w.set_greeting_save_status("Preset suara tidak valid.".into());
+                return;
+            }
             let (hour, _, _, _, _) = platform::local_time();
             let message = match speech::greeting_text(&mode, &custom_text, hour) {
                 Some(message) => message,
@@ -3561,7 +3566,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     return;
                 }
             };
-            let selected_voice = voice.borrow().clone();
+            // Pratinjau memakai preset yang sedang dipilih di UI, meskipun belum disimpan.
+            let selected_voice = voice_preset;
             let speech_message = message.clone();
             let speech_voice = selected_voice.clone();
             let _ = speech::speak(speech_message, speech_voice);
