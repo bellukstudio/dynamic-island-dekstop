@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn png_predictor_decodes_up_filter() {
         // Filter 2: each byte is the difference from the previous row.
-        let decoded = super::pdf_unpredict_png(&[2, 1, 2, 3, 4], 1, 2).unwrap();
+        let decoded = super::pdf_unpredict_png(&[2, 1, 2, 2, 3, 4], 1, 2).unwrap();
         assert_eq!(decoded, vec![1, 2, 4, 6]);
     }
 
