@@ -2,6 +2,7 @@
 //! (untuk subsetting saat PDF ditulis). Tidak butuh font terpasang khusus: Liberation/DejaVu/Noto
 //! di Linux, Arial/Times/Segoe/Calibri di Windows, atau berkas .ttf yang dibundel di resources/fonts.
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub struct Face {
@@ -25,10 +26,15 @@ pub struct Face {
 impl Face {
     fn load(path: &Path) -> Option<Face> {
         const MAX_FONT_BYTES: u64 = 64 * 1024 * 1024;
-        if std::fs::metadata(path).ok()?.len() > MAX_FONT_BYTES {
+        let file = std::fs::File::open(path).ok()?;
+        if file.metadata().ok()?.len() > MAX_FONT_BYTES {
             return None;
         }
-        let data = std::fs::read(path).ok()?;
+        let mut data = Vec::new();
+        file.take(MAX_FONT_BYTES + 1).read_to_end(&mut data).ok()?;
+        if data.len() as u64 > MAX_FONT_BYTES {
+            return None;
+        }
         let (upem, cmap, adv, asc, desc, gap, bbox, cap, ia, ps) = {
             let f = ttf_parser::Face::parse(&data, 0).ok()?;
             f.tables().glyf?; // hanya outline TrueType (FontFile2)
@@ -214,8 +220,10 @@ impl Fonts {
         // Load optional Unicode/script fonts without making them mandatory for startup.
         // One file is loaded only once even if several system/resource directories overlap.
         const MAX_OPTIONAL_FALLBACK_FACES: usize = 8;
+        const MAX_OPTIONAL_FALLBACK_BYTES: usize = 128 * 1024 * 1024;
         let mut loaded = HashSet::new();
         let mut fallback_count = 0usize;
+        let mut fallback_bytes = 0usize;
         'directories: for dir in &dirs {
             for file in FALLBACK_FONTS {
                 if fallback_count >= MAX_OPTIONAL_FALLBACK_FACES {
@@ -226,6 +234,10 @@ impl Fonts {
                     continue;
                 }
                 if let Some(face) = Face::load(&path) {
+                    if fallback_bytes.saturating_add(face.data.len()) > MAX_OPTIONAL_FALLBACK_BYTES {
+                        continue;
+                    }
+                    fallback_bytes += face.data.len();
                     faces.push(face);
                     fallback_count += 1;
                 }
