@@ -47,10 +47,12 @@ pub struct Motion {
     pub enabled: bool,
     pub interval_secs: u32,
     pub max_moves: u32,
+    /// Animasi wajah native saat notch idle di dock bawah atau samping.
+    pub dock_play_enabled: bool,
 }
 impl Default for Motion {
     fn default() -> Self {
-        Self { enabled: false, interval_secs: 180, max_moves: 3 }
+        Self { enabled: false, interval_secs: 180, max_moves: 3, dock_play_enabled: true }
     }
 }
 
