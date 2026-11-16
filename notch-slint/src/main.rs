@@ -3510,7 +3510,6 @@ fn main() -> Result<(), slint::PlatformError> {
             let mode = mode.to_string();
             let custom_text = custom_text.to_string().trim().to_string();
             let (hour, _, _, _, _) = platform::local_time();
-            let part = if (4..11).contains(&hour) { "pagi" } else if (11..15).contains(&hour) { "siang" } else if (15..18).contains(&hour) { "sore" } else { "malam" };
             let message = match speech::greeting_text(&mode, &custom_text, hour) {
                 Some(message) => message,
                 None => {
@@ -4226,9 +4225,10 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Sapaan otomatis native saat aplikasi mulai. Timer hidup selama event loop Slint berjalan.
     let startup_greeting_timer = Timer::default();
-    let startup_greeting_hide_timer = Timer::default();
+    let startup_greeting_hide_timer = Rc::new(Timer::default());
     if cfg.greeting.enabled {
         let weak = win.as_weak();
+        let hide_timer = startup_greeting_hide_timer.clone();
         let message = speech::greeting_text(&cfg.greeting.mode, &cfg.greeting.custom_text, platform::local_time().0);
         let voice = cfg.greeting.voice.clone();
         startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
@@ -4240,7 +4240,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_nudge_visible(true);
                 let _ = speech::speak(message, voice.clone());
                 let weak_hide = weak.clone();
-                startup_greeting_hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
+                hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
                     if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
                 });
             }
