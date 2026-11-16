@@ -118,6 +118,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
             };
             let mut registered: Vec<(i32, Action)> = Vec::new();
             let mut latest = initial;
+            let mut needs_register = true;
             let mut msg = MSG::default();
             loop {
                 let mut changed = false;
@@ -125,7 +126,8 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                     latest = next;
                     changed = true;
                 }
-                if changed || registered.is_empty() {
+                if changed { needs_register = true; }
+                if needs_register {
                     for (id, _) in registered.drain(..) { let _ = UnregisterHotKey(None, id); }
                     let entries = [
                         (1i32, latest.toggle_hub.clone(), Action::ToggleHub),
@@ -150,6 +152,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                             let _ = action_tx.send(Action::ShortcutRegistrationFailed);
                         }
                     }
+                    needs_register = false;
                 }
                 while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
                     if msg.message == WM_HOTKEY {
