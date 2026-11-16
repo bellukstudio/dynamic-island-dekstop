@@ -6,3 +6,4 @@
 pub mod compress;
 pub mod convert;
 pub mod officepdf;
+pub mod pdf;
