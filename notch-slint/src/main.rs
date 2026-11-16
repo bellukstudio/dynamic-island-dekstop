@@ -984,9 +984,11 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
 
             if w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
-                // Jangan biarkan animasi berjalan di bawah overlay prioritas.
+                // Hentikan gerakan tanpa mengubah ukuran jendela yang sedang dipakai overlay.
                 if animation.take().is_some() {
-                    shell.place(&w, COLLAPSED);
+                    let position = w.window().position();
+                    let size = w.window().size();
+                    shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
                 }
                 return;
             }
