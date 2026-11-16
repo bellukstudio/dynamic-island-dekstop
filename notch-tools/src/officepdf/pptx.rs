@@ -240,7 +240,7 @@ impl<'a, 'b> R<'a, 'b> {
         }
         let sppr = kid(c, "spPr");
         let own = sppr.and_then(|s| kid(s, "xfrm"));
-        let rect: Rect = match own.and_then(xfrm_vals) {
+        let rect = match own.and_then(xfrm_vals) {
             Some(v) => xf.rect(v.0, v.1, v.2, v.3),
             None => ph.and_then(|p| self.inherited_rect(p)),
         };
@@ -332,7 +332,6 @@ impl<'a, 'b> R<'a, 'b> {
         let Some(rel) = rels.get(emb) else { return };
         let Some(bytes) = read_bytes(self.z, &rel.target) else { return };
         let Some(info) = self.pdf.add_image(&rel.target, &bytes) else { return };
-        let (x, y, w, h) = rect;
         let sr = kid(bf, "srcRect");
         let g = |k: &str| sr.and_then(|s| fnum(at(s, k))).unwrap_or(0.0).max(0.0) / 100000.0;
         let (l, t, r, b) = (g("l"), g("t"), g("r"), g("b"));
