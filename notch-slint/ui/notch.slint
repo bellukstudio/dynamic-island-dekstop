@@ -1350,7 +1350,9 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
                 Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
             }
+            Text { text: "Latar tema custom (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
             custom-bg-input := TextInput { text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Warna teks custom (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
             custom-text-input := TextInput { text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
             dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
             light-bg-input := TextInput { text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; }
