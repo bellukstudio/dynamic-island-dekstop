@@ -948,6 +948,48 @@ fn main() -> Result<(), slint::PlatformError> {
         memo: Cell::new((None, 0)),
     });
 
+    // Liquid movement: maksimal beberapa perpindahan acak saat notch idle.
+    // Nonaktif secara default; preferensi tersimpan di [motion] pada config.
+    let liquid_move_timer = Timer::default();
+    if cfg.motion.enabled {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        let interval = cfg.motion.interval_secs.clamp(60, 3600);
+        let max_moves = cfg.motion.max_moves.clamp(1, 10);
+        let started_at = Instant::now();
+        let mut last_move = Instant::now();
+        let mut moves = 0u32;
+        liquid_move_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+            let Some(w) = weak.upgrade() else { return };
+            if moves >= max_moves || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+                return;
+            }
+            if last_move.elapsed() < Duration::from_secs(u64::from(interval)) { return; }
+            let work = platform::work_area(None);
+            let size = w.window().size();
+            let margin = 36i32;
+            let max_x = (work.x + work.w - size.width as i32 / 2 - margin)
+                .max(work.x + size.width as i32 / 2 + margin);
+            let min_x = work.x + size.width as i32 / 2 + margin;
+            let max_y = (work.y + work.h - size.height as i32 - margin)
+                .max(work.y + margin);
+            let min_y = work.y + margin;
+            let seed = started_at.elapsed().as_nanos() as u64
+                ^ (moves as u64).wrapping_mul(0x9E3779B97F4A7C15);
+            let mut value = seed ^ (seed >> 30);
+            value = value.wrapping_mul(0xBF58476D1CE4E5B9);
+            value ^= value >> 27;
+            let rx = (value % (max_x - min_x + 1).max(1) as u64) as i32;
+            value = value.wrapping_mul(0x94D049BB133111EB);
+            let ry = (value % (max_y - min_y + 1).max(1) as u64) as i32;
+            let target = (min_x + rx, min_y + ry);
+            shell.pos.set(Some(target));
+            shell.place(&w, COLLAPSED);
+            last_move = Instant::now();
+            moves += 1;
+        });
+    }
+
     let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let win = NotchWindow::new()?;
