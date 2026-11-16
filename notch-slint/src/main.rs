@@ -2285,6 +2285,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let eye = eye.clone();
         let hide_timer = Rc::new(Timer::default());
         let battery = battery.clone();
+        // Momen yang terjadi ketika hub/kartu/Adzan sedang aktif menunggu sebentar,
+        // mengikuti perilaku antrean di implementasi Tauri.
+        let mut pending_event: Option<(&'static str, &'static str, Instant)> = None;
         let state = Rc::new(RefCell::new((
             false,
             String::new(),
@@ -2368,20 +2371,35 @@ fn main() -> Result<(), slint::PlatformError> {
                 *was_charging = Some(value.charging);
             }
 
+            if cfg.enabled {
+                if let Some((message, detail)) = event {
+                    // Satu momen pending cukup agar pemicu tidak menimpa kartu yang sedang tampil.
+                    if pending_event.is_none() {
+                        pending_event = Some((message, detail, Instant::now() + Duration::from_secs(30)));
+                    }
+                }
+            } else {
+                pending_event = None;
+            }
+            if pending_event.is_some_and(|(_, _, expires)| Instant::now() >= expires) {
+                pending_event = None;
+            }
             let cooldown_ok = last_message.map(|at| at.elapsed() >= Duration::from_secs(u64::from(cfg.cooldown_min) * 60)).unwrap_or(true);
-            if cfg.enabled && cooldown_ok && event.is_some() && !w.get_expanded()
-                && !w.get_meeting_active() && !w.get_adhan_active()
-            {
-                let (message, detail) = event.unwrap();
-                w.set_nudge_message(message.into());
-                w.set_nudge_detail(detail.into());
-                w.set_nudge_visible(true);
-                eye.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
-                *last_message = Some(Instant::now());
-                let weak_hide = weak.clone();
-                hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
-                    if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
-                });
+            let can_show = !w.get_expanded() && !w.get_nudge_visible()
+                && !w.get_reminder_alert_visible() && !w.get_meeting_active()
+                && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
+            if cfg.enabled && cooldown_ok && can_show {
+                if let Some((message, detail, _)) = pending_event.take() {
+                    w.set_nudge_message(message.into());
+                    w.set_nudge_detail(detail.into());
+                    w.set_nudge_visible(true);
+                    eye.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+                    *last_message = Some(Instant::now());
+                    let weak_hide = weak.clone();
+                    hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                        if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                    });
+                }
             }
         });
     }
