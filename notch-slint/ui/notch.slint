@@ -1300,6 +1300,7 @@ component ConvertPage inherits VerticalLayout {
     callback resume();
     callback clear-queue();
     callback remove-queue-file(string);
+    callback retry-failed();
     callback clear-history();
     alignment: start;
     padding-left: 14px;
@@ -1342,6 +1343,7 @@ component ConvertPage inherits VerticalLayout {
         Chip { label: "Hapus antrean"; clicked => { root.clear-queue(); } }
         queue-remove-input := TextInput { text: ""; color: Theme.text; font-size: 10px; single-line: true; }
         Chip { label: "Hapus file"; clicked => { root.remove-queue-file(queue-remove-input.text); } }
+        Chip { label: "Coba ulang gagal"; clicked => { root.retry-failed(); } }
         Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
@@ -1938,6 +1940,7 @@ export component NotchWindow inherits Window {
     callback convert-resume();
     callback convert-clear-queue();
     callback convert-remove-queue-file(string);
+    callback convert-retry-failed();
     callback convert-history-clear();
     callback convert-output-dir-pick();
     callback convert-selected-path(string);
