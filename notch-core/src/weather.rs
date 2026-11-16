@@ -1,5 +1,5 @@
 //! Pengambilan cuaca Open-Meteo untuk UI desktop native.
- //! Fungsi fetch memblokir; jalankan dari thread latar, bukan thread UI.
+//! Fungsi fetch memblokir; jalankan dari thread latar, bukan thread UI.
 
 #[derive(Clone, Debug)]
 pub struct Reading {
@@ -40,8 +40,8 @@ pub fn fetch(lat: f64, lon: f64) -> Result<Reading, String> {
     }
 
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}\\
-         &current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day\\
+        "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}\
+         &current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,is_day\
          &minutely_15=precipitation&forecast_minutely_15=8&timezone=auto"
     );
     let body = crate::http::get_text(&url, 15)?;
