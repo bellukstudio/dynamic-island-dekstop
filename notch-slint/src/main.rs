@@ -1446,6 +1446,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1472,6 +1473,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
         let running = convert_running.clone();
+        let cancel_requested = convert_cancel_requested.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
@@ -1499,16 +1501,21 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
+            cancel_requested.store(false, std::sync::atomic::Ordering::Release);
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
             }
             let weak = weak.clone();
+            let cancel_requested = cancel_requested.clone();
             std::thread::spawn(move || {
                 let total = paths.len();
                 let mut completed = 0usize;
                 let mut failures = Vec::new();
                 let mut outputs = Vec::new();
                 for (index, path) in paths.into_iter().enumerate() {
+                    if cancel_requested.load(std::sync::atomic::Ordering::Acquire) {
+                        break;
+                    }
                     let display_name = std::path::Path::new(&path)
                         .file_name()
                         .map(|name| name.to_string_lossy().into_owned())
@@ -1570,7 +1577,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     });
                 }
-                let mut message = format!("Batch selesai: {completed}/{total} file berhasil");
+                let cancelled = completed < total
+                    && cancel_requested.load(std::sync::atomic::Ordering::Acquire);
+                cancel_requested.store(false, std::sync::atomic::Ordering::Release);
+                let mut message = if cancelled {
+                    format!("Dibatalkan: {completed}/{total} file berhasil")
+                } else {
+                    format!("Batch selesai: {completed}/{total} file berhasil")
+                };
                 if !outputs.is_empty() {
                     message.push_str(" · ");
                     message.push_str(&outputs.join(" | "));
@@ -1584,6 +1598,21 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
             });
+        });
+    }
+    {
+        let cancel_requested = convert_cancel_requested.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
+        win.on_convert_cancel(move || {
+            if running.load(std::sync::atomic::Ordering::Acquire) {
+                cancel_requested.store(true, std::sync::atomic::Ordering::Release);
+                if let Some(w) = weak.upgrade() {
+                    w.set_convert_status("Pembatalan diminta · file yang sedang diproses akan diselesaikan dahulu".into());
+                }
+            } else if let Some(w) = weak.upgrade() {
+                w.set_convert_status("Tidak ada konversi yang sedang berjalan".into());
+            }
         });
     }
     {
