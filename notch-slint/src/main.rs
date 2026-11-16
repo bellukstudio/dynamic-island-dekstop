@@ -4171,6 +4171,47 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // Bottom/Side Play native tahap awal: animasi idle kecil pada wajah saat dock bawah/samping.
+    // Menggunakan satu timer Slint (tanpa WebView, CSS, requestAnimationFrame, atau pemindahan window OS).
+    // Fase gerak diselingi jeda agar tidak mengganggu mata saat pengguna sedang berinteraksi.
+    let dock_play_timer = Timer::default();
+    {
+        let weak = win.as_weak();
+        let started_at = Instant::now();
+        dock_play_timer.start(TimerMode::Repeated, Duration::from_millis(33), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let dock = w.get_dock();
+            let supported = matches!(dock, 2 | 3 | 4);
+            if !supported || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+                w.set_eyes_offset_x(0.0);
+                w.set_eyes_offset_y(0.0);
+                return;
+            }
+
+            // Siklus 4,2 detik: gerak lembut 1,8 detik lalu jeda 2,4 detik.
+            let phase = started_at.elapsed().as_secs_f32() % 4.2;
+            if phase >= 1.8 {
+                w.set_eyes_offset_x(0.0);
+                w.set_eyes_offset_y(0.0);
+                return;
+            }
+            let progress = phase / 1.8;
+            let envelope = (std::f32::consts::PI * progress).sin().max(0.0);
+            let wave = (progress * std::f32::consts::TAU * 2.0).sin();
+            let drift = wave * envelope * 3.2;
+            let settle = wave.abs() * envelope * 0.8;
+            if dock == 2 {
+                // Dock bawah: gerak kiri-kanan, sedikit memantul ke atas.
+                w.set_eyes_offset_x(drift);
+                w.set_eyes_offset_y(-settle);
+            } else {
+                // Dock kiri/kanan: sumbu gerak diputar 90 derajat.
+                w.set_eyes_offset_x(-settle);
+                w.set_eyes_offset_y(drift);
+            }
+        });
+    }
+
     {
         use slint::winit_030::{winit, EventResult, WinitWindowAccessor};
         let weak = win.as_weak();
