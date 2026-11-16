@@ -1014,10 +1014,12 @@ fn main() -> Result<(), slint::PlatformError> {
     // Sembunyikan notch saat aplikasi foreground benar-benar menutupi seluruh monitor.
     // Timer tetap aktif ketika window disembunyikan agar notch muncul kembali setelah fullscreen berakhir.
     let fullscreen_timer = Timer::default();
+    // Dibagikan ke timer Liquid Movement agar perpindahan tidak berjalan saat Notch tersembunyi.
+    let fullscreen_hidden = Rc::new(Cell::new(false));
     {
         let weak = win.as_weak();
         let enabled = hide_fullscreen.clone();
-        let hidden = Rc::new(Cell::new(false));
+        let hidden = fullscreen_hidden.clone();
         fullscreen_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
             let Some(w) = weak.upgrade() else { return };
             let should_hide = enabled.get() && platform::foreground_is_fullscreen();
@@ -1045,6 +1047,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let shell = shell.clone();
         let runtime = motion_runtime.clone();
+        let hidden_by_fullscreen = fullscreen_hidden.clone();
         let started_at = Instant::now();
         let mut last_move = Instant::now();
         let mut moves = 0u32;
@@ -1069,7 +1072,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let interval = runtime.1.get().clamp(60, 3_600);
             let max_moves = runtime.2.get().clamp(1, 10);
 
-            let blocked = w.get_expanded()
+            let blocked = hidden_by_fullscreen.get()
+                || w.get_expanded()
                 || w.get_play_interaction_active()
                 || w.get_nudge_visible()
                 || w.get_reminder_alert_visible()
