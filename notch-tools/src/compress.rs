@@ -726,22 +726,38 @@ fn compress_pdf_with_profiles(
     target: u64,
     original_size: u64,
 ) -> Result<Vec<u8>, String> {
+    // Ghostscript is an optimization, not a hard dependency. A broken/missing runtime,
+    // unsupported PDF feature, or failed profile should fall through to the native engine.
     if let Some(executable) = ghostscript_path() {
-        let worst = compress_pdf_with_ghostscript(executable, path, *GS_LADDER.last().unwrap())?;
-        let selected = if worst.len() as u64 > target {
-            GS_LADDER.len() - 1
-        } else {
-            let (mut low, mut high) = (0usize, GS_LADDER.len() - 1);
-            while low < high {
-                let middle = (low + high) / 2;
-                let candidate = compress_pdf_with_ghostscript(executable, path, GS_LADDER[middle])?;
-                if candidate.len() as u64 <= target { high = middle; } else { low = middle + 1; }
+        if let Ok(worst) = compress_pdf_with_ghostscript(executable, path, *GS_LADDER.last().unwrap()) {
+            let selected_result = if worst.len() as u64 > target {
+                Ok(GS_LADDER.len() - 1)
+            } else {
+                let mut low = 0usize;
+                let mut high = GS_LADDER.len() - 1;
+                let mut failed = false;
+                while low < high {
+                    let middle = (low + high) / 2;
+                    match compress_pdf_with_ghostscript(executable, path, GS_LADDER[middle]) {
+                        Ok(candidate) if candidate.len() as u64 <= target => high = middle,
+                        Ok(_) => low = middle + 1,
+                        Err(_) => {
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+                if failed { Err("Ghostscript gagal saat pencarian profil".to_string()) } else { Ok(low) }
+            };
+            if let Ok(selected) = selected_result {
+                if let Ok(output) = compress_pdf_with_ghostscript(executable, path, GS_LADDER[selected]) {
+                    if (output.len() as u64) < original_size
+                        && lopdf::Document::load_mem(&output).is_ok()
+                    {
+                        return Ok(output);
+                    }
+                }
             }
-            low
-        };
-        let output = compress_pdf_with_ghostscript(executable, path, GS_LADDER[selected])?;
-        if (output.len() as u64) < original_size {
-            return Ok(output);
         }
     }
 
