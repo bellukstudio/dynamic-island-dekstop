@@ -1193,6 +1193,7 @@ component AndroidPage inherits VerticalLayout {
     callback pull(string);
     callback select-device(string);
     callback mirror();
+    callback stop-mirror();
     alignment: start;
     padding-left: 12px;
     padding-right: 12px;
@@ -1235,6 +1236,7 @@ component AndroidPage inherits VerticalLayout {
         Chip { label: "Kirim file ke HP"; clicked => { root.push(serial-input.text, path-input.text); } }
         Chip { label: "Ambil file dari HP"; clicked => { root.pull(path-input.text); } }
         Chip { label: "Mirroring"; clicked => { root.mirror(); } }
+        Chip { label: "Stop mirror"; clicked => { root.stop-mirror(); } }
     }
 }
 component PlaceholderPage inherits VerticalLayout {
@@ -1429,6 +1431,7 @@ export component NotchWindow inherits Window {
     callback android-pull(string);
     callback android-select-device(string);
     callback android-mirror();
+    callback android-stop-mirror();
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1665,6 +1668,7 @@ export component NotchWindow inherits Window {
                         pull(path) => { root.android-pull(path); }
                         select-device(serial) => { root.android-select-device(serial); }
                         mirror => { root.android-mirror(); }
+                        stop-mirror => { root.android-stop-mirror(); }
                     }
                     if root.page-id == "transfer": TransferPage {
                         status: root.transfer-status;

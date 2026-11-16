@@ -1474,6 +1474,19 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
     }
+    {
+        let mirror = mirror_process.clone();
+        let weak = win.as_weak();
+        win.on_android_stop_mirror(move || {
+            let result = mirror.lock().unwrap_or_else(|e| e.into_inner()).stop();
+            if let Some(w) = weak.upgrade() {
+                w.set_android_status(match result {
+                    Ok(message) => message.into(),
+                    Err(error) => format!("Gagal menghentikan mirroring: {error}").into(),
+                });
+            }
+        });
+    }
 
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
