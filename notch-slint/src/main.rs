@@ -2034,14 +2034,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     });
                 }
                 let cancelled = cancel_requested.load(std::sync::atomic::Ordering::Acquire);
-                let queue_cleared = !cancelled && processed < total;
+                let cancelled_files = file_statuses.lock().unwrap_or_else(|error| error.into_inner())
+                    .iter().filter(|(_, status)| status == "Dibatalkan").count();
+                let queue_cleared = !cancelled && processed < total && cancelled_files == 0;
                 cancel_requested.store(false, std::sync::atomic::Ordering::Release);
                 let mut message = if cancelled {
                     format!("Dibatalkan: {completed}/{total} file berhasil")
                 } else if queue_cleared {
                     format!("Antrean dikosongkan: {completed}/{total} file berhasil")
                 } else {
-                    format!("Batch selesai: {completed}/{total} file berhasil")
+                    format!("Batch selesai: {completed}/{total} file berhasil · {cancelled_files} file dibatalkan")
                 };
                 if !outputs.is_empty() {
                     message.push_str(" · ");
