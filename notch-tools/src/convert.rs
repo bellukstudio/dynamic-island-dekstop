@@ -209,6 +209,93 @@ pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
     write_converted(path, "pdf", &bytes)
 }
 
+/// Convert each page of a PDF to PNG or JPEG. Multi-page output is written to a new folder.
+pub fn convert_pdf_to_images(
+    path: &Path,
+    target: &str,
+    dpi: u32,
+    quality: u8,
+) -> Result<(PathBuf, usize, u64), String> {
+    let target = target.trim().trim_start_matches('.').to_ascii_lowercase();
+    let format = match target.as_str() {
+        "png" => ImageFormat::Png,
+        "jpg" | "jpeg" => ImageFormat::Jpeg,
+        other => return Err(format!("Format tujuan PDF tidak didukung: {other}. Gunakan PNG atau JPG.")),
+    };
+    let source = std::fs::read(path).map_err(|error| format!("Tidak bisa membaca PDF: {error}"))?;
+    if source.is_empty() {
+        return Err("File PDF kosong".into());
+    }
+    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("document");
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let extension = if format == ImageFormat::Jpeg { "jpg" } else { "png" };
+    let quality = quality.clamp(40, 100);
+    let mut output_dir: Option<PathBuf> = None;
+    let mut first_output: Option<PathBuf> = None;
+    let mut total_size = 0u64;
+
+    let rendered = crate::pdf::for_each_page(&source, dpi, |index, total, image| {
+        let bytes = if format == ImageFormat::Jpeg {
+            let flattened = flatten_white(&image);
+            let mut output = Vec::new();
+            JpegEncoder::new_with_quality(&mut output, quality)
+                .encode_image(&flattened)
+                .map_err(|error| format!("Gagal mengodekan halaman {}: {error}", index + 1))?;
+            output
+        } else {
+            encode_image(&image, ImageFormat::Png)?
+        };
+        let output_path = if total == 1 {
+            unique_converted_path(path, extension)
+        } else {
+            if output_dir.is_none() {
+                let mut candidate = parent.join(format!("{stem}_converted_pages"));
+                let mut suffix = 2u32;
+                while candidate.exists() {
+                    candidate = parent.join(format!("{stem}_converted_pages_{suffix}"));
+                    suffix += 1;
+                }
+                std::fs::create_dir_all(&candidate)
+                    .map_err(|error| format!("Gagal membuat folder hasil: {error}"))?;
+                output_dir = Some(candidate);
+            }
+            output_dir.as_ref().unwrap().join(format!("{stem}-{:03}.{extension}", index + 1))
+        };
+        std::fs::write(&output_path, &bytes)
+            .map_err(|error| format!("Gagal menyimpan halaman {}: {error}", index + 1))?;
+        total_size += bytes.len() as u64;
+        if first_output.is_none() {
+            first_output = Some(output_path);
+        }
+        Ok(())
+    });
+
+    let count = match rendered {
+        Ok(count) => count,
+        Err(error) => {
+            if let Some(directory) = output_dir {
+                let _ = std::fs::remove_dir_all(directory);
+            }
+            return Err(error);
+        }
+    };
+    let output = output_dir.or(first_output)
+        .ok_or_else(|| "PDF tidak punya halaman".to_string())?;
+    Ok((output, count, total_size))
+}
+
+fn unique_converted_path(source: &Path, extension: &str) -> PathBuf {
+    let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("file");
+    let parent = source.parent().unwrap_or_else(|| Path::new("."));
+    let mut candidate = parent.join(format!("{stem}_converted.{extension}"));
+    let mut suffix = 2u32;
+    while candidate.exists() {
+        candidate = parent.join(format!("{stem}_converted_{suffix}.{extension}"));
+        suffix += 1;
+    }
+    candidate
+}
+
 /// Convert an image or supported Office document to PDF.
 pub fn convert_to_pdf(path: &Path) -> Result<PathBuf, String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
