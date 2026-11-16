@@ -1851,10 +1851,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             }
             if !running.load(std::sync::atomic::Ordering::Acquire) {
-                let mut chosen = selected_paths.borrow_mut();
-                for path in &selected {
-                    if !chosen.contains(path) { chosen.push(path.clone()); }
-                }
+                *selected_paths.borrow_mut() = queue.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect();
             }
             save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
@@ -2401,9 +2398,12 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let queue = convert_queue.clone();
         let statuses = convert_file_statuses.clone();
+        let selected_paths = convert_selected_paths.clone();
         let weak = win.as_weak();
         win.on_convert_remove_finished(move || {
             let removed = remove_finished_convert_statuses(&mut statuses.lock().unwrap_or_else(|error| error.into_inner()));
+            let pending = queue.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect::<Vec<_>>();
+            selected_paths.borrow_mut().retain(|path| pending.contains(path));
             save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
                 w.set_convert_queue_text(format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner())).into());
