@@ -1277,6 +1277,8 @@ component ConvertPage inherits VerticalLayout {
     in property <string> history-text: "Belum ada riwayat konversi";
     in property <string> files-text: "Belum ada file dipilih";
     in property <string> output-dir-text: "";
+    in property <image> source-preview;
+    in property <image> result-preview;
     callback run(string, string, string, string, string);
     callback pick-output-dir();
     callback pick-file();
@@ -1324,6 +1326,42 @@ component ConvertPage inherits VerticalLayout {
     }
     Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+    Rectangle {
+        background: #ffffff08;
+        border-radius: 9px;
+        border-width: 1px;
+        border-color: #ffffff14;
+        VerticalLayout {
+            padding: 8px;
+            spacing: 6px;
+            Text { text: "Preview"; color: Theme.text; font-size: 11px; font-weight: 700; }
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    spacing: 3px;
+                    Text { text: "Sumber"; color: Theme.text-faint; font-size: 10px; }
+                    Rectangle {
+                        background: #00000030;
+                        border-radius: 6px;
+                        width: 128px;
+                        height: 88px;
+                        Image { source: root.source-preview; width: 128px; height: 88px; image-fit: contain; }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    Text { text: "Hasil"; color: Theme.text-faint; font-size: 10px; }
+                    Rectangle {
+                        background: #00000030;
+                        border-radius: 6px;
+                        width: 128px;
+                        height: 88px;
+                        Image { source: root.result-preview; width: 128px; height: 88px; image-fit: contain; }
+                    }
+                }
+            }
+        }
+    }
     Rectangle {
         background: #ffffff08;
         border-radius: 9px;
@@ -1750,6 +1788,8 @@ export component NotchWindow inherits Window {
     in property <string> convert-history-text: "Belum ada riwayat konversi";
     in property <string> convert-files-text: "Belum ada file dipilih";
     in property <string> convert-output-dir-text: "";
+    in property <image> convert-source-preview;
+    in property <image> convert-result-preview;
     in property <string> transfer-status: "Server belum aktif";
     in property <string> transfer-address: "";
     in property <string> android-status: "Periksa perangkat Android";
@@ -2132,6 +2172,8 @@ export component NotchWindow inherits Window {
                         history-text: root.convert-history-text;
                         files-text: root.convert-files-text;
                         output-dir-text: root.convert-output-dir-text;
+                        source-preview: root.convert-source-preview;
+                        result-preview: root.convert-result-preview;
                         run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
                         pick-file => { root.convert-pick(); }
                         reveal => { root.convert-reveal(); }
