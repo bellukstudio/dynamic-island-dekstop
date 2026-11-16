@@ -3166,7 +3166,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
 #[cfg(test)]
 mod convert_queue_display_tests {
-    use super::{format_convert_file_statuses, format_convert_queue, move_convert_queue_item, remove_finished_convert_statuses};
+    use super::{format_convert_file_statuses, format_convert_queue, move_convert_queue_item, remove_finished_convert_statuses, sync_convert_status_order};
     use std::collections::VecDeque;
 
     #[test]
@@ -3240,6 +3240,20 @@ mod convert_queue_display_tests {
         assert!(!move_convert_queue_item(&mut queue, "one.pdf", -1));
         assert!(!move_convert_queue_item(&mut queue, "two.pdf", 1));
         assert!(!move_convert_queue_item(&mut queue, "missing.pdf", 1));
+    }
+
+    #[test]
+    fn visible_pending_statuses_follow_queue_order() {
+        let queue = VecDeque::from(vec!["two.pdf".to_string(), "one.pdf".to_string()]);
+        let mut statuses = vec![
+            ("one.pdf".to_string(), "Menunggu".to_string()),
+            ("two.pdf".to_string(), "Menunggu".to_string()),
+            ("done.pdf".to_string(), "Berhasil".to_string()),
+        ];
+        sync_convert_status_order(&queue, &mut statuses);
+        assert_eq!(statuses[0].0, "two.pdf");
+        assert_eq!(statuses[1].0, "one.pdf");
+        assert_eq!(statuses[2].0, "done.pdf");
     }
 
     #[test]
