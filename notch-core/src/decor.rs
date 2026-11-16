@@ -117,7 +117,7 @@ pub fn radii(dock: Dock, r: f32) -> [f32; 4] {
     match dock {
         Dock::Top => [0.0, 0.0, r, r],
         Dock::Bottom => [r, r, 0.0, 0.0],
-        Dock::Floating => [r, r, r, r],
+        Dock::Floating | Dock::Left | Dock::Right => [r, r, r, r],
     }
 }
 
