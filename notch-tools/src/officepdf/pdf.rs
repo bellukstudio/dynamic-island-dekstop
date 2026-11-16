@@ -52,6 +52,9 @@ impl Pdf {
     }
 
     pub fn new_page(&mut self, w: f32, h: f32) {
+        if !w.is_finite() || !h.is_finite() || !(1.0..=14_400.0).contains(&w) || !(1.0..=14_400.0).contains(&h) {
+            return;
+        }
         self.pages.push(PageData { w, h, ops: String::new(), imgs: BTreeSet::new() });
     }
 
@@ -63,21 +66,25 @@ impl Pdf {
     }
 
     pub fn fill_rect(&mut self, x: f32, y: f32, w: f32, h: f32, c: Rgb) {
+        if ![x, y, w, h].iter().all(|v| v.is_finite()) || w < 0.0 || h < 0.0 { return; }
         let p = self.page();
         let _ = writeln!(p.ops, "{} rg {} {} {} {} re f", col(c), n(x), n(p.h - y - h), n(w), n(h));
     }
 
     pub fn stroke_rect(&mut self, x: f32, y: f32, w: f32, h: f32, lw: f32, c: Rgb) {
+        if ![x, y, w, h, lw].iter().all(|v| v.is_finite()) || w < 0.0 || h < 0.0 || lw <= 0.0 { return; }
         let p = self.page();
         let _ = writeln!(p.ops, "{} RG {} w {} {} {} {} re S", col(c), n(lw), n(x), n(p.h - y - h), n(w), n(h));
     }
 
     pub fn line(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, lw: f32, c: Rgb) {
+        if ![x1, y1, x2, y2, lw].iter().all(|v| v.is_finite()) || lw <= 0.0 { return; }
         let p = self.page();
         let _ = writeln!(p.ops, "{} RG {} w {} {} m {} {} l S", col(c), n(lw), n(x1), n(p.h - y1), n(x2), n(p.h - y2));
     }
 
     pub fn clip_rect(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        if ![x, y, w, h].iter().all(|v| v.is_finite()) || w < 0.0 || h < 0.0 { return; }
         let p = self.page();
         let _ = writeln!(p.ops, "q {} {} {} {} re W n", n(x), n(p.h - y - h), n(w), n(h));
     }
@@ -87,7 +94,10 @@ impl Pdf {
 
     /// Path rounded-rect (r=0 -> persegi biasa) atau elips; lalu isi/garis.
     pub fn shape(&mut self, kind: Shape, x: f32, y: f32, w: f32, h: f32, fill: Option<Rgb>, stroke: Option<(Rgb, f32)>) {
-        if fill.is_none() && stroke.is_none() {
+        if fill.is_none() && stroke.is_none()
+            || ![x, y, w, h].iter().all(|v| v.is_finite()) || w < 0.0 || h < 0.0
+            || match stroke { Some((_, lw)) => !lw.is_finite() || lw <= 0.0, None => false }
+        {
             return;
         }
         let p = self.page();
@@ -147,7 +157,7 @@ impl Pdf {
 
     /// Satu baris teks; `y` adalah garis dasar (dari atas halaman).
     pub fn text(&mut self, x: f32, y: f32, face: usize, size: f32, c: Rgb, s: &str) {
-        if s.is_empty() || size <= 0.0 {
+        if s.is_empty() || ![x, y, size].iter().all(|v| v.is_finite()) || size <= 0.0 || face >= self.fonts.faces.len() {
             return;
         }
         let hexs = self.fonts.encode(face, s);
@@ -159,6 +169,9 @@ impl Pdf {
     }
 
     pub fn image(&mut self, idx: usize, x: f32, y: f32, w: f32, h: f32) {
+        if idx >= self.imgs.len() || ![x, y, w, h].iter().all(|v| v.is_finite()) || w <= 0.0 || h <= 0.0 {
+            return;
+        }
         let p = self.page();
         p.imgs.insert(idx);
         let _ = writeln!(p.ops, "q {} 0 0 {} {} {} cm /Im{} Do Q", n(w), n(h), n(x), n(p.h - y - h), idx);
