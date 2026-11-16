@@ -305,13 +305,33 @@ component LyricsPanel inherits Rectangle {
                 height: parent.height;
             }
         }
-        for line[i] in root.lines: Text {
-            text: line;
-            overflow: elide;
-            horizontal-alignment: center;
-            font-size: i == root.active ? 18px : 13px;
-            font-weight: i == root.active ? 700 : 400;
-            color: i == root.active ? Theme.text : Theme.text-faint;
+        Flickable {
+            vertical-stretch: 1;
+            viewport-y: max(0px, root.active * 36px - self.height / 2 + 18px);
+            viewport-width: self.width;
+            viewport-height: max(self.height, root.lines.length * 36px);
+            VerticalLayout {
+                width: parent.width;
+                spacing: 0px;
+                for line[i] in root.lines: Rectangle {
+                    height: 36px;
+                    background: i == root.active ? Theme.chip : transparent;
+                    border-radius: 9px;
+                    Text {
+                        text: line;
+                        width: parent.width - 16px;
+                        x: 8px;
+                        y: 0px;
+                        height: parent.height;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        horizontal-alignment: center;
+                        font-size: i == root.active ? 18px : 13px;
+                        font-weight: i == root.active ? 700 : 400;
+                        color: i == root.active ? Theme.text : Theme.text-faint;
+                    }
+                }
+            }
         }
     }
 }
