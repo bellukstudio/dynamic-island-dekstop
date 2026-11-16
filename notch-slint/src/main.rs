@@ -1519,6 +1519,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 .collect::<Vec<_>>();
             if let (Some(first), Some(w)) = (selected.first(), weak.upgrade()) {
                 *selected_paths.borrow_mut() = selected.clone();
+                w.set_convert_history_text(format_convert_history().into());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
                 w.set_convert_progress_text("".into());
@@ -1620,20 +1621,31 @@ fn main() -> Result<(), slint::PlatformError> {
                                 .map(|output| (output, target.to_ascii_uppercase()))
                         }
                     })();
+                    let history_target = if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
+                        convert::default_target(source).unwrap_or("unknown").to_string()
+                    } else {
+                        format.trim().trim_start_matches('.').to_ascii_lowercase()
+                    };
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
+                            record_convert_history(&path, Some(&output), &history_target, "OK");
                             *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(output.clone());
                             outputs.push(format!("{} ({detail})", output.display()));
                         }
-                        Err(error) => failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))),
+                        Err(error) => {
+                            record_convert_history(&path, None, &history_target, "GAGAL");
+                            failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())));
+                        }
                     }
                     let percent = (index + 1) * 100 / total;
                     let progress_text = format!("{percent}% ({}/{total})", index + 1);
                     let weak_progress = weak.clone();
+                    let history_text = format_convert_history();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(w) = weak_progress.upgrade() {
                             w.set_convert_progress_text(progress_text.into());
+                            w.set_convert_history_text(history_text.into());
                         }
                     });
                 }
@@ -1658,6 +1670,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
             });
+        });
+    }
+    {
+        let weak = win.as_weak();
+        win.on_convert_history_clear(move || {
+            clear_convert_history();
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_history_text("Belum ada riwayat konversi".into());
+                w.set_convert_status("Riwayat konversi dibersihkan".into());
+            }
         });
     }
     {
