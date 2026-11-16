@@ -501,21 +501,40 @@ fn recode_pdf_image(
     let image = if is_filter(b"DCTDecode") {
         decode_image(&stream.content).ok()?
     } else if is_filter(b"FlateDecode") {
-        let width = pdf_dict_i64(&stream.dict, b"Width")? as usize;
-        let height = pdf_dict_i64(&stream.dict, b"Height")? as usize;
-        if pdf_dict_i64(&stream.dict, b"BitsPerComponent")? != 8 || width == 0 || height == 0 {
+        // PDF dimensions are untrusted input. Reject negative, oversized, or
+        // overflow-prone values before allocating or inflating the image stream.
+        const MAX_DECODED_IMAGE_BYTES: usize = 256 * 1024 * 1024;
+        let width_u32 = u32::try_from(pdf_dict_i64(&stream.dict, b"Width")?).ok()?;
+        let height_u32 = u32::try_from(pdf_dict_i64(&stream.dict, b"Height")?).ok()?;
+        if pdf_dict_i64(&stream.dict, b"BitsPerComponent")? != 8 || width_u32 == 0 || height_u32 == 0 {
             return None;
         }
+        let width = usize::try_from(width_u32).ok()?;
+        let height = usize::try_from(height_u32).ok()?;
+        let expected = width.checked_mul(height)?.checked_mul(components)?;
+        if expected > MAX_DECODED_IMAGE_BYTES {
+            return None;
+        }
+
         let mut raw = Vec::new();
-        flate2::read::ZlibDecoder::new(&stream.content[..]).read_to_end(&mut raw).ok()?;
+        // PNG predictor 15 adds one filter byte per row before reconstruction.
+        // Limit inflation to the maximum valid payload plus those row markers.
+        let inflate_limit = expected.checked_add(height)?;
+        flate2::read::ZlibDecoder::new(&stream.content[..])
+            .take(inflate_limit as u64 + 1)
+            .read_to_end(&mut raw)
+            .ok()?;
+        if raw.len() > inflate_limit {
+            return None;
+        }
         if let Some(params) = pdf_decode_params(document, stream) {
             let predictor = pdf_dict_i64(&params, b"Predictor").unwrap_or(1);
             if predictor == 15 {
                 // PNG optimum stores a filter byte at the start of every row.
                 // Predictors 10–14 use a fixed filter without row tags, so leave
                 // those streams untouched until their distinct layout is supported.
-                let columns = pdf_dict_i64(&params, b"Columns").unwrap_or(1) as usize;
-                let colors = pdf_dict_i64(&params, b"Colors").unwrap_or(1) as usize;
+                let columns = pdf_dict_i64(&params, b"Columns").and_then(|v| usize::try_from(v).ok()).unwrap_or(1);
+                let colors = pdf_dict_i64(&params, b"Colors").and_then(|v| usize::try_from(v).ok()).unwrap_or(1);
                 let bits = pdf_dict_i64(&params, b"BitsPerComponent").unwrap_or(8);
                 if bits != 8 || colors != components || columns != width {
                     return None;
@@ -525,16 +544,15 @@ fn recode_pdf_image(
                 return None;
             }
         }
-        let expected = width.checked_mul(height)?.checked_mul(components)?;
         // Reject incomplete or unexpectedly padded decoded streams instead of silently
         // truncating rows; unsupported/malformed image data is left untouched in the PDF.
         if raw.len() != expected {
             return None;
         }
         if components == 1 {
-            image::DynamicImage::ImageLuma8(image::GrayImage::from_raw(width as u32, height as u32, raw)?)
+            image::DynamicImage::ImageLuma8(image::GrayImage::from_raw(width_u32, height_u32, raw)?)
         } else {
-            image::DynamicImage::ImageRgb8(image::RgbImage::from_raw(width as u32, height as u32, raw)?)
+            image::DynamicImage::ImageRgb8(image::RgbImage::from_raw(width_u32, height_u32, raw)?)
         }
     } else {
         return None;
