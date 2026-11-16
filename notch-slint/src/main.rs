@@ -1042,6 +1042,39 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_toggle_page(move |id, enabled| {
+            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
+            let id = id.to_string();
+            if !allowed.contains(&id.as_str()) { return; }
+            let mut next = updated_config.clone();
+            if enabled { if !next.pages.iter().any(|page| page == &id) { next.pages.push(id.clone()); } }
+            else {
+                if id == "media" { if let Some(w) = weak.upgrade() { w.set_pages_save_status("Halaman Musik wajib tetap aktif.".into()); } return; }
+                next.pages.retain(|page| page != &id);
+            }
+            next.pages_version = notch_core::config::PAGES_VERSION;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    let tabs = next.pages.iter().filter(|page| page.as_str() != "lyrics").cloned().collect::<Vec<_>>();
+                    let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
+                    if let Some(w) = weak.upgrade() {
+                        let current = w.get_page_id().to_string();
+                        w.set_tabs(ModelRc::from(Rc::new(VecModel::from(tabs.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
+                        if !tabs.iter().any(|page| page == &current) { w.set_page_id(tabs[0].as_str().into()); }
+                        w.set_hub_pages(next.pages.join(", ").into());
+                        w.set_active_pages(ModelRc::from(Rc::new(VecModel::from(next.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
+                        w.set_pages_save_status(format!("{} {}", if enabled { "Diaktifkan:" } else { "Dinonaktifkan:" }, id).into());
+                    }
+                }
+                Err(error) => { if let Some(w) = weak.upgrade() { w.set_pages_save_status(format!("Gagal menyimpan: {error}").into()); } }
+            }
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
         let hotkey_config_tx = hotkey_config_tx.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_shortcuts(move |hub, settings, pomo, prayer| {
