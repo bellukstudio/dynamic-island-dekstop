@@ -1138,12 +1138,14 @@ component SettingsPage inherits VerticalLayout {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "Skala, hover, dan idle";
+    in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
     callback save-pages(string);
     callback toggle-page(string, bool);
     pure function page-enabled(id: string) -> bool { for page in root.active-pages: { if page == id { return true; } } return false; }
     callback save-behavior(string, string, string, string);
+    callback save-position(string);
     callback save-routines(string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string);
     callback save-weather(string, string, string);
@@ -1305,6 +1307,18 @@ component SettingsPage inherits VerticalLayout {
             Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
             Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Posisi notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 6px;
+            Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
+            HorizontalLayout {
+                Chip { label: "Atas"; selected: root.position-mode == "top"; clicked => { root.save-position("top"); } }
+                Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
+                Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
+            }
+            Text { text: "Mode samping kiri/kanan memerlukan layout vertikal dan renderer mata khusus."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
     Text { text: "Perilaku notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1958,6 +1972,7 @@ export component NotchWindow inherits Window {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "";
+    in property <string> position-mode: "top";
     in property <[string]> active-pages;
     in property <string> hub-pages: "";
     in property <string> pages-save-status: "";
@@ -1972,6 +1987,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-light-bg: "#f5f5f7";
     callback settings-save-appearance(string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string);
+    callback settings-save-position(string);
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
     in property <string> prayer-remind-min: "10";
@@ -2465,6 +2481,7 @@ export component NotchWindow inherits Window {
                         behavior-hover-close: root.behavior-hover-close;
                         behavior-sleep-after: root.behavior-sleep-after;
                         behavior-save-status: root.behavior-save-status;
+                        position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
                         active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
