@@ -753,6 +753,139 @@ fn compress_pdf_with_profiles(
     compress_pdf_bytes(source, PDF_LADDER[selected])
 }
 
+
+#[derive(Clone, Copy)]
+struct RasterProfile {
+    dpi: u32,
+    quality: u8,
+}
+
+const RASTER_LADDER: [RasterProfile; 7] = [
+    RasterProfile { dpi: 110, quality: 45 },
+    RasterProfile { dpi: 90, quality: 40 },
+    RasterProfile { dpi: 72, quality: 35 },
+    RasterProfile { dpi: 60, quality: 30 },
+    RasterProfile { dpi: 50, quality: 25 },
+    RasterProfile { dpi: 40, quality: 20 },
+    RasterProfile { dpi: 30, quality: 15 },
+];
+
+fn pdf_name(value: &str) -> lopdf::Object {
+    lopdf::Object::Name(value.as_bytes().to_vec())
+}
+
+fn pdf_dictionary(items: Vec<(&str, lopdf::Object)>) -> lopdf::Dictionary {
+    let mut dictionary = lopdf::Dictionary::new();
+    for (key, value) in items {
+        dictionary.set(key, value);
+    }
+    dictionary
+}
+
+fn raster_pdf_bytes(source: &[u8], profile: RasterProfile) -> Result<Vec<u8>, String> {
+    use lopdf::Object;
+    let mut rendered_pages: Vec<(Vec<u8>, u32, u32)> = Vec::new();
+    let total = crate::pdf::for_each_page(source, profile.dpi, |_, _, image| {
+        let gray = image::DynamicImage::ImageLuma8(image.to_luma8());
+        let width = gray.width();
+        let height = gray.height();
+        let jpeg = encode_jpeg(&gray, profile.quality)?;
+        rendered_pages.push((jpeg, width, height));
+        Ok(())
+    })?;
+    if rendered_pages.len() != total || rendered_pages.is_empty() {
+        return Err("Tidak semua halaman PDF berhasil dirasterisasi".into());
+    }
+
+    let mut document = lopdf::Document::with_version("1.5");
+    let pages_id = document.new_object_id();
+    let mut kids: Vec<Object> = Vec::with_capacity(rendered_pages.len());
+    for (jpeg, width, height) in rendered_pages {
+        let width_points = (width as f64 * 72.0 / profile.dpi as f64).round().max(1.0) as i64;
+        let height_points = (height as f64 * 72.0 / profile.dpi as f64).round().max(1.0) as i64;
+        let image_id = document.add_object(lopdf::Stream::new(
+            pdf_dictionary(vec![
+                ("Type", pdf_name("XObject")),
+                ("Subtype", pdf_name("Image")),
+                ("Width", Object::Integer(width as i64)),
+                ("Height", Object::Integer(height as i64)),
+                ("ColorSpace", pdf_name("DeviceGray")),
+                ("BitsPerComponent", Object::Integer(8)),
+                ("Filter", pdf_name("DCTDecode")),
+            ]),
+            jpeg,
+        ));
+        let content_id = document.add_object(lopdf::Stream::new(
+            lopdf::Dictionary::new(),
+            format!("q {width_points} 0 0 {height_points} 0 0 cm /Im0 Do Q").into_bytes(),
+        ));
+        let xobjects = pdf_dictionary(vec![("Im0", Object::Reference(image_id))]);
+        let resources = pdf_dictionary(vec![("XObject", Object::Dictionary(xobjects))]);
+        let page_id = document.add_object(pdf_dictionary(vec![
+            ("Type", pdf_name("Page")),
+            ("Parent", Object::Reference(pages_id)),
+            ("MediaBox", Object::Array(vec![
+                Object::Integer(0), Object::Integer(0),
+                Object::Integer(width_points), Object::Integer(height_points),
+            ])),
+            ("Contents", Object::Reference(content_id)),
+            ("Resources", Object::Dictionary(resources)),
+        ]));
+        kids.push(Object::Reference(page_id));
+    }
+    document.objects.insert(pages_id, Object::Dictionary(pdf_dictionary(vec![
+        ("Type", pdf_name("Pages")),
+        ("Kids", Object::Array(kids)),
+        ("Count", Object::Integer(total as i64)),
+    ])));
+    let catalog_id = document.add_object(pdf_dictionary(vec![
+        ("Type", pdf_name("Catalog")),
+        ("Pages", Object::Reference(pages_id)),
+    ]));
+    document.trailer.set("Root", Object::Reference(catalog_id));
+    document.compress();
+    let mut output = Vec::new();
+    document.save_to(&mut output)
+        .map_err(|error| format!("Gagal menyimpan PDF hasil rasterisasi: {error}"))?;
+    Ok(output)
+}
+
+fn raster_pdf_estimate(source: &[u8], profile: RasterProfile) -> Result<u64, String> {
+    let mut sample_bytes = 0u64;
+    let mut sample_pages = 0usize;
+    let total = crate::pdf::for_each_page_sample(source, profile.dpi, 12, |_, _, image| {
+        let gray = image::DynamicImage::ImageLuma8(image.to_luma8());
+        sample_bytes += encode_jpeg(&gray, profile.quality)?.len() as u64;
+        sample_pages += 1;
+        Ok(())
+    })?;
+    if sample_pages == 0 {
+        return Err("PDF tidak punya halaman untuk estimasi".into());
+    }
+    let average = sample_bytes / sample_pages as u64;
+    Ok(average * total as u64 + 250 * total as u64 + 700)
+}
+
+fn compress_pdf_raster(source: &[u8], target_size: u64) -> Result<Vec<u8>, String> {
+    let last = RASTER_LADDER.len() - 1;
+    let worst = raster_pdf_estimate(source, RASTER_LADDER[last])?;
+    let selected = if worst > target_size {
+        last
+    } else {
+        let (mut low, mut high) = (0usize, last);
+        while low < high {
+            let middle = (low + high) / 2;
+            if raster_pdf_estimate(source, RASTER_LADDER[middle])? <= target_size {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+        low
+    };
+    raster_pdf_bytes(source, RASTER_LADDER[selected])
+}
+
 /// Compress embedded JPEG and supported Flate PDF images without rasterizing text or vector art.
 pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
     if path.extension().and_then(|value| value.to_str()).unwrap_or("").eq_ignore_ascii_case("pdf") == false {
@@ -764,7 +897,14 @@ pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(P
     }
     let original_size = source.len() as u64;
     let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
-    let output = compress_pdf_with_profiles(&source, path, target, original_size)?;
+    let mut output = compress_pdf_with_profiles(&source, path, target, original_size)?;
+    if output.len() as u64 > target && crate::pdf::is_available() {
+        if let Ok(rasterized) = compress_pdf_raster(&source, target) {
+            if rasterized.len() < output.len() {
+                output = rasterized;
+            }
+        }
+    }
     if output.len() as u64 >= original_size {
         return Err("PDF tidak dapat diperkecil dengan aman. Teks dan elemen vektor tetap dipertahankan.".into());
     }
