@@ -4257,6 +4257,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut next_at = Instant::now() + Duration::from_secs(6);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
+        // Setiap tiga menit jalankan tiga rangkaian Liquid, mengikuti jadwal Tauri.
+        let mut next_liquid_at = Instant::now() + Duration::from_secs(180);
+        let mut liquid_repetitions_left = 0u8;
+        let mut next_liquid_run_at = Instant::now();
         // Pegas semi-implisit untuk perpindahan dan deformasi badan.
         // [posisi, kecepatan] sehingga target dapat berubah tanpa transform meloncat.
         let mut spring_offset = (0.0f32, 0.0f32);
@@ -4316,15 +4320,27 @@ fn main() -> Result<(), slint::PlatformError> {
             // Pilih gerakan dengan variasi jeda. Musik membuat Notch lebih ekspresif;
             // mood mengantuk memperlambat gerakan tanpa mematikan fitur.
             let test_requested = w.get_play_test_request();
-            if active.is_none() && (now >= next_at || test_requested) {
+            if liquid_repetitions_left == 0 && now >= next_liquid_at {
+                liquid_repetitions_left = 3;
+                next_liquid_run_at = now;
+            }
+            let liquid_due = liquid_repetitions_left > 0 && now >= next_liquid_run_at;
+            if active.is_none() && (now >= next_at || test_requested || liquid_due) {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let roll = (seed >> 32) as u32;
                 let sleepy = w.get_eyes_mood().to_string() == "sleepy";
                 let playing = w.get_media_playing();
-                // Tombol tes memulai liquid segera setelah panel ditutup dan notch idle.
-                // Gerakan otomatis memakai bobot berbeda menurut musik dan mood.
+                // Tes manual dan jadwal tiga rangkaian Liquid mendahului gerakan acak.
                 let choice = if test_requested {
                     w.set_play_test_request(false);
+                    0
+                } else if liquid_due {
+                    liquid_repetitions_left = liquid_repetitions_left.saturating_sub(1);
+                    if liquid_repetitions_left > 0 {
+                        next_liquid_run_at = now + Duration::from_secs(7 + u64::from(roll % 15));
+                    } else {
+                        next_liquid_at = now + Duration::from_secs(180);
+                    }
                     0
                 } else if sleepy {
                     [4u8, 5, 4, 5, 7][(roll % 5) as usize]
