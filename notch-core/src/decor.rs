@@ -137,9 +137,9 @@ fn sdf(x: f32, y: f32, w: f32, h: f32, r: [f32; 4]) -> f32 {
     qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - rr
 }
 
-fn cover(d: f32) -> f32 {
-    (0.5 - d).clamp(0.0, 1.0)
-}
+/// Sampel per sumbu untuk supersampling tepi (4 x 4 = 16 sampel per piksel tepi).
+const SSN: usize = 4;
+
 
 // Piksel dalam alfa-terpremultiplikasi (r, g, b, a) bernilai 0..1.
 type Px = [f32; 4];
@@ -213,10 +213,41 @@ pub fn render(theme: &str, body: Rgba, dock: Dock, w: u32, h: u32, corner_r: f32
     for yy in 0..h {
         for xx in 0..w {
             let (x, y) = (xx as f32 + 0.5, yy as f32 + 0.5);
-            let inside = cover(sdf(x, y, wf, hf, draw_r));
-            if inside <= 0.0 {
-                continue;
+            let d0 = sdf(x, y, wf, hf, draw_r);
+            if d0 > 1.0 {
+                continue; // jauh di luar bentuk
             }
+            // Cakupan piksel terhadap badan (`inside`), bibir (`lip_rel`), dan rim (`rim_rel`; dua
+            // terakhir relatif terhadap bagian yang di dalam). Dekat tepi dihitung dengan supersampling
+            // 4x4 supaya lengkungan dan garis 1 px halus; di bagian dalam cukup satu sampel.
+            let reach = lip_w.max(rim_w) + 1.5;
+            let (inside, lip_rel, rim_rel) = if d0 < -reach {
+                (1.0, 0.0, 0.0)
+            } else {
+                let (mut ins, mut lip, mut rim) = (0u32, 0u32, 0u32);
+                for j in 0..SSN {
+                    for i in 0..SSN {
+                        let sx = xx as f32 + (i as f32 + 0.5) / SSN as f32;
+                        let sy = yy as f32 + (j as f32 + 0.5) / SSN as f32;
+                        let d = sdf(sx, sy, wf, hf, draw_r);
+                        if d > 0.0 {
+                            continue;
+                        }
+                        ins += 1;
+                        if sdf(sx, sy + lip_w, wf, hf, draw_r) > 0.0 {
+                            lip += 1;
+                        }
+                        let in_rim = if floating { d + rim_w > 0.0 } else { sdf(sx, sy + rim_w, wf, hf, draw_r) > 0.0 };
+                        if in_rim {
+                            rim += 1;
+                        }
+                    }
+                }
+                if ins == 0 {
+                    continue;
+                }
+                (ins as f32 / (SSN * SSN) as f32, lip as f32 / ins as f32, rim as f32 / ins as f32)
+            };
             let mut p: Px = [0.0; 4];
 
             // 1. hiasan latar, lalu pudar di sisi yang menempel layar (dock atas/bawah)
@@ -243,26 +274,20 @@ pub fn render(theme: &str, body: Rgba, dock: Dock, w: u32, h: u32, corner_r: f32
                 let s = sdf(x, y + off, wf, hf, draw_r) + spread;
                 over(&mut p, g.color, ((s + blur / 2.0) / blur).clamp(0.0, 1.0));
             }
-            // lip: pita di sisi bebas; melayang: sama (di bawah)
-            let band = |wd: f32| inside * (1.0 - cover(sdf(x, y + wd, wf, hf, draw_r)));
-            over(&mut p, lip_c, band(lip_w));
-            if floating {
-                // melayang: garis tepi penuh mengikuti lengkung badan
-                let ring = inside * (1.0 - cover(sdf(x, y, wf, hf, draw_r) + rim_w));
-                over(&mut p, rim_c, ring);
-            } else {
-                over(&mut p, rim_c, band(rim_w));
-            }
+            // lip: pita di sisi bebas; melayang: garis tepi penuh mengikuti lengkung badan (dihitung di atas)
+            over(&mut p, lip_c, lip_rel);
+            over(&mut p, rim_c, rim_rel);
 
-            // 3. mask sudut bulat (antialias), lalu ke RGBA lurus
-            let a = p[3] * inside.min(1.0) / inside.max(f32::EPSILON) * 1.0;
-            let a = a.clamp(0.0, 1.0);
+            // 3. mask sudut bulat (antialias): alfa akhir = alfa lapisan x cakupan piksel terhadap badan.
+            // (Sebelumnya cakupan ini saling membatalkan sehingga piksel tepi selalu penuh = tepi bertangga.)
+            let pa = p[3];
+            let a = (pa * inside).clamp(0.0, 1.0);
             let (oy, ox) = (if dock == Dock::Bottom { h - 1 - yy } else { yy }, xx);
             let o = ((oy * w + ox) * 4) as usize;
             if a > 0.0 {
-                out[o] = (p[0] / a * 255.0).round().clamp(0.0, 255.0) as u8;
-                out[o + 1] = (p[1] / a * 255.0).round().clamp(0.0, 255.0) as u8;
-                out[o + 2] = (p[2] / a * 255.0).round().clamp(0.0, 255.0) as u8;
+                out[o] = (p[0] / pa * 255.0).round().clamp(0.0, 255.0) as u8;
+                out[o + 1] = (p[1] / pa * 255.0).round().clamp(0.0, 255.0) as u8;
+                out[o + 2] = (p[2] / pa * 255.0).round().clamp(0.0, 255.0) as u8;
                 out[o + 3] = (a * 255.0).round() as u8;
             }
         }
@@ -346,6 +371,44 @@ mod tests {
             let b = (((H - 1 - y) * W + x) * 4) as usize;
             assert_eq!(top[t..t + 4], bot[b..b + 4]);
         }
+    }
+
+    #[test]
+    fn tepi_lengkung_memudar_halus_bukan_bertangga() {
+        // Piksel yang sebagian saja tercakup lengkungan harus beralfa sebagian dari tetangga di dalamnya
+        // (antialias). Sebelum perbaikan mask, piksel tepi sama pekatnya dengan bagian dalam, sehingga
+        // tepinya bertangga. Diukur di dock atas (tanpa rim di sisi lengkung dekat sisi tegak).
+        let img = render("neon", BODY, Dock::Top, W, H, 32.0, 1.0).unwrap();
+        let (cx, cy) = ((W - 32) as f32, (H - 32) as f32);
+        let mut halus = 0;
+        for k in 1..=40 {
+            let th = (k as f32).to_radians(); // 1..40 derajat dari sisi tegak
+            let edge = (cx + 32.0 * th.cos(), cy + 32.0 * th.sin());
+            let inner = (cx + 27.0 * th.cos(), cy + 27.0 * th.sin());
+            let (ae, ai) = (alpha(&img, edge.0 as u32, edge.1 as u32) as f32, alpha(&img, inner.0 as u32, inner.1 as u32) as f32);
+            if ai > 0.0 && ae / ai > 0.15 && ae / ai < 0.85 {
+                halus += 1;
+            }
+        }
+        assert!(halus >= 6, "tepi lengkung harus memudar halus (antialias); piksel peralihan={halus}");
+    }
+
+    #[test]
+    fn rim_menyusuri_lengkung_tanpa_putus() {
+        // Menyusuri sudut kanan-bawah dari bawah ke sisi: tidak boleh ada piksel batas yang kosong
+        // di tengah garis (sebelumnya garis terputus-putus).
+        let img = render("neon", BODY, Dock::Floating, W, H, 28.0, 1.0).unwrap();
+        // pusat busur kanan-bawah = (W - r, H - r); garis tepi 1 px berada di radius 27..28
+        let (cx, cy) = ((W - 28) as f32, (H - 28) as f32);
+        let mut gaps = 0;
+        for k in 0..=45 {
+            let th = (k as f32 * 2.0).to_radians(); // 0..90 derajat
+            let (x, y) = (cx + 27.5 * th.cos(), cy + 27.5 * th.sin());
+            if alpha(&img, x as u32, y as u32) < 40 {
+                gaps += 1;
+            }
+        }
+        assert_eq!(gaps, 0, "garis tepi melayang putus di {gaps} titik");
     }
 
     #[test]

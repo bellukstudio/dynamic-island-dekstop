@@ -6,7 +6,7 @@
 //! Menghasilkan satu PNG per halaman/tema. Data contoh diisi manual (bukan dari sistem).
 
 use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::time::Duration;
 
 use notch_core::config::Appearance;
@@ -20,6 +20,12 @@ use slint::{Global, Image, ModelRc, PhysicalSize, PlatformError, Rgba8Pixel, Sha
 slint::include_modules!();
 
 static NOW_MS: AtomicU64 = AtomicU64::new(0);
+// Faktor DPI untuk render (env PREVIEW_SF, mis. 1.25 atau 1.5), supaya masalah garis di skala pecahan bisa direproduksi.
+static SF_BITS: AtomicU32 = AtomicU32::new(0x3F80_0000); // 1.0
+
+fn sf() -> f32 {
+    f32::from_bits(SF_BITS.load(Ordering::SeqCst))
+}
 
 struct Headless(Rc<MinimalSoftwareWindow>);
 impl Platform for Headless {
@@ -51,9 +57,10 @@ fn apply_theme(w: &NotchWindow, p: &Palette) {
 
 /// Sama dengan `Shell::rebuild_decor` di main.rs (tanpa faktor DPI).
 fn set_decor(win: &NotchWindow, theme: &str, body: Rgba, dock: Dock, scale: f32) {
-    let (w, h) = (580u32, 202u32);
-    let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * scale;
-    match decor::render(theme, body, dock, w, h, r, 1.0) {
+    let f = sf();
+    let (w, h) = ((580.0 * f).round() as u32, (202.0 * f).round() as u32);
+    let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * scale * f;
+    match decor::render(theme, body, dock, w, h, r, f) {
         Some(buf) => {
             win.set_decor(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, w, h)));
             win.set_has_decor(true);
@@ -66,6 +73,7 @@ fn snap(window: &MinimalSoftwareWindow, size: (u32, u32), path: &str) {
     // majukan waktu supaya animasi (lebar/tinggi/opacity) selesai
     NOW_MS.fetch_add(1500, Ordering::SeqCst);
     slint::platform::update_timers_and_animations();
+    let size = ((size.0 as f32 * sf()).round() as u32, (size.1 as f32 * sf()).round() as u32);
     window.set_size(PhysicalSize::new(size.0, size.1));
     let (w, h) = (size.0 as usize, size.1 as usize);
     // Target ber-alpha supaya area transparan tetap transparan; dikomposit ke latar abu-abu "desktop".
@@ -94,10 +102,14 @@ fn main() {
     let window = MinimalSoftwareWindow::new(RepaintBufferType::NewBuffer);
     slint::platform::set_platform(Box::new(Headless(window.clone()))).unwrap();
     let win = NotchWindow::new().unwrap();
+    if let Some(f) = std::env::var("PREVIEW_SF").ok().and_then(|v| v.parse::<f32>().ok()) {
+        SF_BITS.store(f.to_bits(), Ordering::SeqCst);
+        window.dispatch_event(slint::platform::WindowEvent::ScaleFactorChanged { scale_factor: f });
+    }
 
     let pages = [
         "media", "clock", "weather", "battery", "timer", "quick", "tools", "stats",
-        "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "uji",
+        "reminder", "notes", "clipboard", "shelf", "privacy", "prayer", "uji",
     ];
     win.set_tabs(ModelRc::from(Rc::new(VecModel::from(
         pages.iter().map(|p| SharedString::from(*p)).collect::<Vec<_>>(),
@@ -130,7 +142,7 @@ fn main() {
     ]))));
 
     let themes = ["default", "neon", "aurora", "obsidian", "sakura", "matcha"];
-    let expanded = (612, 206);
+    let expanded = (612, 240);
 
     for theme in themes {
         let mut a = Appearance::default();
@@ -169,6 +181,24 @@ fn main() {
         win.set_expanded(true);
         win.set_page_id("media".into());
         snap(&window, expanded, &format!("{out}/dock_{name}_media.png"));
+    }
+
+    // Panel lirik di dalam Media: keadaan kosong, lalu contoh baris (HANYA untuk memeriksa tata letak)
+    {
+        let pal = Palette::from_appearance(&Appearance::default(), false);
+        apply_theme(&win, &pal);
+        win.set_dock(0);
+        set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+        win.set_expanded(true);
+        win.set_page_id("media".into());
+        win.set_lyrics_open(true);
+        snap(&window, expanded, &format!("{out}/lyrics_empty.png"));
+        let sample = ["baris contoh sebelumnya", "baris contoh yang sedang aktif", "baris contoh berikutnya"];
+        win.set_lyric_lines(ModelRc::from(Rc::new(VecModel::from(sample.iter().map(|x| SharedString::from(*x)).collect::<Vec<_>>()))));
+        win.set_lyric_active(1);
+        snap(&window, expanded, &format!("{out}/lyrics_sample.png"));
+        win.set_lyrics_open(false);
+        win.set_lyric_lines(ModelRc::default());
     }
 
     // Kalender: data nyata dari notch_core::calendar, "hari ini" dikunci 15 Nov 2026 agar hasil stabil.

@@ -29,7 +29,8 @@ slint::include_modules!();
 
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
 const COLLAPSED: (u32, u32) = (152, 38);
-const EXPANDED: (u32, u32) = (612, 206);
+// 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
+const EXPANDED: (u32, u32) = (612, 240);
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
 const EYES_W: f32 = 120.0;
@@ -309,8 +310,10 @@ impl Shell {
     fn place(&self, win: &NotchWindow, size: (u32, u32)) {
         let pos = self.pos.get();
         let work = platform::work_area(pos);
-        let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
+        // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
+        let size = ((size.0 as f32 * sf).round() as u32, (size.1 as f32 * sf).round() as u32);
+        let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
         if self.memo.get() != (Some(dock), sf.to_bits()) {
             self.memo.set((Some(dock), sf.to_bits()));
             win.set_dock(match dock {
@@ -389,7 +392,9 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Tab mengikuti daftar dan urutan `pages` di config. Halaman yang belum ada di versi Slint
     // tampil sebagai placeholder, jadi urutan dan jumlah tab sama dengan versi Tauri.
-    let pages: Vec<String> = cfg.pages.clone();
+    // Lirik bukan tab hub: ada di halaman Media (tombol "Lirik"), seperti di Tauri.
+    let pages: Vec<String> = cfg.pages.iter().filter(|p| p.as_str() != "lyrics").cloned().collect();
+    let pages = if pages.is_empty() { vec!["media".to_string()] } else { pages };
     win.set_tabs(ModelRc::from(Rc::new(VecModel::from(
         pages.iter().map(|p| SharedString::from(p.as_str())).collect::<Vec<_>>(),
     ))));
@@ -650,7 +655,8 @@ fn main() -> Result<(), slint::PlatformError> {
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             w.set_expanded(false);
-            w.set_cal_open(false); // kalender ikut menutup saat notch menciut
+            w.set_cal_open(false); // kalender dan lirik ikut menutup saat notch menciut
+            w.set_lyrics_open(false);
             sync();
             // jendela baru diperkecil setelah animasi menciut selesai
             let weak2 = weak.clone();

@@ -182,7 +182,7 @@ component RoundButton inherits Rectangle {
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
-component MediaPage inherits HorizontalLayout {
+component MediaPlayer inherits HorizontalLayout {
     in property <string> title: "Tidak ada media";
     in property <string> artist: "Putar musik untuk memulai";
     in property <string> pos-text: "0:00";
@@ -192,6 +192,7 @@ component MediaPage inherits HorizontalLayout {
     callback prev;
     callback toggle;
     callback next;
+    callback open-lyrics;
 
     spacing: 18px;
     padding-left: 20px;
@@ -254,7 +255,64 @@ component MediaPage inherits HorizontalLayout {
                 clicked => { root.toggle(); }
             }
             RoundButton { commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
+            Rectangle { width: 6px; }
+            // Lirik ada di pemutar media (bukan tab hub), seperti di Tauri
+            Chip { label: "Lirik"; min-width: 56px; height: 30px; y: (parent.height - self.height) / 2; clicked => { root.open-lyrics(); } }
         }
+    }
+}
+
+component LyricsPanel inherits Rectangle {
+    in property <[string]> lines;
+    in property <int> active: -1;
+    callback back;
+    VerticalLayout {
+        padding-left: 24px;
+        padding-right: 24px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 10px;
+            height: 28px;
+            alignment: start;
+            Chip { label: "\u{2039} Media"; min-width: 76px; clicked => { root.back(); } }
+            Text { text: "Lirik"; color: Theme.text-dim; font-size: 13px; vertical-alignment: center; }
+        }
+        if root.lines.length == 0: Rectangle {
+            vertical-stretch: 1;
+            Text {
+                text: "Lirik belum tersedia untuk lagu ini";
+                color: Theme.text-faint;
+                font-size: 13px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                width: parent.width;
+                height: parent.height;
+            }
+        }
+        for line[i] in root.lines: Text {
+            text: line;
+            overflow: elide;
+            horizontal-alignment: center;
+            font-size: i == root.active ? 18px : 13px;
+            font-weight: i == root.active ? 700 : 400;
+            color: i == root.active ? Theme.text : Theme.text-faint;
+        }
+    }
+}
+
+// Halaman Media: pemutar + panel lirik di dalamnya (tombol "Lirik" membuka, "Media" kembali).
+component MediaPage inherits Rectangle {
+    in property <[string]> lyric-lines;
+    in property <int> lyric-active: -1;
+    in-out property <bool> lyrics-open: false;
+    MediaPlayer {
+        visible: !root.lyrics-open;
+        open-lyrics => { root.lyrics-open = true; }
+    }
+    if root.lyrics-open: LyricsPanel {
+        lines: root.lyric-lines;
+        active: root.lyric-active;
+        back => { root.lyrics-open = false; }
     }
 }
 
@@ -703,6 +761,9 @@ export component NotchWindow inherits Window {
     in property <bool> battery-charging: false;
     in property <[NoteItem]> notes;
 
+    in property <[string]> lyric-lines;
+    in property <int> lyric-active: -1;
+    in-out property <bool> lyrics-open: false;
     in-out property <bool> cal-open: false;
     in property <[CalCell]> cal-cells;
     in property <[string]> cal-weekdays;
@@ -738,6 +799,61 @@ export component NotchWindow inherits Window {
     callback cal-select(int);
     callback holidays-ready();
 
+    // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
+    property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
+    changed any-hover => { root.hover-changed(root.any-hover); }
+
+    // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
+    // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
+    // dianggap keluar; piksel hampir transparan memastikan jendela berlapis tetap menerima kursor di celah.
+    pos-zone := TouchArea {
+        property <length> gap: 8px;
+        width: 104px;
+        height: self.gap + 22px;
+        x: (root.width - self.width) / 2;
+        y: root.dock == 2 ? pill.y - self.height : pill.y + pill.height;
+        enabled: root.expanded;
+        mouse-cursor: pointer;
+        clicked => { root.quick-toggle("center"); }
+
+        Rectangle { background: #00000001; }
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: root.dock == 2 ? 0px : parent.gap;
+            width: 94px;
+            height: 22px;
+            border-radius: 11px;
+            background: pos-zone.has-hover ? #20202af2 : #121216e6;
+            border-width: 1px;
+            border-color: Theme.accent.with-alpha(pos-zone.has-hover ? 0.9 : 0.5);
+            opacity: root.expanded ? 1 : 0;
+            animate opacity { duration: 180ms; }
+            animate background { duration: 120ms; }
+            Path {
+                x: 9px;
+                y: 5px;
+                width: 12px;
+                height: 12px;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                commands: "M 12 3 V 8 M 12 16 V 21 M 3 12 H 8 M 16 12 H 21 M 12 10 A 2 2 0 1 0 12 14 A 2 2 0 1 0 12 10";
+                fill: transparent;
+                stroke: Theme.accent;
+                stroke-width: 2px;
+                stroke-line-cap: round;
+            }
+            Text {
+                x: 26px;
+                height: parent.height;
+                text: "Pusatkan";
+                color: Theme.accent;
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+        }
+    }
+
     pill := Rectangle {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale : 17px;
@@ -772,7 +888,6 @@ export component NotchWindow inherits Window {
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
-            changed has-hover => { root.hover-changed(self.has-hover); }
             clicked => { root.pill-clicked(); }
             double-clicked => { root.pill-double-clicked(); }
 
@@ -811,7 +926,7 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
-                    if root.page-id == "media": MediaPage { }
+                    if root.page-id == "media": MediaPage { lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active; }
                     if root.page-id == "clock" && !root.cal-open: ClockPage {
                         clock-text: root.clock-text;
                         date-text: root.date-text;
