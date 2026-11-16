@@ -2888,8 +2888,37 @@ fn main() -> Result<(), slint::PlatformError> {
 
 #[cfg(test)]
 mod convert_queue_display_tests {
-    use super::format_convert_queue;
+    use super::{format_convert_file_statuses, format_convert_queue};
     use std::collections::VecDeque;
+
+    #[test]
+    fn file_status_display_includes_each_state_and_filename() {
+        let statuses = vec![
+            ("/tmp/one.pdf".to_string(), "Menunggu".to_string()),
+            ("/tmp/two.png".to_string(), "Diproses".to_string()),
+            ("/tmp/three.jpg".to_string(), "Berhasil".to_string()),
+            ("/tmp/four.docx".to_string(), "Gagal".to_string()),
+            ("/tmp/five.gif".to_string(), "Dihapus".to_string()),
+        ];
+        let display = format_convert_file_statuses(&statuses);
+        assert!(display.contains("[Menunggu] one.pdf"));
+        assert!(display.contains("[Diproses] two.png"));
+        assert!(display.contains("[Berhasil] three.jpg"));
+        assert!(display.contains("[Gagal] four.docx"));
+        assert!(display.contains("[Dihapus] five.gif"));
+        assert!(!display.contains("/tmp/"));
+    }
+
+    #[test]
+    fn file_status_display_limits_visible_items() {
+        let statuses = (1..=12)
+            .map(|index| (format!("/tmp/file-{index}.pdf"), "Menunggu".to_string()))
+            .collect::<Vec<_>>();
+        let display = format_convert_file_statuses(&statuses);
+        assert!(display.contains("Status file (12)"));
+        assert!(display.contains("dan 2 file lainnya"));
+        assert!(!display.contains("file-12.pdf"));
+    }
 
     #[test]
     fn empty_queue_has_clear_empty_state() {
