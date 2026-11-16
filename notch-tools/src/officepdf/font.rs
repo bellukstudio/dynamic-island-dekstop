@@ -192,6 +192,16 @@ impl Fonts {
         self.slots[serif as usize][(bold as usize) | ((italic as usize) << 1)]
     }
 
+    /// Find a loaded face that contains the requested Unicode character.
+    /// Keep the preferred face whenever possible so ordinary text retains its style.
+    pub fn fallback_face(&self, preferred: usize, ch: char) -> usize {
+        let Some(mapped) = Self::map_char(ch) else { return preferred };
+        if self.faces.get(preferred).map(|face| face.cmap.contains_key(&(mapped as u32))).unwrap_or(false) {
+            return preferred;
+        }
+        self.faces.iter().position(|face| face.cmap.contains_key(&(mapped as u32))).unwrap_or(preferred)
+    }
+
     /// Tinggi baris (dalam em) satu face.
     pub fn line_h(&self, f: usize) -> f32 {
         let fc = &self.faces[f];
@@ -339,6 +349,34 @@ mod tests {
         let mut fonts = fonts(&[('?' as u32, 2)]);
         assert_eq!(fonts.encode(0, "漢"), "<0001>");
         assert_eq!(fonts.faces[0].used.get(&1), Some(&(2, '漢')));
+    }
+
+    #[test]
+    fn fallback_face_prefers_original_face_when_glyph_exists() {
+        let mut fonts = fonts(&[('A' as u32, 1)]);
+        let mut second = fonts.faces[0].cmap.clone();
+        second.insert('A' as u32, 2);
+        fonts.faces.push(Face {
+            data: Vec::new(), upem: 1000.0, cmap: second, adv: vec![0, 500, 600],
+            asc: 800.0, desc: -200.0, gap: 0.0, bbox: [0, -200, 1000, 800],
+            cap: 700, italic_angle: 0.0, ps_name: "Fallback".into(),
+            used: BTreeMap::new(), used_chars: HashMap::new(),
+        });
+        assert_eq!(fonts.fallback_face(0, 'A'), 0);
+    }
+
+    #[test]
+    fn fallback_face_selects_another_loaded_face_for_missing_glyph() {
+        let mut fonts = fonts(&[('A' as u32, 1)]);
+        let mut second = HashMap::new();
+        second.insert('漢' as u32, 1);
+        fonts.faces.push(Face {
+            data: Vec::new(), upem: 1000.0, cmap: second, adv: vec![0, 500],
+            asc: 800.0, desc: -200.0, gap: 0.0, bbox: [0, -200, 1000, 800],
+            cap: 700, italic_angle: 0.0, ps_name: "CJKFallback".into(),
+            used: BTreeMap::new(), used_chars: HashMap::new(),
+        });
+        assert_eq!(fonts.fallback_face(0, '漢'), 1);
     }
 
     #[test]
