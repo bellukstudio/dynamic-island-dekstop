@@ -986,7 +986,14 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
     win.set_hub_pages(cfg.pages.join(", ").into());
-    win.set_position_mode("top".into());
+    let initial_position_mode = if !cfg.position.custom {
+        "top"
+    } else if cfg.position.y >= notch_core::layout::BOTTOM_TY / 2 {
+        "bottom"
+    } else {
+        "floating"
+    };
+    win.set_position_mode(initial_position_mode.into());
     win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(cfg.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
     {
         let weak = win.as_weak();
@@ -1071,7 +1078,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     updated_config = next;
                     shell.pos.set(next_pos);
                     if let Some(w) = weak.upgrade() {
-                        shell.place(&w, COLLAPSED);
+                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        shell.place(&w, size);
                         w.set_position_mode(mode.clone().into());
                         w.set_behavior_save_status(format!("Posisi notch disimpan: {mode}").into());
                     }
