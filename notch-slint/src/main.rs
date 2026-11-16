@@ -4200,6 +4200,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let dock_play_timer = Timer::default();
     {
         let weak = win.as_weak();
+        let eye = eye.clone();
         let mut next_at = Instant::now() + Duration::from_secs(6);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -4271,6 +4272,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     6 => 2_450, // dance
                     _ => 2_800, // yawn
                 };
+                // Ekspresi ikut gerakan dan kembali ke mood dasar melalui MoodState,
+                // sehingga renderer mata tetap menjadi satu-satunya sumber gambar wajah.
+                let animation_mood = match choice {
+                    0 | 2 | 3 => Mood::Happy,
+                    1 | 4 => Mood::Surprised,
+                    5 => Mood::Suspicious,
+                    6 => Mood::Love,
+                    _ => Mood::Sleepy,
+                };
+                eye.borrow_mut().mood.flash(animation_mood, duration_ms + 700, now);
                 let direction = if roll & 1 == 0 { -1.0 } else { 1.0 };
                 active = Some((choice, now, Duration::from_millis(duration_ms), direction));
             }
