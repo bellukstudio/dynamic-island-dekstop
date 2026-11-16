@@ -4403,15 +4403,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     selected
                 };
                 last_choice = Some(choice);
-                let duration_ms = match choice {
-                    0 => 2_500, // liquid
-                    1 => 2_900, // ghost
-                    2 => 4_200, // roam
-                    3 => 1_650, // wiggle
-                    4 => 1_700, // squish
-                    5 => 3_200, // sway
-                    6 => 2_450, // dance
-                    _ => 2_800, // yawn
+                // Durasi gerak dan ekspresi mengikuti tabel MOOD serta urutan TRICKS Tauri.
+                let (duration_ms, mood_ms) = match choice {
+                    0 => (4_800, 1_900), // liquid: beberapa langkah aliran
+                    1 => (4_200, 2_600), // ghost: berjalan, menjulang, lalu menyusut
+                    2 => (4_500, 2_600), // roam: pergi dan kembali
+                    3 => (900, 1_200),   // wiggle
+                    4 => (1_700, 900),   // squish
+                    5 => (3_000, 2_200), // sway
+                    6 => (2_100, 1_800), // dance
+                    _ => (1_600, 2_400), // yawn
                 };
                 // Ekspresi ikut gerakan dan kembali ke mood dasar melalui MoodState,
                 // sehingga renderer mata tetap menjadi satu-satunya sumber gambar wajah.
@@ -4422,7 +4423,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     6 => Mood::Love,
                     _ => Mood::Sleepy,
                 };
-                eye.borrow_mut().mood.flash(animation_mood, duration_ms + 700, now);
+                eye.borrow_mut().mood.flash(animation_mood, mood_ms, now);
                 let direction = if roll & 1 == 0 { -1.0 } else { 1.0 };
                 active = Some((choice, now, Duration::from_millis(duration_ms), direction));
             }
