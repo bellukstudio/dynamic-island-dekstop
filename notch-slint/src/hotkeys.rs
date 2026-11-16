@@ -10,6 +10,7 @@ pub enum Action {
     ToggleHub,
     TogglePomodoro,
     OpenPrayer,
+    ColorPicker,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -85,6 +86,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, Option<JoinHandle<()>>) {
             (1i32, config.toggle_hub.clone(), Action::ToggleHub),
             (2i32, config.toggle_pomodoro.clone(), Action::TogglePomodoro),
             (3i32, config.toggle_prayer.clone(), Action::OpenPrayer),
+            (4i32, "Ctrl+Alt+Shift+P".to_string(), Action::ColorPicker),
         ];
         let handle = thread::spawn(move || unsafe {
             use windows::Win32::UI::WindowsAndMessaging::{

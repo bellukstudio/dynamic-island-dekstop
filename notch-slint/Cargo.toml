@@ -16,6 +16,7 @@ notch-core = { path = "../notch-core", features = ["net"] }
 png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
 slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
 image = { version = "0.25.5", default-features = false, features = ["jpeg", "png"] }
+arboard = { version = "3", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 windows-core = "0.61"

@@ -30,6 +30,7 @@ use slint::{
 
 mod privacy;
 mod hotkeys;
+mod colorpick;
 
 slint::include_modules!();
 
@@ -1240,6 +1241,9 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.set_page_id("prayer".into());
                             expand();
                         }
+                    }
+                    hotkeys::Action::ColorPicker => {
+                        std::thread::spawn(|| { let _ = colorpick::pick_and_copy(); });
                     }
                 }
             }
