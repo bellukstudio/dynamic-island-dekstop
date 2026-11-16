@@ -16,8 +16,10 @@ pub struct Face {
     pub cap: i16,
     pub italic_angle: f32,
     pub ps_name: String,
-    /// glyph yang benar-benar dipakai -> karakter Unicode-nya (untuk ToUnicode)
-    pub used: BTreeMap<u16, char>,
+    /// CID PDF -> (glyph font asli, karakter Unicode sumber).
+    /// CID unik per karakter, bukan per glyph, agar karakter alias tetap bisa diekstrak dengan benar.
+    pub used: BTreeMap<u16, (u16, char)>,
+    used_chars: HashMap<char, u16>,
 }
 
 impl Face {
@@ -78,6 +80,7 @@ impl Face {
             italic_angle: ia,
             ps_name: if ps_name.is_empty() { "Font".into() } else { ps_name },
             used: BTreeMap::new(),
+            used_chars: HashMap::new(),
         })
     }
 }
@@ -215,11 +218,11 @@ impl Fonts {
         if let Some(g) = fc.cmap.get(&(c as u32)) {
             return Some((*g, c));
         }
-        // Never encode an unsupported character as glyph 0 while claiming it is the
-        // original Unicode character in ToUnicode. Prefer the replacement glyph, then '?'.
+        // Use a visible fallback glyph but retain the original Unicode scalar in ToUnicode.
+        // This keeps copied/extracted text faithful even when the selected face lacks a glyph.
         for fallback in ['\u{fffd}', '?'] {
             if let Some(g) = fc.cmap.get(&(fallback as u32)) {
-                return Some((*g, fallback));
+                return Some((*g, c));
             }
         }
         None
@@ -239,14 +242,27 @@ impl Fonts {
         s.chars().map(|c| self.char_w(f, c, size)).sum()
     }
 
-    /// Ubah teks menjadi string heksadesimal glyph (Identity-H) dan catat glyph yang dipakai.
+    /// Encode text as sequential PDF CIDs. A CID identifies a Unicode character,
+    /// while CIDToGIDMap independently selects the actual glyph in the embedded font.
     pub fn encode(&mut self, f: usize, s: &str) -> String {
         let mut out = String::with_capacity(s.len() * 4 + 2);
         out.push('<');
         for c in s.chars() {
             if let Some((g, ch)) = self.gid(f, c) {
-                self.faces[f].used.entry(g).or_insert(ch);
-                out.push_str(&format!("{g:04X}"));
+                let face = &mut self.faces[f];
+                let cid = if let Some(cid) = face.used_chars.get(&ch) {
+                    *cid
+                } else {
+                    let next = face.used.len().saturating_add(1);
+                    if next > u16::MAX as usize {
+                        continue;
+                    }
+                    let cid = next as u16;
+                    face.used.insert(cid, (g, ch));
+                    face.used_chars.insert(ch, cid);
+                    cid
+                };
+                out.push_str(&format!("{cid:04X}"));
             }
         }
         out.push('>');
@@ -285,6 +301,7 @@ mod tests {
                 italic_angle: 0.0,
                 ps_name: "Test".into(),
                 used: BTreeMap::new(),
+                used_chars: HashMap::new(),
             }],
             slots: [[0; 4]; 2],
         }
@@ -293,13 +310,13 @@ mod tests {
     #[test]
     fn unsupported_character_uses_unicode_replacement_glyph_when_available() {
         let fonts = fonts(&[('\u{fffd}' as u32, 1), ('?' as u32, 2)]);
-        assert_eq!(fonts.gid(0, '漢'), Some((1, '\u{fffd}')));
+        assert_eq!(fonts.gid(0, '漢'), Some((1, '漢')));
     }
 
     #[test]
     fn unsupported_character_falls_back_to_question_mark() {
         let fonts = fonts(&[('?' as u32, 2)]);
-        assert_eq!(fonts.gid(0, '漢'), Some((2, '?')));
+        assert_eq!(fonts.gid(0, '漢'), Some((2, '漢')));
     }
 
     #[test]
@@ -307,6 +324,21 @@ mod tests {
         let fonts = fonts(&[('A' as u32, 1)]);
         assert_eq!(fonts.gid(0, '漢'), None);
         assert_eq!(fonts.text_w(0, "漢", 12.0), 0.0);
+    }
+
+    #[test]
+    fn different_unicode_characters_get_distinct_cids_for_same_glyph() {
+        let mut fonts = fonts(&[('A' as u32, 1), ('Å' as u32, 1)]);
+        assert_eq!(fonts.encode(0, "AÅA"), "<000100020001>");
+        assert_eq!(fonts.faces[0].used.get(&1), Some(&(1, 'A')));
+        assert_eq!(fonts.faces[0].used.get(&2), Some(&(1, 'Å')));
+    }
+
+    #[test]
+    fn unsupported_character_keeps_original_unicode_mapping() {
+        let mut fonts = fonts(&[('?' as u32, 2)]);
+        assert_eq!(fonts.encode(0, "漢"), "<0001>");
+        assert_eq!(fonts.faces[0].used.get(&1), Some(&(2, '漢')));
     }
 
     #[test]
