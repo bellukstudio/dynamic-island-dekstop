@@ -128,6 +128,19 @@ fn convert_target_override(path: &std::path::Path, raw: &str) -> Option<String> 
     }).last()
 }
 
+fn format_convert_queue(queue: &std::collections::VecDeque<String>) -> String {
+    if queue.is_empty() { return "Antrean kosong".into(); }
+    let lines = queue.iter().take(8).map(|raw| {
+        std::path::Path::new(raw).file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| raw.clone())
+    }).collect::<Vec<_>>();
+    let suffix = if queue.len() > lines.len() {
+        format!("\\n… dan {} file lainnya", queue.len() - lines.len())
+    } else { String::new() };
+    format!("Antrean ({}):\\n{}{}", queue.len(), lines.join("\\n"), suffix)
+}
+
 fn format_convert_selection(paths: &[String]) -> String {
     if paths.is_empty() { return "Belum ada file dipilih".into(); }
     let mut lines = paths.iter().take(10).map(|raw| {
@@ -1800,7 +1813,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_progress_text("0%".into());
                 w.set_convert_progress_value(0.0);
                 w.set_convert_eta_text("Menyiapkan antrean…".into());
-                w.set_convert_queue_text(format!("{total} file menunggu").into());
+                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                w.set_convert_queue_text(queue_text.into());
             }
             let weak = weak.clone();
             let cancel_requested = cancel_requested.clone();
@@ -1932,8 +1946,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let percent = (index + 1) * 100 / total;
                     let progress_text = format!("{percent}% ({processed}/{total})");
-                    let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
-                    let queue_text = format!("{remaining} file menunggu");
+                    let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
                     let elapsed = started.elapsed().as_secs_f64();
                     let eta_seconds = if index + 1 > 0 {
                         (elapsed / (index + 1) as f64 * remaining as f64).ceil() as u64
@@ -2076,7 +2089,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 (before - pending.len(), pending.len())
             };
             if let Some(w) = weak.upgrade() {
-                w.set_convert_queue_text(format!("{remaining} file menunggu").into());
+                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                w.set_convert_queue_text(queue_text.into());
                 w.set_convert_status(if removed > 0 {
                     format!("{removed} file dihapus dari antrean")
                 } else {
@@ -2097,7 +2111,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 count
             };
             if let Some(w) = weak.upgrade() {
-                w.set_convert_queue_text("Antrean kosong".into());
+                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                w.set_convert_queue_text(queue_text.into());
                 w.set_convert_status(if running.load(std::sync::atomic::Ordering::Acquire) {
                     format!("{removed} file menunggu dihapus; file aktif tetap diselesaikan").into()
                 } else { format!("{removed} file dihapus dari antrean").into() });
