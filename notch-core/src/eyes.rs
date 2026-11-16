@@ -1157,6 +1157,11 @@ impl MoodState {
         self.sleeping
     }
 
+    /// Perbarui ambang idle tanpa mereset mood, klik, atau aktivitas yang sedang berjalan.
+    pub fn set_sleep_after(&mut self, seconds: u32) {
+        self.sleep_after = Duration::from_secs(u64::from(seconds));
+    }
+
     pub fn flash(&mut self, m: Mood, ms: u64, now: Instant) {
         self.temp = Some((m, now + Duration::from_millis(ms)));
     }

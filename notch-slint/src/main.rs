@@ -449,7 +449,7 @@ struct Shell {
     pos: Cell<Option<(i32, i32)>>, // posisi kustom (pusat x, atas y) atau None = tengah atas
     theme: RefCell<String>,
     body: RefCell<Rgba>,
-    scale: f32,
+    scale: RefCell<f32>,
     memo: Cell<(Option<Dock>, u32)>, // (dock, bit faktor DPI) yang sedang terpasang
 }
 
@@ -478,7 +478,7 @@ impl Shell {
 
     fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
         let (w, h) = ((PILL_W * sf).round() as u32, (PILL_H * sf).round() as u32);
-        let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * self.scale * sf;
+        let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * *self.scale.borrow() * sf;
         match decor::render(&self.theme.borrow(), *self.body.borrow(), dock, w, h, r, sf) {
             Some(buf) => {
                 win.set_decor(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, w, h)));
@@ -529,7 +529,7 @@ fn main() -> Result<(), slint::PlatformError> {
         pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
         theme: RefCell::new(cfg.appearance.notch_theme.clone()),
         body: RefCell::new(palette.body),
-        scale: cfg.scale as f32,
+        scale: RefCell::new(cfg.scale as f32),
         memo: Cell::new((None, 0)),
     });
 
@@ -1164,10 +1164,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let open_timer = Rc::new(Timer::default());
     let close_timer = Rc::new(Timer::default());
     let shrink_timer = Rc::new(Timer::default());
-    let (open_ms, close_ms) = (
-        u64::from(cfg.timing.hover_open_ms),
-        u64::from(cfg.timing.hover_close_ms),
-    );
+    let open_ms = Rc::new(Cell::new(u64::from(cfg.timing.hover_open_ms)));
+    let close_ms = Rc::new(Cell::new(u64::from(cfg.timing.hover_close_ms)));
     let expand: Rc<dyn Fn()> = {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
@@ -1207,19 +1205,20 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let (open_timer, close_timer) = (open_timer.clone(), close_timer.clone());
+        let (open_ms, close_ms) = (open_ms.clone(), close_ms.clone());
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
             if hovered {
                 close_timer.stop();
                 if !w.get_expanded() {
                     let e = expand.clone();
-                    open_timer.start(TimerMode::SingleShot, Duration::from_millis(open_ms), move || e());
+                    open_timer.start(TimerMode::SingleShot, Duration::from_millis(open_ms.get()), move || e());
                 }
             } else {
                 open_timer.stop();
                 if w.get_expanded() {
                     let c = collapse.clone();
-                    close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms), move || c());
+                    close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms.get()), move || c());
                 }
             }
         });
@@ -1507,6 +1506,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let shell = shell.clone();
         let eye_runtime = appearance_eye.clone();
+        let sleep_after_s = sleep_after_s.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, dark, light| {
@@ -1540,6 +1540,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             eye.skin = skin;
                             let mood = Mood::parse(&next.appearance.default_mood).unwrap_or(Mood::Normal);
                             eye.mood = MoodState::new(mood, next.timing.sleep_after_s, Instant::now());
+                            sleep_after_s.set(next.timing.sleep_after_s);
                             eye.cur = mood;
                             eye.cur_since = 0.0;
                             eye.morph = Morph::new(Face::for_mood(mood, skin));
@@ -1556,6 +1557,63 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        let open_ms = open_ms.clone();
+        let close_ms = close_ms.clone();
+        let sleep_after_s = sleep_after_s.clone();
+        let eye_runtime = appearance_eye.clone();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_behavior(move |scale, hover_open, hover_close, sleep_after| {
+            let mut next = updated_config.clone();
+            let scale = scale.parse::<f64>().ok().filter(|v| (0.5..=1.5).contains(v));
+            let hover_open = hover_open.parse::<u32>().ok().filter(|v| *v <= 2000);
+            let hover_close = hover_close.parse::<u32>().ok().filter(|v| *v <= 5000);
+            let sleep_after = sleep_after.parse::<u32>().ok().filter(|v| (10..=3600).contains(v));
+            let (Some(scale), Some(hover_open), Some(hover_close), Some(sleep_after)) =
+                (scale, hover_open, hover_close, sleep_after) else {
+                if let Some(w) = weak.upgrade() {
+                    w.set_behavior_save_status("Skala 0.5–1.5, hover buka 0–2000 ms, hover tutup 0–5000 ms, idle 10–3600 detik.".into());
+                }
+                return;
+            };
+            next.scale = scale;
+            next.timing.hover_open_ms = hover_open;
+            next.timing.hover_close_ms = hover_close;
+            next.timing.sleep_after_s = sleep_after;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    open_ms.set(u64::from(hover_open));
+                    close_ms.set(u64::from(hover_close));
+                    sleep_after_s.set(sleep_after);
+                    *shell.scale.borrow_mut() = scale as f32;
+                    shell.memo.set((None, 0));
+                    if let Some(eye) = eye_runtime.borrow().as_ref() {
+                        eye.borrow_mut().mood.set_sleep_after(sleep_after);
+                    }
+                    if let Some(w) = weak.upgrade() {
+                        w.set_ui_scale(scale as f32);
+                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        shell.place(&w, size);
+                        w.set_behavior_scale(format!("{scale:.2}").into());
+                        w.set_behavior-hover-open(hover_open.to_string().into());
+                        w.set_behavior-hover-close(hover_close.to_string().into());
+                        w.set_behavior-sleep-after(sleep_after.to_string().into());
+                        w.set_behavior_save_status("Perilaku notch tersimpan dan langsung diterapkan.".into());
+                    }
+                }
+                Err(error) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_behavior_save_status(format!("Gagal menyimpan: {error}").into());
+                    }
+                }
             }
         });
     }
@@ -1667,6 +1725,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // --- Mata: 8 mood x 20 skin, dirender Rust (notch-core/src/eyes.rs) ---
     let started = Instant::now();
+    let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let skin = eyes::skin_index(&cfg.appearance.eye_theme);
     let default_mood = Mood::parse(&cfg.appearance.default_mood).unwrap_or(Mood::Normal);
     let eye = Rc::new(RefCell::new(EyeCtx {

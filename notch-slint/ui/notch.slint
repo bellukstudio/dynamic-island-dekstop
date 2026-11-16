@@ -1018,6 +1018,17 @@ component SettingsPage inherits VerticalLayout {
     in property <string> pomodoro-break: "5";
     in property <string> pomodoro-long-break: "15";
     in property <string> pomodoro-rounds: "4";
+    in property <string> behavior-scale: "1.00";
+    in property <string> behavior-hover-open: "150";
+    in property <string> behavior-hover-close: "450";
+    in property <string> behavior-sleep-after: "60";
+    in property <string> behavior-save-status: "";
+    in property <string> behavior-scale: "1.00";
+    in property <string> behavior-hover-open: "150";
+    in property <string> behavior-hover-close: "450";
+    in property <string> behavior-sleep-after: "60";
+    in property <string> behavior-save-status: "Skala, hover, dan idle";
+    callback save-behavior(string, string, string, string);
     callback save-routines(string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string);
     callback save-shortcuts(string, string, string, string);
@@ -1082,6 +1093,21 @@ component SettingsPage inherits VerticalLayout {
             dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
             light-bg-input := TextInput { text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; }
             Chip { label: "Simpan tampilan"; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, dark-bg-input.text, light-bg-input.text); } }
+        }
+    }
+    Text { text: "Perilaku notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 5px;
+            Text { text: "Skala UI (0.5–1.5)"; color: Theme.text-faint; font-size: 9px; }
+            behavior-scale-input := TextInput { text: root.behavior-scale; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
+            behavior-hover-open-input := TextInput { text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
+            behavior-hover-close-input := TextInput { text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
+            behavior-sleep-input := TextInput { text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; }
+            Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text); } }
+            Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1416,6 +1442,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-dark-bg: "#000000";
     in property <string> appearance-light-bg: "#f5f5f7";
     callback settings-save-appearance(string, string, string, string, string, string, string);
+    callback settings-save-behavior(string, string, string, string);
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
     in property <string> prayer-remind-min: "10";
@@ -1777,6 +1804,12 @@ export component NotchWindow inherits Window {
                         appearance-dark-bg: root.appearance-dark-bg;
                         appearance-light-bg: root.appearance-light-bg;
                         save-appearance(theme, eye, notch, mood, accent, dark, light) => { root.settings-save-appearance(theme, eye, notch, mood, accent, dark, light); }
+                        behavior-scale: root.behavior-scale;
+                        behavior-hover-open: root.behavior-hover-open;
+                        behavior-hover-close: root.behavior-hover-close;
+                        behavior-sleep-after: root.behavior-sleep-after;
+                        behavior-save-status: root.behavior-save-status;
+                        save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
                         prayer-mode: root.prayer-mode;
                         prayer-remind-before: root.prayer-remind-before;
                         prayer-remind-min: root.prayer-remind-min;
