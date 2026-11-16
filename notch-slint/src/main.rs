@@ -3073,6 +3073,23 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
+        let config = nudge_runtime_config.clone();
+        let timer = Timer::default();
+        win.on_settings_test_nudge(move || {
+            let Some(w) = weak.upgrade() else { return };
+            let cfg = config.borrow().clone();
+            w.set_nudge_message(cfg.message.into());
+            w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", cfg.emoji).into());
+            w.set_nudge_visible(true);
+            let weak = weak.clone();
+            timer.start(TimerMode::SingleShot, Duration::from_millis(cfg.show_ms as u64), move || {
+                if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
+            });
+        });
+    }
+
+    {
+        let weak = win.as_weak();
         let location = weather_location.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();

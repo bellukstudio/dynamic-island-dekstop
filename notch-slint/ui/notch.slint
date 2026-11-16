@@ -1162,6 +1162,7 @@ component SettingsPage inherits VerticalLayout {
     in property <string> nudge-save-status: "";
     callback save-motion(bool, string, string);
     callback save-nudge(bool, string, string, string, string, string, bool);
+    callback test-nudge();
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
@@ -1464,6 +1465,7 @@ component SettingsPage inherits VerticalLayout {
                     nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true";
                     root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true);
                 } }
+                Chip { label: "Pratinjau"; clicked => { root.test-nudge(); } }
                 Chip { label: "Simpan notifikasi"; selected: true; clicked => {
                     root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true");
                 } }
@@ -2177,6 +2179,7 @@ export component NotchWindow inherits Window {
     callback settings-save-behavior(string, string, string, string);
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool);
+    callback settings-test-nudge();
     callback settings-save-position(string);
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
@@ -2675,6 +2678,7 @@ export component NotchWindow inherits Window {
                         nudge-only-silent: root.nudge-only-silent;
                         nudge-save-status: root.nudge-save-status;
                         save-nudge(enabled, idle, message, emoji, mood, show, silent) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent); }
+                        test-nudge => { root.settings-test-nudge(); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
                         save-position(mode) => { root.settings-save-position(mode); }
