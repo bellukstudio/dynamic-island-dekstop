@@ -16,7 +16,7 @@ mod imp {
     use std::process::{Command, Output};
 
     const NO_WINDOW: u32 = 0x0800_0000;
-    const KEY: &str = r"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
     const NAME: &str = "Notch";
 
     fn reg(args: &[&str]) -> Option<Output> {
@@ -38,7 +38,7 @@ mod imp {
 
     pub fn set(enabled: bool, exe: &str) -> Result<(), String> {
         let output = if enabled {
-            let value = format!("\\\"{exe}\\\"");
+            let value = format!("\"{exe}\"");
             reg(&["add", KEY, "/v", NAME, "/t", "REG_SZ", "/d", &value, "/f"])
         } else {
             reg(&["delete", KEY, "/v", NAME, "/f"])
@@ -77,7 +77,7 @@ mod imp {
                 std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
             }
             let entry = format!(
-                "[Desktop Entry]\\nType=Application\\nName=Notch\\nExec=\\\"{exe}\\\"\\nNoDisplay=true\\nX-GNOME-Autostart-enabled=true\\n"
+                "[Desktop Entry]\nType=Application\nName=Notch\nExec=\"{exe}\"\nNoDisplay=true\nX-GNOME-Autostart-enabled=true\n"
             );
             std::fs::write(path, entry).map_err(|error| error.to_string())
         } else {
