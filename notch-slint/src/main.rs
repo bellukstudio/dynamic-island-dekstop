@@ -1746,6 +1746,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 // Reminder tetap berstatus due dan akan ditampilkan pada siklus timer berikutnya.
                 let can_interrupt = !w.get_expanded()
                     && !w.get_meeting_active()
+                    && w.get_meeting_finished().is_empty()
                     && !w.get_adhan_active();
                 if active.borrow().is_none() && can_interrupt {
                     if let Some(r) = due.first() {
