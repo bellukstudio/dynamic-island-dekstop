@@ -2313,6 +2313,7 @@ export component NotchWindow inherits Window {
     in property <bool> pomo-rest: false;
     // Gambar mata (8 mood x 20 skin) dirender Rust: 130 x 34 horizontal atau 34 x 130 untuk dock samping.
     in property <image> eyes-image;
+    in property <string> eyes-mood: "normal";
 
     in property <float> cpu: 0;
     in property <float> ram: 0;
@@ -2674,6 +2675,39 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
+            }
+
+            // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
+            Rectangle {
+                visible: !root.expanded && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
+                x: root.dock >= 3 ? 13px : (parent.width - self.width) / 2;
+                y: root.dock >= 3 ? 112px : 27px;
+                width: root.eyes-mood == "happy" ? 14px
+                    : root.eyes-mood == "sleepy" ? 7px
+                    : root.eyes-mood == "surprised" ? 7px
+                    : root.eyes-mood == "angry" ? 12px
+                    : root.eyes-mood == "love" ? 15px
+                    : root.eyes-mood == "suspicious" ? 10px
+                    : root.eyes-mood == "sad" ? 11px : 10px;
+                height: root.eyes-mood == "happy" || root.eyes-mood == "angry" || root.eyes-mood == "love" || root.eyes-mood == "sad" ? 6px
+                    : root.eyes-mood == "surprised" ? 7px
+                    : root.eyes-mood == "sleepy" ? 2px
+                    : root.eyes-mood == "suspicious" ? 5px : 3px;
+                border-radius: root.eyes-mood == "surprised" ? 50%
+                    : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 0 0 7px 7px
+                    : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px 6px 0 0
+                    : root.eyes-mood == "suspicious" ? 0 5px 5px 0 : 2px;
+                background: root.eyes-mood == "happy" ? #82ffbe
+                    : root.eyes-mood == "sleepy" ? #9696c880
+                    : root.eyes-mood == "surprised" ? #fff08c
+                    : root.eyes-mood == "angry" ? #ff5a5a
+                    : root.eyes-mood == "love" ? #ff69b4
+                    : root.eyes-mood == "suspicious" ? #ffbe5a
+                    : root.eyes-mood == "sad" ? #82a0ff : #78dcff;
+                opacity: 0.9;
+                animate width { duration: 250ms; easing: ease-in-out; }
+                animate height { duration: 250ms; easing: ease-in-out; }
+                animate opacity { duration: 250ms; easing: ease-in-out; }
             }
 
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
