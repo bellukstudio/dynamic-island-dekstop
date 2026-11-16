@@ -543,6 +543,10 @@ fn main() -> Result<(), slint::PlatformError> {
         pages.iter().map(|p| SharedString::from(p.as_str())).collect::<Vec<_>>(),
     ))));
     win.set_page_id(pages[0].as_str().into());
+    win.set_shortcut_hub(cfg.shortcuts.toggle_hub.clone().into());
+    win.set_shortcut_settings(cfg.shortcuts.open_settings.clone().into());
+    win.set_shortcut_pomodoro(cfg.shortcuts.toggle_pomodoro.clone().into());
+    win.set_shortcut_prayer(cfg.shortcuts.toggle_prayer.clone().into());
 
     win.set_emoji_coffee(load_png(include_bytes!("../assets/emoji/2615.png")));
     win.set_emoji_tomato(load_png(include_bytes!("../assets/emoji/1f345.png")));
@@ -1244,6 +1248,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     hotkeys::Action::ColorPicker => {
                         colorpick::toggle();
+                    }
+                    hotkeys::Action::OpenSettings => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("settings".into());
+                            expand();
+                        }
                     }
                 }
             }

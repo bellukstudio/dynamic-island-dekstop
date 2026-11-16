@@ -998,6 +998,52 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
+component SettingsPage inherits VerticalLayout {
+    in property <string> shortcut-hub;
+    in property <string> shortcut-settings;
+    in property <string> shortcut-pomodoro;
+    in property <string> shortcut-prayer;
+    alignment: start;
+    spacing: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+
+    Text { text: "Pengaturan"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Pintasan global"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #ffffff18;
+        VerticalLayout {
+            padding: 9px;
+            spacing: 7px;
+            HorizontalLayout {
+                Text { text: "Buka / tutup hub"; color: Theme.text; font-size: 11px; }
+                Text { text: root.shortcut-hub; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            }
+            HorizontalLayout {
+                Text { text: "Buka pengaturan"; color: Theme.text; font-size: 11px; }
+                Text { text: root.shortcut-settings; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            }
+            HorizontalLayout {
+                Text { text: "Pomodoro"; color: Theme.text; font-size: 11px; }
+                Text { text: root.shortcut-pomodoro; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            }
+            HorizontalLayout {
+                Text { text: "Jadwal shalat"; color: Theme.text; font-size: 11px; }
+                Text { text: root.shortcut-prayer; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            }
+        }
+    }
+    Text {
+        text: "Pintasan ditampilkan dari config.toml. Editor dan penyimpanan langsung akan diaktifkan pada tahap berikutnya.";
+        color: Theme.text-faint;
+        font-size: 10px;
+        wrap: word-wrap;
+    }
+}
+
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1105,6 +1151,10 @@ export component NotchWindow inherits Window {
     in property <string> weather-rain: "";
     in property <string> weather-icon: "";
     in property <string> weather-status: "";
+    in property <string> shortcut-hub: "Ctrl+Alt+N";
+    in property <string> shortcut-settings: "Ctrl+Alt+,";
+    in property <string> shortcut-pomodoro: "Ctrl+Alt+P";
+    in property <string> shortcut-prayer: "Ctrl+Alt+A";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1380,6 +1430,12 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
+                    if root.page-id == "settings": SettingsPage {
+                        shortcut-hub: root.shortcut-hub;
+                        shortcut-settings: root.shortcut-settings;
+                        shortcut-pomodoro: root.shortcut-pomodoro;
+                        shortcut-prayer: root.shortcut-prayer;
+                    }
                     if root.page-id == "media": MediaPage {
                         lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active;
                         art: root.media-art; has-art: root.media-has-art; title: root.media-title; artist: root.media-artist;
@@ -1469,7 +1525,7 @@ export component NotchWindow inherits Window {
                         toggle(k) => { root.quick-toggle(k); }
                     }
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
-                    if root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
+                    if root.page-id != "settings" && root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
                         && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
