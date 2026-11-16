@@ -2164,6 +2164,9 @@ fn main() -> Result<(), slint::PlatformError> {
     let companion_focus_started = Rc::new(Cell::new(false));
     let companion_halfway_shown = Rc::new(Cell::new(false));
     let companion_hide_timer = Rc::new(Timer::default());
+    // Focus Companion memakai antrean singkat agar tidak menimpa greeting, pengingat,
+    // kartu Conversation Moments, atau overlay lain yang sedang tampil.
+    let companion_pending = Rc::new(RefCell::new(None::<(String, String, Instant)>));
     show_pomo(&win, &pomo.borrow());
     let pomo_timer = Timer::default();
     {
@@ -2173,6 +2176,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let focus_started = companion_focus_started.clone();
         let halfway_shown = companion_halfway_shown.clone();
         let hide_timer = companion_hide_timer.clone();
+        let pending = companion_pending.clone();
         pomo_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             let mut p = pomo.borrow_mut();
             let finished = if p.running() { p.tick(Instant::now()) } else { None };
@@ -2187,15 +2191,11 @@ fn main() -> Result<(), slint::PlatformError> {
                         Phase::Break | Phase::Long if settings.on_break_end => Some(("Istirahat selesai. Siap fokus lagi? 🚀", "Focus Companion · sesi fokus berikutnya")),
                         _ => None,
                     };
-                    if let (Some((message, detail)), Some(w)) = (message, weak.upgrade()) {
-                        if !w.get_meeting_active() && !w.get_adhan_active() {
-                            w.set_nudge_message(message.into());
-                            w.set_nudge_detail(detail.into());
-                            w.set_nudge_visible(true);
-                            let weak_hide = weak.clone();
-                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
-                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
-                            });
+                    if let Some((message, detail)) = message {
+                        if let Some(w) = weak.upgrade() {
+                            if !w.get_meeting_active() && !w.get_adhan_active() && pending.borrow().is_none() {
+                                *pending.borrow_mut() = Some((message.to_string(), detail.to_string(), Instant::now() + Duration::from_secs(60)));
+                            }
                         }
                     }
                 }
@@ -2215,14 +2215,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 let settings = companion.borrow().clone();
                 if settings.enabled && settings.on_start {
                     if let Some(w) = weak.upgrade() {
-                        if !w.get_meeting_active() && !w.get_adhan_active() {
-                            w.set_nudge_message("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯".into());
-                            w.set_nudge_detail("Focus Companion · sesi fokus dimulai".into());
-                            w.set_nudge_visible(true);
-                            let weak_hide = weak.clone();
-                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
-                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
-                            });
+                        if !w.get_meeting_active() && !w.get_adhan_active() && pending.borrow().is_none() {
+                            *pending.borrow_mut() = Some((
+                                "Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯".to_string(),
+                                "Focus Companion · sesi fokus dimulai".to_string(),
+                                Instant::now() + Duration::from_secs(60),
+                            ));
                         }
                     }
                 }
@@ -2233,20 +2231,35 @@ fn main() -> Result<(), slint::PlatformError> {
                 let settings = companion.borrow().clone();
                 if settings.enabled && settings.on_halfway {
                     if let Some(w) = weak.upgrade() {
-                        if !w.get_meeting_active() && !w.get_adhan_active() {
-                            w.set_nudge_message("Sudah separuh jalan! Pertahankan ritmenya. 💪".into());
-                            w.set_nudge_detail("Focus Companion · 50% sesi fokus".into());
-                            w.set_nudge_visible(true);
-                            let weak_hide = weak.clone();
-                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
-                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
-                            });
+                        if !w.get_meeting_active() && !w.get_adhan_active() && pending.borrow().is_none() {
+                            *pending.borrow_mut() = Some((
+                                "Sudah separuh jalan! Pertahankan ritmenya. 💪".to_string(),
+                                "Focus Companion · 50% sesi fokus".to_string(),
+                                Instant::now() + Duration::from_secs(60),
+                            ));
                         }
                     }
                 }
             }
 
+            if pending.borrow().as_ref().is_some_and(|(_, _, expires)| Instant::now() >= *expires) {
+                pending.borrow_mut().take();
+            }
             if let Some(w) = weak.upgrade() {
+                let can_show = !w.get_expanded() && !w.get_nudge_visible()
+                    && !w.get_reminder_alert_visible() && !w.get_meeting_active()
+                    && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
+                if can_show {
+                    if let Some((message, detail, _)) = pending.borrow_mut().take() {
+                        w.set_nudge_message(message.into());
+                        w.set_nudge_detail(detail.into());
+                        w.set_nudge_visible(true);
+                        let weak_hide = weak.clone();
+                        hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                            if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                        });
+                    }
+                }
                 show_pomo(&w, &p);
             }
         });
