@@ -1192,7 +1192,7 @@ component SettingsPage inherits VerticalLayout {
     in property <bool> focus-companion-on-focus-complete: true;
     in property <bool> focus-companion-on-break-end: true;
     in property <string> focus-companion-save-status: "";
-    callback save-motion(bool, string, string);
+    callback save-motion(bool, string, string, bool);
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
     callback test-nudge(string, string, string, string, bool);
     callback save-greeting(bool, string, string, string);
