@@ -54,6 +54,14 @@ impl Default for Motion {
     }
 }
 
+impl Motion {
+    /// Batasi nilai dari config lama atau hasil edit manual agar timer tetap aman.
+    pub fn sanitize(&mut self) {
+        self.interval_secs = self.interval_secs.clamp(60, 3_600);
+        self.max_moves = self.max_moves.clamp(1, 10);
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Pomodoro {
@@ -350,6 +358,7 @@ impl Config {
             self.pages = Config::default().pages;
         }
         self.nudge.sanitize();
+        self.motion.sanitize();
         self.appearance.sanitize();
         self.shortcuts.sanitize();
         migrate(self);
