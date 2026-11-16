@@ -2260,6 +2260,7 @@ export component NotchWindow inherits Window {
                         resume => { root.convert-resume(); }
                         clear-queue => { root.convert-clear-queue(); }
                         remove-queue-file(value) => { root.convert-remove-queue-file(value); }
+                        retry-failed => { root.convert-retry-failed(); }
                         clear-history => { root.convert-history-clear(); }
                         pick-output-dir => { root.convert-output-dir-pick(); }
                     }
