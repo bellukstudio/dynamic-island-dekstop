@@ -2158,6 +2158,8 @@ export component NotchWindow inherits Window {
     in property <string> nudge-show-ms: "6000";
     in property <bool> nudge-only-silent: true;
     in property <string> nudge-save-status: "";
+    in property <bool> nudge-visible: false;
+    in property <string> nudge-detail: "";
     in property <string> position-mode: "top";
     in property <[string]> active-pages;
     in property <string> hub-pages: "";
@@ -2803,14 +2805,14 @@ export component NotchWindow inherits Window {
     }
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
-    if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
+    if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != "" || root.nudge-visible): SpeechBubble {
         x: root.dock == 3 ? 34px : (root.dock == 4 ? 16px : (root.width - self.width) / 2);
         y: root.dock >= 3 ? (root.height - self.height) / 2 : (root.dock == 2 ? 0px : 42px);
         bottom: root.dock == 2;
         side: root.dock >= 3;
         side-right: root.dock == 4;
-        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text));
-        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub));
+        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
+        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
     }
 
     Ear { s: root.ui-scale; visible: root.dock < 3 && root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }

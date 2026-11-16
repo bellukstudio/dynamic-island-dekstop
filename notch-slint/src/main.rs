@@ -3019,8 +3019,10 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    let nudge_runtime_config = Rc::new(RefCell::new(cfg.nudge.clone()));
     {
         let weak = win.as_weak();
+        let runtime_config = nudge_runtime_config.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent| {
@@ -3050,6 +3052,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
+                    *runtime_config.borrow_mut() = next.nudge.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_nudge_enabled(next.nudge.enabled);
                         w.set_nudge_idle_min(next.nudge.idle_min.to_string().into());
@@ -3395,6 +3398,49 @@ fn main() -> Result<(), slint::PlatformError> {
         rng: Rng::new(),
     }));
     *appearance_eye.borrow_mut() = Some(eye.clone());
+
+    // Sapaan otomatis saat pointer idle. Satu sapaan per periode diam; gerakan baru mengaktifkan periode berikutnya.
+    let nudge_timer = Timer::default();
+    {
+        let weak = win.as_weak();
+        let eye = eye.clone();
+        let config = nudge_runtime_config.clone();
+        let state = Rc::new(RefCell::new((false, 0.0_f32, 0.0_f32)));
+        let state_tick = state.clone();
+        nudge_timer.start(TimerMode::Repeated, Duration::from_secs(5), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let elapsed = started.elapsed().as_secs_f32();
+            let last_move = eye.borrow().last_move;
+            let mut state = state_tick.borrow_mut();
+            if last_move > state.1 + 0.001 {
+                state.0 = false;
+                state.1 = last_move;
+                state.2 = 0.0;
+                w.set_nudge_visible(false);
+            }
+            let cfg = config.borrow();
+            if !cfg.enabled {
+                w.set_nudge_visible(false);
+                state.0 = false;
+                return;
+            }
+            if state.0 {
+                if elapsed - state.2 >= cfg.show_ms as f32 / 1000.0 {
+                    w.set_nudge_visible(false);
+                }
+                return;
+            }
+            let idle_secs = (elapsed - last_move).max(0.0);
+            if idle_secs < cfg.idle_min as f32 * 60.0 { return; }
+            if cfg.only_silent && w.get_media_playing() { return; }
+            if w.get_expanded() || w.get_reminder_alert_visible() || w.get_adhan_active() || w.get_meeting_active() || w.get_meeting_finished() != "" { return; }
+            state.0 = true;
+            state.2 = elapsed;
+            w.set_nudge_message(cfg.message.clone().into());
+            w.set_nudge_detail(format!("{}  ·  Pointer diam {} menit", cfg.emoji, (idle_secs / 60.0).floor() as u32).into());
+            w.set_nudge_visible(true);
+        });
+    }
 
     // Klik / dobel klik pada notch (Tauri: klik -> happy atau marah bila 5x dalam 2 dtk; dobel -> love)
     {
