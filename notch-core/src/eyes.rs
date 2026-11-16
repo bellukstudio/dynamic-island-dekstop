@@ -883,6 +883,8 @@ impl EyeRenderer {
         renderer
     }
 
+    pub fn is_vertical(&self) -> bool { self.vertical }
+
     pub fn skin_name(&self) -> &'static str {
         SKINS[self.skin].name
     }
