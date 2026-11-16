@@ -2138,7 +2138,6 @@ fn main() -> Result<(), slint::PlatformError> {
     // --- Pomodoro (state machine dari notch-core, sama dengan pomodoro.ts) ---
     let pomo = Rc::new(RefCell::new(Pomodoro::new(&cfg.pomodoro)));
     let focus_companion_runtime = Rc::new(RefCell::new(cfg.focus_companion.clone()));
-    let companion_last_phase = Rc::new(Cell::new(Phase::Focus));
     let companion_focus_started = Rc::new(Cell::new(false));
     let companion_halfway_shown = Rc::new(Cell::new(false));
     let companion_hide_timer = Rc::new(Timer::default());
@@ -2148,7 +2147,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let pomo = pomo.clone();
         let companion = focus_companion_runtime.clone();
-        let last_phase = companion_last_phase.clone();
         let focus_started = companion_focus_started.clone();
         let halfway_shown = companion_halfway_shown.clone();
         let hide_timer = companion_hide_timer.clone();
@@ -2185,7 +2183,6 @@ fn main() -> Result<(), slint::PlatformError> {
                     focus_started.set(false);
                     halfway_shown.set(false);
                 }
-                last_phase.set(phase);
             }
 
             // Sesi fokus dimulai saat timer pertama kali dijalankan, bukan saat resume setelah jeda.
