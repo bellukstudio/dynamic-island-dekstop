@@ -1195,6 +1195,7 @@ component SettingsPage inherits VerticalLayout {
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
     callback test-nudge(string, string, string, string, bool);
     callback save-greeting(bool, string, string, string);
+    callback test-greeting(string, string);
     callback save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback test-conversation(string, string);
     callback save-focus-companion(bool, bool, bool, bool, bool);
@@ -1604,7 +1605,10 @@ component SettingsPage inherits VerticalLayout {
             }
             Text { text: "Teks kustom (maks. 120 karakter)"; color: Theme.text-faint; font-size: 9px; }
             greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan pengaturan greeting"; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
+            HorizontalLayout {
+                Chip { label: "Pratinjau sapaan (teks)"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text); } }
+                Chip { label: "Simpan pengaturan greeting"; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
+            }
             Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
@@ -2419,6 +2423,7 @@ export component NotchWindow inherits Window {
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
+    callback settings-test-greeting(string, string);
     callback settings-save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback settings-test-conversation(string, string);
     callback settings-save-focus-companion(bool, bool, bool, bool, bool);
@@ -2954,6 +2959,7 @@ export component NotchWindow inherits Window {
                         save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move); }
                         test-nudge(message, emoji, mood, show, until-move) => { root.settings-test-nudge(message, emoji, mood, show, until-move); }
                         save-greeting(enabled, mode, voice, custom-text) => { root.settings-save-greeting(enabled, mode, voice, custom-text); }
+                        test-greeting(mode, custom-text) => { root.settings-test-greeting(mode, custom-text); }
                         save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown) => { root.settings-save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown); }
                         test-conversation(message, detail) => { root.settings-test-conversation(message, detail); }
                         save-focus-companion(enabled, start, halfway, complete, break-end) => { root.settings-save-focus-companion(enabled, start, halfway, complete, break-end); }
