@@ -603,8 +603,13 @@ impl<'a> Conv<'a> {
     fn table(&mut self, t: Node, out: &mut Vec<Block>) {
         const MAX_TABLE_COLS: usize = 1_024;
         const MAX_TABLE_ROWS: usize = 100_000;
+        const MAX_TABLE_CELLS: usize = 100_000;
         let cols: Vec<f32> = kid(t, "tblGrid")
-            .map(|g| kids(g, "gridCol").iter().take(MAX_TABLE_COLS).filter_map(|c| fnum(at(*c, "w"))).map(|v| v / 20.0).collect())
+            .map(|g| kids(g, "gridCol").iter().take(MAX_TABLE_COLS)
+                .filter_map(|c| fnum(at(*c, "w")))
+                .map(|v| v / 20.0)
+                .filter(|v| v.is_finite() && (0.0..=14_400.0).contains(v))
+                .collect())
             .unwrap_or_default();
         let mut borders = false;
         if let Some(pr) = kid(t, "tblPr") {
@@ -618,9 +623,14 @@ impl<'a> Conv<'a> {
             }
         }
         let mut rows = Vec::new();
+        let mut remaining_cells = MAX_TABLE_CELLS;
         for tr in kids(t, "tr").into_iter().take(MAX_TABLE_ROWS) {
+            if remaining_cells == 0 {
+                break;
+            }
             let mut cells = Vec::new();
-            for tc in kids(tr, "tc") {
+            for tc in kids(tr, "tc").into_iter().take(MAX_TABLE_COLS).take(remaining_cells) {
+                remaining_cells -= 1;
                 let pr = kid(tc, "tcPr");
                 let span = pr.and_then(|p| kid(p, "gridSpan")).and_then(|g| at(g, "val")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1).clamp(1, MAX_TABLE_COLS);
                 let fill = pr.and_then(|p| kid(p, "shd")).and_then(|s| at(s, "fill")).and_then(|f| if f == "auto" { None } else { hex(f) });
