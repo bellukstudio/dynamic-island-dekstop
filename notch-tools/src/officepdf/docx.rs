@@ -680,9 +680,17 @@ fn section_setup(node: Node, previous: PageSetup, new_page: bool) -> PageSetup {
     let right = safe("right", previous.right, width / 3.0);
     let top = safe("top", previous.top, height / 3.0);
     let bottom = safe("bottom", previous.bottom, height / 3.0);
-    let break_type = kid(node, "type").and_then(|n| at(n, "val"));
-    let page_break = new_page && !matches!(break_type, Some("continuous"));
-    PageSetup { width, height, left, right, top, bottom, new_page: page_break }
+    let section_break = if !new_page {
+        SectionBreak::None
+    } else {
+        match kid(node, "type").and_then(|n| at(n, "val")) {
+            Some("continuous") => SectionBreak::Continuous,
+            Some("oddPage") => SectionBreak::OddPage,
+            Some("evenPage") => SectionBreak::EvenPage,
+            _ => SectionBreak::NextPage,
+        }
+    };
+    PageSetup { width, height, left, right, top, bottom, break_type: section_break }
 }
 
 pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
@@ -697,7 +705,7 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
 
     let defaults = PageSetup {
         width: 595.3, height: 841.9, left: 72.0, right: 72.0,
-        top: 72.0, bottom: 72.0, new_page: false,
+        top: 72.0, bottom: 72.0, break_type: SectionBreak::None,
     };
     let mut blocks = Vec::new();
     {
@@ -715,7 +723,7 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
                     let setup = section_setup(section, previous, section_index > 0);
                     blocks.push(Block::Section(setup));
                     blocks.append(&mut section_blocks);
-                    previous = PageSetup { new_page: false, ..setup };
+                    previous = PageSetup { break_type: SectionBreak::None, ..setup };
                     section_index += 1;
                 }
             } else {
@@ -725,7 +733,10 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
         let final_section = kids(body, "sectPr").last().copied();
         let setup = final_section
             .map(|section| section_setup(section, previous, section_index > 0))
-            .unwrap_or(PageSetup { new_page: section_index > 0, ..previous });
+            .unwrap_or(PageSetup {
+                break_type: if section_index > 0 { SectionBreak::NextPage } else { SectionBreak::None },
+                ..previous
+            });
         blocks.push(Block::Section(setup));
         blocks.append(&mut section_blocks);
     }
@@ -772,7 +783,23 @@ mod section_tests {
             defaults(),
             true,
         );
-        assert!(!page.new_page);
+        assert_eq!(page.break_type, SectionBreak::Continuous);
+    }
+
+    #[test]
+    fn odd_and_even_section_breaks_are_preserved() {
+        let odd = setup(
+            r#"<sectPr><type val="oddPage"/></sectPr>"#,
+            defaults(),
+            true,
+        );
+        let even = setup(
+            r#"<sectPr><type val="evenPage"/></sectPr>"#,
+            defaults(),
+            true,
+        );
+        assert_eq!(odd.break_type, SectionBreak::OddPage);
+        assert_eq!(even.break_type, SectionBreak::EvenPage);
     }
 
     #[test]
@@ -782,7 +809,7 @@ mod section_tests {
             defaults(),
             true,
         );
-        assert!(page.new_page);
+        assert_eq!(page.break_type, SectionBreak::NextPage);
         assert_eq!(page.left, 0.0);
         assert!(page.right <= page.width / 3.0);
         assert!((page.top - 72.0).abs() < 0.1);
