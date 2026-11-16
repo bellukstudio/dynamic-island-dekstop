@@ -561,6 +561,7 @@ mod tests {
         assert_eq!(c.appearance.notch_theme, "default");
         assert_eq!(c.appearance.theme, "auto");
         assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
+        assert!(c.motion.dock_play_enabled);
     }
 
     #[test]
@@ -570,6 +571,7 @@ mod tests {
         assert_eq!(c.pomodoro.rounds, 2);
         assert_eq!(c.pomodoro.focus_min, 25); // tidak ditulis -> bawaan
         assert_eq!(c.timing.hover_close_ms, 450);
+        assert!(c.motion.dock_play_enabled); // kompatibel dengan config lama
     }
 
     #[test]
