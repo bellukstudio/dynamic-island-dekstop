@@ -692,13 +692,18 @@ fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
     };
 
     for (b0, b1) in bands {
+        // A wide worksheet can create one page per horizontal band. Enforce the
+        // same hard page budget before creating each band's first page.
+        if pdf.page_count() >= 400 {
+            return;
+        }
         let bw: f32 = (b0..=b1).map(cw).sum();
         let scale = (avail / bw.max(1.0)).min(1.0);
         pdf.new_page(pw, ph);
         let mut y = MARGIN;
         let bottom = ph - MARGIN;
         for r in rmin..=rmax {
-            if pdf.page_count() > 400 {
+            if pdf.page_count() >= 400 {
                 return;
             }
             let base = row_h(r) * scale;
@@ -719,6 +724,9 @@ fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
                 }
             }
             if y + rh > bottom + 0.5 && y > MARGIN + 0.1 {
+                if pdf.page_count() >= 400 {
+                    return;
+                }
                 pdf.new_page(pw, ph);
                 y = MARGIN;
             }
