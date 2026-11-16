@@ -3140,7 +3140,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
 #[cfg(test)]
 mod convert_queue_display_tests {
-    use super::{format_convert_file_statuses, format_convert_queue};
+    use super::{format_convert_file_statuses, format_convert_queue, move_convert_queue_item, remove_finished_convert_statuses};
     use std::collections::VecDeque;
 
     #[test]
@@ -3197,6 +3197,40 @@ mod convert_queue_display_tests {
         assert!(display.contains("file-8.pdf"));
         assert!(!display.contains("file-9.pdf"));
         assert!(display.contains("dan 2 file lainnya"));
+    }
+
+    #[test]
+    fn queue_item_can_move_up_and_down_by_filename() {
+        let mut queue = VecDeque::from(vec!["/tmp/one.pdf".to_string(), "/tmp/two.pdf".to_string(), "/tmp/three.pdf".to_string()]);
+        assert!(move_convert_queue_item(&mut queue, "three.pdf", -1));
+        assert_eq!(queue[1], "/tmp/three.pdf");
+        assert!(move_convert_queue_item(&mut queue, "one.pdf", 1));
+        assert_eq!(queue[1], "/tmp/one.pdf");
+    }
+
+    #[test]
+    fn queue_item_cannot_move_past_boundaries_or_when_missing() {
+        let mut queue = VecDeque::from(vec!["one.pdf".to_string(), "two.pdf".to_string()]);
+        assert!(!move_convert_queue_item(&mut queue, "one.pdf", -1));
+        assert!(!move_convert_queue_item(&mut queue, "two.pdf", 1));
+        assert!(!move_convert_queue_item(&mut queue, "missing.pdf", 1));
+    }
+
+    #[test]
+    fn cleanup_removes_only_finished_and_cancelled_statuses() {
+        let mut statuses = vec![
+            ("one.pdf".to_string(), "Berhasil".to_string()),
+            ("two.pdf".to_string(), "Dibatalkan".to_string()),
+            ("three.pdf".to_string(), "Dihapus".to_string()),
+            ("four.pdf".to_string(), "Menunggu".to_string()),
+            ("five.pdf".to_string(), "Diproses".to_string()),
+            ("six.pdf".to_string(), "Gagal".to_string()),
+        ];
+        assert_eq!(remove_finished_convert_statuses(&mut statuses), 3);
+        assert_eq!(statuses.len(), 3);
+        assert!(statuses.iter().any(|(_, status)| status == "Menunggu"));
+        assert!(statuses.iter().any(|(_, status)| status == "Diproses"));
+        assert!(statuses.iter().any(|(_, status)| status == "Gagal"));
     }
 }
 
