@@ -50,3 +50,24 @@ mod tests {
     }
 
 }
+
+/// Convert DOCX, XLSX, or PPTX to PDF and save the result beside the source file.
+pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !crate::officepdf::supports(&ext) {
+        return Err(format!("Format Office tidak didukung: .{ext}"));
+    }
+
+    let bytes = crate::officepdf::convert_to_pdf(path)?;
+    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("document");
+    let parent = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut output = parent.join(format!("{stem}_converted.pdf"));
+    let mut index = 2u32;
+    while output.exists() {
+        output = parent.join(format!("{stem}_converted_{index}.pdf"));
+        index += 1;
+    }
+
+    std::fs::write(&output, bytes).map_err(|error| format!("Gagal menyimpan PDF: {error}"))?;
+    Ok(output)
+}
