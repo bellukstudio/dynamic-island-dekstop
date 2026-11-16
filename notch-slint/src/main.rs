@@ -447,8 +447,8 @@ const PILL_H: f32 = 202.0;
 /// (atas/melayang/bawah) atau faktor DPI berubah.
 struct Shell {
     pos: Cell<Option<(i32, i32)>>, // posisi kustom (pusat x, atas y) atau None = tengah atas
-    theme: String,
-    body: Rgba,
+    theme: RefCell<String>,
+    body: RefCell<Rgba>,
     scale: f32,
     memo: Cell<(Option<Dock>, u32)>, // (dock, bit faktor DPI) yang sedang terpasang
 }
@@ -479,7 +479,7 @@ impl Shell {
     fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
         let (w, h) = ((PILL_W * sf).round() as u32, (PILL_H * sf).round() as u32);
         let r = (if dock == Dock::Floating { 28.0 } else { 32.0 }) * self.scale * sf;
-        match decor::render(&self.theme, self.body, dock, w, h, r, sf) {
+        match decor::render(&self.theme.borrow(), *self.body.borrow(), dock, w, h, r, sf) {
             Some(buf) => {
                 win.set_decor(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&buf, w, h)));
                 win.set_has_decor(true);
@@ -527,12 +527,13 @@ fn main() -> Result<(), slint::PlatformError> {
     // Tombol "Pusatkan" hanya mengembalikannya ke tengah selama sesi ini (config tidak ditulis dari sini).
     let shell = Rc::new(Shell {
         pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
-        theme: cfg.appearance.notch_theme.clone(),
-        body: palette.body,
+        theme: RefCell::new(cfg.appearance.notch_theme.clone()),
+        body: RefCell::new(palette.body),
         scale: cfg.scale as f32,
         memo: Cell::new((None, 0)),
     });
 
+    let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
     let win = NotchWindow::new()?;
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
@@ -1504,6 +1505,8 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
+        let shell = shell.clone();
+        let eye_runtime = appearance_eye.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, dark, light| {
@@ -1520,7 +1523,38 @@ fn main() -> Result<(), slint::PlatformError> {
             let valid_hex = |v: &str| v.is_empty() || (v.len() == 7 && v.starts_with("#") && v[1..].bytes().all(|b| b.is_ascii_hexdigit()));
             if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Warna harus memakai format HEX #RRGGBB".into()); } return; }
             match next.save(&config_path) {
-                Ok(()) => { updated_config = next.clone(); if let Some(w) = weak.upgrade() { w.set_appearance_theme(next.appearance.theme.clone().into()); w.set_appearance_eye_theme(next.appearance.eye_theme.clone().into()); w.set_appearance_notch_theme(next.appearance.notch_theme.clone().into()); w.set_appearance_mood(next.appearance.default_mood.clone().into()); w.set_appearance_accent(next.appearance.accent.clone().into()); w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into()); w.set_appearance_light_bg(next.appearance.light_bg.clone().into()); w.set_appearance_save_status("Tampilan tersimpan. Sebagian perubahan visual aktif saat startup.".into()); } },
+                Ok(()) => {
+                    updated_config = next.clone();
+                    let palette = Palette::from_appearance(&next.appearance, platform::os_light());
+                    *shell.theme.borrow_mut() = next.appearance.notch_theme.clone();
+                    *shell.body.borrow_mut() = palette.body;
+                    shell.memo.set((None, 0));
+                    if let Some(w) = weak.upgrade() {
+                        apply_theme(&w, &palette);
+                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        shell.place(&w, size);
+                        if let Some(eye) = eye_runtime.borrow().as_ref() {
+                            let mut eye = eye.borrow_mut();
+                            let skin = eyes::skin_index(&next.appearance.eye_theme);
+                            eye.renderer = EyeRenderer::new(&next.appearance.eye_theme, EYES_W, EYES_H);
+                            eye.skin = skin;
+                            let mood = Mood::parse(&next.appearance.default_mood).unwrap_or(Mood::Normal);
+                            eye.mood = MoodState::new(mood, next.timing.sleep_after_s, Instant::now());
+                            eye.cur = mood;
+                            eye.cur_since = 0.0;
+                            eye.morph = Morph::new(Face::for_mood(mood, skin));
+                            eye.last_key = None;
+                        }
+                        w.set_appearance_theme(next.appearance.theme.clone().into());
+                        w.set_appearance_eye_theme(next.appearance.eye_theme.clone().into());
+                        w.set_appearance_notch_theme(next.appearance.notch_theme.clone().into());
+                        w.set_appearance_mood(next.appearance.default_mood.clone().into());
+                        w.set_appearance_accent(next.appearance.accent.clone().into());
+                        w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into());
+                        w.set_appearance_light_bg(next.appearance.light_bg.clone().into());
+                        w.set_appearance_save_status("Tampilan tersimpan dan langsung diterapkan.".into());
+                    }
+                },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
             }
         });
@@ -1651,6 +1685,7 @@ fn main() -> Result<(), slint::PlatformError> {
         last_key: None,
         rng: Rng::new(),
     }));
+    *appearance_eye.borrow_mut() = Some(eye.clone());
 
     // Klik / dobel klik pada notch (Tauri: klik -> happy atau marah bila 5x dalam 2 dtk; dobel -> love)
     {
