@@ -2515,3 +2515,56 @@ mod convert_target_override_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod convert_output_directory_tests {
+    use super::relocate_convert_output;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn test_root() -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("notch-convert-output-test-{unique}"))
+    }
+
+    #[test]
+    fn relocates_file_without_overwriting_existing_output() {
+        let root = test_root();
+        let source_dir = root.join("source");
+        let output_dir = root.join("output");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&output_dir).unwrap();
+        let source = source_dir.join("photo_converted.png");
+        fs::write(&source, b"new image").unwrap();
+        fs::write(output_dir.join("photo_converted.png"), b"existing").unwrap();
+
+        let result = relocate_convert_output(&source, &output_dir).unwrap();
+
+        assert_eq!(result.file_name().unwrap(), "photo_converted_2.png");
+        assert_eq!(fs::read(&result).unwrap(), b"new image");
+        assert_eq!(fs::read(output_dir.join("photo_converted.png")).unwrap(), b"existing");
+        assert!(!source.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn relocates_multipage_directory_and_preserves_pages() {
+        let root = test_root();
+        let source_dir = root.join("source");
+        let output_dir = root.join("output");
+        let pages = source_dir.join("document_converted_pages");
+        fs::create_dir_all(&pages).unwrap();
+        let page = pages.join("document-001.png");
+        fs::write(&page, b"page data").unwrap();
+
+        let result = relocate_convert_output(&pages, &output_dir).unwrap();
+
+        assert!(result.is_dir());
+        assert_eq!(fs::read(result.join("document-001.png")).unwrap(), b"page data");
+        assert!(!pages.exists());
+        let _ = fs::remove_dir_all(root);
+    }
+}
