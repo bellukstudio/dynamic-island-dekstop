@@ -24,6 +24,10 @@ pub struct Face {
 
 impl Face {
     fn load(path: &Path) -> Option<Face> {
+        const MAX_FONT_BYTES: u64 = 64 * 1024 * 1024;
+        if std::fs::metadata(path).ok()?.len() > MAX_FONT_BYTES {
+            return None;
+        }
         let data = std::fs::read(path).ok()?;
         let (upem, cmap, adv, asc, desc, gap, bbox, cap, ia, ps) = {
             let f = ttf_parser::Face::parse(&data, 0).ok()?;
@@ -209,15 +213,21 @@ impl Fonts {
 
         // Load optional Unicode/script fonts without making them mandatory for startup.
         // One file is loaded only once even if several system/resource directories overlap.
+        const MAX_OPTIONAL_FALLBACK_FACES: usize = 8;
         let mut loaded = HashSet::new();
-        for dir in &dirs {
+        let mut fallback_count = 0usize;
+        'directories: for dir in &dirs {
             for file in FALLBACK_FONTS {
+                if fallback_count >= MAX_OPTIONAL_FALLBACK_FACES {
+                    break 'directories;
+                }
                 let path = dir.join(file);
                 if !loaded.insert(path.clone()) {
                     continue;
                 }
                 if let Some(face) = Face::load(&path) {
                     faces.push(face);
+                    fallback_count += 1;
                 }
             }
         }
