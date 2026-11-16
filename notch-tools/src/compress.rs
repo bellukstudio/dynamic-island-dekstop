@@ -451,8 +451,10 @@ fn recode_pdf_image(
     profile: PdfProfile,
 ) -> Option<(Vec<u8>, u32, u32, bool)> {
     use lopdf::Object;
+    // Resizing an image independently of its soft/color-key mask can invalidate PDF rendering.
     if matches!(stream.dict.get(b"ImageMask"), Ok(Object::Boolean(true)))
-        || matches!(stream.dict.get(b"Mask"), Ok(Object::Array(_)))
+        || stream.dict.has(b"Mask")
+        || stream.dict.has(b"SMask")
         || stream.dict.has(b"Decode")
     {
         return None;
