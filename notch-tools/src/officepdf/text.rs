@@ -459,6 +459,10 @@ pub fn draw_blocks(pdf: &mut Pdf, blocks: &[Block], x: f32, mut y: f32, width: f
 // =================================================================================================
 // Flow: aliran halaman
 // =================================================================================================
+fn section_page_size_changed(old_width: f32, old_height: f32, new_width: f32, new_height: f32) -> bool {
+    (old_width - new_width).abs() > 0.01 || (old_height - new_height).abs() > 0.01
+}
+
 fn section_needs_blank_page(page_number: usize, break_type: SectionBreak) -> bool {
     match break_type {
         SectionBreak::OddPage => page_number % 2 == 0,
@@ -521,6 +525,7 @@ impl Flow {
     }
 
     pub fn section(&mut self, pdf: &mut Pdf, setup: PageSetup) {
+        let size_changed = section_page_size_changed(self.pw, self.ph, setup.width, setup.height);
         self.pw = setup.width;
         self.ph = setup.height;
         self.ml = setup.left;
@@ -543,7 +548,18 @@ impl Flow {
                     self.page_break(pdf);
                 }
             }
-            SectionBreak::None | SectionBreak::Continuous => {
+            SectionBreak::Continuous => {
+                // A PDF page cannot change its MediaBox midway through the page.
+                // Word also promotes a continuous section to a new page when its
+                // physical page size/orientation changes.
+                if self.open && size_changed {
+                    self.page_break(pdf);
+                } else if !self.open {
+                    self.y = self.mt;
+                    self.ensure(pdf);
+                }
+            }
+            SectionBreak::None => {
                 if !self.open {
                     self.y = self.mt;
                     self.ensure(pdf);
@@ -713,5 +729,18 @@ mod section_break_tests {
     fn regular_and_continuous_sections_do_not_insert_parity_pages() {
         assert!(!section_needs_blank_page(1, SectionBreak::NextPage));
         assert!(!section_needs_blank_page(2, SectionBreak::Continuous));
+    }
+}
+
+
+#[cfg(test)]
+mod section_page_size_tests {
+    use super::section_page_size_changed;
+
+    #[test]
+    fn detects_physical_page_size_changes() {
+        assert!(section_page_size_changed(595.0, 842.0, 842.0, 595.0));
+        assert!(!section_page_size_changed(595.0, 842.0, 595.0, 842.0));
+        assert!(!section_page_size_changed(595.0, 842.0, 595.005, 842.005));
     }
 }
