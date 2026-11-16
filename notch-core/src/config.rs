@@ -76,6 +76,15 @@ impl Default for Pomodoro {
     }
 }
 
+impl Pomodoro {
+    pub fn sanitize(&mut self) {
+        self.focus_min = self.focus_min.clamp(1, 180);
+        self.break_min = self.break_min.clamp(1, 60);
+        self.long_break_min = self.long_break_min.clamp(1, 120);
+        self.rounds = self.rounds.clamp(1, 12);
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Appearance {
@@ -199,6 +208,15 @@ impl Default for Prayer {
             remind_before: false,
             remind_min: 10,
         }
+    }
+}
+
+impl Prayer {
+    pub fn sanitize(&mut self) {
+        if !["adzan", "tone", "silent"].contains(&self.mode.as_str()) {
+            self.mode = Prayer::default().mode;
+        }
+        self.remind_min = self.remind_min.clamp(1, 120);
     }
 }
 
@@ -364,6 +382,8 @@ impl Config {
         }
         self.nudge.sanitize();
         self.motion.sanitize();
+        self.pomodoro.sanitize();
+        self.prayer.sanitize();
         self.appearance.sanitize();
         self.shortcuts.sanitize();
         migrate(self);
@@ -464,6 +484,18 @@ mod tests {
         c.normalize();
         assert_eq!(c.pages[1], "clock");
         assert_eq!(c.pages_version, 6);
+    }
+
+    #[test]
+    fn normalize_clamps_prayer_and_pomodoro_preferences() {
+        let mut c: Config = toml::from_str("[pomodoro]\nfocus_min = 0\nbreak_min = 90\nlong_break_min = 200\nrounds = 0\n[prayer]\nmode = \"invalid\"\nremind_min = 999\n").unwrap();
+        c.normalize();
+        assert_eq!(c.pomodoro.focus_min, 1);
+        assert_eq!(c.pomodoro.break_min, 60);
+        assert_eq!(c.pomodoro.long_break_min, 120);
+        assert_eq!(c.pomodoro.rounds, 1);
+        assert_eq!(c.prayer.mode, "tone");
+        assert_eq!(c.prayer.remind_min, 120);
     }
 
     #[test]
