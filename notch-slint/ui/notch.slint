@@ -1196,7 +1196,9 @@ component SettingsPage inherits VerticalLayout {
     callback test-nudge(string, string, string, string, bool);
     callback save-greeting(bool, string, string, string);
     callback save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
+    callback test-conversation(string, string);
     callback save-focus-companion(bool, bool, bool, bool, bool);
+    callback test-focus-companion(string, string);
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
@@ -1637,6 +1639,10 @@ component SettingsPage inherits VerticalLayout {
             cm-return-min-input := TextInput { text: root.conversation-return-after-min; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Jeda antar komentar (1–60 menit)"; color: Theme.text-faint; font-size: 9px; }
             cm-cooldown-input := TextInput { text: root.conversation-cooldown-min; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                Chip { label: "Coba momen"; clicked => { root.test-conversation("Asyik, kita ketemu momen baru! ✨", "Uji Conversation Moments"); } }
+                Chip { label: "Coba momen cuaca"; clicked => { root.test-conversation("Cuaca berubah, jangan lupa sesuaikan aktivitasmu ☀️", "Uji momen cuaca"); } }
+            }
             Chip { label: "Simpan Conversation Moments"; clicked => {
                 root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
             } }
@@ -1662,9 +1668,12 @@ component SettingsPage inherits VerticalLayout {
                 PageToggle { label: "Saat sesi fokus selesai"; checked: fc-complete-input.text == "true"; toggled(v) => { fc-complete-input.text = v ? "true" : "false"; } }
                 PageToggle { label: "Saat waktu istirahat selesai"; checked: fc-break-input.text == "true"; toggled(v) => { fc-break-input.text = v ? "true" : "false"; } }
             }
-            Chip { label: "Simpan Focus Companion"; clicked => {
-                root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
-            } }
+            HorizontalLayout {
+                Chip { label: "Coba Focus Companion"; clicked => { root.test-focus-companion("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯", "Uji Focus Companion"); } }
+                Chip { label: "Simpan Focus Companion"; clicked => {
+                    root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
+                } }
+            }
             Text { text: root.focus-companion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
@@ -2411,7 +2420,9 @@ export component NotchWindow inherits Window {
     callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
     callback settings-save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
+    callback settings-test-conversation(string, string);
     callback settings-save-focus-companion(bool, bool, bool, bool, bool);
+    callback settings-test-focus-companion(string, string);
     callback settings-save-position(string);
     in property <string> prayer-province: "Jawa Barat";
     in property <string> prayer-city: "Kota Bandung";
@@ -2944,7 +2955,9 @@ export component NotchWindow inherits Window {
                         test-nudge(message, emoji, mood, show, until-move) => { root.settings-test-nudge(message, emoji, mood, show, until-move); }
                         save-greeting(enabled, mode, voice, custom-text) => { root.settings-save-greeting(enabled, mode, voice, custom-text); }
                         save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown) => { root.settings-save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown); }
+                        test-conversation(message, detail) => { root.settings-test-conversation(message, detail); }
                         save-focus-companion(enabled, start, halfway, complete, break-end) => { root.settings-save-focus-companion(enabled, start, halfway, complete, break-end); }
+                        test-focus-companion(message, detail) => { root.settings-test-focus-companion(message, detail); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
                         save-autostart(enabled) => { root.settings-save-autostart(enabled); }

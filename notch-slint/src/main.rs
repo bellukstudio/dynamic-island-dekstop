@@ -3314,6 +3314,58 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
         let timer = Timer::default();
+        win.on_settings_test_conversation(move |message, detail| {
+            let Some(w) = weak.upgrade() else { return };
+            let message = message.to_string().trim().to_string();
+            let detail = detail.to_string().trim().to_string();
+            if message.is_empty() || message.chars().count() > 100 || detail.chars().count() > 100 {
+                w.set_conversation_save_status("Pesan pratinjau wajib diisi dan maksimal 100 karakter.".into());
+                return;
+            }
+            w.set_nudge_message(message.into());
+            w.set_nudge_detail(format!("{}  ·  Pratinjau Conversation Moments", detail).into());
+            if let Some(eye_state) = eye.borrow().clone() {
+                eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+            }
+            w.set_nudge_visible(true);
+            w.set_conversation_save_status("Pratinjau ditampilkan tanpa menyimpan pengaturan.".into());
+            let weak = weak.clone();
+            timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
+                if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
+            });
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let eye = appearance_eye.clone();
+        let timer = Timer::default();
+        win.on_settings_test_focus_companion(move |message, detail| {
+            let Some(w) = weak.upgrade() else { return };
+            let message = message.to_string().trim().to_string();
+            let detail = detail.to_string().trim().to_string();
+            if message.is_empty() || message.chars().count() > 100 || detail.chars().count() > 100 {
+                w.set_focus_companion_save_status("Pesan pratinjau wajib diisi dan maksimal 100 karakter.".into());
+                return;
+            }
+            w.set_nudge_message(message.into());
+            w.set_nudge_detail(format!("{}  ·  Pratinjau Focus Companion", detail).into());
+            if let Some(eye_state) = eye.borrow().clone() {
+                eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+            }
+            w.set_nudge_visible(true);
+            w.set_focus_companion_save_status("Pratinjau ditampilkan tanpa menyimpan pengaturan.".into());
+            let weak = weak.clone();
+            timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
+                if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
+            });
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let eye = appearance_eye.clone();
+        let timer = Timer::default();
         win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
             let Some(w) = weak.upgrade() else { return };
             let message = message.to_string().trim().to_string();
