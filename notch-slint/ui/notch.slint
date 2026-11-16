@@ -1254,11 +1254,29 @@ component SettingsPage inherits VerticalLayout {
     Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Tema aplikasi: auto / dark / light"; color: Theme.text-faint; font-size: 9px; }
+            Text { text: "Tema aplikasi"; color: Theme.text-faint; font-size: 9px; }
             theme-input := TextInput { text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Auto"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
+                Chip { label: "Dark"; selected: theme-input.text == "dark"; clicked => { theme-input.text = "dark"; } }
+                Chip { label: "Light"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
+            }
             Text { text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
-            Text { text: "Tema badan: default / aurora / obsidian / neon / sakura / matcha"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "Tema badan notch"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             notch-theme-input := TextInput { text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Default"; selected: notch-theme-input.text == "default"; clicked => { notch-theme-input.text = "default"; } }
+                Chip { label: "Aurora"; selected: notch-theme-input.text == "aurora"; clicked => { notch-theme-input.text = "aurora"; } }
+                Chip { label: "Obsidian"; selected: notch-theme-input.text == "obsidian"; clicked => { notch-theme-input.text = "obsidian"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Neon"; selected: notch-theme-input.text == "neon"; clicked => { notch-theme-input.text = "neon"; } }
+                Chip { label: "Sakura"; selected: notch-theme-input.text == "sakura"; clicked => { notch-theme-input.text = "sakura"; } }
+                Chip { label: "Matcha"; selected: notch-theme-input.text == "matcha"; clicked => { notch-theme-input.text = "matcha"; } }
+            }
             Text { text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             mood-input := TextInput { text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
@@ -1298,7 +1316,23 @@ component SettingsPage inherits VerticalLayout {
             accent-input := TextInput { text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; }
             dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
             light-bg-input := TextInput { text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan tampilan"; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, dark-bg-input.text, light-bg-input.text); } }
+            HorizontalLayout {
+                spacing: 5px;
+                Chip {
+                    label: "Reset default";
+                    clicked => {
+                        theme-input.text = "auto";
+                        eye-theme-input.text = "aurora";
+                        notch-theme-input.text = "default";
+                        mood-input.text = "normal";
+                        accent-input.text = "";
+                        dark-bg-input.text = "#000000";
+                        light-bg-input.text = "#f5f5f7";
+                        root.save-appearance("auto", "aurora", "default", "normal", "", "#000000", "#f5f5f7");
+                    }
+                }
+                Chip { label: "Simpan tampilan"; selected: true; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, dark-bg-input.text, light-bg-input.text); } }
+            }
         }
     }
     Text { text: "Lokasi cuaca"; color: Theme.accent; font-size: 11px; font-weight: 700; }
