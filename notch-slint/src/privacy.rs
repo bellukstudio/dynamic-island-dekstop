@@ -6,6 +6,10 @@ use std::time::{Duration, Instant};
 use slint::Weak;
 
 #[cfg(windows)]
+#[path = "privacy/wasapi.rs"]
+mod wasapi;
+
+#[cfg(windows)]
 fn query_kind_uncached(kind: &str) -> bool {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -74,10 +78,15 @@ fn query_kind(_: &str) -> bool { false }
 
 pub fn start(weak: Weak<crate::NotchWindow>) {
     thread::spawn(move || {
+        #[cfg(windows)]
+        wasapi::init();
         let (mut mic_on, mut cam_on) = (0u8, 0u8);
         let (mut mic_off, mut cam_off) = (0u8, 0u8);
         let mut shown = false;
         loop {
+            #[cfg(windows)]
+            let mic = wasapi::is_microphone_active().unwrap_or_else(|| query_kind("microphone"));
+            #[cfg(not(windows))]
             let mic = query_kind("microphone");
             let cam = query_kind("webcam");
             mic_on = if mic { mic_on.saturating_add(1) } else { 0 };
