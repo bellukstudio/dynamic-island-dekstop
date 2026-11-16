@@ -1378,11 +1378,22 @@ component SettingsPage inherits VerticalLayout {
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Mode: tone / adzan / silent"; color: Theme.text-faint; font-size: 9px; }
-            prayer-mode-input := TextInput { text: root.prayer-mode; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Pengingat sebelum adzan: true / false"; color: Theme.text-faint; font-size: 9px; }
-            prayer-remind-input := TextInput { text: root.prayer-remind-before; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Menit sebelum waktu shalat"; color: Theme.text-faint; font-size: 9px; }
+            Text { text: "Mode notifikasi waktu shalat"; color: Theme.text-faint; font-size: 9px; }
+            prayer-mode-input := TextInput { text: root.prayer-mode; visible: false; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Nada"; selected: prayer-mode-input.text == "tone"; clicked => { prayer-mode-input.text = "tone"; } }
+                Chip { label: "Adzan"; selected: prayer-mode-input.text == "adzan"; clicked => { prayer-mode-input.text = "adzan"; } }
+                Chip { label: "Senyap"; selected: prayer-mode-input.text == "silent"; clicked => { prayer-mode-input.text = "silent"; } }
+            }
+            Text { text: "Pengingat sebelum adzan"; color: Theme.text-faint; font-size: 9px; }
+            prayer-remind-input := TextInput { text: root.prayer-remind-before; visible: false; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Aktif"; selected: prayer-remind-input.text == "true"; clicked => { prayer-remind-input.text = "true"; } }
+                Chip { label: "Nonaktif"; selected: prayer-remind-input.text != "true"; clicked => { prayer-remind-input.text = "false"; } }
+            }
+            Text { text: "Menit sebelum waktu shalat (1–120)"; color: Theme.text-faint; font-size: 9px; }
             prayer-min-input := TextInput { text: root.prayer-remind-min; color: Theme.text; font-size: 11px; single-line: true; }
         }
     }
@@ -1395,7 +1406,23 @@ component SettingsPage inherits VerticalLayout {
             pomo-long-input := TextInput { text: root.pomodoro-long-break; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Jumlah ronde sebelum istirahat panjang"; color: Theme.text-faint; font-size: 9px; }
             pomo-rounds-input := TextInput { text: root.pomodoro-rounds; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text); } }
+            HorizontalLayout {
+                spacing: 5px;
+                Chip {
+                    label: "Reset default";
+                    clicked => {
+                        prayer-mode-input.text = "tone";
+                        prayer-remind-input.text = "false";
+                        prayer-min-input.text = "10";
+                        pomo-focus-input.text = "25";
+                        pomo-break-input.text = "5";
+                        pomo-long-input.text = "15";
+                        pomo-rounds-input.text = "4";
+                        root.save-routines("tone", "false", "10", "25", "5", "15", "4");
+                    }
+                }
+                Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text); } }
+            }
         }
     }
     HorizontalLayout {
