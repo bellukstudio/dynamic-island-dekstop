@@ -4123,6 +4123,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 e.cur_since = ts;
                 let face = Face::for_mood(m, e.skin);
                 e.morph.set_target(ts, face);
+                w.set_eyes_mood(m.name().into());
             }
 
             // Kedip acak 2,5-6 dtk (mengantuk 1,5-5 dtk); mata "love" tidak berkedip; kedip 130 ms
