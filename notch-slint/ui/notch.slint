@@ -2325,6 +2325,10 @@ export component NotchWindow inherits Window {
     in property <float> eyes-offset-y: 0;
     in property <float> eyes-scale-x: 1.0;
     in property <float> eyes-scale-y: 1.0;
+    // Transform badan untuk Bottom Play / Side Play native.
+    in property <float> play-offset: 0;
+    in property <float> play-body-scale-x: 1.0;
+    in property <float> play-body-scale-y: 1.0;
 
     in property <float> cpu: 0;
     in property <float> ram: 0;
@@ -2642,11 +2646,12 @@ export component NotchWindow inherits Window {
     pill := Rectangle {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale : 17px;
-        x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2);
-        y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 : 0px);
+        x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset : 0px));
+        y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset : 0px);
         // Saat dock samping, pil kecil berorientasi portrait; hub terbuka tetap horizontal ke dalam layar.
-        width: root.expanded ? 580px : (root.dock >= 3 ? 34px : 130px);
-        height: root.expanded ? 202px : (root.dock >= 3 ? 130px : 34px);
+        // Skala badan mengikuti pegas Bottom/Side Play, sementara titik docking tetap menjadi jangkar.
+        width: root.expanded ? 580px : (root.dock >= 3 ? 34px : 130px) * root.play-body-scale-x;
+        height: root.expanded ? 202px : (root.dock >= 3 ? 130px : 34px) * root.play-body-scale-y;
         background: Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: (root.dock == 0 || root.dock == 3) ? 0px : self.r;
