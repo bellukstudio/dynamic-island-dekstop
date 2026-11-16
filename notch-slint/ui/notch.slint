@@ -2075,7 +2075,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "convert": ConvertPage {
                         file-path: root.convert-selected-path;
                         status: root.convert-status;
-                        run(path, format) => { root.convert-run(path, format); }
+                        run(path, format, quality, dpi) => { root.convert-run(path, format, quality, dpi); }
                         pick-file => { root.convert-pick(); }
                     }
                     if root.page-id == "compress": CompressPage {
