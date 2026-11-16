@@ -3547,7 +3547,6 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
-        let voice = greeting_voice_runtime.clone();
         let timer = Timer::default();
         win.on_settings_test_greeting(move |mode, custom_text, voice_preset| {
             let Some(w) = weak.upgrade() else { return };
