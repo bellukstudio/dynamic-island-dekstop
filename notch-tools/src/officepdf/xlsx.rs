@@ -535,13 +535,30 @@ struct Sheet {
     def_h: f32,
 }
 
+const MAX_EXCEL_ROWS: u32 = 1_048_576;
+const MAX_EXCEL_COLS: u32 = 16_384;
+const MAX_MERGED_CELLS: u64 = 100_000;
+
 fn col_num(s: &str) -> u32 {
-    s.bytes().filter(|b| b.is_ascii_alphabetic()).fold(0u32, |a, b| a * 26 + (b.to_ascii_uppercase() - b'A' + 1) as u32)
+    s.bytes().take_while(|b| b.is_ascii_alphabetic()).try_fold(0u32, |value, byte| {
+        value.checked_mul(26)?.checked_add((byte.to_ascii_uppercase() - b'A' + 1) as u32)
+    }).unwrap_or(0)
 }
 fn cell_ref(s: &str) -> Option<(u32, u32)> {
-    let row: u32 = s.chars().filter(|c| c.is_ascii_digit()).collect::<String>().parse().ok()?;
-    let c = col_num(s);
-    if c == 0 { None } else { Some((row, c)) }
+    let split = s.bytes().position(|b| b.is_ascii_digit())?;
+    let (letters, digits) = s.split_at(split);
+    if letters.is_empty() || !letters.bytes().all(|b| b.is_ascii_alphabetic())
+        || digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit())
+    {
+        return None;
+    }
+    let row: u32 = digits.parse().ok()?;
+    let col = col_num(letters);
+    if row == 0 || row > MAX_EXCEL_ROWS || col == 0 || col > MAX_EXCEL_COLS {
+        None
+    } else {
+        Some((row, col))
+    }
 }
 
 fn text_of(n: Node) -> String {
@@ -570,14 +587,14 @@ fn parse_sheet(xml: &str, sst: &[String], st: &Styles) -> Option<Sheet> {
             let (Some(mn), Some(mx)) = (at(c, "min").and_then(|v| v.parse::<u32>().ok()), at(c, "max").and_then(|v| v.parse::<u32>().ok())) else { continue };
             let w = fnum(at(c, "width")).map(|w| w * 5.25).unwrap_or(sh.def_w);
             let hidden = matches!(at(c, "hidden"), Some("1") | Some("true"));
-            for i in mn..=mx.min(mn + 2000) {
+            for i in mn..=mx.min(mn.saturating_add(2000)).min(MAX_EXCEL_COLS) {
                 sh.cols.insert(i, (w, hidden));
             }
         }
     }
     if let Some(sd) = kid(root, "sheetData") {
         for (ri, r) in kids(sd, "row").into_iter().enumerate() {
-            let rn = at(r, "r").and_then(|v| v.parse::<u32>().ok()).unwrap_or(ri as u32 + 1);
+            let rn = at(r, "r").and_then(|v| v.parse::<u32>().ok()).filter(|v| (1..=MAX_EXCEL_ROWS).contains(v)).unwrap_or(ri as u32 + 1).min(MAX_EXCEL_ROWS);
             let hidden = matches!(at(r, "hidden"), Some("1") | Some("true"));
             sh.rows.insert(rn, (fnum(at(r, "ht")), hidden));
             for (ci, c) in kids(r, "c").into_iter().enumerate() {
@@ -604,7 +621,13 @@ fn parse_sheet(xml: &str, sst: &[String], st: &Styles) -> Option<Sheet> {
         for m in kids(ms, "mergeCell") {
             if let Some((a, b)) = at(m, "ref").and_then(|r| r.split_once(':')) {
                 if let (Some((r1, c1)), Some((r2, c2))) = (cell_ref(a), cell_ref(b)) {
-                    sh.merges.push((r1, c1, r2, c2));
+                    let area = u64::from(r2.saturating_sub(r1).saturating_add(1))
+                        .saturating_mul(u64::from(c2.saturating_sub(c1).saturating_add(1)));
+                    // Abaikan rentang merge terbalik atau ekstrem agar satu metadata
+                    // rusak tidak memicu alokasi/iterasi miliaran sel.
+                    if r1 <= r2 && c1 <= c2 && area <= MAX_MERGED_CELLS {
+                        sh.merges.push((r1, c1, r2, c2));
+                    }
                 }
             }
         }
