@@ -136,9 +136,9 @@ fn format_convert_queue(queue: &std::collections::VecDeque<String>) -> String {
             .unwrap_or_else(|| raw.clone())
     }).collect::<Vec<_>>();
     let suffix = if queue.len() > lines.len() {
-        format!("\\n… dan {} file lainnya", queue.len() - lines.len())
+        format!("\n… dan {} file lainnya", queue.len() - lines.len())
     } else { String::new() };
-    format!("Antrean ({}):\\n{}{}", queue.len(), lines.join("\\n"), suffix)
+    format!("Antrean ({}):\n{}{}", queue.len(), lines.join("\n"), suffix)
 }
 
 fn format_convert_selection(paths: &[String]) -> String {
@@ -1839,6 +1839,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     if cancel_requested.load(std::sync::atomic::Ordering::Acquire) { break; }
                     let next = queue.lock().unwrap_or_else(|error| error.into_inner()).pop_front();
                     let Some(path) = next else { break; };
+                    let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                    let weak_queue = weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(window) = weak_queue.upgrade() {
+                            window.set_convert_queue_text(queue_text.into());
+                        }
+                    });
                     let index = processed;
                     processed += 1;
                     let display_name = std::path::Path::new(&path)
