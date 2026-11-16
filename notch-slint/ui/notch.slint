@@ -1035,7 +1035,35 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
+component PageToggle inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked: false;
+    callback toggled(bool);
+    height: 34px;
+    border-radius: 9px;
+    border-width: 1px;
+    border-color: #596a9b;
+    background: checked ? #252d49 : #20242e;
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 8px;
+        spacing: 9px;
+        Rectangle {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border-width: 1px;
+            border-color: checked ? #8798ff : #7b849c;
+            background: checked ? #8798ff : transparent;
+            Text { text: checked ? "✓" : ""; color: #151923; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        }
+        Text { text: root.label; color: #f1f3fa; font-size: 11px; vertical-alignment: center; }
+        TouchArea { clicked => { root.toggled(!root.checked); } }
+    }
+}
+
 component SettingsPage inherits VerticalLayout {
+    in property <[string]> active-pages;
     in property <string> shortcut-hub;
     in property <string> shortcut-settings;
     in property <string> shortcut-pomodoro;
@@ -1081,6 +1109,8 @@ component SettingsPage inherits VerticalLayout {
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
     callback save-pages(string);
+    callback toggle-page(string, bool);
+    pure function page-enabled(id: string) -> bool { for page in root.active-pages: { if page == id { return true; } } return false; }
     callback save-behavior(string, string, string, string);
     callback save-routines(string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string);
@@ -1131,14 +1161,40 @@ component SettingsPage inherits VerticalLayout {
             }
         }
     }
-    Text { text: "Halaman hub"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Text { text: "Halaman"; color: Theme.text; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Urutan sekaligus fitur aktif. Pisahkan ID halaman dengan koma."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            pages-input := TextInput { text: root.hub-pages; color: Theme.text; font-size: 10px; single-line: false; }
-            Chip { label: "Simpan halaman hub"; clicked => { root.save-pages(pages-input.text); } }
+        VerticalLayout { padding: 9px; spacing: 6px;
+            HorizontalLayout {
+                spacing: 6px;
+                VerticalLayout {
+                    spacing: 5px;
+                    PageToggle { label: "Musik"; checked: root.page-enabled("media"); toggled(v) => { root.toggle-page("media", v); } }
+                    PageToggle { label: "Cuaca"; checked: root.page-enabled("weather"); toggled(v) => { root.toggle-page("weather", v); } }
+                    PageToggle { label: "Timer Pomodoro"; checked: root.page-enabled("timer"); toggled(v) => { root.toggle-page("timer", v); } }
+                    PageToggle { label: "Alat"; checked: root.page-enabled("tools"); toggled(v) => { root.toggle-page("tools", v); } }
+                    PageToggle { label: "Riwayat clipboard"; checked: root.page-enabled("clipboard"); toggled(v) => { root.toggle-page("clipboard", v); } }
+                    PageToggle { label: "Pengingat"; checked: root.page-enabled("reminder"); toggled(v) => { root.toggle-page("reminder", v); } }
+                    PageToggle { label: "Jadwal shalat"; checked: root.page-enabled("prayer"); toggled(v) => { root.toggle-page("prayer", v); } }
+                }
+                VerticalLayout {
+                    spacing: 5px;
+                    PageToggle { label: "Jam & tanggal"; checked: root.page-enabled("clock"); toggled(v) => { root.toggle-page("clock", v); } }
+                    PageToggle { label: "Baterai"; checked: root.page-enabled("battery"); toggled(v) => { root.toggle-page("battery", v); } }
+                    PageToggle { label: "Kontrol cepat"; checked: root.page-enabled("quick"); toggled(v) => { root.toggle-page("quick", v); } }
+                    PageToggle { label: "Status sistem"; checked: root.page-enabled("stats"); toggled(v) => { root.toggle-page("stats", v); } }
+                    PageToggle { label: "Shelf file"; checked: root.page-enabled("shelf"); toggled(v) => { root.toggle-page("shelf", v); } }
+                    PageToggle { label: "Catatan"; checked: root.page-enabled("notes"); toggled(v) => { root.toggle-page("notes", v); } }
+                    PageToggle { label: "Currency · Kurs & saham"; checked: root.page-enabled("currency"); toggled(v) => { root.toggle-page("currency", v); } }
+                }
+            }
+            Text { text: "Tambahan"; color: Theme.text; font-size: 11px; font-weight: 700; }
+            VerticalLayout {
+                spacing: 5px;
+                PageToggle { label: "Link lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
+                PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
+            }
             Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Text { text: "ID: media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, android, transfer, convert, compress, settings"; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
     Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1824,9 +1880,11 @@ export component NotchWindow inherits Window {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "";
+    in property <[string]> active-pages;
     in property <string> hub-pages: "";
     in property <string> pages-save-status: "";
     callback settings-save-pages(string);
+    callback settings-toggle-page(string, bool);
     in property <string> appearance-theme: "auto";
     in property <string> appearance-eye-theme: "aurora";
     in property <string> appearance-notch-theme: "default";
@@ -2321,9 +2379,11 @@ export component NotchWindow inherits Window {
                         behavior-sleep-after: root.behavior-sleep-after;
                         behavior-save-status: root.behavior-save-status;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
+                        active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
                         pages-save-status: root.pages-save-status;
                         save-pages(value) => { root.settings-save-pages(value); }
+                        toggle-page(id, enabled) => { root.settings-toggle-page(id, enabled); }
                         prayer-mode: root.prayer-mode;
                         prayer-remind-before: root.prayer-remind-before;
                         prayer-remind-min: root.prayer-remind-min;
