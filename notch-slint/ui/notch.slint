@@ -1004,6 +1004,14 @@ component SettingsPage inherits VerticalLayout {
     in property <string> shortcut-pomodoro;
     in property <string> shortcut-prayer;
     in property <string> save-status: "Ubah kombinasi, lalu tekan Simpan";
+    in property <string> appearance-theme: "auto";
+    in property <string> appearance-eye-theme: "aurora";
+    in property <string> appearance-notch-theme: "default";
+    in property <string> appearance-mood: "normal";
+    in property <string> appearance-accent: "";
+    in property <string> appearance-dark-bg: "#000000";
+    in property <string> appearance-light-bg: "#f5f5f7";
+    callback save-appearance(string, string, string, string, string, string, string);
     callback save-shortcuts(string, string, string, string);
     alignment: start;
     spacing: 7px;
@@ -1048,6 +1056,24 @@ component SettingsPage inherits VerticalLayout {
                 font-size: 12px;
                 single-line: true;
             }
+        }
+    }
+    Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 5px;
+            Text { text: "Tema aplikasi: auto / dark / light"; color: Theme.text-faint; font-size: 9px; }
+            theme-input := TextInput { text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Tema mata (mis. aurora, neon, kawaii)"; color: Theme.text-faint; font-size: 9px; }
+            eye-theme-input := TextInput { text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Tema badan: default / aurora / obsidian / neon / sakura / matcha"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            notch-theme-input := TextInput { text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Mood awal: normal / happy / sleepy / surprised / angry / love / suspicious / sad"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            mood-input := TextInput { text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Aksen / latar gelap / terang (HEX)"; color: Theme.text-faint; font-size: 9px; }
+            accent-input := TextInput { text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; }
+            dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
+            light-bg-input := TextInput { text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; }
+            Chip { label: "Simpan tampilan"; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, dark-bg-input.text, light-bg-input.text); } }
         }
     }
     HorizontalLayout {
@@ -1351,6 +1377,14 @@ export component NotchWindow inherits Window {
     in property <string> shortcut-pomodoro: "Ctrl+Alt+P";
     in property <string> shortcut-prayer: "Ctrl+Alt+A";
     in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
+    in property <string> appearance-theme: "auto";
+    in property <string> appearance-eye-theme: "aurora";
+    in property <string> appearance-notch-theme: "default";
+    in property <string> appearance-mood: "normal";
+    in property <string> appearance-accent: "";
+    in property <string> appearance-dark-bg: "#000000";
+    in property <string> appearance-light-bg: "#f5f5f7";
+    callback settings-save-appearance(string, string, string, string, string, string, string);
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
     in property <string> compress-selected-path: "";
     in property <string> convert-selected-path: "";
@@ -1696,6 +1730,14 @@ export component NotchWindow inherits Window {
                         shortcut-settings: root.shortcut-settings;
                         shortcut-pomodoro: root.shortcut-pomodoro;
                         shortcut-prayer: root.shortcut-prayer;
+                        appearance-theme: root.appearance-theme;
+                        appearance-eye-theme: root.appearance-eye-theme;
+                        appearance-notch-theme: root.appearance-notch-theme;
+                        appearance-mood: root.appearance-mood;
+                        appearance-accent: root.appearance-accent;
+                        appearance-dark-bg: root.appearance-dark-bg;
+                        appearance-light-bg: root.appearance-light-bg;
+                        save-appearance(theme, eye, notch, mood, accent, dark, light) => { root.settings-save-appearance(theme, eye, notch, mood, accent, dark, light); }
                         save-status: root.settings-save-status;
                         save-shortcuts(hub, settings, pomo, prayer) => { root.settings-save-shortcuts(hub, settings, pomo, prayer); }
                     }
