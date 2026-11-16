@@ -1603,9 +1603,9 @@ fn main() -> Result<(), slint::PlatformError> {
                         let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
                         shell.place(&w, size);
                         w.set_behavior_scale(format!("{scale:.2}").into());
-                        w.set_behavior-hover-open(hover_open.to_string().into());
-                        w.set_behavior-hover-close(hover_close.to_string().into());
-                        w.set_behavior-sleep-after(sleep_after.to_string().into());
+                        w.set_behavior_hover_open(hover_open.to_string().into());
+                        w.set_behavior_hover_close(hover_close.to_string().into());
+                        w.set_behavior_sleep_after(sleep_after.to_string().into());
                         w.set_behavior_save_status("Perilaku notch tersimpan dan langsung diterapkan.".into());
                     }
                 }
