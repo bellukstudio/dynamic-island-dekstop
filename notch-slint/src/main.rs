@@ -4496,26 +4496,27 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Envelope halus: setiap gerakan masuk dan kembali ke posisi netral tanpa hentakan.
             let envelope = (std::f32::consts::PI * t).sin().max(0.0);
-            let wave = (std::f32::consts::TAU * t).sin();
-            let fast_wave = (std::f32::consts::TAU * 3.0 * t).sin();
+            // Liquid memakai beberapa riak dalam satu rangkaian; gerakan lain memakai gelombang dasar.
+            let wave = (std::f32::consts::TAU * if kind == 0 { 2.0 } else { 1.0 } * t).sin();
+            let fast_wave = (std::f32::consts::TAU * if kind == 0 { 5.0 } else { 3.0 } * t).sin();
             let mut offset = 0.0;
             let mut sx = 1.0;
             let mut sy = 1.0;
 
             match kind {
-                0 => { // LIQUID: mengalir dan beriak seperti agar-agar.
-                    offset = 22.0 * wave * envelope;
-                    sx += 0.075 * fast_wave * envelope;
-                    sy -= 0.055 * fast_wave * envelope;
+                0 => { // LIQUID: beberapa aliran bolak-balik dengan riak bentuk cepat.
+                    offset = direction * 34.0 * wave * envelope;
+                    sx += 0.09 * fast_wave * envelope;
+                    sy -= 0.07 * fast_wave * envelope;
                 }
-                1 => { // GHOST: meregang tinggi lalu kembali turun.
+                1 => { // GHOST: berjalan sambil meregang tinggi, lalu kembali turun.
                     let lift = (std::f32::consts::PI * t).sin().max(0.0);
                     sx = 1.0 - 0.13 * lift;
                     sy = 1.0 + 0.38 * lift;
-                    offset = -5.0 * lift;
+                    offset = direction * 34.0 * envelope;
                 }
-                2 => { // ROAM: meluncur ke satu sisi lalu pulang.
-                    offset = direction * 66.0 * envelope;
+                2 => { // ROAM: meluncur lebih jauh ke satu sisi lalu pulang.
+                    offset = direction * 78.0 * envelope;
                     sx += 0.035 * envelope;
                     sy -= 0.025 * envelope;
                 }
