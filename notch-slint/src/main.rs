@@ -28,6 +28,8 @@ use slint::{
     SharedPixelBuffer, SharedString, Timer, TimerMode, VecModel, Weak,
 };
 
+mod privacy;
+
 slint::include_modules!();
 
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
@@ -525,6 +527,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    privacy::start(win.as_weak());
     apply_theme(&win, &palette);
     win.set_ui_scale(cfg.scale as f32);
     shell.place(&win, COLLAPSED);
@@ -559,6 +562,33 @@ fn main() -> Result<(), slint::PlatformError> {
                 if w.get_adhan_active() {
                     w.set_adhan_phase((w.get_adhan_phase() + 1) % 3);
                 }
+            }
+        });
+    }
+    // Durasi rapat dihitung dari transisi privasi aktif -> nonaktif.
+    {
+        let weak = win.as_weak();
+        let started = Rc::new(Cell::new(None::<Instant>));
+        meeting_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+            let Some(w) = weak.upgrade() else { return };
+            if w.get_meeting_active() {
+                if started.get().is_none() { started.set(Some(Instant::now())); }
+                if let Some(at) = started.get() {
+                    let secs = at.elapsed().as_secs();
+                    let label = if secs >= 3600 {
+                        format!("{:02}:{:02}:{:02}", secs / 3600, (secs % 3600) / 60, secs % 60)
+                    } else {
+                        format!("{:02}:{:02}", secs / 60, secs % 60)
+                    };
+                    w.set_meeting_elapsed(label.into());
+                }
+            } else if let Some(at) = started.take() {
+                let secs = at.elapsed().as_secs();
+                let mins = secs / 60;
+                let rem = secs % 60;
+                let label = if mins == 0 { format!("{secs} detik") } else if rem == 0 { format!("{mins} menit") } else { format!("{mins} menit {rem} detik") };
+                w.set_prayer_status(format!("Rapat selesai, {label}").into());
+                w.set_meeting_elapsed("00:00".into());
             }
         });
     }
