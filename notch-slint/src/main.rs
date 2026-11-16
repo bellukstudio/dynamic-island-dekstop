@@ -55,6 +55,45 @@ fn save_convert_output_dir(value: &str) {
     let _ = std::fs::write(path, value);
 }
 
+
+fn convert_queue_state_path() -> std::path::PathBuf {
+    notch_core::paths::data_file("convert-queue.json")
+}
+
+fn save_convert_queue_state(queue: &std::collections::VecDeque<String>, statuses: &[(String, String)]) {
+    let value = serde_json::json!({
+        "queue": queue.iter().collect::<Vec<_>>(),
+        "statuses": statuses.iter().map(|(path, status)| serde_json::json!({"path": path, "status": status})).collect::<Vec<_>>()
+    });
+    let path = convert_queue_state_path();
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if let Ok(raw) = serde_json::to_vec_pretty(&value) { let _ = std::fs::write(path, raw); }
+}
+
+fn load_convert_queue_state() -> (std::collections::VecDeque<String>, Vec<(String, String)>) {
+    let raw = match std::fs::read_to_string(convert_queue_state_path()) {
+        Ok(raw) => raw,
+        Err(_) => return (std::collections::VecDeque::new(), Vec::new()),
+    };
+    let value: serde_json::Value = match serde_json::from_str(&raw) {
+        Ok(value) => value,
+        Err(_) => return (std::collections::VecDeque::new(), Vec::new()),
+    };
+    let statuses = value.get("statuses").and_then(serde_json::Value::as_array)
+        .map(|items| items.iter().filter_map(|item| {
+            let path = item.get("path")?.as_str()?.to_string();
+            let status = item.get("status")?.as_str()?.to_string();
+            Some((path, if status == "Diproses" || status == "Pembatalan diminta" { "Menunggu".to_string() } else { status }))
+        }).collect::<Vec<_>>()).unwrap_or_default();
+    let queue = statuses.iter().filter(|(path, status)| status == "Menunggu" && std::path::Path::new(path).is_file())
+        .map(|(path, _)| path.clone()).collect::<std::collections::VecDeque<_>>();
+    let mut restored = statuses;
+    for (path, status) in &mut restored {
+        if status == "Menunggu" && !std::path::Path::new(path).is_file() { *status = "File tidak ditemukan".to_string(); }
+    }
+    (queue, restored)
+}
+
 fn convert_history_path() -> std::path::PathBuf {
     notch_core::paths::data_file("convert-history.json")
 }
