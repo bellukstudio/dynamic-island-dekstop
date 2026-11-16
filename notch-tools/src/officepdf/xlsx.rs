@@ -538,6 +538,8 @@ struct Sheet {
 const MAX_EXCEL_ROWS: u32 = 1_048_576;
 const MAX_EXCEL_COLS: u32 = 16_384;
 const MAX_MERGED_CELLS: u64 = 100_000;
+const MAX_MERGE_RANGES: usize = 10_000;
+const MAX_TOTAL_MERGED_CELLS: u64 = 1_000_000;
 
 fn col_num(s: &str) -> u32 {
     s.bytes().take_while(|b| b.is_ascii_alphabetic()).try_fold(0u32, |value, byte| {
@@ -618,14 +620,18 @@ fn parse_sheet(xml: &str, sst: &[String], st: &Styles) -> Option<Sheet> {
         }
     }
     if let Some(ms) = kid(root, "mergeCells") {
-        for m in kids(ms, "mergeCell") {
+        let mut expanded_cells = 0u64;
+        for m in kids(ms, "mergeCell").into_iter().take(MAX_MERGE_RANGES) {
             if let Some((a, b)) = at(m, "ref").and_then(|r| r.split_once(':')) {
                 if let (Some((r1, c1)), Some((r2, c2))) = (cell_ref(a), cell_ref(b)) {
                     let area = u64::from(r2.saturating_sub(r1).saturating_add(1))
                         .saturating_mul(u64::from(c2.saturating_sub(c1).saturating_add(1)));
-                    // Abaikan rentang merge terbalik atau ekstrem agar satu metadata
-                    // rusak tidak memicu alokasi/iterasi miliaran sel.
-                    if r1 <= r2 && c1 <= c2 && area <= MAX_MERGED_CELLS {
+                    // Batasi ukuran setiap rentang sekaligus total ekspansi per sheet.
+                    // Banyak rentang kecil juga bisa menghabiskan CPU/memori bila tidak dibatasi.
+                    if r1 <= r2 && c1 <= c2 && area <= MAX_MERGED_CELLS
+                        && expanded_cells.saturating_add(area) <= MAX_TOTAL_MERGED_CELLS
+                    {
+                        expanded_cells += area;
                         sh.merges.push((r1, c1, r2, c2));
                     }
                 }
