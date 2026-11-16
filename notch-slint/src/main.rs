@@ -2261,11 +2261,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let settings = conversation_runtime.clone();
         let eye = eye.clone();
         let hide_timer = Rc::new(Timer::default());
+        let battery = battery.clone();
         let state = Rc::new(RefCell::new((
             false,
             String::new(),
             None::<Instant>,
             eye.borrow().last_move,
+            false,
+            None::<bool>,
         )));
         let timer = Timer::default();
         timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
@@ -2274,8 +2277,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let playing = w.get_media_playing();
             let title = w.get_media_title().to_string();
             let pointer_move = eye.borrow().last_move;
+            let battery_reading = battery.read();
             let mut state = state.borrow_mut();
-            let (last_playing, last_title, last_message, last_move) = &mut *state;
+            let (last_playing, last_title, last_message, last_move, was_low_battery, was_charging) = &mut *state;
             let mut event: Option<(&'static str, &'static str)> = None;
 
             if playing && !*last_playing && cfg.on_play {
@@ -2299,6 +2303,19 @@ fn main() -> Result<(), slint::PlatformError> {
                 *last_title = title;
             } else if !playing {
                 *last_title = String::new();
+            }
+
+            // Status baterai dibaca ringan; komentar hanya muncul pada transisi menuju kondisi.
+            if let Reading::Present(value) = battery_reading {
+                let low = value.percent <= 15;
+                if low && !*was_low_battery && cfg.on_low_battery && event.is_none() {
+                    event = Some(("Baterai tinggal 15%. Saatnya mencari charger, ya! 🔋", "Conversation Moments · baterai lemah"));
+                }
+                if value.charging && *was_charging == Some(false) && cfg.on_charging && event.is_none() {
+                    event = Some(("Laptop mulai mengisi daya. Energi kembali penuh! ⚡", "Conversation Moments · mulai mengisi daya"));
+                }
+                *was_low_battery = low;
+                *was_charging = Some(value.charging);
             }
 
             let cooldown_ok = last_message.map(|at| at.elapsed() >= Duration::from_secs(u64::from(cfg.cooldown_min) * 60)).unwrap_or(true);
