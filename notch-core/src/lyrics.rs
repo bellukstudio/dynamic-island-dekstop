@@ -30,8 +30,7 @@ pub fn fetch(title:&str,artist:&str,length:f64)->Result<Option<Lyrics>,String>{
  if title.is_empty(){return Ok(None);}
  let mut params=vec![("track_name",title.clone()),("artist_name",artist.clone())];
  if length>0.0{params.push(("duration",(length.round()as i64).to_string()));}
- let exact=get("get",&params)?;
- if let Ok(rec)=serde_json::from_str::<Record>(&exact){if let Some(l)=convert(&rec){return Ok(Some(l));}}
+ if let Ok(exact)=get("get",&params){if let Ok(rec)=serde_json::from_str::<Record>(&exact){if let Some(l)=convert(&rec){return Ok(Some(l));}}}
  let search=get("search",&[("track_name",title),("artist_name",artist)])?;
  let records:Vec<Record>=serde_json::from_str(&search).map_err(|e|e.to_string())?;
  let mut best:Option<(f64,Lyrics)>=None;
