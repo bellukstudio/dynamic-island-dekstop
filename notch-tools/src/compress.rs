@@ -808,25 +808,19 @@ fn pdf_dictionary(items: Vec<(&str, lopdf::Object)>) -> lopdf::Dictionary {
 
 fn raster_pdf_bytes(source: &[u8], profile: RasterProfile) -> Result<Vec<u8>, String> {
     use lopdf::Object;
-    let mut rendered_pages: Vec<(Vec<u8>, u32, u32)> = Vec::new();
+    let mut document = lopdf::Document::with_version("1.5");
+    let pages_id = document.new_object_id();
+    let mut kids: Vec<Object> = Vec::new();
+
     let total = crate::pdf::for_each_page(source, profile.dpi, |_, _, image| {
+        // Process one page at a time to avoid retaining every rendered bitmap in memory.
         let gray = image::DynamicImage::ImageLuma8(image.to_luma8());
         let width = gray.width();
         let height = gray.height();
         let jpeg = encode_jpeg(&gray, profile.quality)?;
-        rendered_pages.push((jpeg, width, height));
-        Ok(())
-    })?;
-    if rendered_pages.len() != total || rendered_pages.is_empty() {
-        return Err("Tidak semua halaman PDF berhasil dirasterisasi".into());
-    }
-
-    let mut document = lopdf::Document::with_version("1.5");
-    let pages_id = document.new_object_id();
-    let mut kids: Vec<Object> = Vec::with_capacity(rendered_pages.len());
-    for (jpeg, width, height) in rendered_pages {
         let width_points = (width as f64 * 72.0 / profile.dpi as f64).round().max(1.0) as i64;
         let height_points = (height as f64 * 72.0 / profile.dpi as f64).round().max(1.0) as i64;
+
         let image_id = document.add_object(lopdf::Stream::new(
             pdf_dictionary(vec![
                 ("Type", pdf_name("XObject")),
@@ -856,6 +850,11 @@ fn raster_pdf_bytes(source: &[u8], profile: RasterProfile) -> Result<Vec<u8>, St
             ("Resources", Object::Dictionary(resources)),
         ]));
         kids.push(Object::Reference(page_id));
+        Ok(())
+    })?;
+
+    if kids.len() != total || kids.is_empty() {
+        return Err("Tidak semua halaman PDF berhasil dirasterisasi".into());
     }
     document.objects.insert(pages_id, Object::Dictionary(pdf_dictionary(vec![
         ("Type", pdf_name("Pages")),
