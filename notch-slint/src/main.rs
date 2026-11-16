@@ -3081,8 +3081,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let cfg = config.borrow().clone();
             w.set_nudge_message(cfg.message.into());
             w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", cfg.emoji).into());
-            if let Some(eye) = eye.borrow().as_ref() {
-                eye.borrow_mut().mood.flash(Mood::parse(&cfg.mood).unwrap_or(Mood::Sad), u64::from(cfg.show_ms) + 5_000, Instant::now());
+            let eye_state = eye.borrow().clone();
+            if let Some(eye_state) = eye_state {
+                eye_state.borrow_mut().mood.flash(Mood::parse(&cfg.mood).unwrap_or(Mood::Sad), u64::from(cfg.show_ms) + 5_000, Instant::now());
             }
             w.set_nudge_visible(true);
             let weak = weak.clone();
