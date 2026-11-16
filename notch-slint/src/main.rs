@@ -2551,6 +2551,27 @@ mod convert_output_directory_tests {
     }
 
     #[test]
+    fn keeps_existing_destination_directory_and_uses_unique_name() {
+        let root = test_root();
+        let source_dir = root.join("source");
+        let output_dir = root.join("output");
+        fs::create_dir_all(&source_dir).unwrap();
+        fs::create_dir_all(&output_dir).unwrap();
+        let source = source_dir.join("pages");
+        fs::create_dir_all(&source).unwrap();
+        fs::write(source.join("page.png"), b"new").unwrap();
+        fs::create_dir_all(output_dir.join("pages")).unwrap();
+        fs::write(output_dir.join("pages").join("old.png"), b"old").unwrap();
+
+        let result = relocate_convert_output(&source, &output_dir).unwrap();
+
+        assert_eq!(result.file_name().unwrap(), "pages_2");
+        assert_eq!(fs::read(result.join("page.png")).unwrap(), b"new");
+        assert_eq!(fs::read(output_dir.join("pages").join("old.png")).unwrap(), b"old");
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
     fn relocates_multipage_directory_and_preserves_pages() {
         let root = test_root();
         let source_dir = root.join("source");
