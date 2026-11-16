@@ -1080,6 +1080,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let dy = cy - start_cursor.1;
                     let is_moved = moved || dx.abs() + dy.abs() >= 3;
                     if is_moved {
+                        w.set_play_interaction_active(true);
                         if !moved {
                             let old_size = w.window().size();
                             let sf = w.window().scale_factor();
