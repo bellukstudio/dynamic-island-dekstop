@@ -4203,6 +4203,12 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut next_at = Instant::now() + Duration::from_secs(6);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
+        // Pegas semi-implisit untuk perpindahan dan deformasi badan.
+        // [posisi, kecepatan] sehingga target dapat berubah tanpa transform meloncat.
+        let mut spring_offset = (0.0f32, 0.0f32);
+        let mut spring_sx = (0.0f32, 0.0f32);
+        let mut spring_sy = (0.0f32, 0.0f32);
+        let mut last_frame = Instant::now();
 
         dock_play_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
@@ -4270,13 +4276,35 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             let Some((kind, started, duration, direction)) = active else {
-                w.set_play_offset(0.0);
-                w.set_play_body_scale_x(1.0);
-                w.set_play_body_scale_y(1.0);
-                w.set_eyes_offset_x(0.0);
-                w.set_eyes_offset_y(0.0);
-                w.set_eyes_scale_x(1.0);
-                w.set_eyes_scale_y(1.0);
+                // Kembali ke bentuk netral memakai pegas, bukan menghapus transform seketika.
+                let dt = now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.001, 0.05);
+                last_frame = now;
+                for _ in 0..2 {
+                    let h = dt * 0.5;
+                    spring_offset.1 += (-105.0 * spring_offset.0 - 17.0 * spring_offset.1) * h;
+                    spring_offset.0 += spring_offset.1 * h;
+                    spring_sx.1 += (-165.0 * spring_sx.0 - 20.0 * spring_sx.1) * h;
+                    spring_sx.0 += spring_sx.1 * h;
+                    spring_sy.1 += (-165.0 * spring_sy.0 - 20.0 * spring_sy.1) * h;
+                    spring_sy.0 += spring_sy.1 * h;
+                }
+                let ox = spring_offset.0.clamp(-90.0, 90.0);
+                let sx = (1.0 + spring_sx.0).clamp(0.78, 1.25);
+                let sy = (1.0 + spring_sy.0).clamp(0.78, 1.45);
+                let side = dock == 3 || dock == 4;
+                w.set_play_offset(ox);
+                w.set_play_body_scale_x(sx);
+                w.set_play_body_scale_y(sy);
+                w.set_eyes_offset_x(if side { 0.0 } else { ox * 0.10 });
+                w.set_eyes_offset_y(if side { ox * 0.10 } else { 0.0 });
+                w.set_eyes_scale_x(sx);
+                w.set_eyes_scale_y(sy);
+                if ox.abs() < 0.08 && spring_offset.1.abs() < 0.5
+                    && spring_sx.0.abs() < 0.001 && spring_sy.0.abs() < 0.001 {
+                    spring_offset = (0.0, 0.0);
+                    spring_sx = (0.0, 0.0);
+                    spring_sy = (0.0, 0.0);
+                }
                 return;
             };
 
@@ -4290,13 +4318,6 @@ fn main() -> Result<(), slint::PlatformError> {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let extra = (seed >> 32) as u64 % (if interval == 6 { 5 } else { 7 });
                 next_at = now + Duration::from_secs(interval + extra);
-                w.set_play_offset(0.0);
-                w.set_play_body_scale_x(1.0);
-                w.set_play_body_scale_y(1.0);
-                w.set_eyes_offset_x(0.0);
-                w.set_eyes_offset_y(0.0);
-                w.set_eyes_scale_x(1.0);
-                w.set_eyes_scale_y(1.0);
                 return;
             }
 
@@ -4356,12 +4377,30 @@ fn main() -> Result<(), slint::PlatformError> {
             // Di dock samping, sumbu offset tetap mengikuti tepi secara vertikal.
             // Skala badan dan wajah dikendalikan bersama agar ekspresi tidak terlepas dari bentuk.
             let side = dock == 3 || dock == 4;
-            let (body_x, body_y) = if side { (sx, sy) } else { (sx, sy) };
-            w.set_play_offset(offset);
+            // Spring step dengan substep 8 ms menjaga kestabilan ketika frame melambat.
+            let dt = now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.001, 0.05);
+            last_frame = now;
+            let target_x = offset.clamp(-90.0, 90.0);
+            let target_sx = (sx - 1.0).clamp(-0.22, 0.25);
+            let target_sy = (sy - 1.0).clamp(-0.22, 0.45);
+            let steps = (dt / 0.008).ceil().clamp(1.0, 8.0) as u32;
+            let h = dt / steps as f32;
+            for _ in 0..steps {
+                spring_offset.1 += (105.0 * (target_x - spring_offset.0) - 17.0 * spring_offset.1) * h;
+                spring_offset.0 += spring_offset.1 * h;
+                spring_sx.1 += (165.0 * (target_sx - spring_sx.0) - 20.0 * spring_sx.1) * h;
+                spring_sx.0 += spring_sx.1 * h;
+                spring_sy.1 += (165.0 * (target_sy - spring_sy.0) - 20.0 * spring_sy.1) * h;
+                spring_sy.0 += spring_sy.1 * h;
+            }
+            let body_x = (1.0 + spring_sx.0).clamp(0.78, 1.25);
+            let body_y = (1.0 + spring_sy.0).clamp(0.78, 1.45);
+            let body_offset = spring_offset.0.clamp(-90.0, 90.0);
+            w.set_play_offset(body_offset);
             w.set_play_body_scale_x(body_x);
             w.set_play_body_scale_y(body_y);
-            w.set_eyes_offset_x(if side { 0.0 } else { offset * 0.10 });
-            w.set_eyes_offset_y(if side { offset * 0.10 } else { 0.0 });
+            w.set_eyes_offset_x(if side { 0.0 } else { body_offset * 0.10 });
+            w.set_eyes_offset_y(if side { body_offset * 0.10 } else { 0.0 });
             w.set_eyes_scale_x(body_x);
             w.set_eyes_scale_y(body_y);
         });
