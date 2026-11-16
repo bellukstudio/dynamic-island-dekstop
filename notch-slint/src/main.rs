@@ -534,6 +534,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
+    let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let win = NotchWindow::new()?;
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
@@ -1725,7 +1726,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // --- Mata: 8 mood x 20 skin, dirender Rust (notch-core/src/eyes.rs) ---
     let started = Instant::now();
-    let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let skin = eyes::skin_index(&cfg.appearance.eye_theme);
     let default_mood = Mood::parse(&cfg.appearance.default_mood).unwrap_or(Mood::Normal);
     let eye = Rc::new(RefCell::new(EyeCtx {
