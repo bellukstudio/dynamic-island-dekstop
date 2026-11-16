@@ -211,14 +211,18 @@ impl Fonts {
 
     fn gid(&self, f: usize, c: char) -> Option<(u16, char)> {
         let c = Self::map_char(c)?;
-        let fc = &self.faces[f];
+        let fc = self.faces.get(f)?;
         if let Some(g) = fc.cmap.get(&(c as u32)) {
             return Some((*g, c));
         }
-        if let Some(g) = fc.cmap.get(&('?' as u32)) {
-            return Some((*g, '?'));
+        // Never encode an unsupported character as glyph 0 while claiming it is the
+        // original Unicode character in ToUnicode. Prefer the replacement glyph, then '?'.
+        for fallback in ['\\u{fffd}', '?'] {
+            if let Some(g) = fc.cmap.get(&(fallback as u32)) {
+                return Some((*g, fallback));
+            }
         }
-        Some((0, c))
+        None
     }
 
     pub fn char_w(&self, f: usize, c: char, size: f32) -> f32 {
@@ -253,5 +257,61 @@ impl Fonts {
 impl Face {
     pub fn advance(&self, g: u16) -> u16 {
         self.adv.get(g as usize).copied().unwrap_or(0)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::{Face, Fonts};
+    use std::collections::{BTreeMap, HashMap};
+
+    fn fonts(cmap: &[(u32, u16)]) -> Fonts {
+        let mut map = HashMap::new();
+        for (ch, gid) in cmap {
+            map.insert(*ch, *gid);
+        }
+        Fonts {
+            faces: vec![Face {
+                data: Vec::new(),
+                upem: 1000.0,
+                cmap: map,
+                adv: vec![0, 500, 600],
+                asc: 800.0,
+                desc: -200.0,
+                gap: 0.0,
+                bbox: [0, -200, 1000, 800],
+                cap: 700,
+                italic_angle: 0.0,
+                ps_name: "Test".into(),
+                used: BTreeMap::new(),
+            }],
+            slots: [[0; 4]; 2],
+        }
+    }
+
+    #[test]
+    fn unsupported_character_uses_unicode_replacement_glyph_when_available() {
+        let fonts = fonts(&[('\\u{fffd}' as u32, 1), ('?' as u32, 2)]);
+        assert_eq!(fonts.gid(0, '漢'), Some((1, '\\u{fffd}')));
+    }
+
+    #[test]
+    fn unsupported_character_falls_back_to_question_mark() {
+        let fonts = fonts(&[('?' as u32, 2)]);
+        assert_eq!(fonts.gid(0, '漢'), Some((2, '?')));
+    }
+
+    #[test]
+    fn unsupported_character_is_skipped_instead_of_using_notdef() {
+        let fonts = fonts(&[('A' as u32, 1)]);
+        assert_eq!(fonts.gid(0, '漢'), None);
+        assert_eq!(fonts.text_w(0, "漢", 12.0), 0.0);
+    }
+
+    #[test]
+    fn invalid_face_index_is_rejected() {
+        let fonts = fonts(&[('A' as u32, 1)]);
+        assert_eq!(fonts.gid(9, 'A'), None);
     }
 }
