@@ -77,6 +77,24 @@ fn virtual_key(name: &str) -> Option<u32> {
     }
 }
 
+/// Validasi shortcut yang didaftarkan, termasuk shortcut Color Picker bawaan.
+pub fn validate_shortcuts(config: &Shortcuts) -> Result<(), String> {
+    let entries = [
+        ("Buka / tutup hub", config.toggle_hub.as_str()),
+        ("Buka pengaturan", config.open_settings.as_str()),
+        ("Pomodoro", config.toggle_pomodoro.as_str()),
+        ("Jadwal shalat", config.toggle_prayer.as_str()),
+        ("Color Picker", "Ctrl+Alt+Shift+P"),
+    ];
+    let mut used = std::collections::HashMap::<Binding, &str>::new();
+    for (label, combo) in entries {
+        let binding = parse_combo(combo).ok_or_else(|| format!("Shortcut {label} tidak valid: {combo}"))?;
+        if let Some(previous) = used.insert(binding, label) {
+            return Err(format!("Shortcut bentrok: {previous} dan {label} menggunakan {combo}"));
+        }
+    }
+    Ok(())
+}
 /// Jalankan message loop Windows pada thread terpisah. Di platform lain, receiver tetap valid
 /// tetapi tidak menghasilkan aksi; build non-Windows tetap dapat dipakai untuk pemeriksaan UI.
 pub fn start(config: &Shortcuts) -> (Receiver<Action>, Option<JoinHandle<()>>) {
@@ -137,6 +155,24 @@ mod tests {
         assert_eq!(parse_combo("Shift+F12"), Some(Binding { modifiers: 4, vk: 0x7B }));
     }
 
+    #[test]
+    fn detects_duplicate_shortcuts() {
+        let mut shortcuts = Shortcuts::default();
+        shortcuts.open_settings = shortcuts.toggle_hub.clone();
+        assert!(validate_shortcuts(&shortcuts).unwrap_err().contains("bentrok"));
+    }
+
+    #[test]
+    fn detects_conflict_with_builtin_color_picker() {
+        let mut shortcuts = Shortcuts::default();
+        shortcuts.toggle_prayer = "Ctrl+Alt+Shift+P".into();
+        assert!(validate_shortcuts(&shortcuts).unwrap_err().contains("Color Picker"));
+    }
+
+    #[test]
+    fn accepts_default_shortcuts() {
+        assert!(validate_shortcuts(&Shortcuts::default()).is_ok());
+    }
     #[test]
     fn rejects_invalid_or_modifier_only_combinations() {
         assert_eq!(parse_combo("Ctrl+Alt"), None);

@@ -558,6 +558,12 @@ fn main() -> Result<(), slint::PlatformError> {
             next.shortcuts.toggle_pomodoro = pomo.to_string();
             next.shortcuts.toggle_prayer = prayer.to_string();
             next.normalize();
+            if let Err(error) = hotkeys::validate_shortcuts(&next.shortcuts) {
+                if let Some(w) = weak.upgrade() {
+                    w.set_settings_save_status(error.into());
+                }
+                return;
+            }
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
@@ -566,7 +572,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_shortcut_settings(next.shortcuts.open_settings.clone().into());
                         w.set_shortcut_pomodoro(next.shortcuts.toggle_pomodoro.clone().into());
                         w.set_shortcut_prayer(next.shortcuts.toggle_prayer.clone().into());
-                        w.set_settings_save_status("Tersimpan. Mulai ulang aplikasi untuk menerapkan shortcut.".into());
+                        w.set_settings_save_status("Tersimpan. Shortcut baru berlaku setelah aplikasi dimulai ulang.".into());
                     }
                 }
                 Err(error) => {
