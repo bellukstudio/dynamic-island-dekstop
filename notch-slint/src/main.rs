@@ -1443,7 +1443,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
-                .add_filter("Gambar & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "docx", "xlsx", "pptx"])
+                .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx"])
                 .pick_file();
             if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
                 w.set_convert_selected_path(path.to_string_lossy().to_string().into());
@@ -1459,13 +1459,16 @@ fn main() -> Result<(), slint::PlatformError> {
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let source = std::path::Path::new(&path);
-                let result = if format.eq_ignore_ascii_case("pdf") {
-                    convert::convert_to_pdf(source)
+                let result = if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
+                    convert::convert_pdf_to_images(source, &format, 150, 85)
+                        .map(|(output, pages, bytes)| (output, format!("{pages} halaman · {} KB", bytes / 1024)))
+                } else if format.eq_ignore_ascii_case("pdf") {
+                    convert::convert_to_pdf(source).map(|output| (output, "PDF".to_string()))
                 } else {
-                    convert::convert_image(source, &format)
+                    convert::convert_image(source, &format).map(|output| (output, format.to_ascii_uppercase()))
                 };
                 let message = match result {
-                    Ok(output) => format!("Konversi selesai: {}", output.display()),
+                    Ok((output, detail)) => format!("Konversi selesai ({detail}): {}", output.display()),
                     Err(error) => format!("Gagal: {error}"),
                 };
                 let _ = slint::invoke_from_event_loop(move || {
