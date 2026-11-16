@@ -697,6 +697,17 @@ fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
         }
     };
 
+    // Hanya kunjungi baris yang memiliki sel atau metadata baris eksplisit.
+    // Baris kosong di antara keduanya tetap dihitung sebagai jarak vertikal,
+    // tetapi tidak perlu diiterasi satu per satu (worksheet sparse dapat melompat
+    // dari baris 1 ke 1.048.576).
+    let mut render_rows: Vec<u32> = sh.cells.keys().map(|(r, _)| *r)
+        .chain(sh.rows.keys().copied())
+        .filter(|r| (rmin..=rmax).contains(r))
+        .collect();
+    render_rows.sort_unstable();
+    render_rows.dedup();
+
     for (b0, b1) in bands {
         // A wide worksheet can create one page per horizontal band. Enforce the
         // same hard page budget before creating each band's first page.
@@ -708,10 +719,32 @@ fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
         pdf.new_page(pw, ph);
         let mut y = MARGIN;
         let bottom = ph - MARGIN;
-        for r in rmin..=rmax {
+        let mut previous_row = rmin;
+        for r in render_rows.iter().copied() {
             if pdf.page_count() >= 400 {
                 return;
             }
+            let gap_rows = r.saturating_sub(previous_row.saturating_add(1));
+            if gap_rows > 0 {
+                let mut remaining = gap_rows as f32 * sh.def_h * scale;
+                while remaining > 0.0 {
+                    if pdf.page_count() >= 400 {
+                        return;
+                    }
+                    let available = (bottom - y).max(0.0);
+                    if remaining <= available {
+                        y += remaining;
+                        break;
+                    }
+                    remaining -= available;
+                    if pdf.page_count() >= 400 {
+                        return;
+                    }
+                    pdf.new_page(pw, ph);
+                    y = MARGIN;
+                }
+            }
+            previous_row = r;
             let base = row_h(r) * scale;
             if base <= 0.0 {
                 continue;
