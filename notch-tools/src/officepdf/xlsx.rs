@@ -537,6 +537,7 @@ struct Sheet {
 
 const MAX_EXCEL_ROWS: u32 = 1_048_576;
 const MAX_EXCEL_COLS: u32 = 16_384;
+const MAX_SHEET_CELLS: usize = 1_000_000;
 const MAX_MERGED_CELLS: u64 = 100_000;
 const MAX_MERGE_RANGES: usize = 10_000;
 const MAX_TOTAL_MERGED_CELLS: u64 = 1_000_000;
@@ -595,11 +596,16 @@ fn parse_sheet(xml: &str, sst: &[String], st: &Styles) -> Option<Sheet> {
         }
     }
     if let Some(sd) = kid(root, "sheetData") {
-        for (ri, r) in kids(sd, "row").into_iter().enumerate() {
+        let mut remaining_cells = MAX_SHEET_CELLS;
+        for (ri, r) in kids(sd, "row").into_iter().enumerate().take(MAX_EXCEL_ROWS as usize) {
             let rn = at(r, "r").and_then(|v| v.parse::<u32>().ok()).filter(|v| (1..=MAX_EXCEL_ROWS).contains(v)).unwrap_or(ri as u32 + 1).min(MAX_EXCEL_ROWS);
             let hidden = matches!(at(r, "hidden"), Some("1") | Some("true"));
             sh.rows.insert(rn, (fnum(at(r, "ht")), hidden));
-            for (ci, c) in kids(r, "c").into_iter().enumerate() {
+            if remaining_cells == 0 {
+                break;
+            }
+            for (ci, c) in kids(r, "c").into_iter().take(remaining_cells).enumerate() {
+                remaining_cells -= 1;
                 let (row, col) = at(c, "r").and_then(cell_ref).unwrap_or((rn, ci as u32 + 1));
                 let xf = at(c, "s").and_then(|v| v.parse::<usize>().ok()).unwrap_or(0).min(st.xfs.len() - 1);
                 let v = kid(c, "v").and_then(|v| v.text());
