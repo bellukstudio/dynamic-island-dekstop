@@ -1,7 +1,7 @@
 use image::{codecs::jpeg::JpegEncoder, ImageFormat, ImageReader};
 use std::path::{Path, PathBuf};
 
-fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
+fn image_to_pdf_bytes(image: &image::DynamicImage, quality: u8) -> Result<Vec<u8>, String> {
     use lopdf::Object;
 
     let flat = if image.color().has_alpha() {
@@ -21,7 +21,7 @@ fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
 
     let (width, height) = (flat.width(), flat.height());
     let mut jpeg = Vec::new();
-    JpegEncoder::new_with_quality(&mut jpeg, 85)
+    JpegEncoder::new_with_quality(&mut jpeg, quality.clamp(40, 100))
         .encode_image(&flat)
         .map_err(|error| format!("Gagal mengodekan gambar untuk PDF: {error}"))?;
 
@@ -88,10 +88,20 @@ fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
 
 /// Convert a supported raster image and write the result beside the input.
 pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
+    convert_image_with_quality(path, target, 85)
+}
+
+/// Convert a raster image with an explicit JPEG/PDF image quality setting.
+pub fn convert_image_with_quality(
+    path: &Path,
+    target: &str,
+    quality: u8,
+) -> Result<PathBuf, String> {
     let target = target.trim().trim_start_matches('.').to_ascii_lowercase();
+    let quality = quality.clamp(40, 100);
     if target == "pdf" {
         let image = decode_image(path)?;
-        let bytes = image_to_pdf_bytes(&image)?;
+        let bytes = image_to_pdf_bytes(&image, quality)?;
         return write_converted(path, "pdf", &bytes);
     }
 
@@ -119,7 +129,7 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
         ImageFormat::Jpeg => {
             let flattened = flatten_white(&image);
             let mut bytes = Vec::new();
-            JpegEncoder::new_with_quality(&mut bytes, 85)
+            JpegEncoder::new_with_quality(&mut bytes, quality)
                 .encode_image(&flattened)
                 .map_err(|error| format!("Gagal mengodekan JPEG: {error}"))?;
             bytes
@@ -441,11 +451,16 @@ fn unique_converted_path(source: &Path, extension: &str) -> PathBuf {
 
 /// Convert an image or supported Office document to PDF.
 pub fn convert_to_pdf(path: &Path) -> Result<PathBuf, String> {
+    convert_to_pdf_with_quality(path, 85)
+}
+
+/// Convert an image or Office document to PDF, applying quality to raster-image output.
+pub fn convert_to_pdf_with_quality(path: &Path, quality: u8) -> Result<PathBuf, String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
     if is_office_extension(&ext) {
         convert_office_to_pdf(path)
     } else {
-        convert_image(path, "pdf")
+        convert_image_with_quality(path, "pdf", quality)
     }
 }
 
@@ -496,7 +511,7 @@ mod tests {
     #[test]
     fn creates_a_valid_pdf_header_from_a_small_image() {
         let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(1, 1, image::Rgb([255, 255, 255])));
-        let bytes = super::image_to_pdf_bytes(&image).unwrap();
+        let bytes = super::image_to_pdf_bytes(&image, 85).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
     }
 
