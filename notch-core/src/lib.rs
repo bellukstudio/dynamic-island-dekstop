@@ -18,6 +18,7 @@ pub mod notes;
 pub mod paths;
 pub mod reminder;
 pub mod pomodoro;
+pub mod prayer;
 pub mod quick;
 pub mod stats;
 pub mod theme;
