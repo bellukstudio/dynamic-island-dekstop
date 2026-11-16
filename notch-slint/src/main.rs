@@ -1528,6 +1528,8 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
+        let prefs = prayer_prefs.clone();
+        let pomo = pomo.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_routines(move |mode, remind, minutes, focus, rest, long, rounds| {
@@ -1545,7 +1547,23 @@ fn main() -> Result<(), slint::PlatformError> {
             next.prayer.mode = mode; next.prayer.remind_before = remind == "true"; next.prayer.remind_min = minutes;
             next.pomodoro.focus_min = focus; next.pomodoro.break_min = rest; next.pomodoro.long_break_min = long; next.pomodoro.rounds = rounds;
             match next.save(&config_path) {
-                Ok(()) => { updated_config = next.clone(); if let Some(w) = weak.upgrade() { w.set_prayer_mode(next.prayer.mode.clone().into()); w.set_prayer_remind_before(next.prayer.remind_before.to_string().into()); w.set_prayer_remind_min(next.prayer.remind_min.to_string().into()); w.set_pomodoro_focus(next.pomodoro.focus_min.to_string().into()); w.set_pomodoro_break(next.pomodoro.break_min.to_string().into()); w.set_pomodoro_long_break(next.pomodoro.long_break_min.to_string().into()); w.set_pomodoro_rounds(next.pomodoro.rounds.to_string().into()); w.set_settings_save_status("Pengaturan shalat dan Pomodoro tersimpan.".into()); } },
+                Ok(()) => {
+                    updated_config = next.clone();
+                    *prefs.borrow_mut() = next.prayer.clone();
+                    let mut timer = pomo.borrow_mut();
+                    timer.update_config(&next.pomodoro, Instant::now());
+                    if let Some(w) = weak.upgrade() {
+                        show_pomo(&w, &timer);
+                        w.set_prayer_mode(next.prayer.mode.clone().into());
+                        w.set_prayer_remind_before(next.prayer.remind_before.to_string().into());
+                        w.set_prayer_remind_min(next.prayer.remind_min.to_string().into());
+                        w.set_pomodoro_focus(next.pomodoro.focus_min.to_string().into());
+                        w.set_pomodoro_break(next.pomodoro.break_min.to_string().into());
+                        w.set_pomodoro_long_break(next.pomodoro.long_break_min.to_string().into());
+                        w.set_pomodoro_rounds(next.pomodoro.rounds.to_string().into());
+                        w.set_settings_save_status("Tersimpan dan langsung diterapkan ke timer shalat serta Pomodoro.".into());
+                    }
+                },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_settings_save_status(format!("Gagal menyimpan: {error}").into()); } }
             }
         });

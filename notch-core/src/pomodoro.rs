@@ -32,6 +32,25 @@ impl Pomodoro {
         Self { cfg, phase: Phase::Focus, round: 1, remaining, end_at: None }
     }
 
+    /// Terapkan konfigurasi baru ke sesi aktif. Fase saat ini dipertahankan,
+    /// tetapi durasinya dimulai ulang agar hitung mundur tidak memakai batas lama.
+    pub fn update_config(&mut self, cfg: &PomodoroCfg, now: Instant) {
+        let was_running = self.running();
+        let mut cfg = cfg.clone();
+        cfg.focus_min = cfg.focus_min.max(1);
+        cfg.break_min = cfg.break_min.max(1);
+        cfg.long_break_min = cfg.long_break_min.max(1);
+        cfg.rounds = cfg.rounds.max(1);
+        self.cfg = cfg;
+        self.round = self.round.clamp(1, self.cfg.rounds);
+        self.remaining = self.phase_len(self.phase);
+        self.end_at = if was_running {
+            Some(now + std::time::Duration::from_secs(u64::from(self.remaining)))
+        } else {
+            None
+        };
+    }
+
     pub fn phase(&self) -> Phase {
         self.phase
     }
@@ -199,6 +218,29 @@ mod tests {
         assert!(!p.running());
         assert_eq!(p.time_text(), "25:00");
         assert_eq!(p.progress(), 0.0);
+    }
+
+    #[test]
+    fn updated_config_restarts_current_phase_and_preserves_running_state() {
+        let mut p = Pomodoro::new(&cfg(4));
+        let now = Instant::now();
+        p.toggle(now);
+        p.tick(now + Duration::from_secs(60));
+        p.update_config(
+            &PomodoroCfg { focus_min: 30, break_min: 7, long_break_min: 20, rounds: 3 },
+            now + Duration::from_secs(60),
+        );
+        assert!(p.running());
+        assert_eq!(p.time_text(), "30:00");
+        assert_eq!(p.label(), "Fokus · ronde 1/3");
+
+        p.toggle(now + Duration::from_secs(60));
+        p.update_config(
+            &PomodoroCfg { focus_min: 35, break_min: 8, long_break_min: 22, rounds: 2 },
+            now + Duration::from_secs(120),
+        );
+        assert!(!p.running());
+        assert_eq!(p.time_text(), "35:00");
     }
 
     #[test]
