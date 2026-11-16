@@ -90,9 +90,43 @@ mod platform {
    }
   }
  }
-}
+
+ /// Putar adzan dari aset bawaan. MCI menjalankan decoding MP3 secara native di Windows.
+ pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
+  std::thread::spawn(move||{
+   let paused=pause_all();
+   let path=notch_core::paths::data_file("adzan.mp3");
+   let result=(||->Result<(),String>{
+    if let Some(parent)=path.parent(){std::fs::create_dir_all(parent).map_err(|e|e.to_string())?;}
+    if !path.exists(){std::fs::write(&path,include_bytes!("../assets/adzan.mp3")).map_err(|e|e.to_string())?;}
+    let file=path.to_string_lossy().replace('"',"");
+    let open=format!("open \"{file}\" type mpegvideo alias notch_adhan");
+    let play="play notch_adhan wait".to_string();
+    let close="close notch_adhan".to_string();
+    let run=|command:&str|->Result<(),String>{
+     use windows::core::PCWSTR;
+     use windows::Win32::Media::Multimedia::mciSendStringW;
+     let wide:Vec<u16>=command.encode_utf16().chain(std::iter::once(0)).collect();
+     let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,0,windows::Win32::Foundation::HWND::default())};
+     if code==0{Ok(())}else{Err(format!("MCI error {code} saat {command}"))}
+    };
+    run(&open)?;
+    let playback=run(&play);
+    let _=run(&close);
+    playback
+   })();
+   resume_paused();
+   let message=match result{
+    Ok(())=>format!("Adzan {prayer_name} selesai"),
+    Err(e)=>format!("Adzan gagal diputar: {e}"),
+   };
+   let _=weak.upgrade_in_event_loop(move|w|w.set_prayer_status(message.into()));
+   let _=paused;
+  });
+ }
+
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){}}
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
@@ -100,6 +134,8 @@ pub fn seek(s:f64){platform::seek(s);}
 pub fn pause_all()->usize{platform::pause_all()}
 /// Lanjutkan kembali sesi yang dijeda oleh pause_all.
 pub fn resume_paused(){platform::resume_paused();}
+/// Putar audio adzan bawaan sambil menjeda lalu memulihkan media pengguna.
+pub fn play_adhan(w:Weak<NotchWindow>,name:String){platform::play_adhan(w,name);}
 
 #[cfg(test)]
 mod tests {
