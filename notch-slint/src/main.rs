@@ -1460,7 +1460,7 @@ fn main() -> Result<(), slint::PlatformError> {
             std::thread::spawn(move || {
                 let source = std::path::Path::new(&path);
                 let result = if format.eq_ignore_ascii_case("pdf") {
-                    convert::convert_office_to_pdf(source)
+                    convert::convert_to_pdf(source)
                 } else {
                     convert::convert_image(source, &format)
                 };
