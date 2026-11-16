@@ -1,7 +1,7 @@
 //! Font TrueType: pencarian (resource aplikasi -> font sistem), metrik, dan penandaan glyph terpakai
 //! (untuk subsetting saat PDF ditulis). Tidak butuh font terpasang khusus: Liberation/DejaVu/Noto
 //! di Linux, Arial/Times/Segoe/Calibri di Windows, atau berkas .ttf yang dibundel di resources/fonts.
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 pub struct Face {
@@ -106,6 +106,26 @@ const SERIF: &[[&str; 4]] = &[
     ["NotoSerif-Regular.ttf", "NotoSerif-Bold.ttf", "NotoSerif-Italic.ttf", "NotoSerif-BoldItalic.ttf"],
 ];
 
+// Optional script/symbol faces are loaded after the primary families. These are
+// TrueType-outline fonts so they can be embedded with the existing FontFile2 path.
+const FALLBACK_FONTS: &[&str] = &[
+    "NotoSansSymbols2-Regular.ttf",
+    "NotoSansArabic-Regular.ttf",
+    "NotoSansHebrew-Regular.ttf",
+    "NotoSansDevanagari-Regular.ttf",
+    "NotoSansCJK-Regular.ttc",
+    "NotoSansCJKjp-Regular.ttf",
+    "arialuni.ttf",
+    "seguisym.ttf",
+    "msyh.ttc",
+    "simsun.ttc",
+    "simhei.ttf",
+    "meiryo.ttc",
+    "msgothic.ttc",
+    "malgun.ttf",
+    "gulim.ttc",
+];
+
 fn font_dirs() -> Vec<PathBuf> {
     let mut v: Vec<PathBuf> = Vec::new();
     if let Some(rd) = super::resource_dir() {
@@ -138,6 +158,7 @@ fn font_dirs() -> Vec<PathBuf> {
             "/usr/share/fonts/dejavu-sans-fonts",
             "/usr/share/fonts/dejavu-serif-fonts",
             "/usr/share/fonts/truetype/noto",
+            "/usr/share/fonts/opentype/noto",
             "/usr/share/fonts/noto",
             "/usr/share/fonts/google-noto",
             "/usr/share/fonts/truetype/msttcorefonts",
@@ -185,6 +206,21 @@ impl Fonts {
                 .to_string()
         })?;
         let serif = find_family(&mut faces, SERIF, &dirs).unwrap_or(sans);
+
+        // Load optional Unicode/script fonts without making them mandatory for startup.
+        // One file is loaded only once even if several system/resource directories overlap.
+        let mut loaded = HashSet::new();
+        for dir in &dirs {
+            for file in FALLBACK_FONTS {
+                let path = dir.join(file);
+                if !loaded.insert(path.clone()) {
+                    continue;
+                }
+                if let Some(face) = Face::load(&path) {
+                    faces.push(face);
+                }
+            }
+        }
         Ok(Fonts { faces, slots: [sans, serif] })
     }
 
