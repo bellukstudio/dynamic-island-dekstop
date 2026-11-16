@@ -38,3 +38,15 @@ pub fn compress_jpeg(path: &Path) -> Result<(PathBuf, u64, u64), String> {
     std::fs::write(&output_path, output).map_err(|error| error.to_string())?;
     Ok((output_path, original_size, output_size))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::compress_jpeg;
+    use std::path::Path;
+
+    #[test]
+    fn rejects_non_jpeg_before_accessing_the_file() {
+        let error = compress_jpeg(Path::new("does-not-need-to-exist.png")).unwrap_err();
+        assert_eq!(error, "Versi awal mendukung file JPG/JPEG saja.");
+    }
+}
