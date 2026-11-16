@@ -1412,7 +1412,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_compress_pick(move || {
             let selected = rfd::FileDialog::new()
-                .add_filter("Gambar & Office", &["jpg", "jpeg", "png", "bmp", "docx", "xlsx", "pptx"])
+                .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "bmp", "pdf", "docx", "xlsx", "pptx"])
                 .pick_file();
             if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
                 w.set_compress_status(format!("Dipilih: {}", path.display()).into());
