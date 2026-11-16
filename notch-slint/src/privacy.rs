@@ -8,6 +8,9 @@ use slint::Weak;
 #[cfg(windows)]
 #[path = "privacy/wasapi.rs"]
 mod wasapi;
+#[cfg(windows)]
+#[path = "privacy/camera.rs"]
+mod camera;
 
 #[cfg(windows)]
 fn query_kind_uncached(kind: &str) -> bool {
@@ -80,6 +83,7 @@ pub fn start(weak: Weak<crate::NotchWindow>) {
     thread::spawn(move || {
         #[cfg(windows)]
         wasapi::init();
+        camera::init();
         let (mut mic_on, mut cam_on) = (0u8, 0u8);
         let (mut mic_off, mut cam_off) = (0u8, 0u8);
         let mut shown = false;
@@ -88,7 +92,7 @@ pub fn start(weak: Weak<crate::NotchWindow>) {
             let mic = wasapi::is_microphone_active().unwrap_or_else(|| query_kind("microphone"));
             #[cfg(not(windows))]
             let mic = query_kind("microphone");
-            let cam = query_kind("webcam");
+            let cam = camera::is_camera_active().unwrap_or_else(|| query_kind("webcam"));
             mic_on = if mic { mic_on.saturating_add(1) } else { 0 };
             cam_on = if cam { cam_on.saturating_add(1) } else { 0 };
             mic_off = if mic { 0 } else { mic_off.saturating_add(1) };
