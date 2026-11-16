@@ -2626,7 +2626,6 @@ dependencies = [
 name = "notch-slint"
 version = "0.1.0"
 dependencies = [
- "image",
  "notch-core",
  "notch-tools",
  "png 0.17.16",
