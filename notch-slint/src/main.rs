@@ -1065,10 +1065,43 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // Animasi perpindahan jendela native saat pengguna mengganti docking.
+    // Timer tetap hidup di UI thread; state baru menggantikan animasi sebelumnya.
+    let dock_move_state = Rc::new(RefCell::new(None::<(i32, i32, i32, i32, Instant)>));
+    let dock_move_timer = Rc::new(Timer::default());
+    {
+        let state = dock_move_state.clone();
+        let timer_weak = Rc::downgrade(&dock_move_timer);
+        let weak = win.as_weak();
+        dock_move_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
+            let Some((sx, sy, tx, ty, started_at)) = *state.borrow() else {
+                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+                return;
+            };
+            let Some(w) = weak.upgrade() else {
+                state.replace(None);
+                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+                return;
+            };
+            let t = (started_at.elapsed().as_secs_f32() / 0.360).clamp(0.0, 1.0);
+            let eased = 1.0 - (1.0 - t).powi(3);
+            let x = sx as f32 + (tx - sx) as f32 * eased;
+            let y = sy as f32 + (ty - sy) as f32 * eased;
+            w.window().set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+            if t >= 1.0 {
+                state.replace(None);
+                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+            }
+        });
+        dock_move_timer.stop();
+    }
+
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let shell = shell.clone();
+        let move_state = dock_move_state.clone();
+        let move_timer = dock_move_timer.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_position(move |mode| {
             let mode = mode.to_string();
@@ -1097,8 +1130,39 @@ fn main() -> Result<(), slint::PlatformError> {
                     updated_config = next;
                     shell.pos.set(next_pos);
                     if let Some(w) = weak.upgrade() {
+                        let from = w.window().position();
                         let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
                         shell.place(&w, size);
+                        let target = w.window().position();
+                        if (from.x, from.y) != (target.x, target.y) {
+                            w.window().set_position(from);
+                            move_state.replace(Some((from.x, from.y, target.x, target.y, Instant::now())));
+                            move_timer.start(TimerMode::Repeated, Duration::from_millis(16), {
+                                let state = move_state.clone();
+                                let weak = weak.clone();
+                                let timer_weak = Rc::downgrade(&move_timer);
+                                move || {
+                                    let Some((sx, sy, tx, ty, started_at)) = *state.borrow() else {
+                                        if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+                                        return;
+                                    };
+                                    let Some(w) = weak.upgrade() else {
+                                        state.replace(None);
+                                        if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+                                        return;
+                                    };
+                                    let t = (started_at.elapsed().as_secs_f32() / 0.360).clamp(0.0, 1.0);
+                                    let eased = 1.0 - (1.0 - t).powi(3);
+                                    let x = sx as f32 + (tx - sx) as f32 * eased;
+                                    let y = sy as f32 + (ty - sy) as f32 * eased;
+                                    w.window().set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+                                    if t >= 1.0 {
+                                        state.replace(None);
+                                        if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
+                                    }
+                                }
+                            });
+                        }
                         w.set_position_mode(mode.clone().into());
                         w.set_behavior_save_status(format!("Posisi notch disimpan: {mode}").into());
                     }
