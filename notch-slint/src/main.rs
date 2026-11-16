@@ -4378,7 +4378,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let weights: [u32; 8] = if sleepy {
                         [1, 0, 0, 0, 2, 3, 0, 3] // liquid, squish, sway, yawn
                     } else if playing {
-                        [7, 3, 3, 2, 2, 0, 5, 0]
+                        [7, 3, 3, 2, 1, 0, 5, 0]
                     } else {
                         [6, 4, 3, 2, 2, 2, 1, 1]
                     };
