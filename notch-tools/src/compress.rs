@@ -244,11 +244,12 @@ pub fn compress_office_file(path: &Path, target_reduction_percent: u8) -> Result
         return Err("File kosong, tidak dapat dikompres.".into());
     }
     let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
-    let worst = compress_office_bytes(&source, *LADDER.last().unwrap(), true)?;
-    let output = if worst.len() as u64 > target {
-        worst
+    let last = LADDER.len() - 1;
+    let worst = compress_office_bytes(&source, LADDER[last], true)?;
+    let selected = if worst.len() as u64 > target {
+        last
     } else {
-        let (mut low, mut high) = (0usize, LADDER.len() - 1);
+        let (mut low, mut high) = (0usize, last);
         while low < high {
             let middle = (low + high) / 2;
             let candidate = compress_office_bytes(&source, LADDER[middle], true)?;
@@ -258,8 +259,10 @@ pub fn compress_office_file(path: &Path, target_reduction_percent: u8) -> Result
                 low = middle + 1;
             }
         }
-        compress_office_bytes(&source, LADDER[low], false)?
+        low
     };
+    // Estimasi memakai ZIP level 6; tulis hasil final dengan level 9.
+    let output = compress_office_bytes(&source, LADDER[selected], false)?;
 
     let output_path = unique_output(path, &ext);
     let output_size = output.len() as u64;
