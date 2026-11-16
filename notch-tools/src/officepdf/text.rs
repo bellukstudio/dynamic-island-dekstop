@@ -364,6 +364,18 @@ pub enum Block {
     Image(ImgBlock),
     Table(Table),
     PageBreak,
+    Section(PageSetup),
+}
+
+#[derive(Clone, Copy)]
+pub struct PageSetup {
+    pub width: f32,
+    pub height: f32,
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+    pub new_page: bool,
 }
 
 #[derive(Clone)]
@@ -487,6 +499,23 @@ impl Flow {
             Block::Image(i) => self.image(pdf, i),
             Block::Table(t) => self.table(pdf, t),
             Block::PageBreak => self.page_break(pdf),
+            Block::Section(setup) => self.section(pdf, *setup),
+        }
+    }
+
+    pub fn section(&mut self, pdf: &mut Pdf, setup: PageSetup) {
+        if setup.new_page && self.open {
+            self.page_break(pdf);
+        }
+        self.pw = setup.width;
+        self.ph = setup.height;
+        self.ml = setup.left;
+        self.mr = setup.right;
+        self.mt = setup.top;
+        self.mb = setup.bottom;
+        self.y = self.mt;
+        if !self.open {
+            self.ensure(pdf);
         }
     }
 
