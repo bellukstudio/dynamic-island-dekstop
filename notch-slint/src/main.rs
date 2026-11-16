@@ -1746,6 +1746,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_queue = std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::<String>::new()));
     let convert_failed_files = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let convert_file_statuses = std::sync::Arc::new(std::sync::Mutex::new(Vec::<(String, String)>::new()));
+    let convert_active_file = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+    let convert_cancel_active_file = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
@@ -1796,6 +1798,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let queue = convert_queue.clone();
         let failed_files = convert_failed_files.clone();
         let file_statuses = convert_file_statuses.clone();
+        let active_file = convert_active_file.clone();
+        let cancel_active_file = convert_cancel_active_file.clone();
         let output_dir = convert_output_dir.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
@@ -1833,6 +1837,8 @@ fn main() -> Result<(), slint::PlatformError> {
             *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().cloned().collect();
             *file_statuses.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().map(|path| (path.clone(), "Menunggu".to_string())).collect();
             failed_files.lock().unwrap_or_else(|error| error.into_inner()).clear();
+            *active_file.lock().unwrap_or_else(|error| error.into_inner()) = None;
+            cancel_active_file.store(false, std::sync::atomic::Ordering::Release);
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
                 w.set_convert_progress_value(0.0);
@@ -1846,6 +1852,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let queue = queue.clone();
             let failed_files = failed_files.clone();
             let file_statuses = file_statuses.clone();
+            let active_file = active_file.clone();
+            let cancel_active_file = cancel_active_file.clone();
             let last_output = last_output.clone();
             let running_worker = running.clone();
             std::thread::spawn(move || {
@@ -1865,6 +1873,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     if cancel_requested.load(std::sync::atomic::Ordering::Acquire) { break; }
                     let next = queue.lock().unwrap_or_else(|error| error.into_inner()).pop_front();
                     let Some(path) = next else { break; };
+                    cancel_active_file.store(false, std::sync::atomic::Ordering::Release);
+                    *active_file.lock().unwrap_or_else(|error| error.into_inner()) = Some(path.clone());
                     {
                         let mut statuses = file_statuses.lock().unwrap_or_else(|error| error.into_inner());
                         if let Some(item) = statuses.iter_mut().find(|(item_path, _)| item_path == &path) {
@@ -1951,6 +1961,15 @@ fn main() -> Result<(), slint::PlatformError> {
                             format.trim().trim_start_matches('.').to_ascii_lowercase()
                         }
                     });
+                    if cancel_active_file.swap(false, std::sync::atomic::Ordering::AcqRel) {
+                        if let Ok((output, _)) = &result {
+                            if output.is_dir() { let _ = std::fs::remove_dir_all(output); }
+                            else { let _ = std::fs::remove_file(output); }
+                        }
+                        if let Some(item) = file_statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) {
+                            item.1 = "Dibatalkan".to_string();
+                        }
+                    } else {
                     match result {
                         Ok((output, detail)) => {
                             let relocated = if output_dir.trim().is_empty() {
@@ -1988,6 +2007,8 @@ fn main() -> Result<(), slint::PlatformError> {
                             failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())));
                         }
                     }
+                    }
+                    *active_file.lock().unwrap_or_else(|error| error.into_inner()) = None;
                     let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
                     let effective_total = (processed + remaining).max(1);
                     let percent = processed * 100 / effective_total;
@@ -2158,6 +2179,54 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_selected_path(paths[0].clone().into());
                 w.set_convert_files_text(format_convert_selection(&paths).into());
                 w.set_convert_status(format!("{} file gagal dimuat ulang. Tekan Konversi untuk mencoba kembali", paths.len()).into());
+            }
+        });
+    }
+    {
+        let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
+        let active_file = convert_active_file.clone();
+        let cancel_active = convert_cancel_active_file.clone();
+        let weak = win.as_weak();
+        win.on_convert_cancel_one_file(move |raw_name| {
+            let query = raw_name.to_string().trim().to_ascii_lowercase();
+            if query.is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Masukkan nama file yang ingin dibatalkan".into()); }
+                return;
+            }
+            let matches_name = |path: &str| {
+                let name = std::path::Path::new(path).file_name()
+                    .map(|value| value.to_string_lossy().to_ascii_lowercase())
+                    .unwrap_or_default();
+                name == query || path.to_ascii_lowercase() == query
+            };
+            let removed_path = {
+                let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
+                let found = pending.iter().find(|path| matches_name(path)).cloned();
+                if let Some(path) = &found { pending.retain(|item| item != path); }
+                found
+            };
+            let message = if let Some(path) = removed_path {
+                if let Some(item) = statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) {
+                    item.1 = "Dibatalkan".to_string();
+                }
+                format!("File {} dibatalkan dari antrean", std::path::Path::new(&path).file_name().unwrap_or_default().to_string_lossy())
+            } else {
+                let active = active_file.lock().unwrap_or_else(|error| error.into_inner()).clone();
+                if let Some(path) = active.filter(|path| matches_name(path)) {
+                    cancel_active.store(true, std::sync::atomic::Ordering::Release);
+                    if let Some(item) = statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) {
+                        item.1 = "Pembatalan diminta".to_string();
+                    }
+                    "Pembatalan diminta. File aktif dihentikan setelah operasi konversi aman selesai".to_string()
+                } else {
+                    "File tidak ditemukan di antrean atau tidak sedang diproses".to_string()
+                }
+            };
+            if let Some(w) = weak.upgrade() {
+                let status_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
+                w.set_convert_queue_text(status_text.into());
+                w.set_convert_status(message.into());
             }
         });
     }
