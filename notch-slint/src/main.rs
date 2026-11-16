@@ -41,6 +41,20 @@ mod android_mirror;
 
 slint::include_modules!();
 
+fn convert_output_dir_path() -> std::path::PathBuf {
+    notch_core::paths::data_file("convert-output-dir.txt")
+}
+
+fn load_convert_output_dir() -> String {
+    std::fs::read_to_string(convert_output_dir_path()).unwrap_or_default().trim().to_string()
+}
+
+fn save_convert_output_dir(value: &str) {
+    let path = convert_output_dir_path();
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    let _ = std::fs::write(path, value);
+}
+
 fn convert_history_path() -> std::path::PathBuf {
     notch_core::paths::data_file("convert-history.json")
 }
@@ -1599,7 +1613,9 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let convert_output_dir = Rc::new(RefCell::new(String::new()));
+    let initial_output_dir = load_convert_output_dir();
+    let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
+    win.set_convert_output_dir_text(initial_output_dir.into());
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1786,6 +1802,21 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
             });
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let output_dir = convert_output_dir.clone();
+        win.on_convert_output_dir_pick(move || {
+            if let Some(path) = rfd::FileDialog::new().set_title("Pilih folder output Convert").pick_folder() {
+                let value = path.to_string_lossy().to_string();
+                *output_dir.borrow_mut() = value.clone();
+                save_convert_output_dir(&value);
+                if let Some(w) = weak.upgrade() {
+                    w.set_convert_output_dir_text(value.into());
+                    w.set_convert_status("Folder output berhasil diperbarui".into());
+                }
+            }
         });
     }
     {
