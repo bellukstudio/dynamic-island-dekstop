@@ -20,6 +20,8 @@ mod platform {
  use windows::Media::Control::{GlobalSystemMediaTransportControlsSession as Session,GlobalSystemMediaTransportControlsSessionManager as Manager,GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status};
  use windows::Storage::Streams::DataReader;
  use windows::Win32::System::WinRT::{RoInitialize,RO_INIT_MULTITHREADED};
+ use std::sync::Mutex;
+ static PAUSED: Mutex<Vec<String>> = Mutex::new(Vec::new());
  fn init(){unsafe{let _=RoInitialize(RO_INIT_MULTITHREADED);}}
  fn app_id(s:&Session)->String{s.SourceAppUserModelId().map(|x|x.to_string()).unwrap_or_default().to_lowercase()}
  fn is_self(s:&Session)->bool{let id=app_id(s);if id.contains("webview2"){return true;}std::env::current_exe().ok().and_then(|p|p.file_stem().map(|x|x.to_string_lossy().to_lowercase())).map(|n|n.len()>=3&&id.contains(&n)).unwrap_or(false)}
@@ -57,12 +59,47 @@ mod platform {
 });}
  pub fn control(action:&str){let a=action.to_string();std::thread::spawn(move||{if let Ok(s)=session(){let _=match a.as_str(){"toggle"=>s.TryTogglePlayPauseAsync().map(|_|()),"pause"=>s.TryPauseAsync().map(|_|()),"play"=>s.TryPlayAsync().map(|_|()),"next"=>s.TrySkipNextAsync().map(|_|()),"prev"=>s.TrySkipPreviousAsync().map(|_|()),_=>Ok(())};}});}
  pub fn seek(seconds:f64){std::thread::spawn(move||{if let Ok(s)=session(){let ticks=(seconds.max(0.0)*10_000_000.0)as i64;let _=s.TryChangePlaybackPositionAsync(ticks);}});}
+ /// Jeda semua sesi media pengguna dan simpan hanya sesi yang benar-benar sedang diputar.
+ pub fn pause_all()->usize{
+  init();
+  let mut paused=Vec::new();
+  if let Ok(manager)=Manager::RequestAsync().and_then(|op|op.get()){
+   if let Ok(sessions)=manager.GetSessions(){
+    for s in sessions{
+     if is_self(&s){continue;}
+     let playing=s.GetPlaybackInfo().and_then(|i|i.PlaybackStatus()).map(|v|v==Status::Playing).unwrap_or(false);
+     if !playing{continue;}
+     if s.TryPauseAsync().and_then(|op|op.get()).is_ok(){paused.push(app_id(&s));}
+    }
+   }
+  }
+  let count=paused.len();
+  *PAUSED.lock().unwrap_or_else(|e|e.into_inner())=paused;
+  count
+ }
+ /// Lanjutkan hanya sesi yang sebelumnya dijeda oleh pause_all.
+ pub fn resume_paused(){
+  init();
+  let ids=std::mem::take(&mut *PAUSED.lock().unwrap_or_else(|e|e.into_inner()));
+  if ids.is_empty(){return;}
+  if let Ok(manager)=Manager::RequestAsync().and_then(|op|op.get()){
+   if let Ok(sessions)=manager.GetSessions(){
+    for s in sessions{
+     if !is_self(&s)&&ids.contains(&app_id(&s)){let _=s.TryPlayAsync().and_then(|op|op.get());}
+    }
+   }
+  }
+ }
 }
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}}
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
+/// Jeda sesi media pengguna sebelum audio prioritas (mis. adzan) diputar.
+pub fn pause_all()->usize{platform::pause_all()}
+/// Lanjutkan kembali sesi yang dijeda oleh pause_all.
+pub fn resume_paused(){platform::resume_paused();}
 
 #[cfg(test)]
 mod tests {
