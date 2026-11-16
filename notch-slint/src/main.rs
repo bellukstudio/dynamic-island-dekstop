@@ -1735,7 +1735,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     *active.borrow_mut() = None;
                     w.set_reminder_alert_visible(false);
                 }
-                if active.borrow().is_none() {
+                // Jangan menimpa rapat, adzan, atau interaksi hub yang sedang berlangsung.
+                // Reminder tetap berstatus due dan akan ditampilkan pada siklus timer berikutnya.
+                let can_interrupt = !w.get_expanded()
+                    && !w.get_meeting_active()
+                    && !w.get_adhan_active();
+                if active.borrow().is_none() && can_interrupt {
                     if let Some(r) = due.first() {
                         *active.borrow_mut() = Some(r.id.clone());
                         w.set_page_id("reminder".into());
