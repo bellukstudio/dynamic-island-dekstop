@@ -395,6 +395,15 @@ fn office_to_pdf_bytes(path: &Path, extension: &str) -> Result<Vec<u8>, String> 
     office_to_pdf_with_libreoffice(path)
 }
 
+/// Convert an Office document into PDF bytes without creating a visible output file.
+pub fn convert_office_to_pdf_bytes(path: &Path) -> Result<Vec<u8>, String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !is_office_extension(&ext) {
+        return Err(format!("Format Office tidak didukung: .{ext}"));
+    }
+    office_to_pdf_bytes(path, &ext)
+}
+
 /// Convert a DOCX, XLSX, or PPTX to PDF and save the result beside the source file.
 pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
