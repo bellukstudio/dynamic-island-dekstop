@@ -1060,6 +1060,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     let size = w.window().size();
                     shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
                 }
+                // Batas perpindahan dihitung ulang setiap kali fitur diaktifkan kembali.
+                moves = 0;
+                last_move = Instant::now();
                 return;
             }
             let interval = runtime.1.get().clamp(60, 3_600);
