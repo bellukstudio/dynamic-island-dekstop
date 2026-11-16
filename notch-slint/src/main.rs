@@ -4289,7 +4289,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let eye = eye.clone();
         let battery = battery.clone();
-        let mut next_at = Instant::now() + Duration::from_secs(6);
+        // Sama dengan Tauri: gerakan pertama boleh muncul setelah jeda 4 detik.
+        let mut next_at = Instant::now() + Duration::from_secs(4);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
         let mut last_choice: Option<u8> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
@@ -4349,7 +4350,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     spring_sx = (0.0, 0.0);
                     spring_sy = (0.0, 0.0);
                 }
-                next_at = now + Duration::from_secs(3);
+                // Poll ulang setelah 1,5 detik seperti blocked retry di Bottom Play Tauri.
+                next_at = now + Duration::from_millis(1_500);
                 return;
             }
 
@@ -4463,11 +4465,17 @@ fn main() -> Result<(), slint::PlatformError> {
             let t = (elapsed / total).clamp(0.0, 1.0);
             if t >= 1.0 {
                 active = None;
-                let mut interval = if w.get_media_playing() { 6 } else { 10 };
-                if w.get_eyes_mood().to_string() == "sleepy" { interval = 15; }
+                let low_battery = matches!(battery.read(), Reading::Present(value) if value.percent <= 15 && !value.charging);
+                let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
+                let playing = w.get_media_playing();
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
-                let extra = (seed >> 32) as u64 % (if interval == 6 { 5 } else { 7 });
-                next_at = now + Duration::from_secs(interval + extra);
+                let fraction = ((seed >> 32) as u32) as f32 / u32::MAX as f32;
+                // Jeda antar-gerakan sama dengan schedule() versi Tauri:
+                // calm 10–18s, musik 5–9,5s, normal 7–14s.
+                let delay = if calm { 10.0 + fraction * 8.0 }
+                    else if playing { 5.0 + fraction * 4.5 }
+                    else { 7.0 + fraction * 7.0 };
+                next_at = now + Duration::from_secs_f32(delay);
                 return;
             }
 
