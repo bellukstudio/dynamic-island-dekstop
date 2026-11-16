@@ -557,7 +557,8 @@ mod tests {
         assert_eq!(c.pomodoro.focus_min, 25);
         assert_eq!(c.timing.hover_open_ms, 150);
         assert_eq!(c.appearance.notch_theme, "default");
-        assert_eq!(c.appearance.theme, "auto");\n        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
+        assert_eq!(c.appearance.theme, "auto");
+        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
     }
 
     #[test]
@@ -598,7 +599,7 @@ mod tests {
 
     #[test]
     fn migrate_adds_currency_to_older_page_configs() {
-        let mut c: Config = toml::from_str("pages = [\\"media\\", \\"battery\\"]\\n").unwrap();
+        let mut c: Config = toml::from_str("pages = [\"media\", \"battery\"]\n").unwrap();
         c.normalize();
         assert!(c.pages.iter().any(|p| p == "currency"));
         assert_eq!(c.pages_version, PAGES_VERSION);
