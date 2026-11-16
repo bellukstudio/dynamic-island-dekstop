@@ -31,6 +31,7 @@ use slint::{
 mod privacy;
 mod hotkeys;
 mod colorpick;
+mod compress;
 
 slint::include_modules!();
 
@@ -529,6 +530,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
     let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
     privacy::start(win.as_weak());
     apply_theme(&win, &palette);
@@ -1260,6 +1262,24 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let weak = win.as_weak();
+        win.on_compress_run(move |raw_path| {
+            let path_text = raw_path.to_string();
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let result = compress::compress_jpeg(std::path::Path::new(&path_text));
+                let message = match result {
+                    Ok((output, before, after)) => format!("Selesai: {} → {} ({} → {} KB)", output.display(), before / 1024, after / 1024),
+                    Err(error) => format!("Gagal: {error}"),
+                };
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() { w.set_compress_status(message.into()); }
+                });
+            });
+        });
+    }
+
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
     {
@@ -1286,6 +1306,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     hotkeys::Action::ColorPicker => {
                         colorpick::toggle();
+                    }
+                    hotkeys::Action::OpenCompress => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("compress".into());
+                            expand();
+                        }
                     }
                     hotkeys::Action::OpenSettings => {
                         if let Some(w) = weak.upgrade() {

@@ -1073,6 +1073,40 @@ component SettingsPage inherits VerticalLayout {
     }
 }
 
+component CompressPage inherits VerticalLayout {
+    in property <string> file-path: "";
+    in property <string> status: "Pilih file JPG untuk mengompres gambar";
+    callback run(string);
+    alignment: start;
+    padding-left: 14px;
+    padding-right: 14px;
+    spacing: 8px;
+    Text { text: "Compress"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Kompresi JPEG lokal"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 10px;
+        border-width: 1px;
+        border-color: #ffffff18;
+        VerticalLayout {
+            padding: 9px;
+            spacing: 6px;
+            Text { text: "Lokasi file JPG/JPEG"; color: Theme.text-faint; font-size: 10px; }
+            path-input := TextInput {
+                text: root.file-path;
+                color: Theme.text;
+                font-size: 11px;
+                single-line: true;
+            }
+            Text { text: "Hasil disimpan sebagai nama_compressed.jpg di folder yang sama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    HorizontalLayout {
+        alignment: end;
+        Chip { label: "Kompres"; clicked => { root.run(path-input.text); } }
+    }
+    Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+}
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1185,6 +1219,7 @@ export component NotchWindow inherits Window {
     in property <string> shortcut-pomodoro: "Ctrl+Alt+P";
     in property <string> shortcut-prayer: "Ctrl+Alt+A";
     in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
+    in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1237,6 +1272,7 @@ export component NotchWindow inherits Window {
     callback cal-select(int);
     callback holidays-ready();
     callback settings-save-shortcuts(string, string, string, string);
+    callback compress-run(string);
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1461,6 +1497,10 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
+                    if root.page-id == "compress": CompressPage {
+                        status: root.compress-status;
+                        run(path) => { root.compress-run(path); }
+                    }
                     if root.page-id == "settings": SettingsPage {
                         shortcut-hub: root.shortcut-hub;
                         shortcut-settings: root.shortcut-settings;

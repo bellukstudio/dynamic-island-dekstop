@@ -12,6 +12,7 @@ pub enum Action {
     OpenPrayer,
     ColorPicker,
     OpenSettings,
+    OpenCompress,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -124,6 +125,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         (3i32, latest.toggle_prayer.clone(), Action::OpenPrayer),
                         (4i32, "Ctrl+Alt+Shift+P".to_string(), Action::ColorPicker),
                         (5i32, latest.open_settings.clone(), Action::OpenSettings),
+                        (6i32, "Ctrl+Alt+Shift+K".to_string(), Action::OpenCompress),
                     ];
                     let mut used = std::collections::HashSet::new();
                     for (id, combo, action) in entries {
