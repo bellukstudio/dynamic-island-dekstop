@@ -529,6 +529,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
     privacy::start(win.as_weak());
     apply_theme(&win, &palette);
     win.set_ui_scale(cfg.scale as f32);
@@ -550,6 +551,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let hotkey_config_tx = hotkey_config_tx.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_shortcuts(move |hub, settings, pomo, prayer| {
             let mut next = updated_config.clone();
@@ -567,12 +569,13 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
+                    let _ = hotkey_config_tx.send(next.shortcuts.clone());
                     if let Some(w) = weak.upgrade() {
                         w.set_shortcut_hub(next.shortcuts.toggle_hub.clone().into());
                         w.set_shortcut_settings(next.shortcuts.open_settings.clone().into());
                         w.set_shortcut_pomodoro(next.shortcuts.toggle_pomodoro.clone().into());
                         w.set_shortcut_prayer(next.shortcuts.toggle_prayer.clone().into());
-                        w.set_settings_save_status("Tersimpan. Shortcut baru berlaku setelah aplikasi dimulai ulang.".into());
+                        w.set_settings_save_status("Tersimpan. Shortcut baru langsung aktif.".into());
                     }
                 }
                 Err(error) => {
@@ -1260,7 +1263,6 @@ fn main() -> Result<(), slint::PlatformError> {
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
     {
-        let (hotkey_rx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
         let (expand, collapse, pomo) = (expand.clone(), collapse.clone(), pomo.clone());
         let weak = win.as_weak();
         hotkey_poll_timer.start(TimerMode::Repeated, Duration::from_millis(60), move || {

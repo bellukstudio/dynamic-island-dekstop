@@ -95,55 +95,69 @@ pub fn validate_shortcuts(config: &Shortcuts) -> Result<(), String> {
     }
     Ok(())
 }
-/// Jalankan message loop Windows pada thread terpisah. Di platform lain, receiver tetap valid
-/// tetapi tidak menghasilkan aksi; build non-Windows tetap dapat dipakai untuk pemeriksaan UI.
-pub fn start(config: &Shortcuts) -> (Receiver<Action>, Option<JoinHandle<()>>) {
-    let (tx, rx) = mpsc::channel();
+/// Thread hotkey tetap hidup dan menerima konfigurasi baru melalui channel.
+pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, Option<JoinHandle<()>>) {
+    let (action_tx, action_rx) = mpsc::channel();
+    let (config_tx, config_rx) = mpsc::channel::<Shortcuts>();
     #[cfg(windows)]
     {
-        let entries = [
-            (1i32, config.toggle_hub.clone(), Action::ToggleHub),
-            (2i32, config.toggle_pomodoro.clone(), Action::TogglePomodoro),
-            (3i32, config.toggle_prayer.clone(), Action::OpenPrayer),
-            (4i32, "Ctrl+Alt+Shift+P".to_string(), Action::ColorPicker),
-            (5i32, config.open_settings.clone(), Action::OpenSettings),
-        ];
+        let initial = config.clone();
         let handle = thread::spawn(move || unsafe {
             use windows::Win32::UI::WindowsAndMessaging::{
-                GetMessageW, RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MSG, WM_HOTKEY,
+                PeekMessageW, RegisterHotKey, TranslateMessage, DispatchMessageW,
+                UnregisterHotKey, HOT_KEY_MODIFIERS, MSG, PM_REMOVE, WM_HOTKEY,
             };
-            let mut registered = Vec::new();
-            let mut used = std::collections::HashSet::new();
-            for (id, combo, action) in entries {
-                let Some(binding) = parse_combo(&combo) else { continue };
-                if !used.insert(binding) { continue; }
-                // MOD_NOREPEAT mencegah auto-repeat ketika tombol ditahan.
-                let modifiers = HOT_KEY_MODIFIERS(binding.modifiers | 0x4000);
-                if RegisterHotKey(None, id, modifiers, binding.vk).is_ok() {
-                    registered.push((id, action));
-                }
-            }
+            let mut registered: Vec<(i32, Action)> = Vec::new();
+            let mut latest = initial;
             let mut msg = MSG::default();
-            while GetMessageW(&mut msg, None, 0, 0).as_bool() {
-                if msg.message == WM_HOTKEY {
-                    let id = msg.wParam.0 as i32;
-                    if let Some((_, action)) = registered.iter().find(|(registered_id, _)| *registered_id == id) {
-                        let _ = tx.send(*action);
+            loop {
+                let mut changed = false;
+                while let Ok(next) = config_rx.try_recv() {
+                    latest = next;
+                    changed = true;
+                }
+                if changed || registered.is_empty() {
+                    for (id, _) in registered.drain(..) { let _ = UnregisterHotKey(None, id); }
+                    let entries = [
+                        (1i32, latest.toggle_hub.clone(), Action::ToggleHub),
+                        (2i32, latest.toggle_pomodoro.clone(), Action::TogglePomodoro),
+                        (3i32, latest.toggle_prayer.clone(), Action::OpenPrayer),
+                        (4i32, "Ctrl+Alt+Shift+P".to_string(), Action::ColorPicker),
+                        (5i32, latest.open_settings.clone(), Action::OpenSettings),
+                    ];
+                    let mut used = std::collections::HashSet::new();
+                    for (id, combo, action) in entries {
+                        let Some(binding) = parse_combo(&combo) else { continue };
+                        if !used.insert(binding) { continue; }
+                        let modifiers = HOT_KEY_MODIFIERS(binding.modifiers | 0x4000);
+                        if RegisterHotKey(None, id, modifiers, binding.vk).is_ok() {
+                            registered.push((id, action));
+                        }
                     }
                 }
+                while PeekMessageW(&mut msg, None, 0, 0, PM_REMOVE).as_bool() {
+                    if msg.message == WM_HOTKEY {
+                        let id = msg.wParam.0 as i32;
+                        if let Some((_, action)) = registered.iter().find(|(registered_id, _)| *registered_id == id) {
+                            let _ = action_tx.send(*action);
+                        }
+                    } else {
+                        let _ = TranslateMessage(&msg);
+                        DispatchMessageW(&msg);
+                    }
+                }
+                thread::sleep(std::time::Duration::from_millis(10));
             }
             for (id, _) in registered { let _ = UnregisterHotKey(None, id); }
         });
-        return (rx, Some(handle));
+        return (action_rx, config_tx, Some(handle));
     }
     #[cfg(not(windows))]
     {
         let _ = config;
-        let _ = tx;
-        (rx, None)
+        (action_rx, config_tx, None)
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
