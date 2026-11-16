@@ -133,6 +133,45 @@ fn format_convert_selection(paths: &[String]) -> String {
     lines.join("\n")
 }
 
+fn load_convert_document_preview(path: &std::path::Path, page: usize) -> Result<(Image, usize), String> {
+    let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    let bytes = if extension == "pdf" {
+        std::fs::read(path).map_err(|error| format!("PDF tidak dapat dibaca: {error}"))?
+    } else if matches!(extension.as_str(), "docx" | "xlsx" | "pptx" | "doc" | "xls" | "ppt" | "odt" | "ods" | "odp" | "rtf" | "txt" | "csv") {
+        convert::convert_office_to_pdf_bytes(path)?
+    } else {
+        let image = Image::load_from_path(path).map_err(|error| format!("Preview tidak tersedia: {error}"))?;
+        return Ok((image, 1));
+    };
+    let (rendered, total) = notch_tools::pdf::render_page(&bytes, page, 110)?;
+    let rgba = rendered.to_rgba8();
+    let image = Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+        rgba.as_raw(), rgba.width(), rgba.height(),
+    ));
+    Ok((image, total))
+}
+
+fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page: usize) {
+    std::thread::spawn(move || {
+        let result = load_convert_document_preview(std::path::Path::new(&path), page);
+        let _ = weak.upgrade_in_event_loop(move |window| {
+            match result {
+                Ok((image, total)) => {
+                    window.set_convert_source_preview(image);
+                    window.set_convert_preview_page_text(format!("Halaman {} / {}", page.min(total.saturating_sub(1)) + 1, total).into());
+                    window.set_convert_preview_total(total as i32);
+                    window.set_convert_preview_status("".into());
+                }
+                Err(error) => {
+                    window.set_convert_source_preview(Image::default());
+                    window.set_convert_preview_page_text("Preview tidak tersedia".into());
+                    window.set_convert_preview_status(error.into());
+                }
+            }
+        });
+    });
+}
+
 fn load_convert_preview(path: &std::path::Path) -> Image {
     let candidate = if path.is_dir() {
         let mut files = std::fs::read_dir(path).ok().into_iter().flatten()
@@ -1645,6 +1684,9 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
+    let convert_preview_page = Rc::new(Cell::new(0usize));
+    let convert_preview_total = Rc::new(Cell::new(1usize));
+    let convert_preview_path = Rc::new(RefCell::new(String::new()));
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -1657,6 +1699,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
+        let preview_page = convert_preview_page.clone();
+        let preview_total = convert_preview_total.clone();
+        let preview_path = convert_preview_path.clone();
+        let weak_preview = weak.clone();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
                 .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt", "csv"])
@@ -1669,7 +1715,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 *selected_paths.borrow_mut() = selected.clone();
                 w.set_convert_history_text(format_convert_history().into());
                 w.set_convert_files_text(format_convert_selection(&selected).into());
-                w.set_convert_source_preview(load_convert_preview(std::path::Path::new(first)));
+                preview_page.set(0);
+                preview_total.set(1);
+                *preview_path.borrow_mut() = first.clone();
+                w.set_convert_preview_page_text("Memuat preview…".into());
+                w.set_convert_preview_status("".into());
+                request_convert_document_preview(weak_preview.clone(), first.clone(), 0);
                 w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
@@ -1887,6 +1938,32 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 });
             });
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let page = convert_preview_page.clone();
+        let total = convert_preview_total.clone();
+        let path = convert_preview_path.clone();
+        let weak_preview = weak.clone();
+        win.on_convert_preview_prev(move || {
+            let current = page.get();
+            if current == 0 { return; }
+            let next = current - 1;
+            page.set(next);
+            let selected = path.borrow().clone();
+            if !selected.is_empty() { request_convert_document_preview(weak_preview.clone(), selected, next); }
+        });
+        let weak = win.as_weak();
+        let page = convert_preview_page.clone();
+        let total = convert_preview_total.clone();
+        let path = convert_preview_path.clone();
+        win.on_convert_preview_next(move || {
+            let next = page.get().saturating_add(1);
+            if next >= total.get() { return; }
+            page.set(next);
+            let selected = path.borrow().clone();
+            if !selected.is_empty() { request_convert_document_preview(weak.clone(), selected, next); }
         });
     }
     {
