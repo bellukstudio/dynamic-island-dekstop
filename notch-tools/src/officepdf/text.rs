@@ -289,7 +289,7 @@ pub fn layout(fonts: &Fonts, p: &Para, width: f32) -> Vec<Line> {
                             pw += cw;
                         }
                         if !piece.is_empty() {
-                            push_seg(&mut cur, p, ri, &piece, pw, justify);
+                            push_seg(&mut cur, &runs, ri, &piece, pw, justify);
                         }
                     } else {
                         push_seg(&mut cur, &runs, ri, &s, w, justify);
