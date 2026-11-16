@@ -194,6 +194,7 @@ mod tests {
         assert!(result.by_name("word/document.xml").is_ok());
         assert!(before > 0);
         assert!(after > 0);
+        drop(result);
 
         let _ = std::fs::remove_file(source);
         let _ = std::fs::remove_file(output);
