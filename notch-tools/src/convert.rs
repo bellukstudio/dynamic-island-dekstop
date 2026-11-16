@@ -1,9 +1,106 @@
-use image::{ImageFormat, ImageReader};
+use image::{codecs::jpeg::JpegEncoder, ImageFormat, ImageReader};
 use std::path::{Path, PathBuf};
+
+fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
+    use lopdf::Object;
+
+    let flat = if image.color().has_alpha() {
+        let rgba = image.to_rgba8();
+        let mut rgb = image::RgbImage::new(rgba.width(), rgba.height());
+        for (x, y, pixel) in rgba.enumerate_pixels() {
+            let alpha = pixel[3] as u32;
+            let blend = |channel: u8| {
+                ((channel as u32 * alpha + 255 * (255 - alpha) + 127) / 255) as u8
+            };
+            rgb.put_pixel(x, y, image::Rgb([blend(pixel[0]), blend(pixel[1]), blend(pixel[2])]));
+        }
+        image::DynamicImage::ImageRgb8(rgb)
+    } else {
+        image::DynamicImage::ImageRgb8(image.to_rgb8())
+    };
+
+    let (width, height) = flat.dimensions();
+    let mut jpeg = Vec::new();
+    JpegEncoder::new_with_quality(&mut jpeg, 85)
+        .encode_image(&flat)
+        .map_err(|error| format!("Gagal mengodekan gambar untuk PDF: {error}"))?;
+
+    let (page_width, page_height) = if width >= height { (842i64, 595i64) } else { (595i64, 842i64) };
+    let margin = 24.0f32;
+    let scale = ((page_width as f32 - 2.0 * margin) / width as f32)
+        .min((page_height as f32 - 2.0 * margin) / height as f32);
+    let (draw_width, draw_height) = (width as f32 * scale, height as f32 * scale);
+    let (x, y) = ((page_width as f32 - draw_width) / 2.0, (page_height as f32 - draw_height) / 2.0);
+
+    let name = |value: &str| Object::Name(value.as_bytes().to_vec());
+    let dictionary = |items: Vec<(&str, Object)>| {
+        let mut value = lopdf::Dictionary::new();
+        for (key, object) in items {
+            value.set(key, object);
+        }
+        value
+    };
+
+    let mut document = lopdf::Document::with_version("1.5");
+    let pages_id = document.new_object_id();
+    let image_id = document.add_object(lopdf::Stream::new(
+        dictionary(vec![
+            ("Type", name("XObject")),
+            ("Subtype", name("Image")),
+            ("Width", Object::Integer(width as i64)),
+            ("Height", Object::Integer(height as i64)),
+            ("ColorSpace", name("DeviceRGB")),
+            ("BitsPerComponent", Object::Integer(8)),
+            ("Filter", name("DCTDecode")),
+        ]),
+        jpeg,
+    ));
+    let content = format!("q {draw_width:.2} 0 0 {draw_height:.2} {x:.2} {y:.2} cm /Im0 Do Q");
+    let content_id = document.add_object(lopdf::Stream::new(lopdf::Dictionary::new(), content.into_bytes()));
+    let xobjects = dictionary(vec![("Im0", Object::Reference(image_id))]);
+    let resources = dictionary(vec![("XObject", Object::Dictionary(xobjects))]);
+    let page_id = document.add_object(dictionary(vec![
+        ("Type", name("Page")),
+        ("Parent", Object::Reference(pages_id)),
+        ("MediaBox", Object::Array(vec![
+            Object::Integer(0), Object::Integer(0),
+            Object::Integer(page_width), Object::Integer(page_height),
+        ])),
+        ("Contents", Object::Reference(content_id)),
+        ("Resources", Object::Dictionary(resources)),
+    ]));
+    document.objects.insert(pages_id, Object::Dictionary(dictionary(vec![
+        ("Type", name("Pages")),
+        ("Kids", Object::Array(vec![Object::Reference(page_id)])),
+        ("Count", Object::Integer(1)),
+    ])));
+    let catalog_id = document.add_object(dictionary(vec![
+        ("Type", name("Catalog")),
+        ("Pages", Object::Reference(pages_id)),
+    ]));
+    document.trailer.set("Root", Object::Reference(catalog_id));
+    document.compress();
+
+    let mut output = Vec::new();
+    document.save_to(&mut output).map_err(|error| format!("Gagal membuat PDF: {error}"))?;
+    Ok(output)
+}
 
 /// Convert a supported raster image and write the result beside the input.
 pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
-    let format = match target.trim().trim_start_matches('.').to_ascii_lowercase().as_str() {
+    let target = target.trim().trim_start_matches('.').to_ascii_lowercase();
+    if target == "pdf" {
+        let image = ImageReader::open(path)
+            .map_err(|error| error.to_string())?
+            .with_guessed_format()
+            .map_err(|error| error.to_string())?
+            .decode()
+            .map_err(|error| format!("Gagal membaca gambar: {error}"))?;
+        let bytes = image_to_pdf_bytes(&image)?;
+        return write_converted(path, "pdf", &bytes);
+    }
+
+    let format = match target.as_str() {
         "png" => ImageFormat::Png,
         "jpg" | "jpeg" => ImageFormat::Jpeg,
         "webp" => ImageFormat::WebP,
@@ -30,12 +127,42 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
 
     let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("image");
     let output = path.with_file_name(format!("{stem}_converted.{extension}"));
-
-    image
-        .save_with_format(&output, format)
+    image.save_with_format(&output, format)
         .map_err(|error| format!("Gagal menyimpan gambar: {error}"))?;
-
     Ok(output)
+}
+
+fn write_converted(source: &Path, extension: &str, bytes: &[u8]) -> Result<PathBuf, String> {
+    let stem = source.file_stem().and_then(|value| value.to_str()).unwrap_or("file");
+    let parent = source.parent().unwrap_or_else(|| Path::new("."));
+    let mut output = parent.join(format!("{stem}_converted.{extension}"));
+    let mut index = 2u32;
+    while output.exists() {
+        output = parent.join(format!("{stem}_converted_{index}.{extension}"));
+        index += 1;
+    }
+    std::fs::write(&output, bytes).map_err(|error| format!("Gagal menyimpan hasil: {error}"))?;
+    Ok(output)
+}
+
+/// Convert a DOCX, XLSX, or PPTX to PDF and save the result beside the source file.
+pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !crate::officepdf::supports(&ext) {
+        return Err(format!("Format Office tidak didukung: .{ext}"));
+    }
+    let bytes = crate::officepdf::convert_to_pdf(path)?;
+    write_converted(path, "pdf", &bytes)
+}
+
+/// Convert an image or supported Office document to PDF.
+pub fn convert_to_pdf(path: &Path) -> Result<PathBuf, String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if crate::officepdf::supports(&ext) {
+        convert_office_to_pdf(path)
+    } else {
+        convert_image(path, "pdf")
+    }
 }
 
 #[cfg(test)]
@@ -48,26 +175,4 @@ mod tests {
         let error = convert_image(Path::new("does-not-need-to-exist.png"), "tiff").unwrap_err();
         assert_eq!(error, "Format tujuan tidak didukung: tiff");
     }
-
-}
-
-/// Convert DOCX, XLSX, or PPTX to PDF and save the result beside the source file.
-pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
-    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-    if !crate::officepdf::supports(&ext) {
-        return Err(format!("Format Office tidak didukung: .{ext}"));
-    }
-
-    let bytes = crate::officepdf::convert_to_pdf(path)?;
-    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("document");
-    let parent = path.parent().unwrap_or_else(|| Path::new("."));
-    let mut output = parent.join(format!("{stem}_converted.pdf"));
-    let mut index = 2u32;
-    while output.exists() {
-        output = parent.join(format!("{stem}_converted_{index}.pdf"));
-        index += 1;
-    }
-
-    std::fs::write(&output, bytes).map_err(|error| format!("Gagal menyimpan PDF: {error}"))?;
-    Ok(output)
 }
