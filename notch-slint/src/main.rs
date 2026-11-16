@@ -1082,6 +1082,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     if is_moved {
                         w.set_play_interaction_active(true);
                         if !moved {
+                            w.set_suppress_next_pill_click(true);
+                            let clear_weak = weak.clone();
+                            click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
+                                if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
+                            });
                             let old_size = w.window().size();
                             let sf = w.window().scale_factor();
                             let orb_size = (64.0 * sf).round() as u32;
@@ -1097,11 +1102,6 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some((_, _, moved, _)) = drag.take() {
                     if moved {
                         if let Some((cx, cy)) = cursor {
-                            w.set_suppress_next_pill_click(true);
-                            let clear_weak = weak.clone();
-                            click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
-                                if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
-                            });
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
                             let margin = 24;
