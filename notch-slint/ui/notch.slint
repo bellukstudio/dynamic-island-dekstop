@@ -1193,7 +1193,7 @@ component SettingsPage inherits VerticalLayout {
     in property <string> focus-companion-save-status: "";
     callback save-motion(bool, string, string);
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
-    callback test-nudge();
+    callback test-nudge(bool, string, string, string, string);
     callback save-greeting(bool, string, string, string);
     callback save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback save-focus-companion(bool, bool, bool, bool, bool);
@@ -1555,7 +1555,7 @@ component SettingsPage inherits VerticalLayout {
                     nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
                     root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
                 } }
-                Chip { label: "Pratinjau"; clicked => { root.test-nudge(); } }
+                Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text); } }
                 Chip { label: "Simpan notifikasi"; selected: true; clicked => {
                     root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
                 } }
@@ -2408,7 +2408,7 @@ export component NotchWindow inherits Window {
     callback settings-save-autostart(bool);
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
-    callback settings-test-nudge();
+    callback settings-test-nudge(bool, string, string, string, string);
     callback settings-save-greeting(bool, string, string, string);
     callback settings-save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback settings-save-focus-companion(bool, bool, bool, bool, bool);
@@ -2941,7 +2941,7 @@ export component NotchWindow inherits Window {
                         focus-companion-on-break-end: root.focus-companion-on-break-end;
                         focus-companion-save-status: root.focus-companion-save-status;
                         save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move); }
-                        test-nudge => { root.settings-test-nudge(); }
+                        test-nudge(message, emoji, mood, show, until-move) => { root.settings-test-nudge(message, emoji, mood, show, until-move); }
                         save-greeting(enabled, mode, voice, custom-text) => { root.settings-save-greeting(enabled, mode, voice, custom-text); }
                         save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown) => { root.settings-save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown); }
                         save-focus-companion(enabled, start, halfway, complete, break-end) => { root.settings-save-focus-companion(enabled, start, halfway, complete, break-end); }

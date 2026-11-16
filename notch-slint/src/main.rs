@@ -3315,18 +3315,30 @@ fn main() -> Result<(), slint::PlatformError> {
         let config = nudge_runtime_config.clone();
         let eye = appearance_eye.clone();
         let timer = Timer::default();
-        win.on_settings_test_nudge(move || {
+        win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
             let Some(w) = weak.upgrade() else { return };
-            let cfg = config.borrow().clone();
-            w.set_nudge_message(cfg.message.into());
-            w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", cfg.emoji).into());
+            let message = message.to_string().trim().to_string();
+            let emoji = emoji.to_string().trim().to_string();
+            let mood = mood.to_string();
+            let Some(show_ms) = show.to_string().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v)) else {
+                w.set_nudge_save_status("Durasi pratinjau harus 2000–30000 ms.".into());
+                return;
+            };
+            if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 8
+                || !["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"].contains(&mood.as_str()) {
+                w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 8), dan ekspresi.".into());
+                return;
+            }
+            w.set_nudge_message(message.into());
+            w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", emoji).into());
             let eye_state = eye.borrow().clone();
             if let Some(eye_state) = eye_state {
-                eye_state.borrow_mut().mood.flash(Mood::parse(&cfg.mood).unwrap_or(Mood::Sad), u64::from(cfg.show_ms) + 5_000, Instant::now());
+                eye_state.borrow_mut().mood.flash(Mood::parse(&mood).unwrap_or(Mood::Sad), u64::from(show_ms) + 5_000, Instant::now());
             }
             w.set_nudge_visible(true);
+            w.set_nudge_save_status("Pratinjau memakai nilai yang sedang diedit; belum menyimpan pengaturan.".into());
             let weak = weak.clone();
-            timer.start(TimerMode::SingleShot, Duration::from_millis(cfg.show_ms as u64), move || {
+            timer.start(TimerMode::SingleShot, Duration::from_millis(show_ms as u64), move || {
                 if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
             });
         });
