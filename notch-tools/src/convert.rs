@@ -37,3 +37,22 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
 
     Ok(output)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::convert_image;
+    use std::path::Path;
+
+    #[test]
+    fn rejects_unsupported_target_before_accessing_the_file() {
+        let error = convert_image(Path::new("does-not-need-to-exist.png"), "tiff").unwrap_err();
+        assert_eq!(error, "Format tujuan tidak didukung: tiff");
+    }
+
+    #[test]
+    fn accepts_target_with_leading_dot_and_mixed_case() {
+        // An invalid input path proves format validation happens before file access.
+        let error = convert_image(Path::new("does-not-need-to-exist.png"), ".PnG").unwrap_err();
+        assert!(!error.contains("Format tujuan tidak didukung"));
+    }
+}
