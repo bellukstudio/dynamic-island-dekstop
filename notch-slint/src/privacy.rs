@@ -1,14 +1,12 @@
 //! Lightweight Windows privacy activity monitor for automatic meeting mode.
 use std::process::Command;
+use std::sync::Mutex;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use slint::Weak;
 
-#[derive(Clone, Default, PartialEq)]
-struct Activity { mic: bool, cam: bool }
-
 #[cfg(windows)]
-fn query_kind(kind: &str) -> bool {
+fn query_kind_uncached(kind: &str) -> bool {
     use std::os::windows::process::CommandExt;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
     let key = format!(r"HKCU\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\{kind}");
@@ -47,6 +45,28 @@ fn query_kind(kind: &str) -> bool {
             .map(|o| String::from_utf8_lossy(&o.stdout).to_lowercase().contains(&exe.to_lowercase()))
             .unwrap_or(false)
     })
+}
+
+#[cfg(windows)]
+static QUERY_CACHE: Mutex<Vec<(String, Instant, bool)>> = Mutex::new(Vec::new());
+
+#[cfg(windows)]
+fn query_kind(kind: &str) -> bool {
+    const TTL: Duration = Duration::from_secs(2);
+    if let Ok(cache) = QUERY_CACHE.lock() {
+        if let Some((_, at, value)) = cache.iter().find(|(name, at, _)| name == kind && at.elapsed() < TTL) {
+            return *value;
+        }
+    }
+    let value = query_kind_uncached(kind);
+    if let Ok(mut cache) = QUERY_CACHE.lock() {
+        if let Some(entry) = cache.iter_mut().find(|(name, _, _)| name == kind) {
+            *entry = (kind.to_string(), Instant::now(), value);
+        } else {
+            cache.push((kind.to_string(), Instant::now(), value));
+        }
+    }
+    value
 }
 
 #[cfg(not(windows))]
