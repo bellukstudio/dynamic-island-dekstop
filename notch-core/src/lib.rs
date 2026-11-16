@@ -12,6 +12,8 @@ mod holidays_data;
 #[cfg(feature = "net")]
 pub mod http;
 #[cfg(feature = "net")]
+pub mod lyrics;
+#[cfg(feature = "net")]
 pub mod weather;
 pub mod layout;
 pub mod notes;
