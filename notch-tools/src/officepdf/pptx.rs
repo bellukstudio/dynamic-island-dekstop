@@ -21,8 +21,20 @@ impl Xf {
     fn id() -> Xf {
         Xf { sx: 1.0, sy: 1.0, tx: 0.0, ty: 0.0 }
     }
-    fn rect(&self, x: f64, y: f64, cx: f64, cy: f64) -> (f32, f32, f32, f32) {
-        (((x * self.sx + self.tx) / 12700.0) as f32, ((y * self.sy + self.ty) / 12700.0) as f32, (cx * self.sx / 12700.0) as f32, (cy * self.sy / 12700.0) as f32)
+    fn rect(&self, x: f64, y: f64, cx: f64, cy: f64) -> Option<(f32, f32, f32, f32)> {
+        let values = [
+            (x * self.sx + self.tx) / 12700.0,
+            (y * self.sy + self.ty) / 12700.0,
+            cx * self.sx / 12700.0,
+            cy * self.sy / 12700.0,
+        ];
+        // Hindari koordinat non-finite atau ekstrem yang dapat merusak content stream PDF.
+        if values.iter().any(|v| !v.is_finite() || v.abs() > 100_000.0)
+            || values[2] < 0.0 || values[3] < 0.0
+        {
+            return None;
+        }
+        Some((values[0] as f32, values[1] as f32, values[2] as f32, values[3] as f32))
     }
 }
 
@@ -31,12 +43,18 @@ type Rect = (f32, f32, f32, f32);
 fn xfrm_vals(x: Node) -> Option<(f64, f64, f64, f64)> {
     let off = kid(x, "off")?;
     let ext = kid(x, "ext")?;
-    Some((
-        at(off, "x")?.parse().ok()?,
-        at(off, "y")?.parse().ok()?,
-        at(ext, "cx")?.parse().ok()?,
-        at(ext, "cy")?.parse().ok()?,
-    ))
+    let values = [
+        at(off, "x")?.parse::<f64>().ok()?,
+        at(off, "y")?.parse::<f64>().ok()?,
+        at(ext, "cx")?.parse::<f64>().ok()?,
+        at(ext, "cy")?.parse::<f64>().ok()?,
+    ];
+    if values.iter().any(|v| !v.is_finite() || v.abs() > 1.0e12)
+        || values[2] < 0.0 || values[3] < 0.0
+    {
+        return None;
+    }
+    Some((values[0], values[1], values[2], values[3]))
 }
 
 fn norm_ty(t: Option<&str>) -> &str {
@@ -176,7 +194,7 @@ impl<'a, 'b> R<'a, 'b> {
         let from = |sp: N| kid(sp, "spPr").and_then(|s| kid(s, "xfrm")).and_then(xfrm_vals);
         if let Some(l) = self.layout.and_then(|l| find_ph(l, ty, idx, true)) {
             if let Some(v) = from(l) {
-                return Some(Xf::id().rect(v.0, v.1, v.2, v.3));
+                return Xf::id().rect(v.0, v.1, v.2, v.3);
             }
         }
         if let Some(m) = self.master.and_then(|m| find_ph(m, ty, idx, false)) {
@@ -224,12 +242,9 @@ impl<'a, 'b> R<'a, 'b> {
         let own = sppr.and_then(|s| kid(s, "xfrm"));
         let rect: Rect = match own.and_then(xfrm_vals) {
             Some(v) => xf.rect(v.0, v.1, v.2, v.3),
-            None => match ph.and_then(|p| self.inherited_rect(p)) {
-                Some(r) => r,
-                None => return,
-            },
+            None => ph.and_then(|p| self.inherited_rect(p)),
         };
-        let (x, y, w, h) = rect;
+        let Some((x, y, w, h)) = rect else { return };
         // gaya (p:style) sebagai cadangan fill/garis
         let style = kid(c, "style");
         let style_fill = style.and_then(|s| kid(s, "fillRef")).filter(|f| at(*f, "idx") != Some("0")).and_then(|f| self.clr(f, None));
@@ -309,11 +324,9 @@ impl<'a, 'b> R<'a, 'b> {
         }
         let rect = match kid(c, "spPr").and_then(|s| kid(s, "xfrm")).and_then(xfrm_vals) {
             Some(v) => xf.rect(v.0, v.1, v.2, v.3),
-            None => match ph.and_then(|p| self.inherited_rect(p)) {
-                Some(r) => r,
-                None => return,
-            },
+            None => ph.and_then(|p| self.inherited_rect(p)),
         };
+        let Some((x, y, w, h)) = rect else { return };
         let Some(bf) = kid(c, "blipFill") else { return };
         let Some(emb) = kid(bf, "blip").and_then(|b| at(b, "embed")) else { return };
         let Some(rel) = rels.get(emb) else { return };
@@ -336,7 +349,7 @@ impl<'a, 'b> R<'a, 'b> {
     fn frame(&mut self, c: N, xf: Xf) {
         let Some(tbl) = desc(c, "tbl") else { return };
         let Some(v) = kid(c, "xfrm").and_then(xfrm_vals) else { return };
-        let (x, y, w, _h) = xf.rect(v.0, v.1, v.2, v.3);
+        let Some((x, y, w, _h)) = xf.rect(v.0, v.1, v.2, v.3) else { return };
         self.table(tbl, x, y, w, xf.sx as f32);
     }
 
@@ -699,7 +712,16 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
     let pres_rels = rels_of(&mut z, pres_path);
     let pdoc = parse(&pres_xml)?;
     let proot = pdoc.root_element();
-    let (sw, sh) = desc(proot, "sldSz").map(|s| (fnum(at(s, "cx")).unwrap_or(9144000.0) / 12700.0, fnum(at(s, "cy")).unwrap_or(5143500.0) / 12700.0)).unwrap_or((720.0, 405.0));
+    let (sw, sh) = desc(proot, "sldSz")
+        .map(|s| (fnum(at(s, "cx")).unwrap_or(9144000.0) / 12700.0, fnum(at(s, "cy")).unwrap_or(5143500.0) / 12700.0))
+        .unwrap_or((720.0, 405.0));
+    let (sw, sh) = if sw.is_finite() && sh.is_finite()
+        && sw > 0.0 && sh > 0.0 && sw <= 14_400.0 && sh <= 14_400.0
+    {
+        (sw, sh)
+    } else {
+        (720.0, 405.0)
+    };
     let slides: Vec<String> = desc(proot, "sldIdLst")
         .map(|l| kids(l, "sldId").into_iter().filter_map(|s| rid(s).and_then(|id| pres_rels.get(id)).map(|r| r.target.clone())).collect())
         .unwrap_or_default();
