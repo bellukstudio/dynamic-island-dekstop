@@ -1643,20 +1643,23 @@ fn main() -> Result<(), slint::PlatformError> {
             let text = text.to_string();
             let date_time = date_time.to_string();
             let mode = repeat_mode.to_string();
-            if text.trim().is_empty() { return; }
+            if text.trim().is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_reminder_status("Isi deskripsi pengingat terlebih dahulu.".into()); }
+                return;
+            }
             let due_at = if date_time.trim().is_empty() {
                 0
             } else {
                 match reminder::parse_local_datetime(&date_time, timezone_offset) {
                     Some(value) => value,
                     None => {
-                        eprintln!("[Reminder] Format tanggal/waktu harus DD/MM/YYYY HH:MM");
+                        if let Some(w) = weak.upgrade() { w.set_reminder_status("Format tanggal/waktu harus DD/MM/YYYY HH:MM.".into()); }
                         return;
                     }
                 }
             };
             if mode == "weekly" && (weekdays_mask & 0x7f) == 0 {
-                eprintln!("[Reminder] Pilih setidaknya satu hari untuk pengulangan mingguan");
+                if let Some(w) = weak.upgrade() { w.set_reminder_status("Pilih minimal satu hari untuk pengulangan mingguan.".into()); }
                 return;
             }
             let items = reminder::add(
@@ -1665,6 +1668,7 @@ fn main() -> Result<(), slint::PlatformError> {
             );
             show_reminders(&model, items, timezone_offset);
             if let Some(w) = weak.upgrade() {
+                w.set_reminder_status("Pengingat berhasil ditambahkan.".into());
                 w.set_reminder_draft("".into());
                 w.set_reminder_date_time("".into());
                 w.set_reminder_repeat_mode("none".into());
