@@ -90,12 +90,7 @@ fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
 pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
     let target = target.trim().trim_start_matches('.').to_ascii_lowercase();
     if target == "pdf" {
-        let image = ImageReader::open(path)
-            .map_err(|error| error.to_string())?
-            .with_guessed_format()
-            .map_err(|error| error.to_string())?
-            .decode()
-            .map_err(|error| format!("Gagal membaca gambar: {error}"))?;
+        let image = decode_image(path)?;
         let bytes = image_to_pdf_bytes(&image)?;
         return write_converted(path, "pdf", &bytes);
     }
@@ -109,12 +104,7 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
         other => return Err(format!("Format tujuan tidak didukung: {other}")),
     };
 
-    let image = ImageReader::open(path)
-        .map_err(|error| error.to_string())?
-        .with_guessed_format()
-        .map_err(|error| error.to_string())?
-        .decode()
-        .map_err(|error| format!("Gagal membaca gambar: {error}"))?;
+    let image = decode_image(path)?;
 
     let extension = match format {
         ImageFormat::Jpeg => "jpg",
@@ -125,11 +115,27 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
         _ => unreachable!(),
     };
 
-    let stem = path.file_stem().and_then(|value| value.to_str()).unwrap_or("image");
-    let output = path.with_file_name(format!("{stem}_converted.{extension}"));
-    image.save_with_format(&output, format)
-        .map_err(|error| format!("Gagal menyimpan gambar: {error}"))?;
-    Ok(output)
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut bytes, format)
+        .map_err(|error| format!("Gagal mengodekan gambar: {error}"))?;
+    write_converted(path, extension, bytes.get_ref())
+}
+
+fn decode_image(path: &Path) -> Result<image::DynamicImage, String> {
+    use image::ImageDecoder;
+
+    let reader = ImageReader::open(path)
+        .map_err(|error| format!("Gagal membuka gambar: {error}"))?
+        .with_guessed_format()
+        .map_err(|error| error.to_string())?;
+    let mut decoder = reader.into_decoder()
+        .map_err(|error| format!("Gagal membaca gambar: {error}"))?;
+    let orientation = decoder.orientation()
+        .unwrap_or(image::metadata::Orientation::NoTransforms);
+    let mut image = image::DynamicImage::from_decoder(decoder)
+        .map_err(|error| format!("Gagal membaca gambar: {error}"))?;
+    image.apply_orientation(orientation);
+    Ok(image)
 }
 
 fn write_converted(source: &Path, extension: &str, bytes: &[u8]) -> Result<PathBuf, String> {
@@ -181,5 +187,22 @@ mod tests {
         let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(1, 1, image::Rgb([255, 255, 255])));
         let bytes = super::image_to_pdf_bytes(&image).unwrap();
         assert!(bytes.starts_with(b"%PDF-"));
+    }
+
+    #[test]
+    fn converted_outputs_get_unique_names_instead_of_overwriting() {
+        let directory = std::env::temp_dir().join(format!("notch-convert-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("sample.png");
+        std::fs::write(&source, b"source").unwrap();
+
+        let first = super::write_converted(&source, "jpg", b"first").unwrap();
+        let second = super::write_converted(&source, "jpg", b"second").unwrap();
+
+        assert_ne!(first, second);
+        assert_eq!(std::fs::read(&first).unwrap(), b"first");
+        assert_eq!(std::fs::read(&second).unwrap(), b"second");
+
+        let _ = std::fs::remove_dir_all(directory);
     }
 }
