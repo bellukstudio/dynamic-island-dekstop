@@ -1220,8 +1220,41 @@ component SettingsPage inherits VerticalLayout {
             eye-theme-input := TextInput { text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Tema badan: default / aurora / obsidian / neon / sakura / matcha"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             notch-theme-input := TextInput { text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Mood awal: normal / happy / sleepy / surprised / angry / love / suspicious / sad"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             mood-input := TextInput { text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Normal"; selected: mood-input.text == "normal"; clicked => { mood-input.text = "normal"; } }
+                Chip { label: "Happy"; selected: mood-input.text == "happy"; clicked => { mood-input.text = "happy"; } }
+                Chip { label: "Sleepy"; selected: mood-input.text == "sleepy"; clicked => { mood-input.text = "sleepy"; } }
+                Chip { label: "Love"; selected: mood-input.text == "love"; clicked => { mood-input.text = "love"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Surprised"; selected: mood-input.text == "surprised"; clicked => { mood-input.text = "surprised"; } }
+                Chip { label: "Angry"; selected: mood-input.text == "angry"; clicked => { mood-input.text = "angry"; } }
+                Chip { label: "Sad"; selected: mood-input.text == "sad"; clicked => { mood-input.text = "sad"; } }
+                Chip { label: "Suspicious"; selected: mood-input.text == "suspicious"; clicked => { mood-input.text = "suspicious"; } }
+            }
+            Text { text: "Skin mata (20 pilihan tersedia)"; color: Theme.text-faint; font-size: 9px; }
+            eye-theme-input := TextInput { text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Aurora"; selected: eye-theme-input.text == "aurora"; clicked => { eye-theme-input.text = "aurora"; } }
+                Chip { label: "Neon"; selected: eye-theme-input.text == "neon"; clicked => { eye-theme-input.text = "neon"; } }
+                Chip { label: "Pastel"; selected: eye-theme-input.text == "pastel"; clicked => { eye-theme-input.text = "pastel"; } }
+                Chip { label: "Pixel"; selected: eye-theme-input.text == "pixel"; clicked => { eye-theme-input.text = "pixel"; } }
+                Chip { label: "Holo"; selected: eye-theme-input.text == "holo"; clicked => { eye-theme-input.text = "holo"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Ember"; selected: eye-theme-input.text == "ember"; clicked => { eye-theme-input.text = "ember"; } }
+                Chip { label: "Ocean"; selected: eye-theme-input.text == "ocean"; clicked => { eye-theme-input.text = "ocean"; } }
+                Chip { label: "Sakura"; selected: eye-theme-input.text == "sakura"; clicked => { eye-theme-input.text = "sakura"; } }
+                Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
+                Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
+            }
+            Text { text: "Skin lain: kawaii, boba, galaxy, matcha, candy, synthwave, slime, cotton, pumpkin, frost"; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             Text { text: "Aksen / latar gelap / terang (HEX)"; color: Theme.text-faint; font-size: 9px; }
             accent-input := TextInput { text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; }
             dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
