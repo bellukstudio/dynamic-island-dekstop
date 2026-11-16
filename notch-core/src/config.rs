@@ -40,6 +40,20 @@ impl Default for Timing {
     }
 }
 
+/// Gerakan organik notch ketika sedang idle.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Motion {
+    pub enabled: bool,
+    pub interval_secs: u32,
+    pub max_moves: u32,
+}
+impl Default for Motion {
+    fn default() -> Self {
+        Self { enabled: false, interval_secs: 180, max_moves: 3 }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Pomodoro {
@@ -293,6 +307,7 @@ pub struct Config {
     pub pages_version: u32,
     pub weather: Weather,
     pub timing: Timing,
+    pub motion: Motion,
     pub pomodoro: Pomodoro,
     pub appearance: Appearance,
     pub nudge: Nudge,
@@ -315,6 +330,7 @@ impl Default for Config {
             pages_version: PAGES_VERSION,
             weather: Weather::default(),
             timing: Timing::default(),
+            motion: Motion::default(),
             pomodoro: Pomodoro::default(),
             appearance: Appearance::default(),
             nudge: Nudge::default(),
