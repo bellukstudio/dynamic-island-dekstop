@@ -14,6 +14,8 @@ pub enum Action {
     OpenSettings,
     OpenCompress,
     OpenConvert,
+    OpenTransfer,
+    OpenAndroid,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -132,6 +134,8 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         (5i32, latest.open_settings.clone(), Action::OpenSettings),
                         (6i32, "Ctrl+Alt+Shift+K".to_string(), Action::OpenCompress),
                         (7i32, "Ctrl+Alt+Shift+C".to_string(), Action::OpenConvert),
+                        (8i32, "Ctrl+Alt+Shift+S".to_string(), Action::OpenTransfer),
+                        (9i32, "Ctrl+Alt+Shift+A".to_string(), Action::OpenAndroid),
                     ];
                     let mut used = std::collections::HashSet::new();
                     for (id, combo, action) in entries {
@@ -196,6 +200,12 @@ mod tests {
         let mut shortcuts = Shortcuts::default();
         shortcuts.toggle_hub = "Ctrl+Alt+Shift+K".into();
         assert!(validate_shortcuts(&shortcuts).unwrap_err().contains("Compress"));
+    }
+
+    #[test]
+    fn fixed_transfer_and_android_shortcuts_are_parseable() {
+        assert_eq!(parse_combo("Ctrl+Alt+Shift+S"), Some(Binding { modifiers: 7, vk: 0x53 }));
+        assert_eq!(parse_combo("Ctrl+Alt+Shift+A"), Some(Binding { modifiers: 7, vk: 0x41 }));
     }
 
     #[test]
