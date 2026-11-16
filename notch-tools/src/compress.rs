@@ -894,7 +894,7 @@ fn compress_pdf_raster(source: &[u8], target_size: u64) -> Result<Vec<u8>, Strin
     raster_pdf_bytes(source, RASTER_LADDER[selected])
 }
 
-/// Compress embedded JPEG and supported Flate PDF images without rasterizing text or vector art.
+/// Compress PDF content, preserving text/vector where possible and rasterizing only as a last resort.
 pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
     if path.extension().and_then(|value| value.to_str()).unwrap_or("").eq_ignore_ascii_case("pdf") == false {
         return Err("File bukan PDF".into());
@@ -914,7 +914,7 @@ pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(P
         }
     }
     if output.len() as u64 >= original_size {
-        return Err("PDF tidak dapat diperkecil dengan aman. Teks dan elemen vektor tetap dipertahankan.".into());
+        return Err("PDF tidak dapat diperkecil dengan aman menggunakan profil kompresi yang tersedia.".into());
     }
     let output_path = unique_output(path, "pdf");
     let output_size = output.len() as u64;
