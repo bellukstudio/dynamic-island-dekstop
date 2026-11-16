@@ -4381,7 +4381,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let roll = (seed >> 32) as u32;
                 let low_battery = matches!(battery.read(), Reading::Present(value) if value.percent <= 15 && !value.charging);
-                let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
+                let mood_state = eye.borrow();
+                let calm = mood_state.mood.is_sleeping() || mood_state.mood.low_battery || low_battery;
+                drop(mood_state);
                 let playing = w.get_media_playing();
                 // Tes manual dan jadwal tiga rangkaian Liquid mendahului gerakan acak.
                 let source = if test_requested { 2 } else if liquid_due { 1 } else { 0 };
@@ -4484,7 +4486,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     next_liquid_run_at = now + Duration::from_secs(7 + u64::from((seed >> 32) as u32 % 15));
                 }
                 let low_battery = matches!(battery.read(), Reading::Present(value) if value.percent <= 15 && !value.charging);
-                let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
+                let mood_state = eye.borrow();
+                let calm = mood_state.mood.is_sleeping() || mood_state.mood.low_battery || low_battery;
+                drop(mood_state);
                 let playing = w.get_media_playing();
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let fraction = ((seed >> 32) as u32) as f32 / u32::MAX as f32;
