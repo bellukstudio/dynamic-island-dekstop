@@ -1447,7 +1447,7 @@ component PrayerPage inherits VerticalLayout {
     in property <string> buka-time: "";
     in property <string> mode: "tone";
     in property <bool> remind-before: true;
-    in property <int> remind-min: 10;
+    in property <string> remind-min: "10";
     in property <string> dhikr-arabic: "";
     in property <string> dhikr-latin: "";
     in property <string> dhikr-meaning: "";
@@ -1514,9 +1514,9 @@ component PrayerPage inherits VerticalLayout {
     HorizontalLayout {
         spacing: 6px;
         Chip { label: root.remind-before ? "Pengingat: aktif" : "Pengingat: mati"; selected: root.remind-before; clicked => { root.set-remind(!root.remind-before); } }
-        Chip { label: "−"; clicked => { root.set-remind-min(root.remind-min - 1); } }
+        Chip { label: "−"; clicked => { root.set-remind-min(-1); } }
         Text { text: root.remind-min + " menit"; color: Theme.text; font-size: 10px; vertical-alignment: center; }
-        Chip { label: "+"; clicked => { root.set-remind-min(root.remind-min + 1); } }
+        Chip { label: "+"; clicked => { root.set-remind-min(1); } }
     }
     Rectangle {
         height: 1px; background: Theme.text-faint;
