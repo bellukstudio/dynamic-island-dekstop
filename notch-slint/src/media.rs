@@ -7,7 +7,12 @@ use notch_core::lyrics::{self, Line};
 #[derive(Clone, Default)]
 struct State { active: bool, title: String, artist: String, playing: bool, position: f64, length: f64 }
 fn time_text(v:f64)->String{let s=v.max(0.0)as u64;format!("{}:{:02}",s/60,s%60)}
-fn active_lyric(lines:&[Line],position:f64)->i32{lines.iter().rposition(|line|line.at<=position).map(|i|i as i32).unwrap_or(-1)}
+fn active_lyric(lines:&[Line],position:f64,length:f64,synced:bool)->i32{
+ if lines.is_empty(){return -1;}
+ if synced{return lines.iter().rposition(|line|line.at<=position).map(|i|i as i32).unwrap_or(-1);}
+ if length<=0.0{return -1;}
+ ((position.max(0.0)/length).clamp(0.0,0.999_999)*lines.len() as f64).floor() as i32
+}
 
 #[cfg(windows)]
 mod platform {
@@ -35,7 +40,7 @@ mod platform {
   }}else if !last.is_empty(){last.clear();lines.clear();art=Some(None);}
   let art_update=art.clone();let snapshot=state.clone();
   let lyric_lines:Vec<slint::SharedString>=lines.iter().map(|l|l.text.as_str().into()).collect();
-  let lyric_active=if lyrics_synced{active_lyric(&lines,state.position)}else{-1};
+  let lyric_active=active_lyric(&lines,state.position,state.length,lyrics_synced);
   let _=weak.upgrade_in_event_loop(move|w|{
    w.set_media_active(snapshot.active);
    w.set_media_title(if snapshot.active{snapshot.title.clone().into()}else{"Tidak ada media".into()});
