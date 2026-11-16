@@ -173,6 +173,17 @@ fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page:
 }
 
 fn load_convert_preview(path: &std::path::Path) -> Image {
+    if path.extension().and_then(|value| value.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("pdf")) {
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Ok((rendered, _)) = notch_tools::pdf::render_page(&bytes, 0, 90) {
+                let rgba = rendered.to_rgba8();
+                return Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+                    rgba.as_raw(), rgba.width(), rgba.height(),
+                ));
+            }
+        }
+        return Image::default();
+    }
     let candidate = if path.is_dir() {
         let mut files = std::fs::read_dir(path).ok().into_iter().flatten()
             .filter_map(Result::ok)
@@ -1790,6 +1801,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 loop {
                     while pause_requested.load(std::sync::atomic::Ordering::Acquire)
                         && !cancel_requested.load(std::sync::atomic::Ordering::Acquire)
+                        && !queue.lock().unwrap_or_else(|error| error.into_inner()).is_empty()
                     {
                         std::thread::sleep(std::time::Duration::from_millis(100));
                     }
@@ -1952,7 +1964,6 @@ fn main() -> Result<(), slint::PlatformError> {
         });
         let weak = win.as_weak();
         let page = convert_preview_page.clone();
-        let total = convert_preview_total.clone();
         let path = convert_preview_path.clone();
         win.on_convert_preview_next(move || {
             let next = page.get().saturating_add(1);
@@ -2642,6 +2653,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
         let running = convert_running.clone();
+        let preview_page = convert_preview_page.clone();
+        let preview_path = convert_preview_path.clone();
+        let weak_preview = weak.clone();
         win.window().on_winit_window_event(move |_, event| {
             if let winit::event::WindowEvent::DroppedFile(path) = event {
                 if running.load(std::sync::atomic::Ordering::Acquire) {
@@ -2671,7 +2685,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     w.set_convert_selected_path(paths.first().cloned().unwrap_or(raw).into());
                     w.set_convert_files_text(format_convert_selection(&paths).into());
                     if let Some(first) = paths.first() {
-                        w.set_convert_source_preview(load_convert_preview(std::path::Path::new(first)));
+                        preview_page.set(0);
+                        *preview_path.borrow_mut() = first.clone();
+                        w.set_convert_preview_page_text("Memuat preview…".into());
+                        request_convert_document_preview(weak_preview.clone(), first.clone(), 0);
                     }
                     w.set_convert_result_preview(Image::default());
                     w.set_convert_history_text(format_convert_history().into());
