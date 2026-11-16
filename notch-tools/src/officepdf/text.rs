@@ -367,6 +367,15 @@ pub enum Block {
     Section(PageSetup),
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum SectionBreak {
+    None,
+    Continuous,
+    NextPage,
+    OddPage,
+    EvenPage,
+}
+
 #[derive(Clone, Copy)]
 pub struct PageSetup {
     pub width: f32,
@@ -375,7 +384,7 @@ pub struct PageSetup {
     pub right: f32,
     pub top: f32,
     pub bottom: f32,
-    pub new_page: bool,
+    pub break_type: SectionBreak,
 }
 
 #[derive(Clone)]
@@ -510,11 +519,28 @@ impl Flow {
         self.mr = setup.right;
         self.mt = setup.top;
         self.mb = setup.bottom;
-        if setup.new_page {
-            self.page_break(pdf);
-        } else if !self.open {
-            self.y = self.mt;
-            self.ensure(pdf);
+        match setup.break_type {
+            SectionBreak::NextPage => self.page_break(pdf),
+            SectionBreak::OddPage => {
+                self.page_break(pdf);
+                // Page numbers are one-based. If the new page is even, insert a blank page.
+                if self.open && pdf.page_count() % 2 == 0 {
+                    self.page_break(pdf);
+                }
+            }
+            SectionBreak::EvenPage => {
+                self.page_break(pdf);
+                // If the new page is odd, insert a blank page before the section starts.
+                if self.open && pdf.page_count() % 2 == 1 {
+                    self.page_break(pdf);
+                }
+            }
+            SectionBreak::None | SectionBreak::Continuous => {
+                if !self.open {
+                    self.y = self.mt;
+                    self.ensure(pdf);
+                }
+            }
         }
     }
 
