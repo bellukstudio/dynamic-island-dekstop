@@ -530,6 +530,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
+    win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
     let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
     privacy::start(win.as_weak());
@@ -1264,13 +1265,26 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
+        win.on_compress_pick(move || {
+            let selected = rfd::FileDialog::new()
+                .add_filter("JPEG", &["jpg", "jpeg"])
+                .pick_file();
+            if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
+                w.set_compress_status(format!("Dipilih: {}", path.display()).into());
+                // Isi path melalui callback state agar pengguna tidak perlu menyalin path manual.
+                w.set_compress_selected_path(path.to_string_lossy().to_string().into());
+            }
+        });
+    }
+    {
+        let weak = win.as_weak();
         win.on_compress_run(move |raw_path| {
             let path_text = raw_path.to_string();
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let result = compress::compress_jpeg(std::path::Path::new(&path_text));
                 let message = match result {
-                    Ok((output, before, after)) => format!("Selesai: {} → {} ({} → {} KB)", output.display(), before / 1024, after / 1024),
+                    Ok((output, before, after)) => format!("Selesai: {} ({} KB → {} KB)", output.display(), before / 1024, after / 1024),
                     Err(error) => format!("Gagal: {error}"),
                 };
                 let _ = slint::invoke_from_event_loop(move || {

@@ -1077,6 +1077,7 @@ component CompressPage inherits VerticalLayout {
     in property <string> file-path: "";
     in property <string> status: "Pilih file JPG untuk mengompres gambar";
     callback run(string);
+    callback pick-file();
     alignment: start;
     padding-left: 14px;
     padding-right: 14px;
@@ -1103,6 +1104,7 @@ component CompressPage inherits VerticalLayout {
     }
     HorizontalLayout {
         alignment: end;
+        Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
         Chip { label: "Kompres"; clicked => { root.run(path-input.text); } }
     }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
@@ -1220,6 +1222,7 @@ export component NotchWindow inherits Window {
     in property <string> shortcut-prayer: "Ctrl+Alt+A";
     in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
+    in property <string> compress-selected-path: "";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1273,6 +1276,8 @@ export component NotchWindow inherits Window {
     callback holidays-ready();
     callback settings-save-shortcuts(string, string, string, string);
     callback compress-run(string);
+    callback compress-pick();
+    callback compress-selected-path(string);
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1499,7 +1504,9 @@ export component NotchWindow inherits Window {
                     height: parent.height - 56px - 12px;
                     if root.page-id == "compress": CompressPage {
                         status: root.compress-status;
+                        file-path: root.compress-selected-path;
                         run(path) => { root.compress-run(path); }
+                        pick-file => { root.compress-pick(); }
                     }
                     if root.page-id == "settings": SettingsPage {
                         shortcut-hub: root.shortcut-hub;
