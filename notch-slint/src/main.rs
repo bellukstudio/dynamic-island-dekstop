@@ -3732,6 +3732,23 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
+        win.on_settings_test_dock_play(move || {
+            let Some(w) = weak.upgrade() else { return };
+            if !w.get_dock_play_enabled() {
+                w.set_motion_save_status("Aktifkan Bottom Play / Side Play terlebih dahulu.".into());
+                return;
+            }
+            if !matches!(w.get_dock(), 2 | 3 | 4) {
+                w.set_motion_save_status("Tes tersedia saat notch berada di dock bawah, kiri, atau kanan.".into());
+                return;
+            }
+            w.set_play_test_request(true);
+            w.set_motion_save_status("Tes liquid siap. Tutup pengaturan agar animasi dimulai.".into());
+        });
+    }
+
+    {
+        let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_motion(move |enabled, interval, maximum, dock_play_enabled| {
@@ -4213,14 +4230,18 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Pilih gerakan dengan variasi jeda. Musik membuat Notch lebih ekspresif;
             // mood mengantuk memperlambat gerakan tanpa mematikan fitur.
-            if active.is_none() && now >= next_at {
+            let test_requested = w.get_play_test_request();
+            if active.is_none() && (now >= next_at || test_requested) {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let roll = (seed >> 32) as u32;
                 let sleepy = w.get_eyes_mood().to_string() == "sleepy";
                 let playing = w.get_media_playing();
-                // Bobot gerakan: saat musik, dance/liquid lebih sering; saat mengantuk,
-                // hanya gerakan kecil dan yawn yang dipilih.
-                let choice = if sleepy {
+                // Tombol tes memulai liquid segera setelah panel ditutup dan notch idle.
+                // Gerakan otomatis memakai bobot berbeda menurut musik dan mood.
+                let choice = if test_requested {
+                    w.set_play_test_request(false);
+                    0
+                } else if sleepy {
                     [4u8, 5, 4, 5, 7][(roll % 5) as usize]
                 } else if playing {
                     match roll % 12 {
