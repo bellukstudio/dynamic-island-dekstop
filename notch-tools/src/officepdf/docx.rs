@@ -760,7 +760,7 @@ mod section_tests {
     fn defaults() -> PageSetup {
         PageSetup {
             width: 595.3, height: 841.9, left: 72.0, right: 72.0,
-            top: 72.0, bottom: 72.0, new_page: false,
+            top: 72.0, bottom: 72.0, break_type: SectionBreak::None,
         }
     }
 
