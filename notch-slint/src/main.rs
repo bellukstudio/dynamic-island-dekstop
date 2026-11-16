@@ -2138,6 +2138,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // --- Pomodoro (state machine dari notch-core, sama dengan pomodoro.ts) ---
     let pomo = Rc::new(RefCell::new(Pomodoro::new(&cfg.pomodoro)));
     let focus_companion_runtime = Rc::new(RefCell::new(cfg.focus_companion.clone()));
+    let conversation_runtime = Rc::new(RefCell::new(cfg.conversation_moments.clone()));
     let companion_focus_started = Rc::new(Cell::new(false));
     let companion_halfway_shown = Rc::new(Cell::new(false));
     let companion_hide_timer = Rc::new(Timer::default());
@@ -2250,6 +2251,71 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut p = pomo.borrow_mut();
             p.skip();
             if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
+        });
+    }
+
+    // Conversation Moments: amati transisi media dan aktivitas pointer secara native.
+    // Cooldown bersama mencegah beberapa pemicu menumpuk menjadi spam komentar.
+    {
+        let weak = win.as_weak();
+        let settings = conversation_runtime.clone();
+        let eye = eye.clone();
+        let hide_timer = Rc::new(Timer::default());
+        let state = Rc::new(RefCell::new((
+            false,
+            String::new(),
+            None::<Instant>,
+            eye.borrow().last_move,
+        )));
+        let timer = Timer::default();
+        timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let cfg = settings.borrow().clone();
+            let playing = w.get_media_playing();
+            let title = w.get_media_title().to_string();
+            let pointer_move = eye.borrow().last_move;
+            let mut state = state.borrow_mut();
+            let (last_playing, last_title, last_message, last_move) = &mut *state;
+            let mut event: Option<(&'static str, &'static str)> = None;
+
+            if playing && !*last_playing && cfg.on_play {
+                event = Some(("Musik mulai diputar. Semoga playlist-nya bikin semangat! 🎵", "Conversation Moments · musik dimulai"));
+            } else if playing && !title.is_empty() && title != *last_title && cfg.on_track_change {
+                event = Some(("Lagu baru, suasana baru. 🎶", "Conversation Moments · lagu berganti"));
+            } else if !playing && *last_playing && cfg.on_pause {
+                event = Some(("Musik berhenti dulu. Mau istirahat sebentar?", "Conversation Moments · media dijeda"));
+            }
+
+            if pointer_move > *last_move + 0.001 {
+                let idle_secs = (pointer_move - *last_move).max(0.0);
+                if event.is_none() && cfg.on_return && idle_secs >= cfg.return_after_min as f32 * 60.0 {
+                    event = Some(("Akhirnya kembali! Siap melanjutkan aktivitas? 👋", "Conversation Moments · kembali setelah lama tidak aktif"));
+                }
+                *last_move = pointer_move;
+            }
+
+            *last_playing = playing;
+            if !title.is_empty() && title != "Tidak ada media" {
+                *last_title = title;
+            } else if !playing {
+                *last_title = String::new();
+            }
+
+            let cooldown_ok = last_message.map(|at| at.elapsed() >= Duration::from_secs(u64::from(cfg.cooldown_min) * 60)).unwrap_or(true);
+            if cfg.enabled && cooldown_ok && event.is_some() && !w.get_expanded()
+                && !w.get_meeting_active() && !w.get_adhan_active()
+            {
+                let (message, detail) = event.unwrap();
+                w.set_nudge_message(message.into());
+                w.set_nudge_detail(detail.into());
+                w.set_nudge_visible(true);
+                eye.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+                *last_message = Some(Instant::now());
+                let weak_hide = weak.clone();
+                hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                    if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                });
+            }
         });
     }
 
@@ -3311,6 +3377,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let runtime = conversation_runtime.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_conversation(move |enabled, on_play, on_track_change, on_pause, on_return, on_weather_change, on_rain_soon, on_low_battery, on_charging, return_after, cooldown| {
             let return_after = return_after.parse::<u32>().ok().filter(|v| (5..=120).contains(v));
@@ -3335,6 +3402,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
+                    *runtime.borrow_mut() = next.conversation_moments.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_conversation_enabled(next.conversation_moments.enabled);
                         w.set_conversation_on_play(next.conversation_moments.on_play);
