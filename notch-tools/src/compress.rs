@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn raster_profiles_progress_from_readable_to_aggressive() {
         assert_eq!(super::RASTER_LADDER.first().unwrap().dpi, 110);
-        assert_eq!(super::RASTER_LADDER.last().unwrap().dpi, 30);
+        assert_eq!(super::RASTER_LADDER.last().unwrap().dpi, 36);
         assert!(super::RASTER_LADDER.windows(2).all(|pair| pair[0].dpi > pair[1].dpi));
         assert!(super::RASTER_LADDER.windows(2).all(|pair| pair[0].quality > pair[1].quality));
     }
@@ -775,7 +775,7 @@ const RASTER_LADDER: [RasterProfile; 7] = [
     RasterProfile { dpi: 60, quality: 30 },
     RasterProfile { dpi: 50, quality: 25 },
     RasterProfile { dpi: 40, quality: 20 },
-    RasterProfile { dpi: 30, quality: 15 },
+    RasterProfile { dpi: 36, quality: 15 },
 ];
 
 fn pdf_name(value: &str) -> lopdf::Object {
