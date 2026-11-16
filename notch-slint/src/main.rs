@@ -109,6 +109,56 @@ fn format_convert_selection(paths: &[String]) -> String {
     lines.join("\n")
 }
 
+fn copy_convert_directory(source: &std::path::Path, destination: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(destination).map_err(|error| error.to_string())?;
+    for entry in std::fs::read_dir(source).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let from = entry.path();
+        let to = destination.join(entry.file_name());
+        if from.is_dir() {
+            copy_convert_directory(&from, &to)?;
+        } else {
+            std::fs::copy(&from, &to).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn relocate_convert_output(output: &std::path::Path, destination: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    std::fs::create_dir_all(destination).map_err(|error| format!("Folder output tidak dapat dibuat: {error}"))?;
+    let name = output.file_name().ok_or_else(|| "Nama hasil konversi tidak valid".to_string())?;
+    let mut target = destination.join(name);
+    let stem = output.file_stem().and_then(|value| value.to_str()).unwrap_or("hasil");
+    let extension = output.extension().and_then(|value| value.to_str());
+    let mut index = 2u32;
+    while target.exists() {
+        let candidate = match extension {
+            Some(ext) => format!("{stem}_{index}.{ext}"),
+            None => format!("{stem}_{index}"),
+        };
+        target = destination.join(candidate);
+        index = index.saturating_add(1);
+    }
+    match std::fs::rename(output, &target) {
+        Ok(()) => Ok(target),
+        Err(rename_error) => {
+            let copied = if output.is_dir() {
+                copy_convert_directory(output, &target)
+            } else {
+                std::fs::copy(output, &target).map(|_| ()).map_err(|error| error.to_string())
+            };
+            match copied {
+                Ok(()) => {
+                    if output.is_dir() { std::fs::remove_dir_all(output) } else { std::fs::remove_file(output) }
+                        .map_err(|error| format!("Hasil tersalin tetapi file sementara gagal dibersihkan: {error}"))?;
+                    Ok(target)
+                }
+                Err(copy_error) => Err(format!("Gagal memindahkan hasil ({rename_error}); salin juga gagal ({copy_error})")),
+            }
+        }
+    }
+}
+
 fn record_convert_history(input: &str, output: Option<&std::path::Path>, target: &str, status: &str) {
     let path = convert_history_path();
     let mut history = load_convert_history();
@@ -1549,6 +1599,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let convert_output_dir = Rc::new(RefCell::new(String::new()));
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1578,10 +1629,12 @@ fn main() -> Result<(), slint::PlatformError> {
         let last_output = convert_last_output.clone();
         let running = convert_running.clone();
         let cancel_requested = convert_cancel_requested.clone();
+        let output_dir = convert_output_dir.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
             let overrides = raw_overrides.to_string();
+            let output_dir = output_dir.borrow().clone();
             let quality = raw_quality.to_string().parse::<u8>().unwrap_or(90).clamp(40, 100);
             let dpi = raw_dpi.to_string().parse::<u32>().unwrap_or(150).clamp(36, 400);
             let mut paths = selected_paths.borrow().clone();
@@ -1679,9 +1732,22 @@ fn main() -> Result<(), slint::PlatformError> {
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
-                            record_convert_history(&path, Some(&output), &history_target, "OK");
-                            *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(output.clone());
-                            outputs.push(format!("{} ({detail})", output.display()));
+                            let relocated = if output_dir.trim().is_empty() {
+                                Ok(output.clone())
+                            } else {
+                                relocate_convert_output(&output, std::path::Path::new(&output_dir))
+                            };
+                            match relocated {
+                                Ok(final_output) => {
+                                    record_convert_history(&path, Some(&final_output), &history_target, "OK");
+                                    *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(final_output.clone());
+                                    outputs.push(format!("{} ({detail})", final_output.display()));
+                                }
+                                Err(error) => {
+                                    record_convert_history(&path, None, &history_target, "GAGAL");
+                                    failures.push(format!("{}: hasil dibuat tetapi gagal dipindahkan: {error}", display_name));
+                                }
+                            }
                         }
                         Err(error) => {
                             record_convert_history(&path, None, &history_target, "GAGAL");
