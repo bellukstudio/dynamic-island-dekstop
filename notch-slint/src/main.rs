@@ -1302,7 +1302,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 let (px, py) = e.last_cursor;
                 if (cx as f32 - px as f32).hypot(cy as f32 - py as f32) > 2.0 {
                     e.last_move = ts;
-                    e.mood.activity(now, hour);
+                    // Aktivitas kursor tidak boleh mengubah ekspresi ketika Mode Rapat aktif.
+                    if !w.get_meeting_active() {
+                        e.mood.activity(now, hour);
+                    }
                 }
                 if (cx, cy) != e.last_cursor {
                     e.last_cursor = (cx, cy);
