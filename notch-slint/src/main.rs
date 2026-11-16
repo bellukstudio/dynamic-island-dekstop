@@ -1080,6 +1080,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let dy = cy - start_cursor.1;
                     let is_moved = moved || dx.abs() + dy.abs() >= 3;
                     if is_moved {
+                        w.set_dragging(true);
                         w.window().set_position(PhysicalPosition::new(start_window.0 + dx, start_window.1 + dy));
                         drag = Some((start_cursor, start_window, true));
                     }
@@ -1118,8 +1119,10 @@ fn main() -> Result<(), slint::PlatformError> {
                                 updated_config = next;
                             }
                             w.set_position_mode(mode.into());
+                            w.set_dragging(false);
                             w.set_play_interaction_active(false);
                         } else {
+                            w.set_dragging(false);
                             w.set_play_interaction_active(false);
                         }
                     } else {
