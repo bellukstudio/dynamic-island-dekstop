@@ -1301,6 +1301,7 @@ component ConvertPage inherits VerticalLayout {
     callback clear-queue();
     callback remove-queue-file(string);
     callback retry-failed();
+    callback retry-one-failed(string);
     callback clear-history();
     alignment: start;
     padding-left: 14px;
@@ -1344,6 +1345,8 @@ component ConvertPage inherits VerticalLayout {
         queue-remove-input := TextInput { text: ""; color: Theme.text; font-size: 10px; single-line: true; }
         Chip { label: "Hapus file"; clicked => { root.remove-queue-file(queue-remove-input.text); } }
         Chip { label: "Coba ulang gagal"; clicked => { root.retry-failed(); } }
+        retry-failed-input := TextInput { text: ""; color: Theme.text; font-size: 10px; single-line: true; }
+        Chip { label: "Retry file"; clicked => { root.retry-one-failed(retry-failed-input.text); } }
         Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
@@ -1941,6 +1944,7 @@ export component NotchWindow inherits Window {
     callback convert-clear-queue();
     callback convert-remove-queue-file(string);
     callback convert-retry-failed();
+    callback convert-retry-one-failed(string);
     callback convert-history-clear();
     callback convert-output-dir-pick();
     callback convert-selected-path(string);
@@ -2261,6 +2265,7 @@ export component NotchWindow inherits Window {
                         clear-queue => { root.convert-clear-queue(); }
                         remove-queue-file(value) => { root.convert-remove-queue-file(value); }
                         retry-failed => { root.convert-retry-failed(); }
+                        retry-one-failed(value) => { root.convert-retry-one-failed(value); }
                         clear-history => { root.convert-history-clear(); }
                         pick-output-dir => { root.convert-output-dir-pick(); }
                     }
