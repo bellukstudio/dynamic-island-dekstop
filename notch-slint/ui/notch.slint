@@ -1276,7 +1276,9 @@ component ConvertPage inherits VerticalLayout {
     in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
     in property <string> history-text: "Belum ada riwayat konversi";
     in property <string> files-text: "Belum ada file dipilih";
+    in property <string> output-dir-text: "";
     callback run(string, string, string, string, string);
+    callback pick-output-dir();
     callback pick-file();
     callback reveal();
     callback cancel();
@@ -1305,6 +1307,11 @@ component ConvertPage inherits VerticalLayout {
             quality-input := TextInput { text: "90"; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Resolusi halaman PDF (DPI, 36–400)"; color: Theme.text-faint; font-size: 10px; }
             dpi-input := TextInput { text: "150"; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Folder output (kosong = di samping file sumber)"; color: Theme.text-faint; font-size: 10px; }
+            HorizontalLayout {
+                output-dir-input := TextInput { text: root.output-dir-text; color: Theme.text; font-size: 10px; single-line: true; }
+                Chip { label: "Pilih folder"; clicked => { root.pick-output-dir(); } }
+            }
         }
     }
     HorizontalLayout {
@@ -1741,6 +1748,7 @@ export component NotchWindow inherits Window {
     in property <string> convert-progress-text: "";
     in property <string> convert-history-text: "Belum ada riwayat konversi";
     in property <string> convert-files-text: "Belum ada file dipilih";
+    in property <string> convert-output-dir-text: "";
     in property <string> transfer-status: "Server belum aktif";
     in property <string> transfer-address: "";
     in property <string> android-status: "Periksa perangkat Android";
@@ -1827,6 +1835,7 @@ export component NotchWindow inherits Window {
     callback convert-reveal();
     callback convert-cancel();
     callback convert-history-clear();
+    callback convert-output-dir-pick();
     callback convert-selected-path(string);
     callback transfer-start();
     callback transfer-stop();
@@ -2121,11 +2130,13 @@ export component NotchWindow inherits Window {
                         status: root.convert-status;
                         history-text: root.convert-history-text;
                         files-text: root.convert-files-text;
+                        output-dir-text: root.convert-output-dir-text;
                         run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
                         pick-file => { root.convert-pick(); }
                         reveal => { root.convert-reveal(); }
                         cancel => { root.convert-cancel(); }
                         clear-history => { root.convert-history-clear(); }
+                        pick-output-dir => { root.convert-output-dir-pick(); }
                     }
                     if root.page-id == "compress": CompressPage {
                         status: root.compress-status;
