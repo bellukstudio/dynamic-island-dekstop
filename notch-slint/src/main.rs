@@ -39,6 +39,7 @@ mod transfer;
 mod android;
 mod android_mirror;
 mod autostart;
+mod speech;
 
 slint::include_modules!();
 
@@ -991,6 +992,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
+    let greeting_voice_runtime = Rc::new(RefCell::new(cfg.greeting.voice.clone()));
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
@@ -3372,6 +3374,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let greeting_voice_runtime = greeting_voice_runtime.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_greeting(move |enabled, mode, voice, custom_text| {
             let mode = mode.to_string();
@@ -3398,6 +3401,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
+                    *greeting_voice_runtime.borrow_mut() = next.greeting.voice.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_greeting_enabled(next.greeting.enabled);
                         w.set_greeting_mode(next.greeting.mode.clone().into());
@@ -3499,6 +3503,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
+        let voice = greeting_voice_runtime.clone();
         let timer = Timer::default();
         win.on_settings_test_greeting(move |mode, custom_text| {
             let Some(w) = weak.upgrade() else { return };
@@ -3506,31 +3511,24 @@ fn main() -> Result<(), slint::PlatformError> {
             let custom_text = custom_text.to_string().trim().to_string();
             let (hour, _, _, _, _) = platform::local_time();
             let part = if (4..11).contains(&hour) { "pagi" } else if (11..15).contains(&hour) { "siang" } else if (15..18).contains(&hour) { "sore" } else { "malam" };
-            let message = match mode.as_str() {
-                "halo" => "Halo!".to_string(),
-                "morning" => "Selamat pagi!".to_string(),
-                "noon" => "Selamat siang!".to_string(),
-                "afternoon" => "Selamat sore!".to_string(),
-                "evening" => "Selamat malam!".to_string(),
-                "custom" if !custom_text.is_empty() => custom_text,
-                "custom" => {
-                    w.set_greeting_save_status("Isi teks kustom terlebih dahulu.".into());
-                    return;
-                }
-                "auto" => format!("Halo! Selamat {part}!"),
-                "random" => format!("Halo! Selamat {part}, NPC kesayangan!"),
-                _ => {
-                    w.set_greeting_save_status("Mode greeting tidak dikenal.".into());
+            let message = match speech::greeting_text(&mode, &custom_text, hour) {
+                Some(message) => message,
+                None => {
+                    w.set_greeting_save_status("Mode greeting tidak dikenal atau teks kustom kosong.".into());
                     return;
                 }
             };
+            let selected_voice = voice.borrow().clone();
+            let speech_message = message.clone();
+            let speech_voice = selected_voice.clone();
+            let _ = speech::speak(speech_message, speech_voice);
             w.set_nudge_message(message.into());
-            w.set_nudge_detail("Pratinjau teks greeting · suara belum diputar".into());
+            w.set_nudge_detail("Pratinjau greeting · audio native Windows".into());
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
             }
             w.set_nudge_visible(true);
-            w.set_greeting_save_status("Pratinjau teks ditampilkan. Pengaturan belum disimpan dan audio belum diputar.".into());
+            w.set_greeting_save_status("Pratinjau teks dan audio diputar. Pengaturan belum disimpan.".into());
             let weak = weak.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
                 if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
@@ -4223,6 +4221,29 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             }
             EventResult::Propagate
+        });
+    }
+
+    // Sapaan otomatis native saat aplikasi mulai. Timer hidup selama event loop Slint berjalan.
+    let startup_greeting_timer = Timer::default();
+    let startup_greeting_hide_timer = Timer::default();
+    if cfg.greeting.enabled {
+        let weak = win.as_weak();
+        let message = speech::greeting_text(&cfg.greeting.mode, &cfg.greeting.custom_text, platform::local_time().0);
+        let voice = cfg.greeting.voice.clone();
+        startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
+            let Some(w) = weak.upgrade() else { return };
+            if w.get_meeting_active() || w.get_adhan_active() { return; }
+            if let Some(message) = message {
+                w.set_nudge_message(message.clone().into());
+                w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
+                w.set_nudge_visible(true);
+                let _ = speech::speak(message, voice.clone());
+                let weak_hide = weak.clone();
+                startup_greeting_hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
+                    if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                });
+            }
         });
     }
 
