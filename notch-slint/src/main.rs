@@ -2256,6 +2256,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // Conversation Moments: amati transisi media dan aktivitas pointer secara native.
     // Cooldown bersama mencegah beberapa pemicu menumpuk menjadi spam komentar.
+    let conversation_timer = Timer::default();
     {
         let weak = win.as_weak();
         let settings = conversation_runtime.clone();
@@ -2272,8 +2273,7 @@ fn main() -> Result<(), slint::PlatformError> {
             String::new(),
             false,
         )));
-        let timer = Timer::default();
-        timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+        conversation_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             let Some(w) = weak.upgrade() else { return };
             let cfg = settings.borrow().clone();
             let playing = w.get_media_playing();
