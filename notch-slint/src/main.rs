@@ -1648,6 +1648,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     let convert_running = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let convert_pause_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let convert_queue = std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::<String>::new()));
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
@@ -1682,6 +1684,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let last_output = convert_last_output.clone();
         let running = convert_running.clone();
         let cancel_requested = convert_cancel_requested.clone();
+        let pause_requested = convert_pause_requested.clone();
+        let queue = convert_queue.clone();
         let output_dir = convert_output_dir.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
@@ -1713,25 +1717,39 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
             cancel_requested.store(false, std::sync::atomic::Ordering::Release);
+            pause_requested.store(false, std::sync::atomic::Ordering::Release);
+            let total = paths.len();
+            *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.into_iter().collect();
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
                 w.set_convert_progress_value(0.0);
-                w.set_convert_eta_text("Menghitung estimasi…".into());
+                w.set_convert_eta_text("Menyiapkan antrean…".into());
+                w.set_convert_queue_text(format!("{total} file menunggu").into());
             }
             let weak = weak.clone();
             let cancel_requested = cancel_requested.clone();
+            let pause_requested = pause_requested.clone();
+            let queue = queue.clone();
             let last_output = last_output.clone();
             let running_worker = running.clone();
             std::thread::spawn(move || {
                 let started = std::time::Instant::now();
-                let total = paths.len();
+                let total = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
+                let mut processed = 0usize;
                 let mut completed = 0usize;
                 let mut failures = Vec::new();
                 let mut outputs = Vec::new();
-                for (index, path) in paths.into_iter().enumerate() {
-                    if cancel_requested.load(std::sync::atomic::Ordering::Acquire) {
-                        break;
+                loop {
+                    while pause_requested.load(std::sync::atomic::Ordering::Acquire)
+                        && !cancel_requested.load(std::sync::atomic::Ordering::Acquire)
+                    {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
                     }
+                    if cancel_requested.load(std::sync::atomic::Ordering::Acquire) { break; }
+                    let next = queue.lock().unwrap_or_else(|error| error.into_inner()).pop_front();
+                    let Some(path) = next else { break; };
+                    let index = processed;
+                    processed += 1;
                     let display_name = std::path::Path::new(&path)
                         .file_name()
                         .map(|name| name.to_string_lossy().into_owned())
@@ -1819,9 +1837,10 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     }
                     let percent = (index + 1) * 100 / total;
-                    let progress_text = format!("{percent}% ({}/{total})", index + 1);
+                    let progress_text = format!("{percent}% ({processed}/{total})");
+                    let queue_text = format!("{remaining} file menunggu");
+                    let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
                     let elapsed = started.elapsed().as_secs_f64();
-                    let remaining = total.saturating_sub(index + 1);
                     let eta_seconds = if index + 1 > 0 {
                         (elapsed / (index + 1) as f64 * remaining as f64).ceil() as u64
                     } else { 0 };
@@ -1835,15 +1854,18 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.set_convert_progress_text(progress_text.into());
                             w.set_convert_progress_value(percent as f32);
                             w.set_convert_eta_text(eta_text.into());
+                            w.set_convert_queue_text(queue_text.into());
                             w.set_convert_history_text(history_text.into());
                         }
                     });
                 }
-                let cancelled = completed < total
-                    && cancel_requested.load(std::sync::atomic::Ordering::Acquire);
+                let cancelled = cancel_requested.load(std::sync::atomic::Ordering::Acquire);
+                let queue_cleared = !cancelled && processed < total;
                 cancel_requested.store(false, std::sync::atomic::Ordering::Release);
                 let mut message = if cancelled {
                     format!("Dibatalkan: {completed}/{total} file berhasil")
+                } else if queue_cleared {
+                    format!("Antrean dikosongkan: {completed}/{total} file berhasil")
                 } else {
                     format!("Batch selesai: {completed}/{total} file berhasil")
                 };
@@ -1857,7 +1879,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 running_worker.store(false, std::sync::atomic::Ordering::Release);
                 let _ = slint::invoke_from_event_loop(move || {
-                    if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
+                    if let Some(w) = weak.upgrade() {
+                        w.set_convert_status(message.into());
+                        w.set_convert_queue_text("Antrean kosong".into());
+                        w.set_convert_eta_text("Selesai".into());
+                        if !cancelled && !queue_cleared { w.set_convert_progress_value(100.0); }
+                    }
                 });
             });
         });
@@ -1884,6 +1911,47 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(w) = weak.upgrade() {
                 w.set_convert_history_text("Belum ada riwayat konversi".into());
                 w.set_convert_status("Riwayat konversi dibersihkan".into());
+            }
+        });
+    }
+    {
+        let pause = convert_pause_requested.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
+        win.on_convert_pause(move || {
+            if running.load(std::sync::atomic::Ordering::Acquire) {
+                pause.store(true, std::sync::atomic::Ordering::Release);
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Dijeda setelah file aktif selesai diproses".into()); }
+            }
+        });
+    }
+    {
+        let pause = convert_pause_requested.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
+        win.on_convert_resume(move || {
+            if running.load(std::sync::atomic::Ordering::Acquire) {
+                pause.store(false, std::sync::atomic::Ordering::Release);
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Antrean dilanjutkan".into()); }
+            }
+        });
+    }
+    {
+        let queue = convert_queue.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
+        win.on_convert_clear_queue(move || {
+            let removed = {
+                let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
+                let count = pending.len();
+                pending.clear();
+                count
+            };
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_queue_text("Antrean kosong".into());
+                w.set_convert_status(if running.load(std::sync::atomic::Ordering::Acquire) {
+                    format!("{removed} file menunggu dihapus; file aktif tetap diselesaikan").into()
+                } else { format!("{removed} file dihapus dari antrean").into() });
             }
         });
     }
