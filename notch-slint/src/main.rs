@@ -1033,14 +1033,18 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    // Liquid movement: perpindahan acak yang halus, terbatas, dan hanya saat notch idle.
-    // Durasi animasi dibuat lambat agar gerakan terasa organik, bukan berpindah mendadak.
+    // Liquid movement: timer selalu hidup agar toggle dan interval dapat diterapkan tanpa restart.
+    // Nilai runtime dibagikan dengan handler pengaturan; tidak perlu membuat timer baru.
+    let motion_runtime = Rc::new((
+        Cell::new(cfg.motion.enabled),
+        Cell::new(cfg.motion.interval_secs.clamp(60, 3_600)),
+        Cell::new(cfg.motion.max_moves.clamp(1, 10)),
+    ));
     let liquid_move_timer = Timer::default();
-    if cfg.motion.enabled {
+    {
         let weak = win.as_weak();
         let shell = shell.clone();
-        let interval = cfg.motion.interval_secs.clamp(60, 3_600);
-        let max_moves = cfg.motion.max_moves.clamp(1, 10);
+        let runtime = motion_runtime.clone();
         let started_at = Instant::now();
         let mut last_move = Instant::now();
         let mut moves = 0u32;
@@ -1049,6 +1053,17 @@ fn main() -> Result<(), slint::PlatformError> {
 
         liquid_move_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
+
+            if !runtime.0.get() {
+                if animation.take().is_some() {
+                    let position = w.window().position();
+                    let size = w.window().size();
+                    shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
+                }
+                return;
+            }
+            let interval = runtime.1.get().clamp(60, 3_600);
+            let max_moves = runtime.2.get().clamp(1, 10);
 
             if w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
                 // Hentikan gerakan tanpa mengubah ukuran jendela yang sedang dipakai overlay.
@@ -3750,6 +3765,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let runtime = motion_runtime.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_motion(move |enabled, interval, maximum, dock_play_enabled| {
             let interval = interval.parse::<u32>().ok().filter(|v| (60..=3600).contains(v));
@@ -3768,16 +3784,19 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next;
+                    runtime.0.set(enabled);
+                    runtime.1.set(interval);
+                    runtime.2.set(maximum);
                     if let Some(w) = weak.upgrade() {
                         w.set_motion_enabled(enabled);
                         w.set_dock_play_enabled(dock_play_enabled);
                         if !dock_play_enabled { w.set_play_test_request(false); }
                         w.set_motion_interval(interval.to_string().into());
                         w.set_motion_max_moves(maximum.to_string().into());
-                        w.set_motion_save_status(if dock_play_enabled {
-                            "Pengaturan tersimpan. Bottom/Side Play langsung diterapkan; Liquid Movement berlaku setelah aplikasi dimulai ulang.".into()
+                        w.set_motion_save_status(if dock_play_enabled && enabled {
+                            "Pengaturan tersimpan. Liquid Movement dan Bottom/Side Play langsung diterapkan.".into()
                         } else if enabled {
-                            "Liquid Movement tersimpan (berlaku setelah restart). Bottom/Side Play dinonaktifkan.".into()
+                            "Liquid Movement langsung diterapkan. Bottom/Side Play dinonaktifkan.".into()
                         } else {
                             "Liquid Movement dan Bottom/Side Play dinonaktifkan.".into()
                         });
