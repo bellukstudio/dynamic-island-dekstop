@@ -20,6 +20,7 @@ dependencies = [
  "mdns-sd",
  "mpris",
  "notch-core",
+ "notch-tools",
  "pdfium-render",
  "qrcode",
  "rcgen",
@@ -44,6 +45,18 @@ dependencies = [
  "ttf-parser",
  "windows 0.61.3",
  "windows-core 0.61.2",
+ "zip",
+]
+
+[[package]]
+name = "notch-tools"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "lopdf",
+ "roxmltree",
+ "subsetter",
+ "ttf-parser",
  "zip",
 ]
 
