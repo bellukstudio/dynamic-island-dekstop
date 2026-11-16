@@ -1156,6 +1156,7 @@ component SettingsPage inherits VerticalLayout {
     in property <string> autostart-save-status: "";
     in property <string> behavior-save-status: "Skala, hover, idle, dan fullscreen";
     in property <bool> motion-enabled: false;
+    in property <bool> dock-play-enabled: true;
     in property <string> motion-interval: "180";
     in property <string> motion-max-moves: "3";
     in property <string> motion-save-status: "";
@@ -1504,11 +1505,16 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: motion-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.text == "true"; clicked => { motion-enabled-input.text = motion-enabled-input.text == "true" ? "false" : "true"; } }
             }
             motion-enabled-input := TextInput { text: root.motion-enabled ? "true" : "false"; visible: false; }
+            dock-play-input := TextInput { text: root.dock-play-enabled ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Bottom Play / Side Play"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: dock-play-input.text == "true" ? "Aktif" : "Nonaktif"; selected: dock-play-input.text == "true"; clicked => { dock-play-input.text = dock-play-input.text == "true" ? "false" : "true"; } }
+            }
             Text { text: "Interval perpindahan (60–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
             motion-interval-input := TextInput { text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
             motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan liquid movement"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text); } }
+            Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
             Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
@@ -2285,6 +2291,7 @@ export component NotchWindow inherits Window {
     in property <string> meeting-finished: "";
     // 0 = atas, 1 = melayang, 2 = bawah, 3 = kiri, 4 = kanan.
     in property <int> dock: 0;
+    in property <bool> dock-play-enabled: true;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
     in property <float> ui-scale: 1.0;
     // Gambar hiasan tema (cahaya, scan, rim) yang dirender Rust dengan mask sudut akurat.
@@ -2369,6 +2376,7 @@ export component NotchWindow inherits Window {
     in property <string> autostart-save-status: "";
     in property <string> behavior-save-status: "";
     in property <bool> motion-enabled: false;
+    in property <bool> dock-play-enabled: true;
     in property <string> motion-interval: "180";
     in property <string> motion-max-moves: "3";
     in property <string> motion-save-status: "";
@@ -2424,7 +2432,7 @@ export component NotchWindow inherits Window {
     callback settings-save-appearance(string, string, string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string, bool);
     callback settings-save-autostart(bool);
-    callback settings-save-motion(bool, string, string);
+    callback settings-save-motion(bool, string, string, bool);
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
@@ -2959,6 +2967,7 @@ export component NotchWindow inherits Window {
                         autostart-save-status: root.autostart-save-status;
                         behavior-save-status: root.behavior-save-status;
                         motion-enabled: root.motion-enabled;
+                        dock-play-enabled: root.dock-play-enabled;
                         motion-interval: root.motion-interval;
                         motion-max-moves: root.motion-max-moves;
                         motion-save-status: root.motion-save-status;
@@ -3006,7 +3015,7 @@ export component NotchWindow inherits Window {
                         save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
                         save-autostart(enabled) => { root.settings-save-autostart(enabled); }
                         save-position(mode) => { root.settings-save-position(mode); }
-                        save-motion(enabled, interval, maximum) => { root.settings-save-motion(enabled, interval, maximum); }
+                        save-motion(enabled, interval, maximum, dock-play) => { root.settings-save-motion(enabled, interval, maximum, dock-play); }
                         active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
                         pages-save-status: root.pages-save-status;
