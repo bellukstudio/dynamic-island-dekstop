@@ -1279,11 +1279,14 @@ component ConvertPage inherits VerticalLayout {
     in property <string> output-dir-text: "";
     in property <string> eta-text: "";
     in property <string> queue-text: "Antrean kosong";
+    in property <string> preview-page-text: "Halaman 1 / 1";
     in property <float> progress-value: 0;
     in property <image> source-preview;
     in property <image> result-preview;
     callback run(string, string, string, string, string);
     callback pick-output-dir();
+    callback preview-prev();
+    callback preview-next();
     callback pick-file();
     callback reveal();
     callback cancel();
@@ -1384,6 +1387,12 @@ component ConvertPage inherits VerticalLayout {
                         Image { source: root.result-preview; width: 128px; height: 88px; image-fit: contain; }
                     }
                 }
+            }
+            HorizontalLayout {
+                alignment: center;
+                Chip { label: "‹"; clicked => { root.preview-prev(); } }
+                Text { text: root.preview-page-text; color: Theme.text-faint; font-size: 9px; vertical-alignment: center; }
+                Chip { label: "›"; clicked => { root.preview-next(); } }
             }
         }
     }
@@ -1811,6 +1820,7 @@ export component NotchWindow inherits Window {
     in property <string> convert-status: "Pilih file untuk dikonversi";
     in property <string> convert-progress-text: "";
     in property <float> convert-progress-value: 0;
+    in property <string> convert-preview-page-text: "Halaman 1 / 1";
     in property <string> convert-eta-text: "";
     in property <string> convert-queue-text: "Antrean kosong";
     in property <string> convert-history-text: "Belum ada riwayat konversi";
@@ -1901,6 +1911,8 @@ export component NotchWindow inherits Window {
     callback compress-selected-path(string);
     callback convert-run(string, string, string, string, string);
     callback convert-pick();
+    callback convert-preview-prev();
+    callback convert-preview-next();
     callback convert-reveal();
     callback convert-cancel();
     callback convert-history-clear();
@@ -2203,10 +2215,13 @@ export component NotchWindow inherits Window {
                         eta-text: root.convert-eta-text;
                         queue-text: root.convert-queue-text;
                         progress-value: root.convert-progress-value;
+                        preview-page-text: root.convert-preview-page-text;
                         source-preview: root.convert-source-preview;
                         result-preview: root.convert-result-preview;
                         run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
                         pick-file => { root.convert-pick(); }
+                        preview-prev => { root.convert-preview-prev(); }
+                        preview-next => { root.convert-preview-next(); }
                         reveal => { root.convert-reveal(); }
                         cancel => { root.convert-cancel(); }
                         pause => { root.convert-pause(); }
