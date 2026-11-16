@@ -18,6 +18,7 @@ use notch_core::eyes::{self, Anim, EyeRenderer, Face, Morph, Mood, MoodState};
 use notch_core::layout::{self, Dock};
 use notch_core::notes::{Note, NotesStore};
 use notch_core::pomodoro::{Phase, Pomodoro};
+use notch_core::prayer::{self, Day as PrayerDay};
 use notch_core::quick::{self, Quick};
 use notch_core::reminder::{self, Reminder};
 use notch_core::stats::StatsMonitor;
@@ -306,6 +307,25 @@ fn refresh_weather(
 }
 
 
+
+#[derive(Clone, Default)]
+struct PrayerSchedule { current: Vec<PrayerDay>, next: Vec<PrayerDay>, error: String }
+fn prayer_at(date:(i64,i64,i64),time:&str,offset:i32)->Option<i64>{let(y,m,d)=date;reminder::parse_local_datetime(&format!("{d:02}/{m:02}/{y} {time}"),offset)}
+fn prayer_countdown(target:Option<i64>,now:i64)->String{let Some(t)=target else{return "--:--:--".into()};let s=(t-now).max(0)/1000;format!("{:02}:{:02}:{:02}",s/3600,(s%3600)/60,s%60)}
+fn prayer_find(days:&[PrayerDay],day:i64)->Option<PrayerDay>{days.iter().find(|x|i64::from(x.tanggal)==day).cloned()}
+fn render_prayer(w:&NotchWindow,s:&PrayerSchedule,offset:i32,ramadan:bool){
+ let now=reminder::now_ms();let(y,m,d,_,_)=reminder::local_parts(now,offset);let(ny,nm,nd,_,_)=reminder::local_parts(now+86_400_000,offset);
+ let today=prayer_find(&s.current,d);let tomorrow=if y==ny&&m==nm{today.clone()}else{prayer_find(&s.next,nd)};
+ let entries:[(&str,&str);5]=today.as_ref().map(|x|[("Subuh",x.subuh.as_str()),("Dzuhur",x.dzuhur.as_str()),("Ashar",x.ashar.as_str()),("Maghrib",x.maghrib.as_str()),("Isya",x.isya.as_str())]).unwrap_or([("Subuh",""),("Dzuhur",""),("Ashar",""),("Maghrib",""),("Isya","")]);
+ let mut next:Option<(&str,&str,i64)>=None;for(name,time)in entries{if let Some(at)=prayer_at((y,m,d),time,offset){if at>now{next=Some((name,time,at));break;}}}
+ if next.is_none(){if let Some(t)=tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.subuh,offset)){next=Some(("Subuh",tomorrow.as_ref().unwrap().subuh.as_str(),t));}}
+ if let Some((name,time,at))=next{w.set_prayer_next_name(name.into());w.set_prayer_next_time(time.into());w.set_prayer_countdown(prayer_countdown(Some(at),now).into());}else{w.set_prayer_next_name("Jadwal belum tersedia".into());w.set_prayer_next_time("--:--".into());w.set_prayer_countdown("--:--:--".into());}
+ let rows=entries.into_iter().map(|(name,time)|{let at=prayer_at((y,m,d),time,offset);let state=if next.map(|x|x.0)==Some(name){1}else if at.map(|t|t<=now).unwrap_or(false){2}else{0};PrayerItem{name:name.into(),time:if time.is_empty(){"--:--".into()}else{time.into()},state}}).collect::<Vec<_>>();
+ w.set_prayer_items(ModelRc::from(Rc::new(VecModel::from(rows))));w.set_prayer_status(s.error.clone().into());
+ if ramadan{let im=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.imsak,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.imsak,offset)));let bu=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.maghrib,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.maghrib,offset)));w.set_ramadan_date(format!("{d:02}/{m:02}/{y}").into());w.set_ramadan_imsak_countdown(prayer_countdown(im,now).into());w.set_ramadan_buka_countdown(prayer_countdown(bu,now).into());w.set_ramadan_imsak_time(format!("Imsak {}",today.as_ref().map(|x|x.imsak.as_str()).unwrap_or("--:--")).into());w.set_ramadan_buka_time(format!("Maghrib {}",today.as_ref().map(|x|x.maghrib.as_str()).unwrap_or("--:--")).into());}
+}
+fn load_ramadan()->bool{std::fs::read_to_string(notch_core::paths::data_file("ramadan.json")).ok().map(|s|s.trim()=="true").unwrap_or(false)}
+
 fn local_timezone_offset_minutes() -> i32 {
     #[cfg(windows)]
     let output = {
@@ -526,6 +546,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
     let reminder_timer = Timer::default();
+    let prayer_timer = Timer::default();
     let weather_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     let battery = Rc::new(BatteryMonitor::new());
@@ -556,6 +577,15 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_reminder_weekday_selected(ModelRc::from(Rc::new(VecModel::from(weekday_selection(62)))));
     show_reminders(&reminder_model, reminder::list(), timezone_offset);
     let active_reminder = Rc::new(RefCell::new(None::<String>));
+    let prayer_prefs=Rc::new(RefCell::new(prayer::preferences()));
+    win.set_prayer_city(prayer_prefs.borrow().kabkota.clone().into());win.set_prayer_province(prayer_prefs.borrow().provinsi.clone().into());
+    win.set_prayer_mode(prayer_prefs.borrow().mode.clone().into());win.set_prayer_remind_before(prayer_prefs.borrow().remind_before);win.set_prayer_remind_min(prayer_prefs.borrow().remind_min as i32);
+    let ramadan=Rc::new(Cell::new(load_ramadan()));win.set_ramadan_enabled(ramadan.get());
+    let dhikr_idx=Rc::new(Cell::new(0usize));
+    let dhikr=[("أَسْتَغْفِرُ اللّٰهَ","Astaghfirullah","Aku memohon ampun kepada Allah. Dibaca 3x"),("اللّٰهُمَّ رَبَّ هٰذِهِ الدَّعْوَةَ التَّامَّةَ","Allahumma rabba hadzihid-da'watit-tammah","Doa setelah adzan"),("سُبْحَانَ اللّٰهِ وَبِحَمْدِهِ","Subhanallahi wa bihamdihi","Maha Suci Allah dan segala puji bagi-Nya. Dibaca 33x")];
+    let set_dhikr:Rc<dyn Fn(&NotchWindow,usize)>=Rc::new(move|w,i|{let x=dhikr[i%3];w.set_dhikr_arabic(x.0.into());w.set_dhikr_latin(x.1.into());w.set_dhikr_meaning(x.2.into());w.set_dhikr_index((i%3)as i32);});set_dhikr(&win,0);
+    let prayer_busy=Arc::new(AtomicBool::new(false));let prayer_data=Arc::new(Mutex::new(PrayerSchedule::default()));
+    let prayer_fired=Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
     let weather_busy = Arc::new(AtomicBool::new(false));
     win.set_weather_city(cfg.weather.city.clone().into());
     win.set_weather_status("Cuaca dimuat saat halaman dibuka".into());
@@ -685,6 +715,28 @@ fn main() -> Result<(), slint::PlatformError> {
             let s = guard.get_or_insert_with(|| NotesStore::open(&path));
             show_notes(&model, s.remove(id.as_str()));
         });
+    }
+
+
+    {
+      let weak=win.as_weak();let prefs=prayer_prefs.clone();
+      win.on_prayer_set_mode(move|v|{let mut p=prefs.borrow_mut();p.mode=v.to_string();if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_mode(p.mode.clone().into());}});
+    }
+    {
+      let weak=win.as_weak();let prefs=prayer_prefs.clone();
+      win.on_prayer_set_remind(move|v|{let mut p=prefs.borrow_mut();p.remind_before=v;if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_before(v);}});
+    }
+    {
+      let weak=win.as_weak();let prefs=prayer_prefs.clone();
+      win.on_prayer_set_remind_min(move|v|{let mut p=prefs.borrow_mut();p.remind_min=v.clamp(1,60)as u32;if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_min(p.remind_min as i32);}});
+    }
+    {
+      let weak=win.as_weak();let enabled=ramadan.clone();
+      win.on_prayer_toggle_ramadan(move||{let v=!enabled.get();enabled.set(v);let path=notch_core::paths::data_file("ramadan.json");if let Some(d)=path.parent(){let _=std::fs::create_dir_all(d);}let _=std::fs::write(path,if v{"true"}else{"false"});if let Some(w)=weak.upgrade(){w.set_ramadan_enabled(v);}});
+    }
+    {
+      let weak=win.as_weak();let idx=dhikr_idx.clone();let set=set_dhikr.clone();
+      win.on_prayer_dhikr_next(move||{let i=(idx.get()+1)%3;idx.set(i);if let Some(w)=weak.upgrade(){set(&w,i);}});
     }
 
     {
@@ -835,6 +887,24 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(w) = weak.upgrade() { w.set_reminder_alert_visible(false); }
             show_reminders(&model, reminder::list(), timezone_offset);
         });
+    }
+
+
+    let fetch_prayer:Rc<dyn Fn(bool)>={
+      let busy=prayer_busy.clone();let data=prayer_data.clone();let prefs=prayer_prefs.clone();let weak=win.as_weak();let offset=timezone_offset;
+      Rc::new(move|refresh|{if busy.swap(true,Ordering::SeqCst){return;}let p=prefs.borrow().clone();let busy=busy.clone();let data=data.clone();let weak=weak.clone();
+       std::thread::spawn(move||{let now=reminder::now_ms();let(y,m,_,_,_)=reminder::local_parts(now,offset);let cur=prayer::month(&p.provinsi,&p.kabkota,y as i32,m as u32,refresh);let(ny,nm,_,_,_)=reminder::local_parts(now+86_400_000,offset);let nxt=if ny!=y||nm!=m{prayer::month(&p.provinsi,&p.kabkota,ny as i32,nm as u32,false)}else{cur.clone()};let err=cur.as_ref().err().cloned().unwrap_or_default();let v=PrayerSchedule{current:cur.unwrap_or_default(),next:nxt.unwrap_or_default(),error:err};if let Ok(mut g)=data.lock(){*g=v;}busy.store(false,Ordering::SeqCst);let _=weak.upgrade_in_event_loop(|w|w.invoke_prayer_refresh());});
+      })
+    };
+    fetch_prayer(false);
+    {let f=fetch_prayer.clone();win.on_prayer_refresh(move||f(true));}
+    {
+      let weak=win.as_weak();let data=prayer_data.clone();let ramadan=ramadan.clone();let prefs=prayer_prefs.clone();let fired=prayer_fired.clone();let offset=timezone_offset;
+      prayer_timer.start(TimerMode::Repeated,Duration::from_secs(1),move||{let Ok(s)=data.lock()else{return};let now=reminder::now_ms();let(y,m,d,_,_)=reminder::local_parts(now,offset);if let Some(w)=weak.upgrade(){if w.get_page_id()=="prayer"{render_prayer(&w,&s,offset,ramadan.get());}if let Some(day)=prayer_find(&s.current,d){let p=prefs.borrow().clone();for(name,t)in[("Subuh",&day.subuh),("Dzuhur",&day.dzuhur),("Ashar",&day.ashar),("Maghrib",&day.maghrib),("Isya",&day.isya)]{if let Some(at)=prayer_at((y,m,d),t,offset){for(kind,trig)in[("pre",at-i64::from(p.remind_min)*60_000),("at",at)]{if kind=="pre"&&!p.remind_before{continue;}if now<trig||now>=trig+60_000{continue;}let key=format!("{y}-{m}-{d}-{name}-{kind}");if !fired.borrow_mut().insert(key){continue;}if kind=="pre"{w.set_prayer_status(format!("Menjelang {name} · {} menit lagi",p.remind_min).into());}else{w.set_prayer_status(format!("Waktu {name} telah tiba").into());if p.mode=="tone"{#[cfg(windows)] unsafe{let _=windows::Win32::UI::WindowsAndMessaging::MessageBeep(0x00000040);}}else if p.mode=="adzan"{w.set_prayer_status(format!("Waktu {name} · audio adzan native belum tersedia").into());}if ramadan.get(){w.set_dhikr_arabic("اللّٰهُمَّ رَبَّ هٰذِهِ الدَّعْوَةَ التَّامَّةَ".into());w.set_dhikr_latin("Allahumma rabba hadzihid-da'watit-tammah".into());w.set_dhikr_meaning("Dzikir setelah adzan".into());}}}}}}});
+    }
+    {
+      let weak=win.as_weak();let data=prayer_data.clone();let ramadan=ramadan.clone();let offset=timezone_offset;
+      win.on_prayer_refresh(move||{if let Ok(s)=data.lock(){if let Some(w)=weak.upgrade(){render_prayer(&w,&s,offset,ramadan.get());}}});
     }
 
     // --- Kalender + hari libur Indonesia ---

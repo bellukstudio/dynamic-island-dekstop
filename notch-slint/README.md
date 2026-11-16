@@ -22,8 +22,9 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - Halaman yang sudah ada: Media (tampilan saja), Jam, Cuaca (Open-Meteo, kondisi sekarang, terasa, kelembapan,
   dan perkiraan hujan), Timer (fokus/istirahat/istirahat panjang, ronde, progress, reset/skip), Stats, Baterai,
   Catatan, Reminder (tanggal/jam, pengulangan harian/mingguan/bulanan, snooze), Clipboard (10 teks terbaru, salin ulang, hapus riwayat), Quick (Mic/Wi-Fi/Bluetooth), Tools (Keep awake/Tema/Kunci/Pusatkan)
-- Stats, Baterai, Quick/Tools, Catatan, Clipboard, Cuaca, dan Reminder memakai crate bersama `../notch-core`; polling UI
+- Stats, Baterai, Quick/Tools, Catatan, Clipboard, Cuaca, Reminder, dan Prayer memakai crate bersama `../notch-core`; polling UI
   hanya berjalan saat halamannya terlihat. Cuaca memakai Open-Meteo dan diperbarui tiap lima menit saat halaman aktif
+- Prayer memakai cache `prayer_cache.json` dan preferensi `config.toml` bersama Tauri; jadwal equran.id, countdown, pengingat sebelum/waktu shalat, pilihan Adzan/Tone/Senyap, dan panel Ramadan/dzikir. Audio MP3 adzan native belum diintegrasikan.
 - Reminder memakai file `reminders.json` yang sama dengan versi Tauri, termasuk migrasi pengulangan lama,
   mode harian/mingguan/bulanan, pilihan hari mingguan, snooze lima menit, dan alert saat jatuh tempo
 - Clipboard mengikuti batas versi Tauri: 10 item teks di memori, maksimum 10.000 karakter per item,
@@ -37,7 +38,7 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - **Quick/Tools mengubah pengaturan Windows sungguhan** (mic, Wi-Fi, Bluetooth, tema gelap, kunci layar)
 
 ## Belum ada
-- Media sungguhan (pemutar, cover album, lirik), Jadwal Shalat/Ramadan, Shelf,
+- Media sungguhan (pemutar, cover album, lirik), Shelf,
   Lirik, Privasi, Currency (halamannya tampil sebagai placeholder)
 - Menggeser notch dengan mouse dan dock samping (kiri/kanan). Posisi dibaca dari config; dock samping
   sementara diperlakukan seperti posisi melayang. Tombol "Pusatkan" mengembalikan ke tengah atas hanya untuk sesi ini
