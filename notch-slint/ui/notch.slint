@@ -559,6 +559,67 @@ component BatteryPage inherits VerticalLayout {
     }
 }
 
+component WeatherPage inherits HorizontalLayout {
+    in property <string> city;
+    in property <string> temperature;
+    in property <string> condition;
+    in property <string> feels;
+    in property <string> humidity;
+    in property <string> rain;
+    in property <string> icon;
+    in property <string> status;
+
+    padding-left: 26px;
+    padding-right: 26px;
+    padding-top: 12px;
+    padding-bottom: 10px;
+    spacing: 18px;
+
+    VerticalLayout {
+        width: 176px;
+        alignment: center;
+        spacing: 3px;
+        Text { text: root.city; color: Theme.text-dim; font-size: 12px; horizontal-alignment: center; }
+        Text { text: root.temperature; color: Theme.text; font-size: 42px; font-weight: 700; horizontal-alignment: center; }
+        Text { text: root.condition; color: Theme.text; font-size: 13px; font-weight: 600; horizontal-alignment: center; }
+    }
+
+    Rectangle {
+        width: 1px;
+        background: Theme.track;
+    }
+
+    VerticalLayout {
+        horizontal-stretch: 1;
+        alignment: center;
+        spacing: 7px;
+        Text { text: root.feels; color: Theme.text; font-size: 13px; }
+        Text { text: root.humidity; color: Theme.text-dim; font-size: 12px; }
+        Text { text: root.rain; color: Theme.accent; font-size: 12px; font-weight: 600; }
+        Text {
+            text: root.status;
+            color: #ff9b8f;
+            font-size: 10px;
+            wrap: word-wrap;
+            visible: root.status != "";
+        }
+    }
+
+    Path {
+        width: 42px;
+        height: 42px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.icon;
+        fill: transparent;
+        stroke: Theme.text;
+        stroke-width: 1.7px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+        visible: root.icon != "";
+    }
+}
+
 component NotesPage inherits VerticalLayout {
     in property <[NoteItem]> notes;
     callback add(string);
@@ -822,6 +883,14 @@ export component NotchWindow inherits Window {
     in property <[NoteItem]> notes;
     in property <[ClipboardItem]> clipboard-items;
     in property <bool> clipboard-available: true;
+    in property <string> weather-city: "Bandung";
+    in property <string> weather-temp: "--°";
+    in property <string> weather-condition: "Memuat cuaca...";
+    in property <string> weather-feels: "";
+    in property <string> weather-humidity: "";
+    in property <string> weather-rain: "";
+    in property <string> weather-icon: "";
+    in property <string> weather-status: "";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1030,6 +1099,16 @@ export component NotchWindow inherits Window {
                         add(t) => { root.add-note(t); }
                         remove(id) => { root.remove-note(id); }
                     }
+                    if root.page-id == "weather": WeatherPage {
+                        city: root.weather-city;
+                        temperature: root.weather-temp;
+                        condition: root.weather-condition;
+                        feels: root.weather-feels;
+                        humidity: root.weather-humidity;
+                        rain: root.weather-rain;
+                        icon: root.weather-icon;
+                        status: root.weather-status;
+                    }
                     if root.page-id == "clipboard": ClipboardPage {
                         items: root.clipboard-items;
                         available: root.clipboard-available;
@@ -1047,7 +1126,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                     if root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
-                        && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
+                        && root.page-id != "weather" && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
                 }
             }

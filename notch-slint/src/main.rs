@@ -257,6 +257,53 @@ fn show_clipboard(model: &VecModel<ClipboardItem>, monitor: Option<&ClipboardMon
     );
 }
 
+/// Ambil cuaca di thread latar, lalu kirim hasilnya ke thread Slint.
+fn refresh_weather(
+    weak: Weak<NotchWindow>,
+    busy: Arc<AtomicBool>,
+    lat: f64,
+    lon: f64,
+    city: String,
+) {
+    if busy.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    std::thread::spawn(move || {
+        let result = notch_core::weather::fetch(lat, lon);
+        busy.store(false, Ordering::SeqCst);
+        let _ = weak.upgrade_in_event_loop(move |w| {
+            w.set_weather_city(city.into());
+            match result {
+                Ok(reading) => {
+                    w.set_weather_temp(format!("{:.0}°", reading.temp).into());
+                    w.set_weather_condition(notch_core::weather::describe(reading.code, reading.is_day).into());
+                    w.set_weather_feels(format!("Terasa {:.0}°", reading.feels).into());
+                    w.set_weather_humidity(format!("Kelembapan {:.0}%", reading.humidity).into());
+                    let rain = if reading.raining {
+                        "Sedang hujan".to_string()
+                    } else if let Some(minutes) = reading.rain_in {
+                        format!("Hujan dalam {minutes} menit")
+                    } else {
+                        "Tidak ada hujan terdeteksi".to_string()
+                    };
+                    w.set_weather_rain(rain.into());
+                    w.set_weather_icon(notch_core::weather::icon_path(reading.code, reading.is_day).into());
+                    w.set_weather_status("".into());
+                }
+                Err(error) => {
+                    w.set_weather_temp("--°".into());
+                    w.set_weather_condition("Data cuaca belum tersedia".into());
+                    w.set_weather_feels("".into());
+                    w.set_weather_humidity("".into());
+                    w.set_weather_rain("Periksa koneksi internet".into());
+                    w.set_weather_icon("".into());
+                    w.set_weather_status(format!("Gagal memuat: {error}").into());
+                }
+            }
+        });
+    });
+}
+
 fn col(c: Rgba) -> slint::Color {
     slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
 }
@@ -430,6 +477,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let stats_timer = Rc::new(Timer::default());
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
+    let weather_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     let battery = Rc::new(BatteryMonitor::new());
     let notes_path = notch_core::paths::data_file("notes.json");
@@ -451,6 +499,9 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_clipboard_items(ModelRc::from(clipboard_model.clone()));
     win.set_clipboard_available(clipboard_monitor.is_some());
     show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
+    let weather_busy = Arc::new(AtomicBool::new(false));
+    win.set_weather_city(cfg.weather.city.clone().into());
+    win.set_weather_status("Cuaca dimuat saat halaman dibuka".into());
     let quick_busy = Arc::new(AtomicBool::new(false));
     let keep_awake = Arc::new(AtomicBool::new(false));
 
@@ -459,11 +510,13 @@ fn main() -> Result<(), slint::PlatformError> {
     // Catatan dimuat ulang dari disk setiap dibuka (perubahan dari versi Tauri ikut terbaca).
     let sync_pages: Rc<dyn Fn()> = {
         let weak = win.as_weak();
-        let (stats_timer, battery_timer, clipboard_timer) = (stats_timer.clone(), battery_timer.clone(), clipboard_timer.clone());
+        let (stats_timer, battery_timer, clipboard_timer, weather_timer) = (stats_timer.clone(), battery_timer.clone(), clipboard_timer.clone(), weather_timer.clone());
         let (monitor, battery) = (monitor.clone(), battery.clone());
         let (notes_store, notes_model, notes_path) =
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
         let (clipboard_model, clipboard_monitor) = (clipboard_model.clone(), clipboard_monitor.clone());
+        let weather_busy = weather_busy.clone();
+        let (weather_lat, weather_lon, weather_city) = (cfg.weather.lat, cfg.weather.lon, cfg.weather.city.clone());
         let quick_busy = quick_busy.clone();
         let keep_awake = keep_awake.clone();
         Rc::new(move || {
@@ -537,6 +590,21 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             } else {
                 clipboard_timer.stop();
+            }
+
+            // Cuaca: ambil data saat halaman terlihat, lalu perbarui tiap lima menit.
+            if visible && page == "weather" {
+                if !weather_timer.running() {
+                    refresh_weather(weak.clone(), weather_busy.clone(), weather_lat, weather_lon, weather_city.clone());
+                    let weak_w = weak.clone();
+                    let busy_w = weather_busy.clone();
+                    let city_w = weather_city.clone();
+                    weather_timer.start(TimerMode::Repeated, Duration::from_secs(5 * 60), move || {
+                        refresh_weather(weak_w.clone(), busy_w.clone(), weather_lat, weather_lon, city_w.clone());
+                    });
+                }
+            } else {
+                weather_timer.stop();
             }
         })
     };
