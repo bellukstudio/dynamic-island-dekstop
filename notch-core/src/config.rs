@@ -223,6 +223,44 @@ pub fn migrate(cfg: &mut Config) {
     }
 }
 
+/// Pintasan global aplikasi. Format kombinasi disimpan sebagai teks agar dapat diedit
+/// dari halaman Pengaturan; implementasi native akan mendaftarkannya melalui Windows API.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Shortcuts {
+    pub toggle_hub: String,
+    pub open_settings: String,
+    pub toggle_pomodoro: String,
+    pub toggle_prayer: String,
+}
+impl Default for Shortcuts {
+    fn default() -> Self {
+        Self {
+            toggle_hub: "Ctrl+Alt+N".into(),
+            open_settings: "Ctrl+Alt+,".into(),
+            toggle_pomodoro: "Ctrl+Alt+P".into(),
+            toggle_prayer: "Ctrl+Alt+A".into(),
+        }
+    }
+}
+impl Shortcuts {
+    pub fn sanitize(&mut self) {
+        let defaults = Shortcuts::default();
+        self.toggle_hub = Self::clean(&self.toggle_hub, &defaults.toggle_hub);
+        self.open_settings = Self::clean(&self.open_settings, &defaults.open_settings);
+        self.toggle_pomodoro = Self::clean(&self.toggle_pomodoro, &defaults.toggle_pomodoro);
+        self.toggle_prayer = Self::clean(&self.toggle_prayer, &defaults.toggle_prayer);
+    }
+    fn clean(value: &str, fallback: &str) -> String {
+        let value = value.trim();
+        if value.is_empty() || value.len() > 32 || !value.contains('+') {
+            fallback.to_string()
+        } else {
+            value.chars().take(32).collect()
+        }
+    }
+}
+
 // Posisi notch di layar: jika custom = false, notch berada di posisi default (tengah atas).
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
 #[serde(default)]
@@ -321,7 +359,7 @@ mod tests {
         assert!(c.pages.iter().any(|p| p == "prayer"));
         assert_eq!(c.pomodoro.focus_min, 25);
         assert_eq!(c.timing.hover_open_ms, 150);
-        assert_eq!(c.appearance.notch_theme, "default");
+        assert_eq!(c.appearance.notch_theme, "default");\n        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
     }
 
     #[test]
