@@ -1281,7 +1281,7 @@ component ConvertPage inherits VerticalLayout {
     padding-right: 14px;
     spacing: 7px;
     Text { text: "Convert"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { text: "Konversi format gambar"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Text { text: "Konversi gambar, PDF, dan dokumen Office"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
@@ -1292,7 +1292,7 @@ component ConvertPage inherits VerticalLayout {
             spacing: 5px;
             Text { text: "File sumber"; color: Theme.text-faint; font-size: 10px; }
             path-input := TextInput { text: root.file-path; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Format tujuan: png, jpg, webp, bmp, gif, atau pdf (gambar/DOCX/XLSX/PPTX)"; color: Theme.text-faint; font-size: 10px; }
+            Text { text: "Format tujuan: PNG/JPG/WebP/BMP/GIF, PDF (gambar/Office), atau PNG/JPG untuk setiap halaman PDF"; color: Theme.text-faint; font-size: 10px; }
             format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
         }
     }
