@@ -1864,8 +1864,21 @@ fn main() -> Result<(), slint::PlatformError> {
                             ));
                         }
                         if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
-                            convert::convert_pdf_to_images(source, &target, dpi, file_quality)
-                                .map(|(output, pages, bytes)| (output, format!("{target.to_ascii_uppercase()} · {pages} halaman · {} KB", bytes / 1024)))
+                            let weak_page_progress = weak.clone();
+                            convert::convert_pdf_to_images_with_progress(source, &target, dpi, file_quality, move |page, pages| {
+                                let fraction = page as f32 / pages.max(1) as f32;
+                                let overall = (((index as f32 + fraction) / total.max(1) as f32) * 100.0).clamp(0.0, 100.0);
+                                let progress_text = format!("{:.0}% · file {}/{} · halaman {}/{}", overall, index + 1, total, page, pages);
+                                let status_text = format!("Merender halaman PDF {page}/{pages}: {display_name}");
+                                let weak = weak_page_progress.clone();
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(window) = weak.upgrade() {
+                                        window.set_convert_progress_value(overall);
+                                        window.set_convert_progress_text(progress_text.into());
+                                        window.set_convert_status(status_text.into());
+                                    }
+                                });
+                            }).map(|(output, pages, bytes)| (output, format!("{target.to_ascii_uppercase()} · {pages} halaman · {} KB", bytes / 1024)))
                         } else if target == "pdf" {
                             convert::convert_to_pdf_with_quality(source, file_quality)
                                 .map(|output| (output, "PDF".to_string()))
