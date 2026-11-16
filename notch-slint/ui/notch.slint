@@ -1139,6 +1139,11 @@ component SettingsPage inherits VerticalLayout {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "Skala, hover, dan idle";
+    in property <bool> motion-enabled: false;
+    in property <string> motion-interval: "180";
+    in property <string> motion-max-moves: "3";
+    in property <string> motion-save-status: "";
+    callback save-motion(bool, string, string);
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
@@ -1339,6 +1344,22 @@ component SettingsPage inherits VerticalLayout {
             behavior-sleep-input := TextInput { text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; }
             Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text); } }
             Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Liquid movement"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 6px;
+            HorizontalLayout {
+                Text { text: "Gerakan acak saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: motion-enabled-input.checked ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.checked; clicked => { motion-enabled-input.checked = !motion-enabled-input.checked; } }
+            }
+            motion-enabled-input := CheckBox { checked: root.motion-enabled; visible: false; }
+            Text { text: "Interval perpindahan (60–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
+            motion-interval-input := TextInput { text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
+            motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
+            Chip { label: "Simpan liquid movement"; clicked => { root.save-motion(motion-enabled-input.checked, motion-interval-input.text, motion-max-input.text); } }
+            Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1977,6 +1998,10 @@ export component NotchWindow inherits Window {
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "";
+    in property <bool> motion-enabled: false;
+    in property <string> motion-interval: "180";
+    in property <string> motion-max-moves: "3";
+    in property <string> motion-save-status: "";
     in property <string> position-mode: "top";
     in property <[string]> active-pages;
     in property <string> hub-pages: "";
@@ -1992,6 +2017,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-light-bg: "#f5f5f7";
     callback settings-save-appearance(string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string);
+    callback settings-save-motion(bool, string, string);
     callback settings-save-position(string);
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
@@ -2477,9 +2503,14 @@ export component NotchWindow inherits Window {
                         behavior-hover-close: root.behavior-hover-close;
                         behavior-sleep-after: root.behavior-sleep-after;
                         behavior-save-status: root.behavior-save-status;
+                        motion-enabled: root.motion-enabled;
+                        motion-interval: root.motion-interval;
+                        motion-max-moves: root.motion-max-moves;
+                        motion-save-status: root.motion-save-status;
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
                         save-position(mode) => { root.settings-save-position(mode); }
+                        save-motion(enabled, interval, maximum) => { root.settings-save-motion(enabled, interval, maximum); }
                         active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
                         pages-save-status: root.pages-save-status;
