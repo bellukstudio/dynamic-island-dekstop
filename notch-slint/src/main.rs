@@ -4291,7 +4291,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let battery = battery.clone();
         // Sama dengan Tauri: gerakan pertama boleh muncul setelah jeda 4 detik.
         let mut next_at = Instant::now() + Duration::from_secs(4);
-        let mut active: Option<(u8, Instant, Duration, f32)> = None;
+        // source: 0=random, 1=Liquid terjadwal, 2=tes manual.
+        let mut active: Option<(u8, Instant, Duration, f32, u8)> = None;
         let mut last_choice: Option<u8> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
         // Setiap tiga menit jalankan tiga rangkaian Liquid, mengikuti jadwal Tauri.
@@ -4318,7 +4319,17 @@ fn main() -> Result<(), slint::PlatformError> {
                 || w.get_adhan_active();
 
             if blocked {
-                active = None;
+                // Liquid terjadwal/tes manual yang terpotong tetap antre, seperti catch(CANCEL) di Tauri.
+                if let Some((kind, _, _, _, source)) = active.take() {
+                    if kind == 0 {
+                        if source == 1 {
+                            liquid_repetitions_left = liquid_repetitions_left.saturating_add(1).min(3);
+                            next_liquid_run_at = now + Duration::from_millis(2_500);
+                        } else if source == 2 {
+                            w.set_play_test_request(true);
+                        }
+                    }
+                }
                 // Hover, panel, meeting, Adzan, atau saklar mati menghentikan trik baru,
                 // tetapi badan kembali netral dengan redaman agar tidak tersentak.
                 let dt = now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.001, 0.05);
@@ -4370,14 +4381,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
                 let playing = w.get_media_playing();
                 // Tes manual dan jadwal tiga rangkaian Liquid mendahului gerakan acak.
+                let source = if test_requested { 2 } else if liquid_due { 1 } else { 0 };
                 let choice = if test_requested {
                     w.set_play_test_request(false);
                     0
                 } else if liquid_due {
                     liquid_repetitions_left = liquid_repetitions_left.saturating_sub(1);
-                    if liquid_repetitions_left > 0 {
-                        next_liquid_run_at = now + Duration::from_secs(7 + u64::from(roll % 15));
-                    } else {
+                    if liquid_repetitions_left == 0 {
                         next_liquid_at = now + Duration::from_secs(180);
                     }
                     0
@@ -4425,10 +4435,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 };
                 eye.borrow_mut().mood.flash(animation_mood, mood_ms, now);
                 let direction = if roll & 1 == 0 { -1.0 } else { 1.0 };
-                active = Some((choice, now, Duration::from_millis(duration_ms), direction));
+                active = Some((choice, now, Duration::from_millis(duration_ms), direction, source));
             }
 
-            let Some((kind, started, duration, direction)) = active else {
+            let Some((kind, started, duration, direction, source)) = active else {
                 // Kembali ke bentuk netral memakai pegas, bukan menghapus transform seketika.
                 let dt = now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.001, 0.05);
                 last_frame = now;
@@ -4466,6 +4476,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let t = (elapsed / total).clamp(0.0, 1.0);
             if t >= 1.0 {
                 active = None;
+                if kind == 0 && source == 1 && liquid_repetitions_left > 0 {
+                    seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+                    next_liquid_run_at = now + Duration::from_secs(7 + u64::from((seed >> 32) as u32 % 15));
+                }
                 let low_battery = matches!(battery.read(), Reading::Present(value) if value.percent <= 15 && !value.charging);
                 let calm = w.get_eyes_mood().to_string() == "sleepy" || low_battery;
                 let playing = w.get_media_playing();
