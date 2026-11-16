@@ -1312,7 +1312,7 @@ component ConvertPage inherits VerticalLayout {
             dpi-input := TextInput { text: "150"; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Folder output (kosong = di samping file sumber)"; color: Theme.text-faint; font-size: 10px; }
             HorizontalLayout {
-                output-dir-input := TextInput { text: root.output-dir-text; color: Theme.text; font-size: 10px; single-line: true; }
+                Text { text: root.output-dir-text == "" ? "Folder sumber (default)" : root.output-dir-text; color: Theme.text; font-size: 10px; wrap: word-wrap; }
                 Chip { label: "Pilih folder"; clicked => { root.pick-output-dir(); } }
             }
         }
