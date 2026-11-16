@@ -191,13 +191,13 @@ fn recode_embedded_png(source: &[u8], profile: Profile) -> Option<Vec<u8>> {
     (output.len() < source.len()).then_some(output)
 }
 
-fn compress_office_bytes(source: &[u8], profile: Profile) -> Result<Vec<u8>, String> {
+fn compress_office_bytes(source: &[u8], profile: Profile, fast: bool) -> Result<Vec<u8>, String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(source))
         .map_err(|error| format!("Paket Office tidak valid: {error}"))?;
     let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let options = zip::write::SimpleFileOptions::default()
         .compression_method(zip::CompressionMethod::Deflated)
-        .compression_level(Some(9));
+        .compression_level(Some(if fast { 6 } else { 9 }));
 
     for index in 0..archive.len() {
         let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
@@ -244,21 +244,21 @@ pub fn compress_office_file(path: &Path, target_reduction_percent: u8) -> Result
         return Err("File kosong, tidak dapat dikompres.".into());
     }
     let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
-    let worst = compress_office_bytes(&source, *LADDER.last().unwrap())?;
+    let worst = compress_office_bytes(&source, *LADDER.last().unwrap(), true)?;
     let output = if worst.len() as u64 > target {
         worst
     } else {
         let (mut low, mut high) = (0usize, LADDER.len() - 1);
         while low < high {
             let middle = (low + high) / 2;
-            let candidate = compress_office_bytes(&source, LADDER[middle])?;
+            let candidate = compress_office_bytes(&source, LADDER[middle], true)?;
             if candidate.len() as u64 <= target {
                 high = middle;
             } else {
                 low = middle + 1;
             }
         }
-        compress_office_bytes(&source, LADDER[low])?
+        compress_office_bytes(&source, LADDER[low], false)?
     };
 
     let output_path = unique_output(path, &ext);
