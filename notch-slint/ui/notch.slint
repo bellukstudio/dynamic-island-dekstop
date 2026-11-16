@@ -2213,15 +2213,6 @@ export component NotchWindow inherits Window {
             animate opacity { duration: 220ms; }
         }
 
-        // Notifikasi global: ketika hub menciut, pesan muncul sebagai balon percakapan dekat karakter.
-        if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
-            x: (parent.width - self.width) / 2;
-            y: root.dock == 2 ? 0px : 42px;
-            bottom: root.dock == 2;
-            message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text));
-            detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub));
-        }
-
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
@@ -2604,6 +2595,15 @@ export component NotchWindow inherits Window {
                 }
             }
         }
+    }
+
+    // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
+    if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
+        x: (root.width - self.width) / 2;
+        y: root.dock == 2 ? 0px : 42px;
+        bottom: root.dock == 2;
+        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text));
+        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub));
     }
 
     Ear { s: root.ui-scale; visible: root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }
