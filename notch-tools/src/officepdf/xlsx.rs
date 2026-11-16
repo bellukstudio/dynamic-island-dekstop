@@ -645,6 +645,16 @@ fn parse_sheet(xml: &str, sst: &[String], st: &Styles) -> Option<Sheet> {
 const MARGIN: f32 = 36.0;
 const MIN_SCALE: f32 = 0.6;
 
+fn render_row_indices(sh: &Sheet, rmin: u32, rmax: u32) -> Vec<u32> {
+    let mut rows: Vec<u32> = sh.cells.keys().map(|(r, _)| *r)
+        .chain(sh.rows.keys().copied())
+        .filter(|r| (rmin..=rmax).contains(r))
+        .collect();
+    rows.sort_unstable();
+    rows.dedup();
+    rows
+}
+
 fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
     if sh.cells.is_empty() {
         return;
@@ -701,12 +711,7 @@ fn render_sheet(pdf: &mut Pdf, sh: &Sheet, st: &Styles) {
     // Baris kosong di antara keduanya tetap dihitung sebagai jarak vertikal,
     // tetapi tidak perlu diiterasi satu per satu (worksheet sparse dapat melompat
     // dari baris 1 ke 1.048.576).
-    let mut render_rows: Vec<u32> = sh.cells.keys().map(|(r, _)| *r)
-        .chain(sh.rows.keys().copied())
-        .filter(|r| (rmin..=rmax).contains(r))
-        .collect();
-    render_rows.sort_unstable();
-    render_rows.dedup();
+    let render_rows = render_row_indices(sh, rmin, rmax);
 
     for (b0, b1) in bands {
         // A wide worksheet can create one page per horizontal band. Enforce the
@@ -923,7 +928,27 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::cell_ref;
+    use super::{cell_ref, render_row_indices, Cell, Kind, Sheet, MAX_EXCEL_ROWS};
+
+    #[test]
+    fn sparse_worksheet_rows_are_iterated_only_when_present() {
+        let mut sh = Sheet::default();
+        sh.cells.insert((1, 1), Cell { text: "top".into(), xf: 0, kind: Kind::Text });
+        sh.rows.insert(5, (None, false));
+        sh.cells.insert((MAX_EXCEL_ROWS, 16_384), Cell { text: "bottom".into(), xf: 0, kind: Kind::Text });
+
+        assert_eq!(render_row_indices(&sh, 1, MAX_EXCEL_ROWS), vec![1, 5, MAX_EXCEL_ROWS]);
+    }
+
+    #[test]
+    fn render_row_indices_respects_the_used_range() {
+        let mut sh = Sheet::default();
+        sh.cells.insert((2, 1), Cell { text: "before".into(), xf: 0, kind: Kind::Text });
+        sh.rows.insert(4, (None, false));
+        sh.cells.insert((8, 1), Cell { text: "after".into(), xf: 0, kind: Kind::Text });
+
+        assert_eq!(render_row_indices(&sh, 4, 8), vec![4, 8]);
+    }
 
     #[test]
     fn parses_valid_excel_cell_references() {
