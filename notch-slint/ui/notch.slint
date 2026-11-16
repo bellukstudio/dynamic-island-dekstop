@@ -1306,6 +1306,7 @@ component ConvertPage inherits VerticalLayout {
     callback add-files();
     callback move-queue-file(string, int);
     callback remove-finished();
+    callback export-history();
     callback clear-history();
     alignment: start;
     padding-left: 14px;
@@ -1447,6 +1448,7 @@ component ConvertPage inherits VerticalLayout {
             HorizontalLayout {
                 Text { text: "Riwayat konversi"; color: Theme.text; font-size: 11px; font-weight: 700; }
                 HorizontalSpacer {}
+                Chip { label: "Ekspor CSV"; clicked => { root.export-history(); } }
                 Chip { label: "Bersihkan"; clicked => { root.clear-history(); } }
             }
             Text { text: root.history-text; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
@@ -1959,6 +1961,7 @@ export component NotchWindow inherits Window {
     callback convert-add-files();
     callback convert-move-queue-file(string, int);
     callback convert-remove-finished();
+    callback convert-history-export();
     callback convert-history-clear();
     callback convert-output-dir-pick();
     callback convert-selected-path(string);
@@ -2284,6 +2287,7 @@ export component NotchWindow inherits Window {
                         add-files => { root.convert-add-files(); }
                         move-queue-file(value, direction) => { root.convert-move-queue-file(value, direction); }
                         remove-finished => { root.convert-remove-finished(); }
+                        export-history => { root.convert-history-export(); }
                         clear-history => { root.convert-history-clear(); }
                         pick-output-dir => { root.convert-output-dir-pick(); }
                     }
