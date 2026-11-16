@@ -655,6 +655,36 @@ impl<'a> Conv<'a> {
     }
 }
 
+fn section_setup(node: Node, previous: PageSetup, new_page: bool) -> PageSetup {
+    let mut width = kid(node, "pgSz").and_then(|n| fnum(at(n, "w"))).map(|v| v / 20.0).unwrap_or(previous.width);
+    let mut height = kid(node, "pgSz").and_then(|n| fnum(at(n, "h"))).map(|v| v / 20.0).unwrap_or(previous.height);
+    if let Some(size) = kid(node, "pgSz") {
+        match at(size, "orient") {
+            Some("landscape") if width < height => std::mem::swap(&mut width, &mut height),
+            Some("portrait") if width > height => std::mem::swap(&mut width, &mut height),
+            _ => {}
+        }
+    }
+    if !width.is_finite() || !height.is_finite()
+        || !(72.0..=14_400.0).contains(&width) || !(72.0..=14_400.0).contains(&height)
+    {
+        width = previous.width;
+        height = previous.height;
+    }
+    let margin = kid(node, "pgMar");
+    let safe = |key: &str, fallback: f32, max: f32| {
+        margin.and_then(|m| fnum(at(m, key))).map(|v| v / 20.0)
+            .filter(|v| v.is_finite()).unwrap_or(fallback).clamp(0.0, max)
+    };
+    let left = safe("left", previous.left, width / 3.0);
+    let right = safe("right", previous.right, width / 3.0);
+    let top = safe("top", previous.top, height / 3.0);
+    let bottom = safe("bottom", previous.bottom, height / 3.0);
+    let break_type = kid(node, "type").and_then(|n| at(n, "val"));
+    let page_break = new_page && !matches!(break_type, Some("continuous"));
+    PageSetup { width, height, left, right, top, bottom, new_page: page_break }
+}
+
 pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
     let mut z = open_zip(src)?;
     let main = "word/document.xml";
@@ -665,42 +695,41 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
     let d = parse(&doc_xml)?;
     let body = desc(d.root_element(), "body").ok_or("Isi dokumen kosong")?;
 
-    // ukuran & margin halaman (sectPr terakhir di body)
-    let (mut pw, mut ph, mut ml, mut mr, mut mt, mut mb) = (595.3f32, 841.9f32, 72.0f32, 72.0f32, 72.0f32, 72.0f32);
-    if let Some(sp) = kids(body, "sectPr").last() {
-        if let Some(sz) = kid(*sp, "pgSz") {
-            if let (Some(w), Some(h)) = (fnum(at(sz, "w")), fnum(at(sz, "h"))) {
-                pw = w / 20.0;
-                ph = h / 20.0;
-            }
-        }
-        if let Some(m) = kid(*sp, "pgMar") {
-            ml = fnum(at(m, "left")).map(|v| v / 20.0).unwrap_or(ml);
-            mr = fnum(at(m, "right")).map(|v| v / 20.0).unwrap_or(mr);
-            mt = fnum(at(m, "top")).map(|v| v / 20.0).unwrap_or(mt);
-            mb = fnum(at(m, "bottom")).map(|v| v / 20.0).unwrap_or(mb);
-        }
-    }
-    // Metadata ukuran halaman/margin berasal dari XML dan harus dibatasi sebelum
-    // dipakai sebagai koordinat PDF.
-    if !pw.is_finite() || !ph.is_finite() || !(72.0..=14_400.0).contains(&pw) || !(72.0..=14_400.0).contains(&ph) {
-        (pw, ph) = (595.3, 841.9);
-    }
-    let safe_margin = |v: f32, max: f32, fallback: f32| {
-        if v.is_finite() { v.clamp(0.0, max) } else { fallback.min(max) }
+    let defaults = PageSetup {
+        width: 595.3, height: 841.9, left: 72.0, right: 72.0,
+        top: 72.0, bottom: 72.0, new_page: false,
     };
-    ml = safe_margin(ml, pw / 3.0, 72.0);
-    mr = safe_margin(mr, pw / 3.0, 72.0);
-    mt = safe_margin(mt, ph / 3.0, 72.0);
-    mb = safe_margin(mb, ph / 3.0, 72.0);
-
     let mut blocks = Vec::new();
     {
         let mut cv = Conv { pdf: &mut pdf, z: &mut z, rels, styles, num };
-        cv.blocks_into(body, false, &mut blocks);
+        let mut section_blocks = Vec::new();
+        let mut previous = defaults;
+        let mut section_index = 0usize;
+        for child in body.children().filter(|child| child.is_element()) {
+            if name(child) == "sectPr" {
+                continue;
+            }
+            if name(child) == "p" {
+                cv.para(child, false, &mut section_blocks);
+                if let Some(section) = kid(child, "pPr").and_then(|ppr| kid(ppr, "sectPr")) {
+                    let setup = section_setup(section, previous, section_index > 0);
+                    blocks.push(Block::Section(setup));
+                    blocks.append(&mut section_blocks);
+                    previous = PageSetup { new_page: false, ..setup };
+                    section_index += 1;
+                }
+            } else {
+                cv.blocks_into(child, false, &mut section_blocks);
+            }
+        }
+        let final_section = kids(body, "sectPr").last().copied();
+        let setup = final_section
+            .map(|section| section_setup(section, previous, section_index > 0))
+            .unwrap_or(PageSetup { new_page: section_index > 0, ..previous });
+        blocks.push(Block::Section(setup));
+        blocks.append(&mut section_blocks);
     }
-    let mut flow = Flow::new(pw, ph, ml.min(pw / 3.0), mr.min(pw / 3.0), mt, mb);
-    flow.ensure(&mut pdf);
+    let mut flow = Flow::new(defaults.width, defaults.height, defaults.left, defaults.right, defaults.top, defaults.bottom);
     for b in &blocks {
         flow.block(&mut pdf, b);
     }
