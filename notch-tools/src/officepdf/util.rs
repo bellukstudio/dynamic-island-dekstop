@@ -104,7 +104,7 @@ pub fn desc<'a, 'i>(n: Node<'a, 'i>, nm: &str) -> Option<Node<'a, 'i>> {
     n.descendants().find(|c| c.is_element() && name(*c) == nm)
 }
 pub fn fnum(s: Option<&str>) -> Option<f32> {
-    s.and_then(|v| v.trim().parse::<f32>().ok())
+    s.and_then(|v| v.trim().parse::<f32>().ok()).filter(|v| v.is_finite())
 }
 /// Atribut boolean OOXML: ada tanpa val => true; "0"/"false"/"off" => false.
 pub fn on(n: Node, nm: &str) -> Option<bool> {
@@ -187,4 +187,25 @@ pub fn rid<'a>(n: Node<'a, '_>) -> Option<&'a str> {
     n.attributes()
         .find(|a| a.name() == "id" && a.namespace().map(|ns| ns.contains("relationships")).unwrap_or(false))
         .map(|a| a.value())
+}
+
+
+#[cfg(test)]
+mod numeric_tests {
+    use super::fnum;
+
+    #[test]
+    fn parses_finite_ooxml_numbers() {
+        assert_eq!(fnum(Some("12700.5")), Some(12700.5));
+        assert_eq!(fnum(Some(" 42 ")), Some(42.0));
+    }
+
+    #[test]
+    fn rejects_non_finite_ooxml_numbers() {
+        assert_eq!(fnum(Some("NaN")), None);
+        assert_eq!(fnum(Some("inf")), None);
+        assert_eq!(fnum(Some("-Infinity")), None);
+        assert_eq!(fnum(Some("not-a-number")), None);
+        assert_eq!(fnum(None), None);
+    }
 }
