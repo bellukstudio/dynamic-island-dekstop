@@ -1290,7 +1290,7 @@ component ConvertPage inherits VerticalLayout {
         VerticalLayout {
             padding: 9px;
             spacing: 5px;
-            Text { text: "File sumber"; color: Theme.text-faint; font-size: 10px; }
+            Text { text: "File sumber (bisa pilih beberapa file sekaligus)"; color: Theme.text-faint; font-size: 10px; }
             path-input := TextInput { text: root.file-path; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Format tujuan: PNG/JPG/WebP/BMP/GIF atau PDF. DOCX/XLSX/PPTX memakai mesin bawaan; DOC/XLS/PPT/ODT/ODS/ODP/RTF/TXT/CSV memerlukan LibreOffice."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
             format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
