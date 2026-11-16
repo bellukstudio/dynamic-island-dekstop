@@ -1193,6 +1193,7 @@ component SettingsPage inherits VerticalLayout {
     in property <bool> focus-companion-on-break-end: true;
     in property <string> focus-companion-save-status: "";
     callback save-motion(bool, string, string, bool);
+    callback test-dock-play();
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
     callback test-nudge(string, string, string, string, bool);
     callback save-greeting(bool, string, string, string);
@@ -1514,7 +1515,10 @@ component SettingsPage inherits VerticalLayout {
             motion-interval-input := TextInput { text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
             motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
+            HorizontalLayout {
+                Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
+                Chip { label: "Tes animasi"; clicked => { root.test-dock-play(); } }
+            }
             Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
@@ -2293,6 +2297,7 @@ export component NotchWindow inherits Window {
     in property <int> dock: 0;
     in property <bool> play-interaction-active: false;
     in property <bool> dock-play-enabled: true;
+    in property <bool> play-test-request: false;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
     in property <float> ui-scale: 1.0;
     // Gambar hiasan tema (cahaya, scan, rim) yang dirender Rust dengan mask sudut akurat.
@@ -2437,6 +2442,7 @@ export component NotchWindow inherits Window {
     callback settings-save-behavior(string, string, string, string, bool);
     callback settings-save-autostart(bool);
     callback settings-save-motion(bool, string, string, bool);
+    callback settings-test-dock-play();
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
@@ -3021,6 +3027,7 @@ export component NotchWindow inherits Window {
                         save-autostart(enabled) => { root.settings-save-autostart(enabled); }
                         save-position(mode) => { root.settings-save-position(mode); }
                         save-motion(enabled, interval, maximum, dock-play) => { root.settings-save-motion(enabled, interval, maximum, dock-play); }
+                        test-dock-play => { root.settings-test-dock-play(); }
                         active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
                         pages-save-status: root.pages-save-status;
