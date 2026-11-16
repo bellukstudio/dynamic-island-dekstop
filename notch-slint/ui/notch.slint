@@ -5,6 +5,7 @@ export struct NoteItem { id: string, text: string }
 export struct ShelfItem { path: string, name: string, dir: bool }
 export struct ClipboardItem { preview: string, text: string }
 export struct ReminderItem { id: string, text: string, due: string, done: bool }
+export struct PrayerItem { name: string, time: string, state: int }
 // Satu sel kalender. kind: 0 = biasa, 1 = libur, 2 = cuti bersama, 3 = hari peringatan.
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
@@ -1048,6 +1049,20 @@ component SettingsPage inherits VerticalLayout {
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
     in property <string> prayer-remind-min: "10";
+    in property <[PrayerItem]> prayer-items;
+    in property <string> prayer-next-name: "Memuat jadwal...";
+    in property <string> prayer-next-time: "--:--";
+    in property <string> prayer-countdown: "--:--:--";
+    in property <string> prayer-status: "";
+    in property <bool> ramadan-enabled: false;
+    in property <string> ramadan-date: "";
+    in property <string> ramadan-imsak-countdown: "--:--:--";
+    in property <string> ramadan-buka-countdown: "--:--:--";
+    in property <string> ramadan-imsak-time: "";
+    in property <string> ramadan-buka-time: "";
+    in property <string> dhikr-arabic: "";
+    in property <string> dhikr-latin: "";
+    in property <string> dhikr-meaning: "";
     in property <string> pomodoro-focus: "25";
     in property <string> pomodoro-break: "5";
     in property <string> pomodoro-long-break: "15";
@@ -1418,6 +1433,104 @@ component PrivacyPage inherits VerticalLayout {
         color: Theme.text-faint; font-size: 8px; wrap: word-wrap;
     }
 }
+component PrayerPage inherits VerticalLayout {
+    in property <[PrayerItem]> items;
+    in property <string> next-name: "Memuat jadwal...";
+    in property <string> next-time: "--:--";
+    in property <string> countdown: "--:--:--";
+    in property <string> status: "";
+    in property <bool> ramadan: false;
+    in property <string> ramadan-date: "";
+    in property <string> imsak-countdown: "--:--:--";
+    in property <string> buka-countdown: "--:--:--";
+    in property <string> imsak-time: "";
+    in property <string> buka-time: "";
+    in property <string> mode: "tone";
+    in property <bool> remind-before: true;
+    in property <int> remind-min: 10;
+    in property <string> dhikr-arabic: "";
+    in property <string> dhikr-latin: "";
+    in property <string> dhikr-meaning: "";
+    callback refresh();
+    callback set-mode(string);
+    callback set-remind(bool);
+    callback set-remind-min(int);
+    callback toggle-ramadan();
+    callback dhikr-next();
+    spacing: 8px;
+    padding: 12px;
+    Text { text: "Jadwal shalat"; color: Theme.text; font-size: 16px; font-weight: 700; }
+    Rectangle {
+        height: 78px; border-radius: 12px; background: Theme.chip;
+        VerticalLayout {
+            padding: 10px; spacing: 2px;
+            Text { text: "WAKTU BERIKUTNYA · " + root.next-name; color: Theme.text-faint; font-size: 9px; font-weight: 700; }
+            HorizontalLayout {
+                Text { text: root.next-time; color: Theme.text; font-size: 17px; font-weight: 700; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.countdown; color: Theme.accent; font-size: 19px; font-weight: 700; }
+            }
+        }
+    }
+    Rectangle {
+        height: 128px; border-radius: 10px; background: Theme.chip;
+        VerticalLayout {
+            padding: 8px; spacing: 3px;
+            for item in root.items: HorizontalLayout {
+                height: 19px; spacing: 6px;
+                Text { text: item.name; color: item.state == 1 ? Theme.accent : Theme.text; font-size: 11px; horizontal-stretch: 1; }
+                Text { text: item.time; color: item.state == 2 ? Theme.text-faint : Theme.text; font-size: 11px; }
+                Text { text: item.state == 2 ? "✓" : (item.state == 1 ? "BERIKUTNYA" : ""); color: Theme.accent; font-size: 8px; }
+            }
+        }
+    }
+    HorizontalLayout {
+        spacing: 6px;
+        Chip { label: "Perbarui jadwal"; clicked => { root.refresh(); } }
+        Chip { label: root.ramadan ? "Matikan Ramadan" : "Mode Ramadan"; selected: root.ramadan; clicked => { root.toggle-ramadan(); } }
+    }
+    if root.ramadan: Rectangle {
+        height: 70px; border-radius: 10px; background: #d9770620;
+        HorizontalLayout {
+            padding: 8px; spacing: 8px;
+            VerticalLayout {
+                Text { text: "IMSAK · " + root.imsak-time; color: Theme.text; font-size: 9px; }
+                Text { text: root.imsak-countdown; color: Theme.accent; font-size: 16px; font-weight: 700; }
+            }
+            Rectangle { width: 1px; background: Theme.text-faint; }
+            VerticalLayout {
+                Text { text: "BUKA · " + root.buka-time; color: Theme.text; font-size: 9px; }
+                Text { text: root.buka-countdown; color: Theme.accent; font-size: 16px; font-weight: 700; }
+            }
+        }
+    }
+    HorizontalLayout {
+        spacing: 5px;
+        Text { text: "Mode"; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
+        Chip { label: "Nada"; selected: root.mode == "tone"; clicked => { root.set-mode("tone"); } }
+        Chip { label: "Adzan"; selected: root.mode == "adzan"; clicked => { root.set-mode("adzan"); } }
+        Chip { label: "Senyap"; selected: root.mode == "silent"; clicked => { root.set-mode("silent"); } }
+    }
+    HorizontalLayout {
+        spacing: 6px;
+        Chip { label: root.remind-before ? "Pengingat: aktif" : "Pengingat: mati"; selected: root.remind-before; clicked => { root.set-remind(!root.remind-before); } }
+        Chip { label: "−"; clicked => { root.set-remind-min(root.remind-min - 1); } }
+        Text { text: root.remind-min + " menit"; color: Theme.text; font-size: 10px; vertical-alignment: center; }
+        Chip { label: "+"; clicked => { root.set-remind-min(root.remind-min + 1); } }
+    }
+    Rectangle {
+        height: 1px; background: Theme.text-faint;
+    }
+    Text { text: "DZIKIR"; color: Theme.text-faint; font-size: 9px; font-weight: 700; }
+    Text { text: root.dhikr-arabic; color: Theme.accent; font-size: 19px; horizontal-alignment: center; }
+    Text { text: root.dhikr-latin; color: Theme.text; font-size: 10px; horizontal-alignment: center; }
+    Text { text: root.dhikr-meaning; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; wrap: word-wrap; }
+    HorizontalLayout {
+        Chip { label: "Dzikir berikutnya"; clicked => { root.dhikr-next(); } }
+        Rectangle { horizontal-stretch: 1; }
+        Text { text: root.status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; }
+    }
+}
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1589,6 +1702,12 @@ export component NotchWindow inherits Window {
     in property <image> emoji-tomato;
     in property <image> emoji-moon;
 
+    callback prayer-refresh();
+    callback prayer-set-mode(string);
+    callback prayer-set-remind(bool);
+    callback prayer-set-remind-min(int);
+    callback prayer-toggle-ramadan();
+    callback prayer-dhikr-next();
     callback media-control(string);
     callback adhan-stop();
     callback adhan-finished();
@@ -1875,6 +1994,31 @@ export component NotchWindow inherits Window {
                         source: root.meeting-source;
                         elapsed: root.meeting-elapsed;
                     }
+                    if root.page-id == "prayer": PrayerPage {
+                        items: root.prayer-items;
+                        next-name: root.prayer-next-name;
+                        next-time: root.prayer-next-time;
+                        countdown: root.prayer-countdown;
+                        status: root.prayer-status;
+                        ramadan: root.ramadan-enabled;
+                        ramadan-date: root.ramadan-date;
+                        imsak-countdown: root.ramadan-imsak-countdown;
+                        buka-countdown: root.ramadan-buka-countdown;
+                        imsak-time: root.ramadan-imsak-time;
+                        buka-time: root.ramadan-buka-time;
+                        mode: root.prayer-mode;
+                        remind-before: root.prayer-remind-before == "true";
+                        remind-min: root.prayer-remind-min;
+                        dhikr-arabic: root.dhikr-arabic;
+                        dhikr-latin: root.dhikr-latin;
+                        dhikr-meaning: root.dhikr-meaning;
+                        refresh => { root.prayer-refresh(); }
+                        set-mode(v) => { root.prayer-set-mode(v); }
+                        set-remind(v) => { root.prayer-set-remind(v); }
+                        set-remind-min(v) => { root.prayer-set-remind-min(v); }
+                        toggle-ramadan => { root.prayer-toggle-ramadan(); }
+                        dhikr-next => { root.prayer-dhikr-next(); }
+                    }
                     if root.page-id == "android": AndroidPage {
                         status: root.android-status;
                         devices: root.android-devices;
@@ -2043,7 +2187,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                     if root.page-id != "settings" && root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
-                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "shelf" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "privacy" && root.page-id != "uji":
+                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "shelf" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "privacy" && root.page-id != "prayer" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
                 }
             }
