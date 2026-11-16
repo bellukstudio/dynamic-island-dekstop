@@ -1137,6 +1137,8 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_appearance_custom_text(cfg.appearance.text.clone().into());
     win.set_appearance_dark_bg(cfg.appearance.dark_bg.clone().into());
     win.set_appearance_light_bg(cfg.appearance.light_bg.clone().into());
+    win.set_prayer_province(cfg.prayer.provinsi.clone().into());
+    win.set_prayer_city(cfg.prayer.kabkota.clone().into());
     win.set_prayer_mode(cfg.prayer.mode.clone().into());
     win.set_prayer_remind_before(cfg.prayer.remind_before.to_string().into());
     win.set_prayer_remind_min(cfg.prayer.remind_min.to_string().into());
