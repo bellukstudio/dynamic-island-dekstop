@@ -1831,7 +1831,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let running = compress_running.clone();
         win.on_compress_run(move |raw_path| {
+            let mut seen = std::collections::HashSet::new();
             let paths = raw_path.split('\n').map(str::trim).filter(|path| !path.is_empty())
+                .filter(|path| seen.insert(path.to_ascii_lowercase()))
                 .map(str::to_string).collect::<Vec<_>>();
             if paths.is_empty() {
                 if let Some(w) = weak.upgrade() { w.set_compress_status("Pilih minimal satu file sebelum kompresi".into()); }
