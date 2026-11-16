@@ -2606,7 +2606,7 @@ export component NotchWindow inherits Window {
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
     if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
-        x: root.dock == 3 ? 45px : (root.dock == 4 ? 5px : (root.width - self.width) / 2);
+        x: root.dock == 3 ? 34px : (root.dock == 4 ? 16px : (root.width - self.width) / 2);
         y: root.dock >= 3 ? (root.height - self.height) / 2 : (root.dock == 2 ? 0px : 42px);
         bottom: root.dock == 2;
         side: root.dock >= 3;
