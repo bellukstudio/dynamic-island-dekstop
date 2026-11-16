@@ -712,7 +712,7 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
         let mut cv = Conv { pdf: &mut pdf, z: &mut z, rels, styles, num };
         let mut section_blocks = Vec::new();
         let mut previous = defaults;
-        let mut section_index = 0usize;
+        let mut pending_break = SectionBreak::None;
         for child in body.children().filter(|child| child.is_element()) {
             if name(child) == "sectPr" {
                 continue;
@@ -720,23 +720,28 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
             if name(child) == "p" {
                 cv.para(child, false, &mut section_blocks);
                 if let Some(section) = kid(child, "pPr").and_then(|ppr| kid(ppr, "sectPr")) {
-                    let setup = section_setup(section, previous, section_index > 0);
+                    // The paragraph sectPr describes the section that just ended:
+                    // use its page geometry for the accumulated content, and carry
+                    // its break type forward to the start of the next section.
+                    let mut setup = section_setup(section, previous, false);
+                    setup.break_type = pending_break;
                     blocks.push(Block::Section(setup));
                     blocks.append(&mut section_blocks);
+                    pending_break = section_setup(section, previous, true).break_type;
                     previous = PageSetup { break_type: SectionBreak::None, ..setup };
-                    section_index += 1;
                 }
             } else {
                 cv.blocks_into(child, false, &mut section_blocks);
             }
         }
+        // The body-level sectPr describes the final section. Its page layout
+        // applies to the remaining blocks; the preceding paragraph sectPr
+        // determines whether this section starts on a new/odd/even page.
         let final_section = kids(body, "sectPr").last().copied();
-        let setup = final_section
-            .map(|section| section_setup(section, previous, section_index > 0))
-            .unwrap_or(PageSetup {
-                break_type: if section_index > 0 { SectionBreak::NextPage } else { SectionBreak::None },
-                ..previous
-            });
+        let mut setup = final_section
+            .map(|section| section_setup(section, previous, false))
+            .unwrap_or(previous);
+        setup.break_type = pending_break;
         blocks.push(Block::Section(setup));
         blocks.append(&mut section_blocks);
     }
