@@ -320,6 +320,9 @@ component MediaPage inherits Rectangle {
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
     in-out property <bool> lyrics-open: false;
+    callback prev;
+    callback toggle;
+    callback next;
     MediaPlayer {
         visible: !root.lyrics-open;
         art: root.art; has-art: root.has-art; title: root.title; artist: root.artist;
