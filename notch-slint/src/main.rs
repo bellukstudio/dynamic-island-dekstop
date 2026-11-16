@@ -2137,17 +2137,95 @@ fn main() -> Result<(), slint::PlatformError> {
 
     // --- Pomodoro (state machine dari notch-core, sama dengan pomodoro.ts) ---
     let pomo = Rc::new(RefCell::new(Pomodoro::new(&cfg.pomodoro)));
+    let focus_companion_runtime = Rc::new(RefCell::new(cfg.focus_companion.clone()));
+    let companion_last_phase = Rc::new(Cell::new(Phase::Focus));
+    let companion_focus_started = Rc::new(Cell::new(false));
+    let companion_halfway_shown = Rc::new(Cell::new(false));
+    let companion_hide_timer = Rc::new(Timer::default());
     show_pomo(&win, &pomo.borrow());
     let pomo_timer = Timer::default();
     {
         let weak = win.as_weak();
         let pomo = pomo.clone();
+        let companion = focus_companion_runtime.clone();
+        let last_phase = companion_last_phase.clone();
+        let focus_started = companion_focus_started.clone();
+        let halfway_shown = companion_halfway_shown.clone();
+        let hide_timer = companion_hide_timer.clone();
         pomo_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             let mut p = pomo.borrow_mut();
-            if !p.running() {
-                return;
+            let finished = if p.running() { p.tick(Instant::now()) } else { None };
+            let phase = p.phase();
+
+            // Event otomatis hanya dipicu ketika fase benar-benar selesai, bukan saat tombol Skip ditekan.
+            if let Some(completed_phase) = finished {
+                let settings = companion.borrow().clone();
+                if settings.enabled {
+                    let message = match completed_phase {
+                        Phase::Focus if settings.on_focus_complete => Some(("Fokus selesai! Kerja bagus. 🎉", "Focus Companion · waktunya istirahat")),
+                        Phase::Break | Phase::Long if settings.on_break_end => Some(("Istirahat selesai. Siap fokus lagi? 🚀", "Focus Companion · sesi fokus berikutnya")),
+                        _ => None,
+                    };
+                    if let (Some((message, detail)), Some(w)) = (message, weak.upgrade()) {
+                        if !w.get_meeting_active() && !w.get_adhan_active() {
+                            w.set_nudge_message(message.into());
+                            w.set_nudge_detail(detail.into());
+                            w.set_nudge_visible(true);
+                            let weak_hide = weak.clone();
+                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                            });
+                        }
+                    }
+                }
+                if completed_phase == Phase::Focus {
+                    focus_started.set(false);
+                    halfway_shown.set(false);
+                } else if matches!(completed_phase, Phase::Break | Phase::Long) {
+                    focus_started.set(false);
+                    halfway_shown.set(false);
+                }
+                last_phase.set(phase);
             }
-            let _finished = p.tick(Instant::now());
+
+            // Sesi fokus dimulai saat timer pertama kali dijalankan, bukan saat resume setelah jeda.
+            if phase == Phase::Focus && p.running() && !focus_started.get() {
+                focus_started.set(true);
+                halfway_shown.set(false);
+                let settings = companion.borrow().clone();
+                if settings.enabled && settings.on_start {
+                    if let Some(w) = weak.upgrade() {
+                        if !w.get_meeting_active() && !w.get_adhan_active() {
+                            w.set_nudge_message("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯".into());
+                            w.set_nudge_detail("Focus Companion · sesi fokus dimulai".into());
+                            w.set_nudge_visible(true);
+                            let weak_hide = weak.clone();
+                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                            });
+                        }
+                    }
+                }
+            }
+
+            if phase == Phase::Focus && p.running() && p.progress() >= 0.5 && !halfway_shown.get() {
+                halfway_shown.set(true);
+                let settings = companion.borrow().clone();
+                if settings.enabled && settings.on_halfway {
+                    if let Some(w) = weak.upgrade() {
+                        if !w.get_meeting_active() && !w.get_adhan_active() {
+                            w.set_nudge_message("Sudah separuh jalan! Pertahankan ritmenya. 💪".into());
+                            w.set_nudge_detail("Focus Companion · 50% sesi fokus".into());
+                            w.set_nudge_visible(true);
+                            let weak_hide = weak.clone();
+                            hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
+                                if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                            });
+                        }
+                    }
+                }
+            }
+
             if let Some(w) = weak.upgrade() {
                 show_pomo(&w, &p);
             }
@@ -3285,6 +3363,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
+        let runtime = focus_companion_runtime.clone();
         let mut updated_config = cfg.clone();
         win.on_settings_save_focus_companion(move |enabled, on_start, on_halfway, on_focus_complete, on_break_end| {
             let mut next = updated_config.clone();
@@ -3296,6 +3375,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
+                    *runtime.borrow_mut() = next.focus_companion.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_focus_companion_enabled(next.focus_companion.enabled);
                         w.set_focus_companion_on_start(next.focus_companion.on_start);
