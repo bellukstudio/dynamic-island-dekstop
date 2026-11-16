@@ -866,12 +866,21 @@ pub struct EyeRenderer {
     layers: Vec<Layer>,
     cw: f32,
     ch: f32,
+    vertical: bool,
 }
 
 impl EyeRenderer {
     pub fn new(skin_name: &str, canvas_w: f32, canvas_h: f32) -> EyeRenderer {
         let skin = skin_index(skin_name);
-        EyeRenderer { skin, layers: fill_layers(&SKINS[skin]), cw: canvas_w, ch: canvas_h }
+        EyeRenderer { skin, layers: fill_layers(&SKINS[skin]), cw: canvas_w, ch: canvas_h, vertical: false }
+    }
+
+    /// Tata dua mata bertumpuk untuk notch yang menempel di sisi kiri/kanan layar.
+    /// Ukuran canvas sebaiknya portrait (mis. 34 x 130 px).
+    pub fn new_vertical(skin_name: &str, canvas_w: f32, canvas_h: f32) -> EyeRenderer {
+        let mut renderer = Self::new(skin_name, canvas_w, canvas_h);
+        renderer.vertical = true;
+        renderer
     }
 
     pub fn skin_name(&self) -> &'static str {
@@ -890,17 +899,30 @@ impl EyeRenderer {
         let (cw, ch) = (wpx as usize, hpx as usize);
         let mut out = Canvas::new(cw, ch);
 
-        // Tata letak: dua mata sejajar atas, gap 9 px, diletakkan di tengah canvas lalu digeser tatapan.
-        let wc = face.left.w + GAP + face.right.w;
-        let hc = face.left.h.max(face.right.h);
-        let ox = (self.cw - wc) / 2.0 + anim.look.0;
-        let oy = (self.ch - hc) / 2.0 + 1.0 + anim.look.1;
+        // Dua orientasi memakai bentuk mata dan animasi yang sama; hanya sumbu susunannya berubah.
+        let (wc, hc, ox, oy, eyes) = if self.vertical {
+            let wc = face.left.w.max(face.right.w);
+            let hc = face.left.h + GAP + face.right.h;
+            let ox = (self.cw - wc) / 2.0 + anim.look.0;
+            let oy = (self.ch - hc) / 2.0 + 1.0 + anim.look.1;
+            (wc, hc, ox, oy, [( &face.left, oy ), ( &face.right, oy + face.left.h + GAP )])
+        } else {
+            let wc = face.left.w + GAP + face.right.w;
+            let hc = face.left.h.max(face.right.h);
+            let ox = (self.cw - wc) / 2.0 + anim.look.0;
+            let oy = (self.ch - hc) / 2.0 + 1.0 + anim.look.1;
+            (wc, hc, ox, oy, [( &face.left, ox ), ( &face.right, ox + face.left.w + GAP )])
+        };
         let (pulse, opacity) = mood_anim(anim, skin);
         let blink_sy = if anim.blink && anim.mood != Mood::Love { 0.08 } else { 1.0 };
 
-        let eyes = [(&face.left, ox), (&face.right, ox + face.left.w + GAP)];
-        for (e, ex) in eyes {
-            let xf = Xf { cx: ex + e.w / 2.0, cy: oy + e.h / 2.0, sx: pulse, sy: pulse * blink_sy, w: e.w, h: e.h };
+        for (e, offset) in eyes {
+            let (cx, cy) = if self.vertical {
+                (ox + e.w / 2.0, offset + e.h / 2.0)
+            } else {
+                (offset + e.w / 2.0, oy + e.h / 2.0)
+            };
+            let xf = Xf { cx, cy, sx: pulse, sy: pulse * blink_sy, w: e.w, h: e.h };
             let mut eye = Canvas::new(cw, ch);
             self.draw_eye(&mut eye, e, &xf, sf);
             out.merge(&eye, e.bright, opacity);
@@ -1240,6 +1262,19 @@ mod tests {
                 let px = r.render(&f, &anim(m), 1.0);
                 assert_eq!(px.len(), 120 * 34 * 4, "{name}/{}", m.name());
                 assert!(px.chunks_exact(4).any(|p| p[3] > 128), "{name}/{} kosong", m.name());
+            }
+        }
+    }
+
+    #[test]
+    fn renderer_vertikal_menumpuk_mata_dan_menghormati_ukuran_canvas() {
+        for name in skin_names() {
+            let r = EyeRenderer::new_vertical(name, 34.0, 120.0);
+            assert_eq!(r.size_px(1.0), (34, 120));
+            for mood in Mood::ALL {
+                let frame = r.render(&Face::for_mood(mood, skin_index(name)), &anim(mood), 1.0);
+                assert_eq!(frame.len(), 34 * 120 * 4, "{name}/{}", mood.name());
+                assert!(frame.chunks_exact(4).any(|p| p[3] > 128), "{name}/{} kosong", mood.name());
             }
         }
     }
