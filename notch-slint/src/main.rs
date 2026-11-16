@@ -3259,6 +3259,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 return; // mata tersembunyi saat hub terbuka: tidak perlu menggambar
             }
 
+            let vertical = matches!(w.get_dock(), 3 | 4);
+            if e.renderer.is_vertical() != vertical {
+                let skin_name = e.renderer.skin_name();
+                e.renderer = if vertical {
+                    EyeRenderer::new_vertical(skin_name, EYES_H, EYES_W)
+                } else {
+                    EyeRenderer::new(skin_name, EYES_W, EYES_H)
+                };
+                e.last_key = None;
+            }
             let sf = w.window().scale_factor();
             let anim = Anim { mood: e.cur, t: ts, t_mood: ts - e.cur_since, look: e.look, blink };
             let key = (
