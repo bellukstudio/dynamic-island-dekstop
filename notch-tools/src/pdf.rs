@@ -7,6 +7,18 @@ use std::sync::{Mutex, OnceLock};
 static RESOURCE_DIR: OnceLock<PathBuf> = OnceLock::new();
 static PDFIUM_LOCK: Mutex<()> = Mutex::new(());
 
+trait IntoDynamicImage {
+    fn into_dynamic_image(self) -> Option<DynamicImage>;
+}
+
+impl IntoDynamicImage for DynamicImage {
+    fn into_dynamic_image(self) -> Option<DynamicImage> { Some(self) }
+}
+
+impl<E> IntoDynamicImage for Result<DynamicImage, E> {
+    fn into_dynamic_image(self) -> Option<DynamicImage> { self.ok() }
+}
+
 /// Configure the application's resource directory before rendering PDF pages.
 pub fn set_resource_dir(path: PathBuf) {
     let _ = RESOURCE_DIR.set(path);
@@ -70,7 +82,7 @@ where
         let height = ((page.height().value / 72.0 * dpi as f32).round() as i32).max(1);
         let config = PdfRenderConfig::new().set_target_size(width, height);
         let bitmap = page.render_with_config(&config).map_err(|error| error.to_string())?;
-        let image = bitmap.as_image().into_dyn()
+        let image = bitmap.as_image().into_dynamic_image()
             .ok_or_else(|| "Gagal membaca bitmap halaman PDF".to_string())?;
         callback(index as usize, total, image)?;
     }
