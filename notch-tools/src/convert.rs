@@ -513,6 +513,19 @@ mod office_format_tests {
     use std::path::Path;
 
     #[test]
+    fn exposes_image_targets_without_the_source_format() {
+        assert_eq!(
+            super::available_targets(Path::new("photo.jpg")),
+            vec!["png", "webp", "bmp", "gif", "pdf"]
+        );
+        assert_eq!(
+            super::available_targets(Path::new("photo.png")),
+            vec!["jpg", "webp", "bmp", "gif", "pdf"]
+        );
+        assert!(super::available_targets(Path::new("archive.zip")).is_empty());
+    }
+
+    #[test]
     fn chooses_a_default_target_for_each_supported_input_family() {
         assert_eq!(default_target(Path::new("photo.jpg")), Some("png"));
         assert_eq!(default_target(Path::new("photo.png")), Some("jpg"));
