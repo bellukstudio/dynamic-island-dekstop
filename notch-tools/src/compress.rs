@@ -148,6 +148,15 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn rejects_malformed_pdf_without_creating_an_output() {
+        let path = std::env::temp_dir().join(format!("notch-tools-invalid-{}.pdf", std::process::id()));
+        std::fs::write(&path, b"not a PDF").unwrap();
+        let error = super::compress_pdf_file(&path, 30).unwrap_err();
+        assert!(error.contains("PDF"));
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
     fn rejects_unsupported_input_before_reading_file() {
         let error = compress_jpeg(Path::new("does-not-need-to-exist.webp")).unwrap_err();
         assert!(error.contains("Format kompresi tidak didukung"));
