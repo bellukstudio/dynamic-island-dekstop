@@ -2314,6 +2314,8 @@ export component NotchWindow inherits Window {
     // Gambar mata (8 mood x 20 skin) dirender Rust: 130 x 34 horizontal atau 34 x 130 untuk dock samping.
     in property <image> eyes-image;
     in property <string> eyes-mood: "normal";
+    in property <float> eyes-offset-x: 0;
+    in property <float> eyes-offset-y: 0;
 
     in property <float> cpu: 0;
     in property <float> ram: 0;
@@ -2668,8 +2670,8 @@ export component NotchWindow inherits Window {
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
             Image {
                 source: root.eyes-image;
-                x: root.dock == 3 ? 0px : (root.dock == 4 ? 0px : (parent.width - 130px) / 2);
-                y: root.dock >= 3 ? 0px : 0px;
+                x: (root.dock >= 3 ? 0px : (parent.width - 130px) / 2) + root.eyes-offset-x * 1px;
+                y: root.eyes-offset-y * 1px;
                 width: root.dock >= 3 ? 34px : 130px;
                 height: root.dock >= 3 ? 130px : 34px;
                 image-fit: fill;
@@ -2680,8 +2682,8 @@ export component NotchWindow inherits Window {
             // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
             Rectangle {
                 visible: !root.expanded && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
-                x: root.dock >= 3 ? 13px : (parent.width - self.width) / 2;
-                y: root.dock >= 3 ? 112px : 27px;
+                x: (root.dock >= 3 ? 13px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
+                y: (root.dock >= 3 ? 112px : 27px) + root.eyes-offset-y * 1px;
                 width: root.eyes-mood == "happy" ? 14px
                     : root.eyes-mood == "sleepy" ? 7px
                     : root.eyes-mood == "surprised" ? 7px
