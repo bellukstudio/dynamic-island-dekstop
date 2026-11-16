@@ -421,6 +421,20 @@ pub fn convert_pdf_to_images(
     dpi: u32,
     quality: u8,
 ) -> Result<(PathBuf, usize, u64), String> {
+    convert_pdf_to_images_with_progress(path, target, dpi, quality, |_, _| {})
+}
+
+/// Convert PDF pages while reporting each completed page (1-based, total).
+pub fn convert_pdf_to_images_with_progress<F>(
+    path: &Path,
+    target: &str,
+    dpi: u32,
+    quality: u8,
+    mut on_progress: F,
+) -> Result<(PathBuf, usize, u64), String>
+where
+    F: FnMut(usize, usize),
+{
     let target = target.trim().trim_start_matches('.').to_ascii_lowercase();
     let format = match target.as_str() {
         "png" => ImageFormat::Png,
@@ -472,6 +486,7 @@ pub fn convert_pdf_to_images(
         if first_output.is_none() {
             first_output = Some(output_path);
         }
+        on_progress(index + 1, total);
         Ok(())
     });
 
