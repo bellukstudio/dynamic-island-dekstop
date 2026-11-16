@@ -2693,10 +2693,10 @@ export component NotchWindow inherits Window {
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "sleepy" ? 2px
                     : root.eyes-mood == "suspicious" ? 5px : 3px;
-                border-radius: root.eyes-mood == "surprised" ? 50%
-                    : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 0 0 7px 7px
-                    : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px 6px 0 0
-                    : root.eyes-mood == "suspicious" ? 0 5px 5px 0 : 2px;
+                border-radius: root.eyes-mood == "surprised" ? 4px
+                    : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 7px
+                    : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px
+                    : root.eyes-mood == "suspicious" ? 5px : 2px;
                 background: root.eyes-mood == "happy" ? #82ffbe
                     : root.eyes-mood == "sleepy" ? #9696c880
                     : root.eyes-mood == "surprised" ? #fff08c
