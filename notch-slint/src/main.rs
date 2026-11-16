@@ -2104,6 +2104,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (open_ms, close_ms) = (open_ms.clone(), close_ms.clone());
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
+            w.set_play_interaction_active(hovered);
             if hovered {
                 close_timer.stop();
                 if !w.get_expanded() {
@@ -4176,18 +4177,92 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    // Bottom/Side Play native tahap awal: animasi idle kecil pada wajah saat dock bawah/samping.
-    // Menggunakan satu timer Slint (tanpa WebView, CSS, requestAnimationFrame, atau pemindahan window OS).
-    // Fase gerak diselingi jeda agar tidak mengganggu mata saat pengguna sedang berinteraksi.
+    // Bottom Play / Side Play native: mesin gerak organik berbasis waktu dan easing.
+    // Semua transform tetap di dalam Window Slint; tidak menggeser native window.
     let dock_play_timer = Timer::default();
     {
         let weak = win.as_weak();
-        let started_at = Instant::now();
-        dock_play_timer.start(TimerMode::Repeated, Duration::from_millis(33), move || {
+        let mut next_at = Instant::now() + Duration::from_secs(6);
+        let mut active: Option<(u8, Instant, Duration, f32)> = None;
+        let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
+
+        dock_play_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
+            let now = Instant::now();
             let dock = w.get_dock();
             let supported = matches!(dock, 2 | 3 | 4);
-            if !w.get_dock_play_enabled() || !supported || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+            let blocked = !w.get_dock_play_enabled()
+                || !supported
+                || w.get_expanded()
+                || w.get_play_interaction_active()
+                || w.get_meeting_active()
+                || w.get_adhan_active();
+
+            if blocked {
+                active = None;
+                w.set_play_offset(0.0);
+                w.set_play_body_scale_x(1.0);
+                w.set_play_body_scale_y(1.0);
+                w.set_eyes_offset_x(0.0);
+                w.set_eyes_offset_y(0.0);
+                w.set_eyes_scale_x(1.0);
+                w.set_eyes_scale_y(1.0);
+                next_at = now + Duration::from_secs(3);
+                return;
+            }
+
+            // Pilih gerakan dengan variasi jeda. Musik membuat Notch lebih ekspresif;
+            // mood mengantuk memperlambat gerakan tanpa mematikan fitur.
+            if active.is_none() && now >= next_at {
+                seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+                let roll = (seed >> 32) as u32;
+                let sleepy = w.get_eyes_mood() == "sleepy";
+                let playing = w.get_media_playing();
+                let choice = if sleepy {
+                    (roll % 4) as u8 + 4 // squish, sway, dance ringan, yawn
+                } else if playing {
+                    (roll % 7) as u8 // liquid, ghost, roam, wiggle, squish, sway, dance
+                } else {
+                    (roll % 8) as u8
+                };
+                let duration_ms = match choice {
+                    0 => 2_500, // liquid
+                    1 => 2_900, // ghost
+                    2 => 4_200, // roam
+                    3 => 1_650, // wiggle
+                    4 => 1_700, // squish
+                    5 => 3_200, // sway
+                    6 => 2_450, // dance
+                    _ => 2_800, // yawn
+                };
+                let direction = if roll & 1 == 0 { -1.0 } else { 1.0 };
+                active = Some((choice, now, Duration::from_millis(duration_ms), direction));
+            }
+
+            let Some((kind, started, duration, direction)) = active else {
+                w.set_play_offset(0.0);
+                w.set_play_body_scale_x(1.0);
+                w.set_play_body_scale_y(1.0);
+                w.set_eyes_offset_x(0.0);
+                w.set_eyes_offset_y(0.0);
+                w.set_eyes_scale_x(1.0);
+                w.set_eyes_scale_y(1.0);
+                return;
+            };
+
+            let elapsed = now.saturating_duration_since(started).as_secs_f32();
+            let total = duration.as_secs_f32().max(0.001);
+            let t = (elapsed / total).clamp(0.0, 1.0);
+            if t >= 1.0 {
+                active = None;
+                let mut interval = if w.get_media_playing() { 6 } else { 10 };
+                if w.get_eyes_mood() == "sleepy" { interval = 15; }
+                seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+                let extra = (seed >> 32) as u64 % (if interval == 6 { 5 } else { 7 });
+                next_at = now + Duration::from_secs(interval + extra);
+                w.set_play_offset(0.0);
+                w.set_play_body_scale_x(1.0);
+                w.set_play_body_scale_y(1.0);
                 w.set_eyes_offset_x(0.0);
                 w.set_eyes_offset_y(0.0);
                 w.set_eyes_scale_x(1.0);
@@ -4195,33 +4270,70 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
 
-            // Siklus 4,2 detik: gerak lembut 1,8 detik lalu jeda 2,4 detik.
-            let phase = started_at.elapsed().as_secs_f32() % 4.2;
-            if phase >= 1.8 {
-                w.set_eyes_offset_x(0.0);
-                w.set_eyes_offset_y(0.0);
-                w.set_eyes_scale_x(1.0);
-                w.set_eyes_scale_y(1.0);
-                return;
+            // Envelope halus: setiap gerakan masuk dan kembali ke posisi netral tanpa hentakan.
+            let envelope = (std::f32::consts::PI * t).sin().max(0.0);
+            let wave = (std::f32::consts::TAU * t).sin();
+            let fast_wave = (std::f32::consts::TAU * 3.0 * t).sin();
+            let mut offset = 0.0;
+            let mut sx = 1.0;
+            let mut sy = 1.0;
+
+            match kind {
+                0 => { // LIQUID: mengalir dan beriak seperti agar-agar.
+                    offset = 22.0 * wave * envelope;
+                    sx += 0.075 * fast_wave * envelope;
+                    sy -= 0.055 * fast_wave * envelope;
+                }
+                1 => { // GHOST: meregang tinggi lalu kembali turun.
+                    let lift = (std::f32::consts::PI * t).sin().max(0.0);
+                    sx = 1.0 - 0.13 * lift;
+                    sy = 1.0 + 0.38 * lift;
+                    offset = -5.0 * lift;
+                }
+                2 => { // ROAM: meluncur ke satu sisi lalu pulang.
+                    offset = direction * 66.0 * envelope;
+                    sx += 0.035 * envelope;
+                    sy -= 0.025 * envelope;
+                }
+                3 => { // WIGGLE: getaran berirama yang tetap lembut.
+                    offset = 10.0 * fast_wave * envelope;
+                    sx += 0.045 * fast_wave * envelope;
+                    sy -= 0.035 * fast_wave * envelope;
+                }
+                4 => { // SQUISH: gepeng-memanjang bergantian.
+                    let pulse = (std::f32::consts::TAU * 2.5 * t).sin() * envelope;
+                    sx += 0.12 * pulse;
+                    sy -= 0.10 * pulse;
+                }
+                5 => { // SWAY: ayunan lambat.
+                    offset = 9.0 * wave * envelope;
+                    sx += 0.025 * wave * envelope;
+                    sy -= 0.02 * wave * envelope;
+                }
+                6 => { // DANCE: dua ketukan cepat saat musik aktif.
+                    let beat = (std::f32::consts::TAU * 4.0 * t).sin();
+                    offset = 13.0 * beat * envelope;
+                    sx += 0.07 * beat * envelope;
+                    sy -= 0.055 * beat * envelope;
+                }
+                _ => { // YAWN: meregang panjang, menahan, lalu lemas.
+                    let stretch = (std::f32::consts::PI * t).sin().max(0.0);
+                    sx = 1.0 - 0.07 * stretch;
+                    sy = 1.0 + 0.22 * stretch;
+                }
             }
-            let progress = phase / 1.8;
-            let envelope = (std::f32::consts::PI * progress).sin().max(0.0);
-            let wave = (progress * std::f32::consts::TAU * 2.0).sin();
-            let drift = wave * envelope * 3.2;
-            let settle = wave.abs() * envelope * 0.8;
-            // Squash/stretch kecil pada wajah; orientasi dibalik untuk dock samping.
-            let squash = wave * envelope * 0.035;
-            if dock == 2 {
-                w.set_eyes_offset_x(drift);
-                w.set_eyes_offset_y(-settle);
-                w.set_eyes_scale_x(1.0 + squash);
-                w.set_eyes_scale_y(1.0 - squash);
-            } else {
-                w.set_eyes_offset_x(-settle);
-                w.set_eyes_offset_y(drift);
-                w.set_eyes_scale_x(1.0 - squash);
-                w.set_eyes_scale_y(1.0 + squash);
-            }
+
+            // Di dock samping, sumbu offset tetap mengikuti tepi secara vertikal.
+            // Skala badan dan wajah dikendalikan bersama agar ekspresi tidak terlepas dari bentuk.
+            let side = dock == 3 || dock == 4;
+            let (body_x, body_y) = if side { (sx, sy) } else { (sx, sy) };
+            w.set_play_offset(offset);
+            w.set_play_body_scale_x(body_x);
+            w.set_play_body_scale_y(body_y);
+            w.set_eyes_offset_x(if side { 0.0 } else { offset * 0.10 });
+            w.set_eyes_offset_y(if side { offset * 0.10 } else { 0.0 });
+            w.set_eyes_scale_x(body_x);
+            w.set_eyes_scale_y(body_y);
         });
     }
 
