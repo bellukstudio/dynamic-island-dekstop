@@ -53,6 +53,17 @@ fn load_convert_history() -> serde_json::Value {
         .unwrap_or_else(|| serde_json::json!([]))
 }
 
+fn latest_convert_output() -> Option<std::path::PathBuf> {
+    load_convert_history()
+        .as_array()?
+        .iter()
+        .rev()
+        .find(|entry| entry.get("status").and_then(serde_json::Value::as_str) == Some("OK"))
+        .and_then(|entry| entry.get("output").and_then(serde_json::Value::as_str))
+        .filter(|value| !value.is_empty())
+        .map(std::path::PathBuf::from)
+}
+
 fn format_convert_history() -> String {
     let history = load_convert_history();
     let Some(entries) = history.as_array() else { return "Belum ada riwayat konversi".into(); };
@@ -1722,7 +1733,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let last_output = convert_last_output.clone();
         let weak = win.as_weak();
         win.on_convert_reveal(move || {
-            let output = last_output.lock().unwrap_or_else(|error| error.into_inner()).clone();
+            let output = last_output.lock().unwrap_or_else(|error| error.into_inner()).clone()
+                .or_else(latest_convert_output);
             if let Some(output) = output {
                 let folder = if output.is_dir() {
                     output.as_path()
@@ -1733,9 +1745,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() {
                         w.set_convert_status(format!("Gagal membuka folder hasil: {error}").into());
                     }
+                } else if let Some(w) = weak.upgrade() {
+                    w.set_convert_status(format!("Membuka folder: {}", folder.display()).into());
                 }
             } else if let Some(w) = weak.upgrade() {
-                w.set_convert_status("Belum ada hasil konversi untuk dibuka".into());
+                w.set_convert_status("Belum ada hasil konversi berhasil di riwayat".into());
             }
         });
     }
