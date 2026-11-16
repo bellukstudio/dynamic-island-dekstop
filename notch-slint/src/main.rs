@@ -966,32 +966,62 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_ui_scale(cfg.scale as f32);
     shell.place(&win, COLLAPSED);
 
-    // Liquid movement: maksimal beberapa perpindahan acak saat notch idle.
-    // Nonaktif secara default; preferensi tersimpan di [motion] pada config.
+    // Liquid movement: perpindahan acak yang halus, terbatas, dan hanya saat notch idle.
+    // Durasi animasi dibuat lambat agar gerakan terasa organik, bukan berpindah mendadak.
     let liquid_move_timer = Timer::default();
     if cfg.motion.enabled {
         let weak = win.as_weak();
         let shell = shell.clone();
-        let interval = cfg.motion.interval_secs.clamp(60, 3600);
+        let interval = cfg.motion.interval_secs.clamp(60, 3_600);
         let max_moves = cfg.motion.max_moves.clamp(1, 10);
         let started_at = Instant::now();
         let mut last_move = Instant::now();
         let mut moves = 0u32;
-        liquid_move_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
+        let mut animation: Option<(PhysicalPosition, PhysicalPosition, Instant)> = None;
+        const MOVE_DURATION: Duration = Duration::from_millis(2_800);
+
+        liquid_move_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
-            if moves >= max_moves || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+
+            if w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+                // Jangan biarkan animasi berjalan di bawah overlay prioritas.
+                if animation.take().is_some() {
+                    shell.place(&w, COLLAPSED);
+                }
                 return;
             }
-            if last_move.elapsed() < Duration::from_secs(u64::from(interval)) { return; }
-            let work = platform::work_area(None);
+
+            if let Some((from, to, began)) = animation {
+                let progress = (began.elapsed().as_secs_f32() / MOVE_DURATION.as_secs_f32()).clamp(0.0, 1.0);
+                // Smoothstep (ease-in-out): akselerasi dan perlambatan lembut di kedua ujung.
+                let eased = progress * progress * (3.0 - 2.0 * progress);
+                let x = from.x as f32 + (to.x - from.x) as f32 * eased;
+                let y = from.y as f32 + (to.y - from.y) as f32 * eased;
+                w.window().set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+
+                if progress >= 1.0 {
+                    w.window().set_position(to);
+                    shell.place(&w, COLLAPSED);
+                    animation = None;
+                    last_move = Instant::now();
+                    moves = moves.saturating_add(1);
+                }
+                return;
+            }
+
+            if moves >= max_moves || last_move.elapsed() < Duration::from_secs(u64::from(interval)) {
+                return;
+            }
+
+            let current = w.window().position();
+            let work = platform::work_area(Some((current.x, current.y)));
             let size = w.window().size();
             let margin = 36i32;
-            let max_x = (work.x + work.w - size.width as i32 / 2 - margin)
-                .max(work.x + size.width as i32 / 2 + margin);
-            let min_x = work.x + size.width as i32 / 2 + margin;
-            let max_y = (work.y + work.h - size.height as i32 - margin)
-                .max(work.y + margin);
+            let min_x = work.x + margin;
+            let max_x = (work.x + work.w - size.width as i32 - margin).max(min_x);
             let min_y = work.y + margin;
+            let max_y = (work.y + work.h - size.height as i32 - margin).max(min_y);
+
             let seed = started_at.elapsed().as_nanos() as u64
                 ^ (moves as u64).wrapping_mul(0x9E3779B97F4A7C15);
             let mut value = seed ^ (seed >> 30);
@@ -1000,11 +1030,19 @@ fn main() -> Result<(), slint::PlatformError> {
             let rx = (value % (max_x - min_x + 1).max(1) as u64) as i32;
             value = value.wrapping_mul(0x94D049BB133111EB);
             let ry = (value % (max_y - min_y + 1).max(1) as u64) as i32;
-            let target = (min_x + rx, min_y + ry);
-            shell.pos.set(Some(target));
-            shell.place(&w, COLLAPSED);
-            last_move = Instant::now();
-            moves += 1;
+            let target_pos = (min_x + rx, min_y + ry);
+            let target = layout::place(&work, size.width as i32, size.height as i32, Some(target_pos)).0;
+            let from = PhysicalPosition::new(current.x, current.y);
+            let to = PhysicalPosition::new(target.0, target.1);
+
+            shell.pos.set(Some(target_pos));
+            if from == to {
+                shell.place(&w, COLLAPSED);
+                last_move = Instant::now();
+                moves = moves.saturating_add(1);
+            } else {
+                animation = Some((from, to, Instant::now()));
+            }
         });
     }
 
