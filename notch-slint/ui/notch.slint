@@ -1037,6 +1037,7 @@ export component NotchWindow inherits Window {
     in property <bool> expanded: false;
     in property <bool> adhan-active: false;
     in property <string> adhan-prayer: "";
+    in property <int> adhan-phase: 0;
     // 0 = menempel di atas, 1 = melayang (digeser dari tepi), 2 = menempel di dasar layar.
     in property <int> dock: 0;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
@@ -1272,7 +1273,33 @@ export component NotchWindow inherits Window {
                     width: parent.width - 20px;
                     height: parent.height;
                     spacing: 6px;
-                    Text { text: "◖"; color: Theme.accent; font-size: 16px; vertical-alignment: center; }
+                    HorizontalLayout {
+                        width: 20px;
+                        height: 18px;
+                        spacing: 2px;
+                        alignment: center;
+                        Rectangle {
+                            width: 3px;
+                            height: root.adhan-phase % 3 == 0 ? 13px : 5px;
+                            background: Theme.accent;
+                            border-radius: 2px;
+                            animate height { duration: 110ms; }
+                        }
+                        Rectangle {
+                            width: 3px;
+                            height: root.adhan-phase % 3 == 1 ? 15px : 6px;
+                            background: Theme.accent;
+                            border-radius: 2px;
+                            animate height { duration: 110ms; }
+                        }
+                        Rectangle {
+                            width: 3px;
+                            height: root.adhan-phase % 3 == 2 ? 12px : 4px;
+                            background: Theme.accent;
+                            border-radius: 2px;
+                            animate height { duration: 110ms; }
+                        }
+                    }
                     Text {
                         text: "ADZAN  " + root.adhan-prayer;
                         color: Theme.text;

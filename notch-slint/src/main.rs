@@ -550,6 +550,18 @@ fn main() -> Result<(), slint::PlatformError> {
     let reminder_timer = Timer::default();
     media::start(win.as_weak());
     let prayer_timer = Timer::default();
+    // Indikator gelombang audio Adzan hanya bergerak selama playback aktif.
+    let adhan_anim_timer = Timer::default();
+    {
+        let weak = win.as_weak();
+        adhan_anim_timer.start(TimerMode::Repeated, Duration::from_millis(130), move || {
+            if let Some(w) = weak.upgrade() {
+                if w.get_adhan_active() {
+                    w.set_adhan_phase((w.get_adhan_phase() + 1) % 3);
+                }
+            }
+        });
+    }
     let weather_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     let battery = Rc::new(BatteryMonitor::new());
