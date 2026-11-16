@@ -551,6 +551,200 @@ fn compress_pdf_bytes(source: &[u8], profile: PdfProfile) -> Result<Vec<u8>, Str
     Ok(output)
 }
 
+
+#[derive(Clone, Copy)]
+struct GsProfile {
+    dpi: u32,
+    qfactor: f32,
+}
+
+const GS_LADDER: [GsProfile; 11] = [
+    GsProfile { dpi: 300, qfactor: 0.15 },
+    GsProfile { dpi: 220, qfactor: 0.25 },
+    GsProfile { dpi: 170, qfactor: 0.40 },
+    GsProfile { dpi: 150, qfactor: 0.50 },
+    GsProfile { dpi: 130, qfactor: 0.60 },
+    GsProfile { dpi: 110, qfactor: 0.80 },
+    GsProfile { dpi: 96, qfactor: 1.00 },
+    GsProfile { dpi: 80, qfactor: 1.30 },
+    GsProfile { dpi: 72, qfactor: 1.60 },
+    GsProfile { dpi: 60, qfactor: 2.00 },
+    GsProfile { dpi: 50, qfactor: 2.40 },
+];
+
+static GS_RESOURCE_DIR: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+static GS_PATH: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+static GS_TEMP_SEQUENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Configure the application resource directory used to locate a bundled Ghostscript runtime.
+pub fn set_resource_dir(path: PathBuf) {
+    let _ = GS_RESOURCE_DIR.set(path);
+}
+
+fn ghostscript_command(path: &Path) -> std::process::Command {
+    let mut command = std::process::Command::new(path);
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x0800_0000);
+    }
+    command
+}
+
+fn ghostscript_works(path: &Path) -> bool {
+    ghostscript_command(path)
+        .arg("--version")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn find_ghostscript() -> Option<PathBuf> {
+    let executable = if cfg!(target_os = "windows") { "gswin64c.exe" } else { "gs" };
+    let mut candidates = Vec::new();
+
+    if let Some(resource_dir) = GS_RESOURCE_DIR.get() {
+        candidates.push(resource_dir.join("gs").join("bin").join(executable));
+    }
+    if let Some(path) = std::env::var_os("GS_PATH") {
+        candidates.push(PathBuf::from(path));
+    }
+    if let Some(directory) = std::env::current_exe().ok().and_then(|path| path.parent().map(Path::to_path_buf)) {
+        candidates.push(directory.join("gs").join("bin").join(executable));
+        candidates.push(directory.join("resources").join("gs").join("bin").join(executable));
+        candidates.push(directory.join(executable));
+    }
+    candidates.push(PathBuf::from(executable));
+
+    #[cfg(target_os = "windows")]
+    {
+        candidates.push(PathBuf::from("gswin32c.exe"));
+        for root in ["C:\\Program Files\\gs", "C:\\Program Files (x86)\\gs"] {
+            if let Ok(entries) = std::fs::read_dir(root) {
+                let mut directories: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
+                directories.sort();
+                directories.reverse();
+                candidates.extend(directories.into_iter().map(|directory| directory.join("bin").join("gswin64c.exe")));
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    candidates.extend(["/usr/bin/gs", "/usr/local/bin/gs", "/snap/bin/gs"].into_iter().map(PathBuf::from));
+
+    candidates.into_iter().find(|candidate| ghostscript_works(candidate))
+}
+
+fn ghostscript_path() -> Option<&'static PathBuf> {
+    GS_PATH.get_or_init(|| {
+        if std::env::var_os("NOTCH_NO_GS").is_some() {
+            return None;
+        }
+        find_ghostscript()
+    }).as_ref()
+}
+
+fn compress_pdf_with_ghostscript(
+    executable: &Path,
+    input: &Path,
+    profile: GsProfile,
+) -> Result<Vec<u8>, String> {
+    let output = std::env::temp_dir().join(format!(
+        "notch-gs-{}-{}.pdf",
+        std::process::id(),
+        GS_TEMP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let dpi = profile.dpi.to_string();
+    let image_parameters = format!(
+        "<< /ColorImageDict << /QFactor {q:.2} /Blend 1 /HSamples [2 1 1 2] /VSamples [2 1 1 2] >> /GrayImageDict << /QFactor {q:.2} /Blend 1 /HSamples [1 1 1 1] /VSamples [1 1 1 1] >> >> setdistillerparams",
+        q = profile.qfactor
+    );
+
+    let mut command = ghostscript_command(executable);
+    if let Some(root) = executable.parent().and_then(Path::parent)
+        .filter(|root| root.join("Resource").is_dir() && root.join("lib").is_dir())
+    {
+        let directories: Vec<PathBuf> = ["lib", "Resource/Init", "Resource/Font", "Resource/CMap", "Resource", "fonts"]
+            .iter().map(|directory| root.join(directory)).filter(|directory| directory.is_dir()).collect();
+        if !directories.is_empty() {
+            if let Ok(joined) = std::env::join_paths(directories) {
+                command.env("GS_LIB", joined);
+            }
+        }
+    }
+    if std::env::var_os("APPDIR").is_some() {
+        command.env_remove("LD_LIBRARY_PATH");
+    }
+
+    let result = command
+        .args(["-q", "-dSAFER", "-dBATCH", "-dNOPAUSE", "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.5"])
+        .args(["-dDetectDuplicateImages=true", "-dSubsetFonts=true", "-dCompressFonts=true", "-dEmbedAllFonts=true"])
+        .arg("-dPassThroughJPEGImages=false")
+        .args(["-dDownsampleColorImages=true", "-dDownsampleGrayImages=true", "-dDownsampleMonoImages=true"])
+        .args(["-dColorImageDownsampleType=/Bicubic", "-dGrayImageDownsampleType=/Bicubic"])
+        .arg("-dColorImageDownsampleThreshold=1.0")
+        .arg("-dGrayImageDownsampleThreshold=1.0")
+        .arg(format!("-dColorImageResolution={dpi}"))
+        .arg(format!("-dGrayImageResolution={dpi}"))
+        .arg(format!("-dMonoImageResolution={}", profile.dpi.max(150)))
+        .args(["-dAutoFilterColorImages=false", "-dAutoFilterGrayImages=false"])
+        .args(["-dColorImageFilter=/DCTEncode", "-dGrayImageFilter=/DCTEncode"])
+        .arg(format!("-sOutputFile={}", output.display()))
+        .arg("-c").arg(image_parameters).arg("-f").arg(input)
+        .output()
+        .map_err(|error| format!("Gagal menjalankan Ghostscript: {error}"))?;
+
+    if !result.status.success() {
+        let _ = std::fs::remove_file(&output);
+        let message = String::from_utf8_lossy(&result.stderr);
+        let detail = message.lines().rev().find(|line| !line.trim().is_empty()).unwrap_or("kode keluar bukan 0");
+        return Err(format!("Ghostscript gagal: {detail}"));
+    }
+    let bytes = std::fs::read(&output).map_err(|error| format!("Hasil Ghostscript tidak terbaca: {error}"));
+    let _ = std::fs::remove_file(output);
+    bytes
+}
+
+fn compress_pdf_with_profiles(
+    source: &[u8],
+    path: &Path,
+    target: u64,
+    original_size: u64,
+) -> Result<Vec<u8>, String> {
+    if let Some(executable) = ghostscript_path() {
+        let worst = compress_pdf_with_ghostscript(executable, path, *GS_LADDER.last().unwrap())?;
+        let selected = if worst.len() as u64 > target {
+            GS_LADDER.len() - 1
+        } else {
+            let (mut low, mut high) = (0usize, GS_LADDER.len() - 1);
+            while low < high {
+                let middle = (low + high) / 2;
+                let candidate = compress_pdf_with_ghostscript(executable, path, GS_LADDER[middle])?;
+                if candidate.len() as u64 <= target { high = middle; } else { low = middle + 1; }
+            }
+            low
+        };
+        let output = compress_pdf_with_ghostscript(executable, path, GS_LADDER[selected])?;
+        if output.len() as u64 < original_size {
+            return Ok(output);
+        }
+    }
+
+    let last = PDF_LADDER.len() - 1;
+    let worst = compress_pdf_bytes(source, PDF_LADDER[last])?;
+    let selected = if worst.len() as u64 > target {
+        last
+    } else {
+        let (mut low, mut high) = (0usize, last);
+        while low < high {
+            let middle = (low + high) / 2;
+            let candidate = compress_pdf_bytes(source, PDF_LADDER[middle])?;
+            if candidate.len() as u64 <= target { high = middle; } else { low = middle + 1; }
+        }
+        low
+    };
+    compress_pdf_bytes(source, PDF_LADDER[selected])
+}
+
 /// Compress embedded JPEG and supported Flate PDF images without rasterizing text or vector art.
 pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
     if path.extension().and_then(|value| value.to_str()).unwrap_or("").eq_ignore_ascii_case("pdf") == false {
@@ -562,24 +756,7 @@ pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(P
     }
     let original_size = source.len() as u64;
     let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
-    let last = PDF_LADDER.len() - 1;
-    let worst = compress_pdf_bytes(&source, PDF_LADDER[last])?;
-    let selected = if worst.len() as u64 > target {
-        last
-    } else {
-        let (mut low, mut high) = (0usize, last);
-        while low < high {
-            let middle = (low + high) / 2;
-            let candidate = compress_pdf_bytes(&source, PDF_LADDER[middle])?;
-            if candidate.len() as u64 <= target {
-                high = middle;
-            } else {
-                low = middle + 1;
-            }
-        }
-        low
-    };
-    let output = compress_pdf_bytes(&source, PDF_LADDER[selected])?;
+    let output = compress_pdf_with_profiles(&source, path, target, original_size)?;
     if output.len() as u64 >= original_size {
         return Err("PDF tidak dapat diperkecil dengan aman. Teks dan elemen vektor tetap dipertahankan.".into());
     }
