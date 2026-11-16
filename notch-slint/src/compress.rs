@@ -1,1 +1,1 @@
-pub use notch_tools::compress::compress_jpeg;
+pub use notch_tools::compress::{compress_image_file, compress_jpeg};
