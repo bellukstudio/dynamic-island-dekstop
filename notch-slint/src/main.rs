@@ -1730,6 +1730,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_cancel_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_pause_requested = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let convert_queue = std::sync::Arc::new(std::sync::Mutex::new(std::collections::VecDeque::<String>::new()));
+    let convert_failed_files = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
@@ -1778,6 +1779,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let cancel_requested = convert_cancel_requested.clone();
         let pause_requested = convert_pause_requested.clone();
         let queue = convert_queue.clone();
+        let failed_files = convert_failed_files.clone();
         let output_dir = convert_output_dir.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
@@ -1813,6 +1815,7 @@ fn main() -> Result<(), slint::PlatformError> {
             pause_requested.store(false, std::sync::atomic::Ordering::Release);
             let total = paths.len();
             *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.into_iter().collect();
+            failed_files.lock().unwrap_or_else(|error| error.into_inner()).clear();
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
                 w.set_convert_progress_value(0.0);
@@ -1824,6 +1827,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let cancel_requested = cancel_requested.clone();
             let pause_requested = pause_requested.clone();
             let queue = queue.clone();
+            let failed_files = failed_files.clone();
             let last_output = last_output.clone();
             let running_worker = running.clone();
             std::thread::spawn(move || {
@@ -1946,12 +1950,14 @@ fn main() -> Result<(), slint::PlatformError> {
                                 }
                                 Err(error) => {
                                     record_convert_history(&path, None, &history_target, "GAGAL");
+                                    failed_files.lock().unwrap_or_else(|error| error.into_inner()).push(path.clone());
                                     failures.push(format!("{}: hasil dibuat tetapi gagal dipindahkan: {error}", display_name));
                                 }
                             }
                         }
                         Err(error) => {
                             record_convert_history(&path, None, &history_target, "GAGAL");
+                            failed_files.lock().unwrap_or_else(|error| error.into_inner()).push(path.clone());
                             failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())));
                         }
                     }
@@ -2106,6 +2112,24 @@ fn main() -> Result<(), slint::PlatformError> {
             if running.load(std::sync::atomic::Ordering::Acquire) {
                 pause.store(false, std::sync::atomic::Ordering::Release);
                 if let Some(w) = weak.upgrade() { w.set_convert_status("Antrean dilanjutkan".into()); }
+            }
+        });
+    }
+    {
+        let failed = convert_failed_files.clone();
+        let selected_paths = convert_selected_paths.clone();
+        let weak = win.as_weak();
+        win.on_convert_retry_failed(move || {
+            let paths = failed.lock().unwrap_or_else(|error| error.into_inner()).clone();
+            if paths.is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Tidak ada file gagal yang perlu dicoba ulang".into()); }
+                return;
+            }
+            *selected_paths.borrow_mut() = paths.clone();
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_selected_path(paths[0].clone().into());
+                w.set_convert_files_text(format_convert_selection(&paths).into());
+                w.set_convert_status(format!("{} file gagal dimuat ulang. Tekan Konversi untuk mencoba kembali", paths.len()).into());
             }
         });
     }
