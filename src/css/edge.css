@@ -1,0 +1,384 @@
+/* ---------- UI Compact di Tepi Layar ---------- */
+#shell.is-floating::before,
+#shell.is-floating::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+#shell.is-edge-left::before,
+#shell.is-edge-left::after,
+#shell.is-edge-right::before,
+#shell.is-edge-right::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+#notch.is-edge-left {
+  transform: translateX(-10px);
+  border-radius: 0 18px 18px 0 !important;
+}
+#notch.is-edge-left[data-view="edgeIdle"],
+#notch.is-edge-left[data-view="edgeMedia"] {
+  border-radius: 0 60px 60px 0 !important;
+}
+#notch.is-edge-left[data-view="hub"],
+#notch.is-edge-left[data-view="bt"],
+#notch.is-edge-left[data-view="dev"],
+#notch.is-edge-left[data-view="lyr"],
+#notch.is-edge-left[data-view="cal"] {
+  border-radius: 0 28px 28px 0 !important;
+}
+
+#notch.is-edge-right {
+  transform: translateX(10px);
+  border-radius: 18px 0 0 18px !important;
+}
+#notch.is-edge-right[data-view="edgeIdle"],
+#notch.is-edge-right[data-view="edgeMedia"] {
+  border-radius: 60px 0 0 60px !important;
+}
+#notch.is-edge-right[data-view="hub"],
+#notch.is-edge-right[data-view="bt"],
+#notch.is-edge-right[data-view="dev"],
+#notch.is-edge-right[data-view="lyr"],
+#notch.is-edge-right[data-view="cal"] {
+  border-radius: 28px 0 0 28px !important;
+}
+
+/* Posisi default Notch di sisi kanan layar */
+.notch-side {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+
+  /* Bentuk setengah lingkaran vertikal saat TIDAK di-hover */
+  width: 60px;
+  height: 120px;
+  background-color: #1a1a1a;
+  border-radius: 120px 0 0 120px; /* Melengkung di kiri, datar di kanan */
+
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  overflow: hidden;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.3);
+
+  /* Transisi halus saat di-hover nantinya */
+  transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  cursor: pointer;
+}
+
+/* Disc berputar (Cover Lagu) */
+.disc {
+  min-width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-image: url("https://placekitten.com/100/100"); /* Ganti dengan cover lagu */
+  background-size: cover;
+  background-position: center;
+
+  /* Efek lubang hitam di tengah disc */
+  border: 3px solid #1a1a1a;
+  position: relative;
+
+  /* Animasi berputar */
+  animation: spin 4s linear infinite;
+}
+
+/* Titik tengah piringan */
+.disc::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background-color: #1a1a1a;
+  border-radius: 50%;
+}
+
+/* Animasi putar */
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Menyembunyikan teks/lirik saat TIDAK di-hover */
+.song-info {
+  display: flex;
+  flex-direction: column;
+  margin-left: 15px;
+  opacity: 0;
+  white-space: nowrap;
+  transition: opacity 0.3s ease;
+}
+
+/* Mengubah bentuk saat Notch di-Hover (kursor diarahkan) */
+.notch-side:hover {
+  width: 300px; /* Melebar untuk menampilkan lirik */
+  border-radius: 20px 0 0 20px; /* Berubah menjadi kotak memanjang (pill-shape) */
+}
+
+/* Memunculkan lirik/teks saat di-hover */
+.notch-side:hover .song-info {
+  opacity: 1;
+  transition-delay: 0.2s; /* Muncul setelah kotak selesai melebar */
+}
+
+.title {
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.lyrics {
+  color: #aaa;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* ---------- compact media saat notch menempel di sisi layar ---------- */
+#notch[data-view="edgeMedia"] {
+  overflow: hidden;
+  display: block;
+  background:
+    radial-gradient(
+      100% 90% at 50% 50%,
+      rgba(var(--accent), 0.22),
+      transparent 70%
+    ),
+    var(--bg);
+  transition:
+    width 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    height 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    border-radius 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+}
+#notch.is-edge-left[data-view="edgeMedia"] {
+  border-radius: 0 60px 60px 0 !important;
+}
+#notch.is-edge-right[data-view="edgeMedia"] {
+  border-radius: 60px 0 0 60px !important;
+}
+.edge-disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border: 3px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #181818;
+  box-shadow: 0 0 14px rgba(var(--accent), 0.25);
+  opacity: 0;
+  visibility: hidden;
+  animation: none;
+  transition:
+    opacity 0.14s ease,
+    visibility 0s linear 0.14s;
+  pointer-events: none;
+}
+.edge-disc img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.edge-disc::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  background: #111;
+  box-sizing: border-box;
+}
+@keyframes edge-disc-spin {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+#notch[data-view="edgeMedia"] .edge-disc {
+  opacity: 1;
+  visibility: visible;
+  animation: edge-disc-spin 4s linear infinite;
+  transition:
+    opacity 0.14s ease,
+    visibility 0s;
+}
+
+#shell.is-bottom {
+  align-self: flex-end;
+}
+
+/* konten menempel ke dasar, bukan ke atas */
+#notch.is-bottom .layer {
+  top: auto;
+  bottom: 0;
+}
+#notch.is-bottom .l-idle {
+  padding-bottom: 0;
+  padding-top: 5px;
+}
+#notch.is-bottom .pos-bar {
+  bottom: auto;
+  top: 2px;
+}
+
+/* sudut bulat dibalik: lengkung di atas, rata di bawah */
+#notch.is-bottom {
+  border-radius: 17px 17px 0 0;
+}
+#notch.is-bottom[data-view="idle"],
+#notch.is-bottom[data-view="clock"] {
+  border-radius: 12px 12px 0 0;
+}
+#notch.is-bottom[data-view="compact"],
+#notch.is-bottom[data-view="compactLyrics"] {
+  border-radius: 17px 17px 0 0;
+}
+#notch.is-bottom[data-view="hud"] {
+  border-radius: 26px 26px 0 0;
+}
+#notch.is-bottom[data-view="hub"],
+#notch.is-bottom[data-view="lyr"],
+#notch.is-bottom[data-view="cal"] {
+  border-radius: 32px 32px 0 0;
+}
+#notch.is-bottom[data-view="bt"],
+#notch.is-bottom[data-view="dev"] {
+  border-radius: 37px 37px 0 0;
+}
+
+/* "telinga" dibalik ke dasar layar */
+#shell.is-bottom::before,
+#shell.is-bottom::after {
+  top: auto;
+  bottom: 0;
+}
+#shell.is-bottom::before {
+  background: radial-gradient(
+    circle at 0 0,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+#shell.is-bottom::after {
+  background: radial-gradient(
+    circle at 100% 0,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+
+/* indikator privasi: di dock bawah tetap berada di bagian PALING ATAS notch
+   (sebelumnya di-anchor ke bawah sehingga jatuh di antara mata dan mulut / di dasar kartu) */
+#notch.is-bottom #privacy {
+  top: 6px;
+  bottom: auto;
+}
+#notch.is-bottom[data-view="bottomIdle"] #privacy,
+#notch.is-bottom[data-view="bottomMedia"] #privacy {
+  top: 5px;
+  bottom: auto;
+  right: 50%;
+  transform: translateX(50%);
+}
+#notch.is-bottom[data-view="idle"] #privacy {
+  top: 4px;
+  bottom: auto;
+}
+#notch.is-bottom[data-view="compact"] #privacy {
+  top: 9px;
+  bottom: auto;
+}
+
+
+/* =====================================================================
+   SIDE DOCK — telinga cekung diputar agar sama dengan dock bawah
+   Catatan: radial-gradient harus dicerminkan sesuai arah putaran.
+   ===================================================================== */
+#shell.is-edge-left::before,
+#shell.is-edge-left::after,
+#shell.is-edge-right::before,
+#shell.is-edge-right::after {
+  content: "";
+  display: block !important;
+  position: absolute;
+  width: var(--e);
+  height: calc(var(--e) + 0.5px);
+  pointer-events: none;
+  z-index: 10;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Sisi kiri: bentuk dock bawah diputar 90° searah jarum jam. */
+#shell.is-edge-left::before {
+  left: 0;
+  right: auto;
+  top: calc(var(--e) * -1);
+  bottom: auto;
+  background: radial-gradient(
+    circle at 100% 0%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+#shell.is-edge-left::after {
+  left: 0;
+  right: auto;
+  top: auto;
+  bottom: calc(var(--e) * -1);
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+
+/* Sisi kanan: cerminan sisi kiri (putaran berlawanan arah). */
+#shell.is-edge-right::before {
+  right: 0;
+  left: auto;
+  top: calc(var(--e) * -1);
+  bottom: auto;
+  background: radial-gradient(
+    circle at 0% 0%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+#shell.is-edge-right::after {
+  right: 0;
+  left: auto;
+  top: auto;
+  bottom: calc(var(--e) * -1);
+  background: radial-gradient(
+    circle at 0% 100%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+
+/* Telinga disembunyikan saat Notch berubah menjadi ORB bulat. */
+#shell.is-orb.is-edge-left::before,
+#shell.is-orb.is-edge-left::after,
+#shell.is-orb.is-edge-right::before,
+#shell.is-orb.is-edge-right::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}

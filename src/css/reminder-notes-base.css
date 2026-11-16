@@ -1,0 +1,231 @@
+/* ---------- pengingat (reminder) & catatan (notes) ----------
+   Mengikuti struktur .p-clip / .p-shelf: head + baris tambah + daftar yang bisa
+   di-scroll. Data keduanya disimpan permanen oleh backend (reminders.json /
+   notes.json), tidak ikut hilang saat config direset. */
+.p-reminder,
+.p-note {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 26px 16px;
+  overflow: hidden;
+  color: var(--fg);
+  text-align: left;
+}
+.p-reminder .rm-head,
+.p-note .nt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.6;
+}
+.p-reminder .rm-head button,
+.p-note .nt-head button {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.p-reminder .rm-head button:hover,
+.p-note .nt-head button:hover {
+  background: rgba(var(--fg-rgb), 0.14);
+}
+.p-reminder .rm-head svg,
+.p-note .nt-head svg {
+  width: 13px;
+  height: 13px;
+}
+
+.rm-add,
+.nt-add {
+  display: flex;
+  gap: 5px;
+}
+.rm-add input,
+.rm-add input[type="datetime-local"],
+.nt-add input {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: rgba(var(--fg-rgb), 0.08);
+  font-size: 12px;
+  color: var(--fg);
+}
+.rm-add input::placeholder,
+.nt-add input::placeholder {
+  color: rgba(var(--fg-rgb), 0.45);
+}
+.rm-add input[type="datetime-local"] {
+  flex: 0 0 96px;
+  font-size: 10px;
+  color-scheme: dark;
+}
+.rm-add button,
+.nt-add button {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: rgba(var(--accent), 0.3);
+  color: rgb(var(--accent));
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rm-add button:hover,
+.nt-add button:hover {
+  background: rgba(var(--accent), 0.48);
+}
+.rm-add button svg,
+.nt-add button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.rm-list,
+.nt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-height: 58px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.rm-list::-webkit-scrollbar,
+.nt-list::-webkit-scrollbar {
+  display: none;
+}
+
+.rm-item {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: rgba(var(--fg-rgb), 0.08);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rm-item:hover {
+  background: rgba(var(--fg-rgb), 0.16);
+}
+.rm-item .dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(var(--accent), 0.8);
+  background: transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.rm-item.done .dot {
+  background: rgb(var(--accent));
+  border-color: rgb(var(--accent));
+}
+.rm-item .txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.rm-item.done .txt {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.rm-item .due {
+  flex: 0 0 auto;
+  font-size: 10px;
+  opacity: 0.55;
+  white-space: nowrap;
+}
+.rm-item.overdue .due {
+  color: rgb(255, 120, 120);
+  opacity: 0.9;
+}
+.rm-item .x {
+  flex: 0 0 14px;
+  opacity: 0;
+  font-size: 13px;
+  line-height: 1;
+  transition: opacity 0.15s;
+}
+.rm-item:hover .x {
+  opacity: 0.55;
+}
+.rm-item .x:hover {
+  opacity: 1;
+  color: rgb(255, 120, 120);
+}
+
+.nt-item {
+  all: unset;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: rgba(var(--fg-rgb), 0.08);
+  font-size: 11.5px;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.nt-item:hover {
+  background: rgba(var(--fg-rgb), 0.16);
+}
+.nt-item .x {
+  float: right;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.nt-item:hover .x {
+  opacity: 0.55;
+}
+.nt-item .x:hover {
+  opacity: 1;
+  color: rgb(255, 120, 120);
+}
+
+.rm-empty,
+.nt-empty {
+  padding: 8px 0;
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.5;
+}

@@ -1,0 +1,324 @@
+/* ---------- Notes: tombol expand + daftar catatan yang dapat diperluas ---------- */
+.p-note .nt-add {
+  grid-template-columns: minmax(0, 1fr) 36px;
+  grid-template-rows: repeat(3, 26px);
+  column-gap: 6px;
+  row-gap: 4px;
+  align-items: stretch;
+}
+
+.p-note .nt-add #nt-input {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  height: auto;
+  min-height: 86px;
+  max-height: 86px;
+  align-self: stretch;
+}
+
+.p-note .nt-add .nt-add-actions {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 4px;
+  width: 36px;
+  min-width: 36px;
+  height: 100%;
+}
+
+.p-note .nt-add-actions > button {
+  box-sizing: border-box;
+  flex: 1 1 0;
+  width: 36px;
+  min-width: 36px;
+  min-height: 26px;
+  height: auto;
+  border-radius: 9px;
+}
+
+.p-note .nt-add #nt-expand {
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  opacity: 0.82;
+}
+.p-note .nt-add #nt-expand:hover {
+  background: rgba(var(--fg-rgb), 0.17);
+  opacity: 1;
+}
+.p-note .nt-add #nt-expand svg {
+  transition: transform 180ms ease;
+}
+#notch.notes-expanded[data-view="hub"] .p-note #nt-expand svg {
+  transform: rotate(180deg);
+}
+
+/* Dalam mode ringkas, fokus ke penulisan; klik expand untuk membuka daftar penuh. */
+#notch:not(.notes-expanded)[data-view="hub"] .p-note .nt-list {
+  display: none;
+}
+
+/* Tinggi panel bertambah sementara untuk melihat daftar, tanpa mengubah tinggi jendela native. */
+#notch.notes-expanded[data-view="hub"] {
+  --hub-h: 300px;
+  height: 300px !important;
+}
+#notch.notes-expanded[data-view="hub"] .l-hub {
+  height: var(--hub-h) !important;
+}
+#notch.notes-expanded[data-view="hub"] .pages {
+  height: calc(var(--hub-h) - var(--nav-h)) !important;
+}
+#notch.notes-expanded[data-view="hub"] .track,
+#notch.notes-expanded[data-view="hub"] .page {
+  height: 100% !important;
+}
+#notch.notes-expanded[data-view="hub"] .p-note {
+  min-height: 0;
+  overflow: hidden;
+}
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list::-webkit-scrollbar {
+  display: block;
+  width: 4px;
+}
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(var(--fg-rgb), 0.2);
+}
+
+/* ---------- FIX NOTES LIST OVERFLOW ---------- */
+/* Batasi semua konten catatan ke lebar halaman agar teks panjang tidak
+   memperlebar item atau keluar dari notch. */
+.p-note {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.p-note .nt-list {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.p-note .nt-item {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.p-note .nt-item-preview {
+  display: -webkit-box;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding-right: 20px;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.p-note .nt-item-meta {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.p-note .nt-item-date {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.p-note .nt-item-len {
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* ---------- FIX NOTES: item tidak menyusut saat daftar penuh ---------- */
+/* Daftar mengambil sisa tinggi panel, sedangkan scroll terjadi di dalam daftar. */
+.p-note .nt-list {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Setiap kartu mempertahankan ukuran natural; item berlebih bisa di-scroll. */
+.p-note .nt-item {
+  flex: 0 0 auto !important;
+  align-self: stretch;
+  min-height: 40px;
+  height: auto;
+  max-height: none;
+  box-sizing: border-box;
+}
+
+.p-note .nt-item-preview {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ---------- NOTES EXPAND: ukuran tetap, daftar scroll di dalam panel ---------- */
+#notch.notes-expanded[data-view="hub"] {
+  --hub-h: 300px;
+  height: 300px !important;
+  overflow: hidden !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .l-hub {
+  height: 300px !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .pages {
+  height: calc(300px - var(--nav-h)) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .track,
+#notch.notes-expanded[data-view="hub"] .page {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note {
+  display: flex !important;
+  flex: 0 0 100% !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-add {
+  flex: 0 0 auto !important;
+  min-height: 0 !important;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-list {
+  display: flex !important;
+  flex: 1 1 0% !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding-right: 4px;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-list::-webkit-scrollbar {
+  display: block;
+  width: 5px;
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-list::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: rgba(var(--fg-rgb), 0.25);
+}
+
+#notch.notes-expanded[data-view="hub"] .p-note .nt-item {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  min-height: 40px !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+/* ---------- NOTES: ruang bawah item terakhir + scrollbar tersembunyi ---------- */
+.p-note .nt-list,
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list,
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-list {
+  box-sizing: border-box !important;
+  padding-bottom: 14px !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.p-note .nt-list::-webkit-scrollbar,
+#notch.notes-expanded[data-view="hub"] .p-note .nt-list::-webkit-scrollbar,
+#notch.notes-expanded[data-view="hub"] .p-note > .nt-list::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+#notch.is-top {
+  transform: none !important;
+  animation: none !important;
+  transform-origin: top center !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  transition-property: width, height, border-radius, background !important;
+  background: var(--bg) !important;
+}
+#notch.is-top[data-view="idle"],
+#notch.is-top[data-view="clock"] {
+  border-radius: 0 0 12px 12px !important;
+}

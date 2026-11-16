@@ -1,0 +1,42 @@
+/* Tambahan khusus jendela Share; selebihnya memakai gaya dasar compress.css */
+.sec-t { margin: 14px 2px 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .6; }
+.conn { display: flex; gap: 18px; align-items: center; }
+.qrbox { flex: none; width: 188px; height: 188px; padding: 6px; border-radius: 14px; background: #fff; }
+.qrbox svg { width: 100%; height: 100%; display: block; }
+.conn-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.url { font: 600 14px ui-monospace, Consolas, monospace; word-break: break-all; cursor: pointer; padding: 9px 11px; border-radius: 10px; background: rgba(127, 127, 127, .16); user-select: all; }
+.url.copied { outline: 2px solid currentColor; }
+.alt { font: 12px ui-monospace, Consolas, monospace; opacity: .6; word-break: break-all; }
+.note { font-size: 12px; opacity: .65; line-height: 1.45; }
+.empty-line { font-size: 13px; opacity: .55; padding: 10px 4px; }
+.share-intro { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.share-intro p { margin: 0; line-height: 1.5; }
+
+/* Perbaikan kartu tertekan: baris tidak boleh menyusut; yang menggulir adalah area utama */
+.win main { overflow-y: auto; min-height: 0; }
+.win main > * { flex-shrink: 0; }
+.win main .list { flex: none; max-height: none; overflow: visible; }
+.win main .list .row { flex-shrink: 0; min-height: 58px; }
+
+/* Tombol aksi di baris (Unduh / Buka): lebar menyesuaikan teks, bukan tombol × merah */
+.win main .row { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+.win main .row .act { font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; padding: 6px 12px; border-radius: 9px; cursor: pointer; color: inherit; border: 1px solid rgba(127,127,127,.35); background: rgba(127,127,127,.14); }
+.win main .row .act:hover { background: rgba(127,127,127,.28); }
+
+/* ---- PC <-> PC ---- */
+.lan-prompt { border: 2px solid currentColor; margin-bottom: 10px; display: flex; flex-direction: column; gap: 8px; }
+.sas { font: 700 30px ui-monospace, Consolas, monospace; letter-spacing: .12em; text-align: center; padding: 6px 0; }
+.lan-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chk { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; }
+.lan-name { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.lan-name input { flex: 1; max-width: 280px; padding: 7px 10px; border-radius: 9px; border: 1px solid rgba(127,127,127,.35); background: rgba(127,127,127,.1); color: inherit; font: inherit; font-size: 13px; }
+.tbar { height: 5px; border-radius: 3px; background: rgba(127,127,127,.25); overflow: hidden; margin-top: 6px; }
+.tbar i { display: block; height: 100%; width: 0; background: currentColor; opacity: .75; transition: width .12s linear; }
+#lan a { color: inherit; opacity: .8; }
+
+* { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .18) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .18); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .32); background-clip: padding-box; }
+*::-webkit-scrollbar-corner { background: transparent; }

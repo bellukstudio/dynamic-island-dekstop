@@ -1,0 +1,149 @@
+/* ---------- pesan "kamu kemana?" saat pointer lama diam ---------- */
+
+/* mata sedih: kelopak atas miring ke bawah di sisi luar */
+.eyes[data-mood="sad"] {
+  --c: 140, 170, 255;
+}
+.eyes[data-mood="sad"] .eye {
+  height: 12px;
+  animation: none;
+  filter: brightness(0.9);
+}
+.eyes[data-mood="sad"] .lid-t {
+  height: 6px;
+}
+.eyes[data-mood="sad"] .eye:first-child .lid-t {
+  transform: rotate(-16deg) translateY(-1px);
+}
+.eyes[data-mood="sad"] .eye:last-child .lid-t {
+  transform: rotate(16deg) translateY(-1px);
+}
+
+/* kartu memakai tampilan "perangkat" dengan ikon emoji (satu atau beberapa) */
+.dev-icon[data-kind="nudge"] {
+  --dc: 255, 196, 120;
+  display: flex; /* beberapa emoji berjajar ke samping, bukan bertumpuk */
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.dev-icon[data-kind="nudge"] .emo {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  font-size: 24px;
+  line-height: 1;
+  transform-origin: 50% 90%;
+  animation: nudge-bob 1.8s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.18s); /* bergoyang bergantian */
+}
+
+/* lebih dari satu emoji: ikon melebar jadi kapsul dan emoji mengecil */
+.dev-icon[data-kind="nudge"][data-count="2"],
+.dev-icon[data-kind="nudge"][data-count="3"],
+.dev-icon[data-kind="nudge"][data-count="4"],
+.dev-icon[data-kind="nudge"][data-count="5"] {
+  width: auto;
+  min-width: 44px;
+  padding: 0 12px;
+  border-radius: 22px;
+}
+.dev-icon[data-kind="nudge"][data-count="2"] .emo { font-size: 22px; }
+.dev-icon[data-kind="nudge"][data-count="3"] .emo { font-size: 20px; }
+.dev-icon[data-kind="nudge"][data-count="4"] .emo,
+.dev-icon[data-kind="nudge"][data-count="5"] .emo { font-size: 17px; }
+
+@keyframes nudge-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  25% {
+    transform: translateY(-4px) rotate(8deg) scale(1.08);
+  }
+  50% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  75% {
+    transform: translateY(-2px) rotate(6deg);
+  }
+}
+
+/* titik-titik "sedang mengetik" di pojok ikon */
+.dev-icon[data-kind="nudge"]::before {
+  content: "···";
+  position: absolute;
+  top: -7px;
+  right: -6px;
+  z-index: 2;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: rgb(var(--dc));
+  animation: nudge-dots 1.6s steps(4, end) infinite;
+}
+@keyframes nudge-dots {
+  to {
+    width: 24px;
+  }
+}
+
+/* lencana centang tidak cocok untuk pesan, disembunyikan */
+#dev-icon[data-kind="nudge"] ~ .dev-chip {
+  display: none;
+}
+
+/* pesan bisa dua baris */
+#dev-icon[data-kind="nudge"] + .dev-text strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+/* muncul dengan membal kecil (kelas .nudge-in dipasang nudge.ts setiap kali pesan tampil) */
+.l-dev.nudge-in #dev-icon[data-kind="nudge"] {
+  animation: nudge-icon-in 0.6s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+.l-dev.nudge-in #dev-icon[data-kind="nudge"] + .dev-text {
+  animation: nudge-pop 0.55s 0.08s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+@keyframes nudge-icon-in {
+  from {
+    transform: scale(0.4) rotate(-20deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes nudge-pop {
+  from {
+    transform: translateX(-10px) scale(0.92);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dev-icon[data-kind="nudge"] .emo,
+  .dev-icon[data-kind="nudge"]::before,
+  .l-dev.nudge-in #dev-icon[data-kind="nudge"],
+  .l-dev.nudge-in #dev-icon[data-kind="nudge"] + .dev-text {
+    animation: none;
+  }
+  .dev-icon[data-kind="nudge"]::before {
+    width: 24px;
+  }
+}

@@ -1,0 +1,29 @@
+/* ---------- Istirahat mata 20-20-20: mata notch "menatap jauh" ----------
+   Atribut data-gaze="far" dipasang eye-break.ts pada .eyes selama sesi menatap jauh.
+   Animasi menimpa `transform` bawaan (yang dipakai untuk mengikuti kursor lewat --lx/--ly),
+   jadi mata berhenti mengikuti kursor dan menyapu pelan seperti memandang cakrawala.
+   Skin mata (data-eye-theme) dan ekspresi (data-mood) tidak disentuh. */
+.eyes[data-gaze="far"] {
+  animation: eb-gaze 7s ease-in-out infinite;
+}
+@keyframes eb-gaze {
+  0%,
+  100% {
+    transform: translate(0, -3px) scale(1.08);
+  }
+  25% {
+    transform: translate(-5px, -3px) scale(1.08);
+  }
+  50% {
+    transform: translate(0, -2px) scale(1.1);
+  }
+  75% {
+    transform: translate(5px, -3px) scale(1.08);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .eyes[data-gaze="far"] {
+    animation: none;
+    transform: translate(0, -3px) scale(1.08);
+  }
+}

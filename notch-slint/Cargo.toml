@@ -1,0 +1,30 @@
+[package]
+name = "notch-slint"
+version = "0.1.0"
+edition = "2021"
+description = "Prototipe Notch dengan Slint (Windows dulu)"
+
+[features]
+default = ["software"]
+# Default. Terukur di Windows: ~2,4 MB RAM idle. Emoji ditampilkan sebagai gambar (assets/emoji).
+software = ["slint/renderer-software"]
+# Renderer GPU (OpenGL). Terukur di Windows: emoji berwarna, tapi ~108 MB RAM. Tidak disarankan.
+femtovg = ["slint/renderer-femtovg"]
+
+[dependencies]
+notch-core = { path = "../notch-core", features = ["net"] }
+png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
+slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_SystemInformation", "Win32_System_Registry", "Win32_Graphics_Gdi"] }
+
+[build-dependencies]
+slint-build = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
+panic = "abort"

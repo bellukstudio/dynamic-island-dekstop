@@ -1,0 +1,245 @@
+/* ---------- lengkung "telinga" di sisi atas notch (seperti notch MacBook) ---------- */
+#shell {
+  --e: calc(10px * var(--s, 1)); /* jari-jari lengkung, ikut skala */
+  position: relative;
+  align-self: flex-start;
+  overflow: visible !important;
+}
+#shell::before,
+#shell::after {
+  content: "";
+  display: block !important;
+  position: absolute;
+  top: 0;
+  width: calc(var(--e) + 0.5px);
+  height: var(--e);
+  pointer-events: none;
+  z-index: 10;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: opacity 0.3s ease;
+}
+#shell::before {
+  left: calc(var(--e) * -1);
+  background: radial-gradient(
+    circle at 0 100%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+#shell::after {
+  right: calc(var(--e) * -1);
+  background: radial-gradient(
+    circle at 100% 100%,
+    transparent calc(var(--e) - 0.5px),
+    var(--bg) var(--e)
+  );
+}
+
+.ly-note {
+  padding: 0 0 8px;
+  font-size: 11px;
+  opacity: 0.5;
+}
+#art[data-icon],
+#c-art[data-icon],
+#ly-art[data-icon] {
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+/* ---------- posisi melayang (saat digeser menjauh dari tepi atas) ---------- */
+#notch.is-floating {
+  border-radius: 18px !important;
+}
+#notch.is-floating[data-view="idle"] {
+  border-radius: 12px !important;
+}
+#notch.is-floating[data-view="compact"] {
+  border-radius: 17px !important;
+}
+#notch.is-floating[data-view="compactLyrics"] {
+  border-radius: 17px !important;
+}
+#notch.is-floating[data-view="hub"] {
+  border-radius: 28px !important;
+}
+#notch.is-floating[data-view="bt"],
+#notch.is-floating[data-view="dev"] {
+  border-radius: 28px !important;
+}
+#notch.is-floating[data-view="hud"] {
+  border-radius: 22px !important;
+}
+#notch.is-floating[data-view="lyr"] {
+  border-radius: 28px !important;
+}
+#notch.is-floating[data-view="cal"] {
+  border-radius: 28px !important;
+}
+#notch.is-floating[data-view="clock"] {
+  border-radius: 14px !important;
+}
+
+/* ---------- kursor drag untuk idle/compact ---------- */
+#notch[data-view="idle"],
+#notch[data-view="compact"],
+#notch[data-view="clock"] {
+  cursor: grab;
+}
+#notch.is-dragging {
+  cursor: grabbing !important;
+}
+
+/* ---------- animasi saat notch sedang digeser (drag move) ----------
+   Notch "melebur" jadi bulatan kecil yang berdenyut mengikuti kursor,
+   lalu kembali ke bentuk normal begitu dilepas (transisi bawaan #notch). */
+#notch.is-dragging {
+  border-radius: 999px !important;
+  transform: scale(0.86);
+  box-shadow:
+    0 16px 34px -10px rgba(var(--accent), 0.65),
+    0 0 0 1px rgba(var(--fg-rgb), 0.12);
+  transition:
+    border-radius 0.22s cubic-bezier(0.34, 1.56, 0.5, 1),
+    transform 0.22s cubic-bezier(0.34, 1.56, 0.5, 1),
+    box-shadow 0.22s ease;
+  animation: drag-bounce 0.65s ease-in-out infinite;
+}
+@keyframes drag-bounce {
+  0%,
+  100% {
+    transform: scale(0.86) translateY(0);
+  }
+  50% {
+    transform: scale(0.93) translateY(-3px);
+  }
+}
+/* konten di dalamnya tetap tampil (mata ikut berekspresi "love" saat digeser),
+   hanya dibuat sedikit transparan supaya bulatan terasa bersih */
+#notch.is-dragging .layer {
+  opacity: 0.88;
+}
+
+/* ---------- bilah posisi terpadu (drag move + pusatkan) ---------- */
+.pos-bar {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  height: 20px;
+  padding: 1px 4px;
+  gap: 2px;
+  border-radius: 99px;
+  background: rgba(18, 18, 22, 0.92);
+  border: 1px solid rgba(var(--fg-rgb), 0.14);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.2s ease,
+    background 0.2s,
+    border-color 0.2s;
+  user-select: none;
+}
+
+#notch[data-view="hub"] .pos-bar,
+#notch[data-view="lyr"] .pos-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pos-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    opacity 0.2s,
+    transform 0.1s;
+}
+
+.pos-btn svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+/* Tombol geser */
+.pos-drag {
+  cursor: grab;
+  opacity: 0.85;
+}
+.pos-drag:hover {
+  background: rgba(var(--fg-rgb), 0.14);
+  opacity: 1;
+}
+.pos-drag:active,
+#notch.is-dragging .pos-drag {
+  cursor: grabbing;
+  background: rgba(var(--fg-rgb), 0.25);
+  opacity: 1;
+}
+
+/* Garis pemisah */
+.pos-divider {
+  width: 1px;
+  height: 10px;
+  background: rgba(var(--fg-rgb), 0.18);
+  margin: 0 1px;
+}
+
+/* Tombol pusatkan */
+.pos-reset {
+  cursor: pointer;
+  opacity: 0.45;
+}
+.pos-reset:hover {
+  opacity: 0.85;
+  background: rgba(var(--fg-rgb), 0.12);
+}
+.pos-reset:active {
+  transform: scale(0.94);
+}
+
+/* Saat posisi kustom (notch digeser dari tengah): tombol pusatkan menyala jelas & kontras */
+#notch.is-custom-pos .pos-reset {
+  opacity: 1;
+  background: rgba(var(--accent, 120, 140, 255), 0.22);
+  color: rgb(var(--accent, 120, 140, 255));
+  font-weight: 650;
+  box-shadow: 0 0 8px rgba(var(--accent, 120, 140, 255), 0.35);
+}
+#notch.is-custom-pos .pos-reset:hover {
+  background: rgba(var(--accent, 120, 140, 255), 0.35);
+  transform: scale(1.03);
+}
+#notch.is-custom-pos .pos-reset:active {
+  transform: scale(0.94);
+}
+
+/* Halaman Alat: tombol pusatkan menyala jika posisi kustom */
+#notch.is-custom-pos #q-reset-pos {
+  background: rgba(var(--accent, 120, 140, 255), 0.18);
+  color: rgb(var(--accent, 120, 140, 255));
+  font-weight: 600;
+}

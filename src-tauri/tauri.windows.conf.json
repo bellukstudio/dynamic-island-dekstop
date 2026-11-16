@@ -1,0 +1,10 @@
+{
+    "bundle": {
+        "resources": {
+            "gs/**/*": "gs/",
+            "pdfium/*": "pdfium/",
+            "adb/*": "adb/",
+            "resources/scrcpy-server.jar": "resources/scrcpy-server.jar"
+        }
+    }
+}

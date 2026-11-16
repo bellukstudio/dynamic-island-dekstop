@@ -1,0 +1,37 @@
+[package]
+name = "notch-core"
+version = "0.1.0"
+edition = "2021"
+description = "Logika inti Notch yang tidak bergantung pada UI (dipakai Tauri dan Slint)"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+sysinfo = { version = "0.39.6", default-features = false, features = ["system", "network", "disk"] }
+arboard = { version = "3", default-features = false }
+
+ureq = { version = "3", optional = true }
+
+[features]
+default = []
+# HTTP (hari libur, cuaca, kurs, lirik). Dimatikan untuk pemakai yang tidak butuh jaringan.
+net = ["dep:ureq"]
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+  "Foundation",
+  "Foundation_Collections",
+  "Devices_Radios",
+  "Win32_Foundation",
+  "Win32_System_Power",
+  "Win32_System_DataExchange",
+  "Win32_System_WinRT",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_UI_WindowsAndMessaging",
+] }

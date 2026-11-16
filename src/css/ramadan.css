@@ -1,0 +1,472 @@
+/* ===== Mode Ramadan (halaman jadwal shalat) =====
+   Dimuat dari index.html, paling akhir supaya urutan cascade terjaga.
+   Satu-satunya sumber gaya Ramadan: prayer.ts tidak lagi menyuntik <style>. */
+
+/* ---------- Layout halaman saat mode aktif ---------- */
+.p-prayer.ramadan-on {
+  display: grid;
+  box-sizing: border-box;
+  grid-template-columns: 176px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 18px;
+  row-gap: 10px;
+  padding: 0 30px 18px 22px;
+  overflow: hidden;
+}
+.p-prayer.ramadan-on .pr-left {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 96px;
+  min-width: 0;
+}
+.p-prayer.ramadan-on .pr-right {
+  grid-column: 2;
+  grid-row: 1;
+  min-height: 96px;
+  min-width: 0;
+}
+.p-prayer.ramadan-on .pr-arc {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Notch melebar saat mode Ramadan aktif (tidak lagi butuh class currency-expanded) */
+#notch.ramadan-expanded[data-view="hub"] {
+  --hub-w: 780px;
+  width: 780px !important;
+}
+#notch.ramadan-expanded[data-view="hub"] .l-hub,
+#notch.ramadan-expanded[data-view="hub"] .pages {
+  width: 780px !important;
+}
+
+/* ---------- Baris kontrol ---------- */
+.p-prayer .pr-right {
+  container-type: inline-size;
+  container-name: prctl;
+}
+.p-prayer .pr-ctl {
+  box-sizing: border-box;
+  gap: 14px;
+  row-gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.p-prayer .pr-ctl > .pr-seg,
+.p-prayer .pr-ctl > #pr-remind {
+  flex: none;
+}
+.p-prayer:not(.ramadan-on) .pr-seg button {
+  padding: 0 7px;
+}
+.p-prayer.ramadan-on .pr-ctl {
+  gap: 12px;
+  padding-right: 14px;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+/* Napas vertikal: turunkan baris kontrol (dan blok kota di kiri agar tetap sejajar)
+   dari label waktu shalat di atasnya. Ubah angka --pr-drop untuk geser lebih jauh/dekat. */
+.p-prayer {
+  --pr-drop: 12px;
+}
+.p-prayer.ramadan-on {
+  --pr-drop: 4px;
+}
+.p-prayer .pr-ctl,
+.p-prayer .pr-left .pr-city {
+  margin-top: var(--pr-drop);
+}
+.p-prayer .pr-arc {
+  margin-bottom: 4px;
+}
+
+/* ---------- Tombol Ramadan ---------- */
+.pr-ramadan-toggle {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  flex: none;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 14px !important;
+  margin: 0 !important;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 650;
+  white-space: nowrap;
+  color: var(--fg);
+  background: rgba(var(--fg-rgb), 0.08);
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+.pr-ramadan-toggle:hover {
+  background: rgba(var(--fg-rgb), 0.18);
+}
+.pr-ramadan-toggle:active {
+  transform: scale(0.93);
+}
+.pr-ramadan-toggle:focus-visible {
+  box-shadow: 0 0 0 2px rgba(var(--accent), 0.7);
+}
+.pr-ramadan-toggle.on {
+  color: #fff;
+  background: rgb(var(--accent));
+}
+.pr-ramadan-toggle.on:hover {
+  background: rgba(var(--accent), 0.85);
+}
+.pr-rm-ico {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* Ruang sempit: tombol jadi ikon bulan supaya baris kontrol tidak terpotong */
+@container prctl (max-width: 390px) {
+  .pr-ramadan-toggle {
+    width: 28px;
+    padding: 0 !important;
+  }
+  .pr-ramadan-toggle .pr-rm-lbl {
+    display: none;
+  }
+}
+
+/* ---------- Panel ---------- */
+.pr-ramadan-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  container-type: inline-size;
+  container-name: rmpanel;
+  box-sizing: border-box;
+  margin-right: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(var(--fg-rgb), 0.12);
+  border-radius: 22px;
+  color: var(--fg);
+  background: rgba(var(--fg-rgb), 0.03);
+}
+.pr-ramadan-panel[hidden] {
+  display: none;
+}
+.pr-ramadan-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.pr-ramadan-headl {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.pr-ramadan-moon {
+  font-size: 22px;
+  line-height: 1;
+  color: #f5b942;
+}
+.pr-ramadan-title {
+  font-size: 15px;
+  font-weight: 750;
+}
+.pr-ramadan-state {
+  font-size: 10.5px;
+  opacity: 0.62;
+}
+.pr-ramadan-headr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 11px;
+  font-weight: 650;
+}
+.pr-rm-sw {
+  all: unset;
+  cursor: pointer;
+  position: relative;
+  width: 34px;
+  height: 19px;
+  border-radius: 99px;
+  background: rgb(var(--accent));
+}
+.pr-rm-sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 17px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #fff;
+}
+.pr-rm-gear {
+  all: unset;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(var(--fg-rgb), 0.08);
+}
+.pr-rm-gear svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ---------- Countdown ---------- */
+.pr-ramadan-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: none;
+}
+.pr-ramadan-count {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(80, 220, 170, 0.35);
+  background: linear-gradient(120deg, rgba(20, 120, 90, 0.28), rgba(20, 120, 90, 0.06));
+}
+.pr-ramadan-count.buka {
+  border-color: rgba(245, 185, 66, 0.4);
+  background: linear-gradient(120deg, rgba(180, 110, 20, 0.3), rgba(180, 110, 20, 0.06));
+}
+.pr-ramadan-ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  background: rgba(80, 220, 170, 0.16);
+  font-size: 20px;
+}
+.pr-ramadan-count.buka .pr-ramadan-ico {
+  background: rgba(245, 185, 66, 0.16);
+}
+.pr-ramadan-ctext {
+  min-width: 0;
+}
+.pr-ramadan-count small {
+  display: block;
+  font-size: 11px;
+  color: rgb(110, 230, 190);
+}
+.pr-ramadan-count.buka small {
+  color: rgb(245, 200, 90);
+}
+.pr-ramadan-count small i {
+  font-style: normal;
+}
+.pr-ramadan-count strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 22px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.pr-ramadan-count em {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  opacity: 0.6;
+  font-style: normal;
+}
+
+/* ---------- Imsakiyah + dzikir ---------- */
+.pr-ramadan-bottom {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.pr-ramadan-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--fg-rgb), 0.1);
+  border-radius: 16px;
+  background: rgba(var(--fg-rgb), 0.035);
+}
+.pr-ramadan-card h4 {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.pr-ramadan-ch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex: none;
+}
+.pr-ramadan-ch span {
+  font-size: 10.5px;
+  opacity: 0.62;
+}
+.pr-ramadan-times {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.pr-ramadan-time {
+  padding: 5px 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--fg-rgb), 0.06);
+  background: rgba(var(--fg-rgb), 0.05);
+  text-align: center;
+}
+.pr-ramadan-time.first {
+  border-color: rgb(var(--accent));
+  background: rgba(var(--accent), 0.18);
+}
+.pr-ramadan-time small {
+  display: block;
+  font-size: 10px;
+  opacity: 0.65;
+}
+.pr-ramadan-time b {
+  display: block;
+  margin-top: 1px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.pr-ramadan-note {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 9.5px;
+  line-height: 1.4;
+  opacity: 0.6;
+}
+.pr-dhikr-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.pr-dhikr-nav button {
+  all: unset;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(var(--fg-rgb), 0.08);
+  font-size: 13px;
+}
+.pr-dhikr-box {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 8px;
+  border: 1px solid rgba(var(--fg-rgb), 0.08);
+  border-radius: 12px;
+}
+.pr-dhikr-ar {
+  font-size: 22px;
+  line-height: 1.35;
+  direction: rtl;
+}
+.pr-dhikr-latin {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.pr-dhikr-arti {
+  margin-top: 2px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+.pr-dhikr-note {
+  margin-top: 3px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+.pr-dhikr-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+  flex: none;
+}
+.pr-dhikr-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(var(--fg-rgb), 0.25);
+}
+.pr-dhikr-dots i.on {
+  background: rgb(var(--accent));
+}
+
+/* ---------- Responsif: panel sempit ---------- */
+@container rmpanel (max-width: 600px) {
+  .pr-ramadan-state {
+    display: none;
+  }
+  .pr-ramadan-counts {
+    gap: 8px;
+  }
+  .pr-ramadan-count {
+    gap: 8px;
+    padding: 8px;
+  }
+  .pr-ramadan-ico {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+  .pr-ramadan-count strong {
+    font-size: 17px;
+  }
+  .pr-ramadan-count small {
+    font-size: 10px;
+  }
+  .pr-ramadan-bottom {
+    grid-template-columns: 1fr;
+    flex: none;
+  }
+  .pr-dhikr-box {
+    min-height: 110px;
+  }
+}

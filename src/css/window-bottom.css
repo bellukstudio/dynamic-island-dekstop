@@ -1,0 +1,264 @@
+/* ---------- jendela berukuran tetap: posisi notch diatur di dalam jendela ---------- */
+#shell {
+  transform: translate(var(--ox, 0px), var(--oy, 0px));
+  transition: transform 0.3s cubic-bezier(0.42, 0, 0.58, 1);
+}
+#shell.moving {
+  transition: none;
+}
+#shell.is-edge-left {
+  margin-left: 0;
+  margin-right: auto;
+}
+#shell.is-edge-right {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* notch sudah menempel lewat perataan jendela, geseran 10px lama tidak diperlukan */
+#notch.is-edge-left:not(.is-dragging),
+#notch.is-edge-right:not(.is-dragging) {
+  transform: none;
+}
+
+/* ---------- bubble di dasar layar ---------- */
+#notch[data-view="bottomIdle"] {
+  width: 80px;
+  height: 44px;
+  border-radius: 44px 44px 0 0 !important;
+}
+#notch[data-view="bottomMedia"] {
+  width: 120px;
+  height: 60px;
+  border-radius: 60px 60px 0 0 !important;
+  display: block;
+  background:
+    radial-gradient(
+      100% 90% at 50% 50%,
+      rgba(var(--accent), 0.22),
+      transparent 70%
+    ),
+    var(--bg);
+}
+#notch[data-view="bottomIdle"] .l-idle {
+  width: 80px;
+  height: 44px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+  transition:
+    opacity 0.18s ease,
+    transform 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    visibility 0s;
+}
+#notch[data-view="bottomMedia"] .edge-disc {
+  opacity: 1;
+  visibility: visible;
+  animation: edge-disc-spin 4s linear infinite;
+  transition:
+    opacity 0.14s ease,
+    visibility 0s;
+}
+#notch.is-dragging[data-view="hub"],
+#notch.is-dragging[data-view="lyr"],
+#notch.is-dragging[data-view="cal"] {
+  border-radius: 28px !important;
+  transform: scale(0.97);
+  animation: none;
+}
+#notch.is-dragging[data-view="bt"],
+#notch.is-dragging[data-view="dev"],
+#notch.is-dragging[data-view="hud"] {
+  border-radius: 28px !important;
+  transform: scale(0.97);
+  animation: none;
+}
+
+/* kursor tangan di seluruh body; tombol tetap pointer */
+#notch {
+  cursor: grab;
+}
+#notch.is-dragging {
+  cursor: grabbing !important;
+}
+#notch button,
+#notch .dot {
+  cursor: pointer;
+}
+.pages,
+.pages:active {
+  cursor: inherit;
+}
+
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  ) {
+  transform: none !important;
+  animation: none !important;
+  box-shadow: none;
+  transform-origin: top center;
+  border-radius: 0 0 17px 17px !important;
+}
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="idle"],
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="clock"] {
+  border-radius: 0 0 12px 12px !important;
+}
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="hud"] {
+  border-radius: 0 0 26px 26px !important;
+}
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="hub"],
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="lyr"],
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="cal"] {
+  border-radius: 0 0 32px 32px !important;
+}
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="bt"],
+#notch.is-dragging:not(.is-floating):not(.is-bottom):not(.is-edge-left):not(
+    .is-edge-right
+  )[data-view="dev"] {
+  border-radius: 0 0 37px 37px !important;
+}
+
+/* transisi telinga ikut cepat supaya tidak muncul lebih dulu daripada pil yang sedang melengkung */
+#shell::before,
+#shell::after {
+  transition: opacity 0.12s ease;
+}
+/* ---------- piringan musik: posisi fix di tengah, hanya berputar di tempat ---------- */
+.edge-disc {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px; /* pusatkan tanpa transform, supaya tidak ikut mengorbit */
+  transform: none;
+  transform-origin: 50% 50%;
+  border: none;
+  border-radius: 50%;
+  overflow: hidden;
+  box-sizing: border-box;
+  /* badan piringan hitam: alur halus + kilau */
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(255, 255, 255, 0.1),
+      transparent 25%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 75%,
+      rgba(255, 255, 255, 0.1)
+    ),
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      #151515 0 1.5px,
+      #0b0b0b 1.5px 3px
+    );
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.1),
+    0 0 14px rgba(var(--accent), 0.3);
+  opacity: 0;
+  visibility: hidden;
+  animation: none;
+  will-change: rotate;
+  pointer-events: none;
+}
+
+/* cover album = label di tengah piringan */
+.edge-disc img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px #0b0b0b;
+}
+
+/* lubang di tengah piringan */
+.edge-disc::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  transform: none;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: #0b0b0b;
+  box-sizing: border-box;
+}
+
+@keyframes edge-disc-spin {
+  from {
+    rotate: 0deg;
+  }
+  to {
+    rotate: 360deg;
+  }
+}
+
+#notch[data-view="edgeMedia"] .edge-disc,
+#notch[data-view="bottomMedia"] .edge-disc {
+  opacity: 1;
+  visibility: visible;
+  animation: edge-disc-spin 4s linear infinite;
+  transition:
+    opacity 0.14s ease,
+    visibility 0s;
+}
+
+/* saat lagu dijeda, piringan berhenti di posisi terakhir (tidak melompat ke 0°) */
+#notch[data-playing="false"] .edge-disc {
+  animation-play-state: paused;
+}
+/* ---------- fix: saat menempel di dasar layar, tetap rata di bawah selama drag ----------
+   Mirror dari fix tepi atas: tanpa scale/bounce, sudut bawah rata, sudut atas melengkung. */
+#notch.is-dragging.is-bottom {
+  transform: none !important;
+  animation: none !important;
+  box-shadow: none !important;
+  transform-origin: bottom center;
+  border-radius: 17px 17px 0 0 !important;
+}
+#notch.is-dragging.is-bottom[data-view="idle"],
+#notch.is-dragging.is-bottom[data-view="clock"] {
+  border-radius: 12px 12px 0 0 !important;
+}
+#notch.is-dragging.is-bottom[data-view="compact"],
+#notch.is-dragging.is-bottom[data-view="compactLyrics"] {
+  border-radius: 17px 17px 0 0 !important;
+}
+#notch.is-dragging.is-bottom[data-view="hud"] {
+  border-radius: 26px 26px 0 0 !important;
+}
+#notch.is-dragging.is-bottom[data-view="hub"],
+#notch.is-dragging.is-bottom[data-view="lyr"],
+#notch.is-dragging.is-bottom[data-view="cal"] {
+  border-radius: 32px 32px 0 0 !important;
+}
+#notch.is-dragging.is-bottom[data-view="bt"],
+#notch.is-dragging.is-bottom[data-view="dev"] {
+  border-radius: 37px 37px 0 0 !important;
+}
+
+/* isi tidak ikut memudar saat drag di dasar, supaya tidak terlihat bolong */
+#notch.is-dragging.is-bottom .layer {
+  opacity: 1;
+}

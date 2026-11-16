@@ -1,0 +1,3110 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Notch — Pengaturan</title>
+  <link rel="stylesheet" href="/src/css/eye-themes.css" />
+  <link rel="stylesheet" href="/src/css/notch-themes.css" />
+  <style>
+    :root {
+      color-scheme: light dark;
+      --page: #f3f5fa;
+      --side: #ebeef6;
+      --surface: #ffffff;
+      --surface-alt: #f6f8fc;
+      --line: #e1e5ef;
+      --text: #1c2334;
+      --muted: #6d768a;
+      --accent: #4a63f0;
+      --accent-hover: #3b52d9;
+      --accent-soft: #e8ecff;
+      --good: #17844b;
+      --bad: #c93737;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page: #101218;
+        --side: #14171f;
+        --surface: #191c25;
+        --surface-alt: #20242f;
+        --line: #2b3040;
+        --text: #f1f3fa;
+        --muted: #9aa3b6;
+        --accent: #8494ff;
+        --accent-hover: #9ba7ff;
+        --accent-soft: #272d4d;
+        --good: #55d692;
+        --bad: #ff8888;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --side-w: 196px;
+      --foot-h: 58px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--page);
+    }
+
+    /* ---------- sidebar ---------- */
+    .side {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 30;
+      width: var(--side-w);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 20px 12px 16px;
+      background: var(--side);
+      border-right: 1px solid var(--line);
+      overflow-y: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 8px;
+    }
+
+    .brand-mark {
+      position: relative;
+      display: grid;
+      place-items: center;
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      border-radius: 11px;
+      background: var(--text);
+    }
+
+    .brand-mark::before {
+      content: "";
+      width: 18px;
+      height: 10px;
+      border-radius: 0 0 7px 7px;
+      background: var(--page);
+      box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 78%, transparent);
+    }
+
+    .brand b {
+      display: block;
+      font-size: 15px;
+      line-height: 1.2;
+      letter-spacing: -.02em;
+    }
+
+    .brand small {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .tabs {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+
+    .tab svg {
+      flex: 0 0 16px;
+      width: 16px;
+      height: 16px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .tab:hover {
+      background: color-mix(in srgb, var(--text) 6%, transparent);
+      color: var(--text);
+    }
+
+    .tab[aria-selected="true"] {
+      background: var(--surface);
+      color: var(--accent);
+      box-shadow: 0 1px 3px rgba(20, 30, 60, .1), inset 3px 0 0 var(--accent);
+    }
+
+    .tab:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: -2px;
+    }
+
+    /* ---------- area utama ---------- */
+    main {
+      min-width: 0;
+      margin-left: var(--side-w);
+      padding-bottom: var(--foot-h);
+    }
+
+    .inner {
+      max-width: 940px;
+      margin: 0 auto;
+      padding: 22px 24px 28px;
+    }
+
+    .panel[hidden] {
+      display: none;
+    }
+
+    .panel-head {
+      margin: 0 0 14px;
+    }
+
+    .panel-head h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+      font-weight: 740;
+      letter-spacing: -.03em;
+    }
+
+    .panel-head p {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      max-width: 70ch;
+    }
+
+    /* pratinjau: menempel di atas saat daftar warna di-scroll */
+    .preview {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin: 0 -2px 14px;
+      padding: 8px 2px 0;
+      background: linear-gradient(var(--page) 80%, transparent);
+    }
+
+    body[data-tab="appearance"] .preview,
+    body[data-tab="mood-section"] .preview {
+      display: block;
+    }
+
+    .preview-card {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: 0 8px 24px rgba(20, 30, 60, .08);
+    }
+
+    .stage {
+      flex: 1;
+      min-width: 0;
+      margin: 0;
+      height: 84px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #768195 0%, #bac4d2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .preview-copy {
+      flex: 0 0 190px;
+    }
+
+    .preview-copy b {
+      display: block;
+      font-size: 12.5px;
+    }
+
+    .preview-copy .hint {
+      margin: 3px 0 0;
+    }
+
+    #pill {
+      --p-bg: #000;
+      --p-fg: #fff;
+      --p-fg-rgb: 255, 255, 255;
+      --p-accent: 120, 140, 255;
+      --p-scale: 1;
+      width: calc(210px * var(--p-scale));
+      height: calc(44px * var(--p-scale));
+      background: radial-gradient(130% 160% at 50% -30%, rgba(var(--p-accent), .25), transparent 60%), var(--p-bg);
+      color: var(--p-fg);
+      border-radius: 0 0 calc(18px * var(--p-scale)) calc(18px * var(--p-scale));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(10px * var(--p-scale));
+      font-size: calc(12px * var(--p-scale));
+      position: relative;
+      overflow: hidden;
+      transition: background .15s, color .15s;
+    }
+
+    #pill i {
+      width: calc(7px * var(--p-scale));
+      height: calc(7px * var(--p-scale));
+      border-radius: 50%;
+      background: var(--p-fg);
+    }
+
+    #pill span {
+      opacity: .85;
+    }
+
+    #pill::after {
+      content: "";
+      position: absolute;
+      left: 14%;
+      right: 14%;
+      bottom: calc(5px * var(--p-scale));
+      height: 2px;
+      border-radius: 2px;
+      background: rgb(var(--p-accent));
+      opacity: .9;
+    }
+
+    /* ---------- kartu ---------- */
+    .cols {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .cols.wide-left {
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .card {
+      min-width: 0;
+      margin: 0;
+      padding: 14px 16px 8px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .card.full {
+      grid-column: 1 / -1;
+    }
+
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 13px;
+      line-height: 1.4;
+      font-weight: 720;
+      letter-spacing: -.01em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 11.5px;
+      line-height: 1.55;
+      margin: 0 0 8px;
+    }
+
+    .card>.hint:last-child {
+      margin: 8px 0 6px;
+    }
+
+    small {
+      font-size: inherit;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 9px 0;
+      min-height: 42px;
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+    }
+
+    .card>.row:last-child,
+    .card>.row:last-of-type {
+      border-bottom: 0;
+    }
+
+    .row.off {
+      opacity: .42;
+    }
+
+    .row>label:first-child,
+    .row>span:first-child {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 560;
+    }
+
+    .row .note {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 450;
+    }
+
+    .ctl {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 9px;
+      min-width: 0;
+    }
+
+    code {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .seg {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      padding: 3px;
+      gap: 3px;
+      margin: 6px 0 8px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface-alt);
+    }
+
+    .seg label {
+      position: relative;
+      min-width: 0;
+    }
+
+    .seg input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+      cursor: pointer;
+    }
+
+    .seg span {
+      display: block;
+      padding: 7px 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 620;
+      transition: background .15s, color .15s;
+    }
+
+    .seg input:checked+span {
+      color: var(--accent);
+      background: var(--surface);
+      box-shadow: 0 1px 3px rgba(16, 24, 48, .12);
+      font-weight: 750;
+    }
+
+    .seg input:focus-visible+span {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 30px;
+      height: 30px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: var(--surface-alt);
+      cursor: pointer;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: 0;
+      border-radius: 50%;
+    }
+
+    input[type="color"]:disabled {
+      cursor: not-allowed;
+    }
+
+    input[type="range"] {
+      width: 130px;
+      max-width: 46vw;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .auto {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    input:focus-visible,
+    select:focus-visible,
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    input[type="text"],
+    input[type="search"],
+    input[type="number"],
+    select {
+      font: inherit;
+      min-width: 0;
+      max-width: 100%;
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--surface-alt);
+      color: var(--text);
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input[type="text"]:focus,
+    input[type="search"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+    }
+
+    input[type="number"] {
+      width: 110px;
+      text-align: right;
+    }
+
+    .row input[type="text"] {
+      width: min(240px, 58%);
+    }
+
+    .row input.wide {
+      width: min(280px, 62%);
+    }
+
+    .row input.emoji {
+      width: 64px;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    .row select {
+      width: min(220px, 60%);
+    }
+
+    .emojis {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 2px 0 10px;
+    }
+
+    .emo-btn {
+      padding: 5px 8px;
+      font-size: 16px;
+      line-height: 1.1;
+      border-radius: 9px;
+      background: var(--surface-alt);
+    }
+
+    .search {
+      display: flex;
+      gap: 8px;
+      margin: 4px 0 8px;
+    }
+
+    .search input {
+      flex: 1;
+      width: 0;
+    }
+
+    .results {
+      list-style: none;
+      margin: 0 0 8px;
+      padding: 0;
+      display: grid;
+      gap: 5px;
+    }
+
+    .results:empty {
+      display: none;
+    }
+
+    .results button {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      padding: 8px 11px;
+      background: var(--surface-alt);
+    }
+
+    .results small {
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 10px;
+    }
+
+    /* skin mata */
+    .eye-theme-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 9px;
+      margin: 6px 0 10px;
+    }
+
+    .eye-theme-option {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 7px;
+      min-width: 0;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+
+    .eye-theme-option:hover {
+      border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+    }
+
+    .eye-theme-option[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+    }
+
+    .eye-theme-swatch {
+      display: grid;
+      place-items: center;
+      min-height: 62px;
+      border-radius: 9px;
+      background: #0b0d14;
+      overflow: hidden;
+    }
+
+    .eye-theme-swatch .eyes {
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: relative;
+      width: 100%;
+      height: 58px;
+      margin: 0;
+      padding: 0;
+      transform: none !important;
+    }
+
+    .eye-theme-swatch .eye {
+      display: block;
+      flex: 0 0 13px;
+      width: 13px;
+      height: 21px;
+      margin: 0;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+      border-radius: 8px;
+      transform: none;
+      animation: none;
+    }
+
+    .eye-theme-swatch .shine {
+      display: block;
+      position: absolute;
+      top: 4px;
+      left: 3px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .96);
+    }
+
+    .eye-theme-swatch .lid-t,
+    .eye-theme-swatch .lid-b {
+      display: none;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="happy"] .eye {
+      height: 15px;
+      margin-top: 5px;
+      border-radius: 50%;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="sleepy"] .eye {
+      height: 12px;
+      margin-top: 6px;
+      border-radius: 7px 7px 4px 4px;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="surprised"] .eye {
+      height: 25px;
+      border-radius: 50%;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="angry"] .eye {
+      transform: skewY(-10deg);
+    }
+
+    .eye-theme-swatch .eyes[data-mood="love"] .eye {
+      border-radius: 50% 50% 40% 40%;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="suspicious"] .eye:first-child {
+      height: 13px;
+      margin-top: 7px;
+    }
+
+    .eye-theme-swatch .eyes[data-mood="sad"] .eye {
+      height: 17px;
+      margin-top: 4px;
+      border-radius: 7px 7px 10px 10px;
+    }
+
+    .eye-theme-name {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 720;
+    }
+
+    .eye-theme-name small {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .eye-theme-option[aria-pressed="true"] .eye-theme-name::after {
+      content: "✓";
+      color: var(--accent);
+      font-size: 13px;
+    }
+
+    /* fitur */
+    .feat {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+      margin: 8px 0 8px;
+    }
+
+    .feat label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      padding: 9px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      cursor: pointer;
+      font-size: 12px;
+      transition: border-color .15s, background .15s;
+    }
+
+    .feat label:hover {
+      border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+      background: var(--accent-soft);
+    }
+
+    .feat label:has(input:checked) {
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+    }
+
+    .pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .pair .row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      border-bottom: 0;
+    }
+
+    .pair .row input[type="number"] {
+      width: 100%;
+      text-align: left;
+    }
+
+    button {
+      font: inherit;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface-alt);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 650;
+      transition: border-color .15s, background .15s;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 750;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button:disabled {
+      opacity: .48;
+      cursor: progress;
+    }
+
+    .card .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 6px 0 10px;
+    }
+
+    .adhan-test-controls {
+      flex-wrap: wrap;
+    }
+
+    #adhan-test-status[data-state="playing"] {
+      color: var(--good) !important;
+    }
+
+    #adhan-test-status[data-state="error"] {
+      color: var(--bad) !important;
+    }
+
+    /* ---------- bilah bawah ---------- */
+    .foot {
+      position: fixed;
+      left: var(--side-w);
+      right: 0;
+      bottom: 0;
+      z-index: 25;
+      height: var(--foot-h);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 24px;
+      border-top: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    #status {
+      flex: 1;
+      min-width: 0;
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #status::before {
+      content: "";
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: var(--line);
+      vertical-align: 1px;
+    }
+
+    #status[data-kind="ok"] {
+      color: var(--good);
+    }
+
+    #status[data-kind="ok"]::before {
+      background: var(--good);
+    }
+
+    #status[data-kind="err"] {
+      color: var(--bad);
+      white-space: normal;
+    }
+
+    #status[data-kind="err"]::before {
+      background: var(--bad);
+    }
+
+    .foot button {
+      min-width: 130px;
+    }
+
+    /* ---------- layar sempit: sidebar tetap di kiri, hanya mengecil jadi ikon ---------- */
+    @media (max-width: 760px) {
+      :root {
+        --side-w: 60px;
+      }
+
+      .side {
+        align-items: center;
+        padding: 16px 8px;
+      }
+
+      .brand {
+        padding: 0;
+      }
+
+      .brand>div:last-child,
+      .tab span {
+        display: none;
+      }
+
+      .tabs {
+        width: 100%;
+      }
+
+      .tab {
+        justify-content: center;
+        padding: 0;
+        min-height: 40px;
+      }
+
+      .inner {
+        padding: 16px 14px 20px;
+      }
+
+      .cols.wide-left {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .preview-copy {
+        display: none;
+      }
+
+      .eye-theme-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .foot {
+        padding: 0 14px;
+      }
+
+      .foot button {
+        min-width: 0;
+        padding: 8px 10px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .cols {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      #status {
+        display: none;
+      }
+
+      .foot {
+        justify-content: flex-end;
+      }
+
+      .eye-theme-grid,
+      .feat,
+      .pair {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .feat {
+        grid-template-columns: 1fr;
+      }
+
+      .row {
+        flex-wrap: wrap;
+      }
+
+      .row>label:first-child,
+      .row>span:first-child {
+        flex-basis: 100%;
+      }
+
+      .row .ctl {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .row input[type="text"],
+      .row input.wide,
+      .row select {
+        width: 100%;
+      }
+
+      .row .ctl input[type="range"] {
+        max-width: none;
+        flex: 1;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+      }
+    }
+
+    /* ---------- Responsive layout hardening ---------- */
+    html,
+    body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      min-width: 0;
+    }
+
+    main,
+    .inner,
+    .panel,
+    .cols,
+    .stack,
+    .card {
+      min-width: 0;
+    }
+
+    main {
+      width: auto;
+    }
+
+    .inner {
+      width: 100%;
+    }
+
+    .cols {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+    }
+
+    .card,
+    .hint,
+    .panel-head p,
+    .row>label,
+    .row>span,
+    .feat label,
+    .eye-theme-name {
+      overflow-wrap: anywhere;
+    }
+
+    input,
+    select,
+    button {
+      min-width: 0;
+    }
+
+    input[type="text"],
+    input[type="search"],
+    input[type="number"],
+    select {
+      max-width: 100%;
+    }
+
+    .ctl,
+    .search {
+      flex-wrap: wrap;
+    }
+
+    .results button {
+      min-width: 0;
+    }
+
+    .results button>* {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    /* When the settings window is medium-sized, reclaim the sidebar width. */
+    @media (min-width: 761px) and (max-width: 960px) {
+      :root {
+        --side-w: 64px;
+        --foot-h: 72px;
+      }
+
+      .side {
+        align-items: center;
+        gap: 14px;
+        padding: 16px 8px;
+      }
+
+      .brand {
+        padding: 0;
+      }
+
+      .brand>div:last-child,
+      .tab span {
+        display: none;
+      }
+
+      .tabs {
+        width: 100%;
+      }
+
+      .tab {
+        justify-content: center;
+        padding: 0;
+        min-height: 40px;
+      }
+
+      .inner {
+        padding: 18px 16px 28px;
+      }
+
+      .cols.wide-left {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .preview-copy {
+        display: none;
+      }
+
+      .foot {
+        padding: 8px 14px;
+        gap: 8px;
+      }
+
+      .foot button {
+        min-width: 0;
+      }
+    }
+
+    /* Tablets / narrow desktop windows: cards and form rows stack cleanly. */
+    @media (max-width: 620px) {
+      .inner {
+        padding: 14px 12px 24px;
+      }
+
+      .cols,
+      .cols.wide-left {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .card {
+        padding: 12px 12px 8px;
+      }
+
+      .row {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 7px 10px;
+      }
+
+      .row>label:first-child,
+      .row>span:first-child {
+        flex: 1 1 100%;
+      }
+
+      .row>input[type="text"],
+      .row>input[type="search"],
+      .row>input[type="number"],
+      .row>select,
+      .row input[type="text"],
+      .row input.wide,
+      .row select {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .row .ctl {
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .row .ctl input[type="range"] {
+        max-width: none;
+        flex: 1 1 120px;
+      }
+
+      .seg {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .preview-card {
+        gap: 8px;
+        padding: 8px;
+      }
+
+      .foot {
+        padding: 8px 10px;
+        gap: 8px;
+      }
+
+      .foot button {
+        min-width: 0;
+        padding: 8px 9px;
+        white-space: normal;
+      }
+    }
+
+    /* Small windows / mobile-sized layouts. */
+    @media (max-width: 480px) {
+      :root {
+        --foot-h: 76px;
+      }
+
+      .inner {
+        padding: 12px 10px 18px;
+      }
+
+      .panel-head h1 {
+        font-size: 18px;
+      }
+
+      .panel-head p {
+        font-size: 11.5px;
+      }
+
+      .cols,
+      .cols.wide-left {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .card {
+        padding: 11px 10px 7px;
+        border-radius: 12px;
+      }
+
+      .eye-theme-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .feat,
+      .feat[style] {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+
+      .pair {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+      }
+
+      .preview {
+        margin-bottom: 10px;
+      }
+
+      .stage {
+        height: 70px;
+      }
+
+      .foot {
+        height: auto;
+        min-height: var(--foot-h);
+        flex-wrap: wrap;
+        padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+        gap: 6px;
+      }
+
+      #status {
+        display: none;
+      }
+
+      .foot button {
+        flex: 1 1 calc(50% - 3px);
+        width: 0;
+        min-width: 0;
+        max-width: 100%;
+        padding: 7px 6px;
+        font-size: 11px;
+        line-height: 1.25;
+      }
+    }
+
+    @media (max-width: 360px) {
+      :root {
+        --side-w: 52px;
+        --foot-h: 78px;
+      }
+
+      .side {
+        width: var(--side-w);
+        padding-inline: 5px;
+      }
+
+      main {
+        margin-left: var(--side-w);
+      }
+
+      .inner {
+        padding-inline: 8px;
+      }
+
+      .tab {
+        min-height: 38px;
+      }
+
+      .brand-mark {
+        width: 32px;
+        height: 32px;
+        flex-basis: 32px;
+      }
+
+      .card {
+        padding-inline: 9px;
+      }
+
+      .foot {
+        left: var(--side-w);
+      }
+
+      .foot button {
+        font-size: 10.5px;
+      }
+    }
+
+    @media (max-height: 560px) {
+      .side {
+        gap: 8px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+
+      .tabs {
+        gap: 1px;
+      }
+
+      .tab {
+        min-height: 32px;
+      }
+
+      .foot {
+        backdrop-filter: blur(12px);
+      }
+    }
+
+
+    /* Final form overflow fix: prevent grid min-content sizing from pushing inputs off-card. */
+    .card,
+    .row,
+    .pair,
+    .pair>.row {
+      min-width: 0;
+    }
+
+    .pair {
+      width: 100%;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pair>.row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      align-content: start;
+      align-items: stretch;
+      gap: 6px;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    .pair>.row>label,
+    .pair>.row>span {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    .pair>.row>input[type="number"],
+    .pair>.row>input[type="text"],
+    .pair>.row>select {
+      display: block;
+      box-sizing: border-box;
+      width: 100% !important;
+      min-width: 0;
+      max-width: 100%;
+      margin: 0;
+      text-align: left;
+    }
+
+    .row>input[type="text"],
+    .row>input[type="search"],
+    .row>input[type="number"],
+    .row>select {
+      box-sizing: border-box;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    /* Use a more conservative breakpoint because WebView scaling can halve physical pixels. */
+    @media (max-width: 760px) {
+      .pair {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .pair>.row {
+        width: 100%;
+      }
+
+      .row {
+        min-width: 0;
+      }
+
+      .row>label:first-child,
+      .row>span:first-child {
+        flex: 0 1 auto;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .row>input[type="text"],
+      .row>input[type="search"],
+      .row>input[type="number"],
+      .row>select {
+        flex: 0 1 auto;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .row .ctl {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .row .ctl input[type="color"] {
+        flex: 0 0 30px;
+      }
+    }
+
+    /* Last-resort protection against horizontal scrolling inside the settings window. */
+    .panel,
+    .cols,
+    .card,
+    .pair,
+    .pair>.row,
+    .row>* {
+      max-width: 100%;
+    }
+
+    input[type="number"] {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* tema notch */
+    .nt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+      gap: 9px;
+      margin: 6px 0 4px;
+    }
+
+    /* nilai bawaan hanya untuk kartu "Bawaan" (tanpa data-notch-theme), supaya tidak menimpa token tema */
+    .nt-swatch:not([data-notch-theme]) {
+      --nt-bg: #000;
+      --nt-fg: #fff;
+      --nt-accent: 120, 140, 255;
+    }
+
+    .nt-swatch {
+      height: 38px;
+      margin: 6px 14px 0;
+      border-radius: 0 0 14px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--nt-fg);
+      background-color: var(--nt-bg);
+      background-image: var(--nt-deco, none);
+      background-size: var(--nt-size, 100% 100%);
+      box-shadow: var(--nt-ring-top, none);
+      overflow: hidden;
+    }
+
+    .nt-swatch i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: rgb(var(--nt-accent));
+      box-shadow: 0 0 6px rgba(var(--nt-accent), .7);
+    }
+
+    .nt-stage {
+      display: block;
+      padding: 0 0 8px;
+      border-radius: 9px;
+      background: color-mix(in srgb, var(--text) 8%, var(--surface));
+    }
+
+    .nt-option[aria-pressed="true"] .eye-theme-name::after {
+      content: "✓";
+      color: var(--accent);
+      font-size: 13px;
+    }
+  </style>
+  <script type="module" src="/src/main-modules/settings-adhan-test.ts"></script>
+  <script type="module" src="/src/main-modules/settings-greeting.ts"></script>
+</head>
+
+<body data-tab="appearance">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div><b>Notch</b><small>Pengaturan</small></div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Kategori pengaturan" aria-orientation="vertical">
+      <button type="button" class="tab" role="tab" id="tab-appearance" data-tab="appearance" aria-controls="appearance" aria-selected="false" tabindex="-1" title="Tampilan"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="6" />
+          <path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" />
+        </svg><span>Tampilan</span></button>
+      <button type="button" class="tab" role="tab" id="tab-mood-section" data-tab="mood-section" aria-controls="mood-section" aria-selected="false" tabindex="-1" title="Mata"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <ellipse cx="5.2" cy="8" rx="1.8" ry="3" />
+          <ellipse cx="10.8" cy="8" rx="1.8" ry="3" />
+        </svg><span>Mata</span></button>
+      <button type="button" class="tab" role="tab" id="tab-features-section" data-tab="features-section" aria-controls="features-section" aria-selected="false" tabindex="-1" title="Fitur"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <rect x="2" y="2" width="5" height="5" rx="1.2" />
+          <rect x="9" y="2" width="5" height="5" rx="1.2" />
+          <rect x="2" y="9" width="5" height="5" rx="1.2" />
+          <rect x="9" y="9" width="5" height="5" rx="1.2" />
+        </svg><span>Fitur</span></button>
+      <button type="button" class="tab" role="tab" id="tab-nudge-section" data-tab="nudge-section" aria-controls="nudge-section" aria-selected="false" tabindex="-1" title="Pesan diam"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" />
+        </svg><span>Pesan diam</span></button>
+      <button type="button" class="tab" role="tab" id="tab-weather-section" data-tab="weather-section" aria-controls="weather-section" aria-selected="false" tabindex="-1" title="Cuaca"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d="M4.5 12.5a3 3 0 0 1 .2-6 4 4 0 0 1 7.6 1 2.5 2.5 0 0 1-.3 5z" />
+        </svg><span>Cuaca</span></button>
+      <button type="button" class="tab" role="tab" id="tab-behavior-section" data-tab="behavior-section" aria-controls="behavior-section" aria-selected="false" tabindex="-1" title="Perilaku & posisi"><svg viewBox="0 0 16 16" aria-hidden="true">
+          <circle cx="8" cy="8" r="2" />
+          <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" />
+        </svg><span>Perilaku & posisi</span></button>
+    </nav>
+  </aside>
+
+  <main>
+    <div class="inner">
+      <div class="preview">
+        <div class="preview-card">
+          <div class="stage">
+            <div id="pill"><i></i><i></i><span>Notch</span></div>
+          </div>
+          <div class="preview-copy">
+            <b>Pratinjau</b>
+            <p class="hint">Perubahan tampilan langsung terlihat pada notch asli sebelum disimpan.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Tampilan ===== -->
+      <section class="panel" id="appearance" role="tabpanel" aria-labelledby="tab-appearance" data-panel>
+        <header class="panel-head">
+          <h1>Tampilan</h1>
+          <p>Warna, tema, dan ukuran notch.</p>
+        </header>
+        <div class="cols wide-left">
+          <div class="card">
+            <h2>Warna &amp; tema</h2>
+            <div class="seg" role="radiogroup" aria-label="Mode warna">
+              <label><input type="radio" name="theme" value="auto" /><span>Ikuti OS</span></label>
+              <label><input type="radio" name="theme" value="dark" /><span>Gelap</span></label>
+              <label><input type="radio" name="theme" value="light" /><span>Terang</span></label>
+              <label><input type="radio" name="theme" value="custom" /><span>Kustom</span></label>
+            </div>
+            <div class="row" id="row-background">
+              <label for="background">Warna notch</label>
+              <div class="ctl"><code id="hex-background"></code><input type="color" id="background" /></div>
+            </div>
+            <div class="row" id="row-dark_bg">
+              <label for="dark_bg">Warna notch di tema gelap</label>
+              <div class="ctl"><code id="hex-dark_bg"></code><input type="color" id="dark_bg" /></div>
+            </div>
+            <div class="row" id="row-light_bg">
+              <label for="light_bg">Warna notch di tema terang</label>
+              <div class="ctl"><code id="hex-light_bg"></code><input type="color" id="light_bg" /></div>
+            </div>
+            <div class="row" id="row-text">
+              <label for="text">Warna teks</label>
+              <div class="ctl">
+                <label class="auto"><input type="checkbox" id="text_auto" /> otomatis</label>
+                <code id="hex-text"></code><input type="color" id="text" />
+              </div>
+            </div>
+            <div class="row" id="row-accent">
+              <label for="accent">Warna aksen</label>
+              <div class="ctl">
+                <label class="auto"><input type="checkbox" id="accent_auto" /> dari cover album</label>
+                <code id="hex-accent"></code><input type="color" id="accent" />
+              </div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card" id="scale-section">
+              <h2>Ukuran</h2>
+              <div class="row">
+                <label for="scale">Skala notch</label>
+                <div class="ctl"><input type="range" id="scale" min="0.5" max="1.5" step="0.05" /><code id="scale_val"></code></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Mata ===== -->
+      <section class="panel" id="mood-section" role="tabpanel" aria-labelledby="tab-mood-section" data-panel hidden>
+        <header class="panel-head">
+          <h1>Mata</h1>
+          <p>Ekspresi mata saat notch diam dan skin yang dipakai semua mood.</p>
+        </header>
+        <div class="cols">
+          <div class="card full">
+            <div class="row">
+              <span>Ekspresi mata bawaan<span class="note">Berbeda dari ekspresi saat pesan pointer diam muncul.</span></span>
+              <select id="default-mood">
+                <option value="normal">Normal</option>
+                <option value="happy">Senang</option>
+                <option value="sleepy">Mengantuk</option>
+                <option value="surprised">Kaget</option>
+                <option value="angry">Marah</option>
+                <option value="love">Jatuh cinta</option>
+                <option value="suspicious">Curiga</option>
+                <option value="sad">Sedih</option>
+              </select>
+            </div>
+          </div>
+          <div class="card full">
+            <h2>Tema notch</h2>
+            <p class="hint">Tema siap pakai untuk badan notch (latar, warna teks, dan aksen). "Bawaan" memakai warna manual di bawah. Aksen manual tetap diutamakan.</p>
+            <input type="hidden" id="notch-theme" value="default" />
+            <div class="nt-grid" id="nt-grid" aria-label="Pilihan tema notch">
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="default" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch"><i></i><i></i><span>Bawaan</span></span></span>
+                <span class="eye-theme-name">Bawaan <small>Warna manual</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="aurora" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="aurora"><i></i><i></i><span>Aurora</span></span></span>
+                <span class="eye-theme-name">Aurora <small>Modern</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="obsidian" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="obsidian"><i></i><i></i><span>Obsidian</span></span></span>
+                <span class="eye-theme-name">Obsidian <small>Elegan</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="neon" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="neon"><i></i><i></i><span>Neon Tokyo</span></span></span>
+                <span class="eye-theme-name">Neon Tokyo <small>Cyber</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="sakura" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="sakura"><i></i><i></i><span>Sakura Boba</span></span></span>
+                <span class="eye-theme-name">Sakura Boba <small>Lucu</small></span>
+              </button>
+              <button type="button" class="eye-theme-option nt-option" data-notch-theme-option="matcha" aria-pressed="false">
+                <span class="nt-stage"><span class="nt-swatch" data-notch-theme="matcha"><i></i><i></i><span>Matcha Kodok</span></span></span>
+                <span class="eye-theme-name">Matcha Kodok <small>Lucu</small></span>
+              </button>
+            </div>
+          </div>
+          <div class="card full">
+            <h2>Tema visual mata</h2>
+            <p class="hint">Pilih satu dari 10 skin. Setiap mood punya palet warna khusus.</p>
+            <input type="hidden" id="eye-theme" value="aurora" />
+            <div class="eye-theme-grid" id="eye-theme-grid" aria-label="Pilihan tema visual mata">
+              <button type="button" class="eye-theme-option" data-eye-theme-option="aurora" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="aurora"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Aurora <small>Soft glow</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="neon" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="neon"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Neon <small>Bright</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="pastel" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="pastel"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Pastel <small>Gentle</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="pixel" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="pixel"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Pixel <small>Retro</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="holo" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="holo"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Holographic <small>Future</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="ember" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="ember"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Ember <small>Warm flame</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="ocean" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="ocean"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Ocean <small>Deep aquatic</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="sakura" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="sakura"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Sakura <small>Cherry blossom</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="cyber" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="cyber"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Cyber <small>Cyber pulse</small></span>
+              </button>
+              <button type="button" class="eye-theme-option" data-eye-theme-option="monochrome" aria-pressed="false">
+                <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="monochrome"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+                <span class="eye-theme-name">Monochrome <small>Silver minimal</small></span>
+              </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="kawaii" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="kawaii"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Kawaii <small>Bubblegum</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="boba" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="boba"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Boba <small>Milk tea pearl</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="galaxy" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="galaxy"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Galaxy <small>Starry night</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="matcha" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="matcha"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Matcha <small>Calm green tea</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="candy" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="candy"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Candy <small>Rainbow pop</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="synthwave" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="synthwave"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Synthwave <small>Retro sunset</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="slime" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="slime"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Slime <small>Jelly glossy</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="cotton" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="cotton"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Cotton <small>Cotton candy</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="pumpkin" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="pumpkin"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Pumpkin <small>Spooky cute</small></span>
+        </button>
+        <button type="button" class="eye-theme-option" data-eye-theme-option="frost" aria-pressed="false">
+          <span class="eye-theme-swatch"><span class="eyes" data-mood="normal" data-eye-theme="frost"><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span><span class="eye"><span class="lid-t"></span><span class="lid-b"></span><span class="shine"></span></span></span></span>
+          <span class="eye-theme-name">Frost <small>Ice crystal</small></span>
+        </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Fitur ===== -->
+      <section class="panel" id="features-section" role="tabpanel" aria-labelledby="tab-features-section" data-panel hidden>
+        <header class="panel-head">
+          <h1>Fitur</h1>
+          <p>Centang halaman yang ingin ditampilkan. Daftar halaman langsung dipratinjau di Hub; tekan Simpan agar permanen. Fitur tambahan tertentu mungkin memerlukan restart.</p>
+        </header>
+        <div class="cols wide-left">
+          <div class="card" id="features">
+            <h2>Halaman</h2>
+            <div class="feat">
+              <label><input type="checkbox" id="f-media" data-feature="media" /> Musik</label>
+              <label><input type="checkbox" id="f-clock" data-feature="clock" /> Jam &amp; tanggal</label>
+              <label><input type="checkbox" id="f-weather" data-feature="weather" /> Cuaca</label>
+              <label><input type="checkbox" id="f-battery" data-feature="battery" /> Baterai</label>
+              <label><input type="checkbox" id="f-timer" data-feature="timer" /> Timer Pomodoro</label>
+              <label><input type="checkbox" id="f-quick" data-feature="quick" /> Kontrol cepat</label>
+              <label><input type="checkbox" id="f-tools" data-feature="tools" /> Alat</label>
+              <label><input type="checkbox" id="f-stats" data-feature="stats" /> Status sistem</label>
+              <label><input type="checkbox" id="f-clipboard" data-feature="clipboard" /> Riwayat clipboard</label>
+              <label><input type="checkbox" id="f-shelf" data-feature="shelf" /> Shelf file</label>
+              <label><input type="checkbox" id="f-reminder" data-feature="reminder" /> Pengingat</label>
+              <label><input type="checkbox" id="f-notes" data-feature="notes" /> Catatan</label>
+              <label><input type="checkbox" id="f-prayer" data-feature="prayer" /> Jadwal shalat</label>
+              <label><input type="checkbox" id="f-currency" data-feature="currency" /> Currency · Kurs &amp; saham</label>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Tambahan</h2>
+            <div class="feat" style="grid-template-columns:1fr">
+              <label><input type="checkbox" id="f-lyrics" data-feature="lyrics" /> Lirik lagu</label>
+              <label><input type="checkbox" id="f-privacy" data-feature="privacy" /> Indikator mic/kamera</label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Pesan diam ===== -->
+      <section class="panel" id="nudge-section" role="tabpanel" aria-labelledby="tab-nudge-section" data-panel hidden>
+        <header class="panel-head">
+          <h1>Pesan saat pointer diam</h1>
+          <p>Kalau pointer tidak bergerak cukup lama, notch menyapa dengan pesan imut. Muncul sekali untuk tiap periode diam. Perubahan langsung berlaku.</p>
+        </header>
+        <div class="cols">
+          <div class="card">
+            <h2>Isi pesan</h2>
+            <div class="row">
+              <label for="n-msg">Pesan</label>
+              <input type="text" id="n-msg" class="wide" maxlength="80" placeholder="Kamu kemana, kok diam saja?" />
+            </div>
+            <div class="row">
+              <label for="n-emoji">Emoji</label>
+              <input type="text" id="n-emoji" class="emoji" maxlength="12" />
+            </div>
+            <div class="emojis" id="n-presets" aria-label="Pilihan emoji"></div>
+            <div class="row">
+              <label for="n-mood">Ekspresi mata</label>
+              <select id="n-mood">
+                <option value="sad">Sedih</option>
+                <option value="normal">Normal</option>
+                <option value="happy">Senang</option>
+                <option value="sleepy">Mengantuk</option>
+                <option value="surprised">Kaget</option>
+                <option value="angry">Marah</option>
+                <option value="love">Jatuh cinta</option>
+                <option value="suspicious">Curiga</option>
+              </select>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Kapan muncul</h2>
+            <div class="row">
+              <label for="n-enabled">Aktifkan</label>
+              <input type="checkbox" id="n-enabled" />
+            </div>
+            <div class="row">
+              <label for="n-min">Muncul setelah diam (menit)</label>
+              <input type="number" id="n-min" min="1" max="240" step="1" />
+            </div>
+            <div class="row">
+              <label for="n-sec">Lama tampil (detik)<span class="note">Dipakai jika opsi sampai pointer bergerak dimatikan.</span></label>
+              <input type="number" id="n-sec" min="2" max="30" step="1" />
+            </div>
+            <div class="row">
+              <label for="n-until-move">Tampilkan sampai pointer bergerak lagi<span class="note">Notch tetap menampilkan pesan sampai kamu kembali, lalu menyapa dengan ekspresi senang.</span></label>
+              <input type="checkbox" id="n-until-move" />
+            </div>
+            <div class="row">
+              <label for="n-silent">Jangan muncul saat musik/video diputar</label>
+              <input type="checkbox" id="n-silent" />
+            </div>
+            <div class="btns"><button type="button" id="n-test">Coba tampilkan</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Cuaca ===== -->
+      <section class="panel" id="weather-section" role="tabpanel" aria-labelledby="tab-weather-section" data-panel hidden>
+        <header class="panel-head">
+          <h1>Cuaca</h1>
+          <p>Lokasi saat ini: <b id="w-current">…</b>. Berlaku langsung setelah Simpan, tanpa restart.</p>
+        </header>
+        <div class="cols">
+          <div class="card">
+            <h2>Cari kota</h2>
+            <div class="search">
+              <input type="search" id="w-q" placeholder="Cari kota, mis. Surabaya" autocomplete="off" data-weather />
+              <button type="button" id="w-search">Cari</button>
+            </div>
+            <ul class="results" id="w-results"></ul>
+            <p class="hint">Pilih hasil pencarian untuk mengisi koordinat otomatis.</p>
+          </div>
+          <div class="card">
+            <h2>Koordinat</h2>
+            <div class="row"><label for="w-city">Nama lokasi</label><input type="text" id="w-city" data-weather /></div>
+            <div class="pair">
+              <div class="row"><label for="w-lat">Lintang</label><input type="number" id="w-lat" step="0.0001" min="-90" max="90" data-weather /></div>
+              <div class="row"><label for="w-lon">Bujur</label><input type="number" id="w-lon" step="0.0001" min="-180" max="180" data-weather /></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Perilaku & posisi ===== -->
+      <section class="panel" id="behavior-section" role="tabpanel" aria-labelledby="tab-behavior-section" data-panel hidden>
+        <header class="panel-head">
+          <h1>Perilaku &amp; posisi</h1>
+          <p>Cara notch bersikap dan di mana ia berada.</p>
+        </header>
+        <div class="cols">
+          <div class="card">
+            <h2>Perilaku</h2>
+            <div class="row">
+              <label for="hide_fullscreen">Sembunyikan notch saat layar penuh<span class="note">Butuh restart</span></label>
+              <input type="checkbox" id="hide_fullscreen" />
+            </div>
+            <div class="row">
+              <label for="autostart">Jalankan otomatis saat komputer menyala<span class="note">Build release</span></label>
+              <input type="checkbox" id="autostart" data-os />
+            </div>
+            <div class="row">
+              <label for="bottom_play">Animasi lucu saat notch di bawah layar<span class="note">Melompat, menari, dan berkeliling sampai tepi layar. Langsung berlaku.</span></label>
+              <input type="checkbox" id="bottom_play" />
+            </div>
+          </div>
+          <div class="card" id="position-section">
+            <h2>Posisi</h2>
+            <p class="hint">Klik dan seret notch saat diam, atau seret pegangan di bawah hub, untuk memindahkannya.</p>
+            <div class="row">
+              <label>Posisi saat ini</label>
+              <span id="pos-status" style="color:var(--muted)">Tengah atas (bawaan)</span>
+            </div>
+            <div class="btns"><button type="button" id="pos-reset">Pusatkan ke tengah lagi</button></div>
+          </div>
+          <div class="card full" id="greeting-card">
+            <h2>Greeting suara saat Notch dimulai</h2>
+            <p class="hint">Notch mengucapkan sapaan saat aplikasi dijalankan dan menampilkan teksnya di notch. Pilih "Acak lucu" untuk sapaan random yang ucapan waktunya (pagi/siang/sore/malam) menyesuaikan jam sekarang. Pilih mode suara (natural atau gaya anime); bagian berbahasa Inggris dibaca dengan lafal Inggris. Sapaan bawaan memakai klip neural Edge TTS yang disertakan dalam aplikasi; teks kustom atau mode "Suara sistem" memakai voice Windows. Agar terdengar ketika PC menyala, aktifkan juga "Jalankan otomatis saat komputer menyala" di atas.</p>
+            <div class="row">
+              <label for="g-enabled">Aktifkan greeting suara</label>
+              <input type="checkbox" id="g-enabled" />
+            </div>
+            <div class="row">
+              <label for="g-mode">Sapaan bawaan</label>
+              <select id="g-mode">
+                <option value="random">Acak lucu (otomatis sesuai waktu)</option>
+                <option value="auto">Halo + sapaan sesuai waktu</option>
+                <option value="halo">Halo</option>
+                <option value="morning">Selamat pagi</option>
+                <option value="noon">Selamat siang</option>
+                <option value="afternoon">Selamat sore</option>
+                <option value="evening">Selamat malam</option>
+                <option value="custom">Teks kustom</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="g-voice">Mode suara<span class="note">Suara neural Edge TTS; teks kustom memakai suara Windows.</span></label>
+              <select id="g-voice">
+                <option value="cewek">Cewek natural (Gadis)</option>
+                <option value="cowok">Cowok natural (Ardi)</option>
+                <option value="anime-cewek">Anime cewek imut</option>
+                <option value="anime-cowok">Anime cowok (shonen)</option>
+                <option value="system">Suara sistem (Windows)</option>
+              </select>
+            </div>
+            <div class="row" id="g-custom-row">
+              <label for="g-custom">Teks kustom<span class="note">Maksimal 120 karakter.</span></label>
+              <input type="text" id="g-custom" class="wide" maxlength="120" placeholder="Halo, semangat menjalani hari!" />
+            </div>
+            <div class="btns"><button type="button" id="g-test">▶ Coba ucapkan</button></div>
+          </div>
+          <div class="card full" id="conversation-moments-card">
+            <h2>Conversation Moments</h2>
+            <p class="hint">Notch memberikan komentar singkat sesuai momen: musik, perubahan cuaca, perkiraan hujan, dan kondisi baterai. Hanya berupa teks, tanpa suara. Sampel cuaca pertama menjadi patokan dan tidak langsung memicu komentar. Adzan, greeting, dan pengingat tetap mendapat prioritas.</p>
+            <div class="row">
+              <label for="cm-enabled">Aktifkan Conversation Moments</label>
+              <input type="checkbox" id="cm-enabled" />
+            </div>
+            <div class="feat" id="cm-events" style="grid-template-columns:1fr">
+              <label><input type="checkbox" id="cm-on-play" /> Saat musik mulai diputar</label>
+              <label><input type="checkbox" id="cm-on-track" /> Saat lagu berganti</label>
+              <label><input type="checkbox" id="cm-on-pause" /> Saat musik dijeda atau selesai</label>
+              <label><input type="checkbox" id="cm-on-return" /> Saat kembali setelah lama tidak aktif</label>
+              <label><input type="checkbox" id="cm-on-weather" /> Saat kondisi cuaca berubah signifikan</label>
+              <label><input type="checkbox" id="cm-on-rain" /> Saat hujan diperkirakan segera turun</label>
+              <label><input type="checkbox" id="cm-on-low-battery" /> Saat baterai turun ke 15% atau kurang</label>
+              <label><input type="checkbox" id="cm-on-charging" /> Saat laptop mulai mengisi daya</label>
+            </div>
+            <div class="pair">
+              <div class="row">
+                <label for="cm-return-min">Anggap kembali setelah (menit)</label>
+                <input type="number" id="cm-return-min" min="5" max="120" step="1" value="10" />
+              </div>
+              <div class="row">
+                <label for="cm-cooldown-min">Jeda antar komentar (menit)</label>
+                <input type="number" id="cm-cooldown-min" min="1" max="60" step="1" value="3" />
+              </div>
+            </div>
+            <div class="btns">
+              <button type="button" id="cm-test">Coba momen</button>
+              <button type="button" id="cm-weather-test">Coba momen cuaca</button>
+            </div>
+          </div>
+
+          <div class="card full" id="focus-companion-card">
+            <h2>Focus Companion</h2>
+            <p class="hint">Teman fokus untuk timer Pomodoro. Notch memberi semangat saat sesi dimulai, ketika sudah setengah jalan, saat sesi fokus selesai, dan ketika waktu istirahat berakhir. Pesan berupa teks, tanpa suara; adzan dan pengingat tetap diprioritaskan.</p>
+            <div class="row">
+              <label for="fc-enabled">Aktifkan Focus Companion</label>
+              <input type="checkbox" id="fc-enabled" />
+            </div>
+            <div class="feat" id="fc-events" style="grid-template-columns:1fr">
+              <label><input type="checkbox" id="fc-on-start" /> Saat sesi fokus dimulai</label>
+              <label><input type="checkbox" id="fc-on-halfway" /> Saat mencapai setengah sesi</label>
+              <label><input type="checkbox" id="fc-on-focus-complete" /> Saat sesi fokus selesai / mulai istirahat</label>
+              <label><input type="checkbox" id="fc-on-break-end" /> Saat waktu istirahat selesai</label>
+            </div>
+            <div class="btns"><button type="button" id="fc-test">Coba Focus Companion</button></div>
+          </div>
+
+          <div class="card full" id="adhan-test-card">
+            <h2>Suara adzan</h2>
+            <p class="hint">Putar file adzan.mp3 untuk pengujian. Tombol ini hanya mengontrol tes suara dari jendela Settings dan tidak mengubah pengingat jadwal shalat.</p>
+            <div class="row">
+              <span>Status pemutaran</span>
+              <span id="adhan-test-status" role="status" aria-live="polite" data-state="ready" style="color:var(--muted)">Siap diputar</span>
+            </div>
+            <div class="btns adhan-test-controls">
+              <button type="button" class="primary" id="adhan-test-start">▶ Mulai tes adzan</button>
+              <button type="button" id="adhan-test-pause" disabled>Ⅱ Jeda</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div id="status" role="status" aria-live="polite">Memuat pengaturan…</div>
+    <button id="restart">Simpan &amp; mulai ulang</button>
+    <button class="primary" id="save">Simpan perubahan</button>
+  </footer>
+
+  <script>
+    const T = window.__TAURI__;
+    if (!T || !T.core) {
+      document.getElementById("status").textContent = "Error: window.__TAURI__ tidak ada (cek withGlobalTauri: true di tauri.conf.json)";
+      document.getElementById("status").dataset.kind = "err";
+      throw new Error("__TAURI__ tidak tersedia");
+    }
+
+    const invoke = (cmd, args) => Promise.race([
+      T.core.invoke(cmd, args),
+      new Promise((_, rej) => setTimeout(() => rej(new Error(`tidak ada respons dari command "${cmd}" (belum terdaftar di lib.rs?)`)), 8e3))
+    ]);
+
+    // Daftar fitur disimpan di config.pages (urutan halaman = urutan di daftar itu)
+    const PAGE_IDS = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "prayer", "currency"];
+    const EXTRA_IDS = ["lyrics", "privacy"];
+    const FEATURE_IDS = [...PAGE_IDS, ...EXTRA_IDS];
+
+    const FALLBACK = {
+      scale: 1,
+      pages: [...FEATURE_IDS],
+      weather: {
+        lat: -6.9175,
+        lon: 107.6191,
+        city: "Bandung"
+      },
+      hide_fullscreen: true,
+      appearance: {
+        theme: "auto",
+        background: "#000000",
+        text: "",
+        dark_bg: "#000000",
+        light_bg: "#f5f5f7",
+        accent: "",
+        default_mood: "normal",
+        eye_theme: "aurora",
+        notch_theme: "default"
+      },
+      nudge: {
+        enabled: true,
+        idle_min: 2,
+        message: "Kamu kemana, kok diam saja?",
+        emoji: "🥺",
+        mood: "sad",
+        show_ms: 6000,
+        only_silent: true
+      }
+    };
+
+    const EMOJIS = ["🥺", "😴", "👀", "😢", "🥹", "🐱", "🐣", "💤", "😼", "🤔"];
+    const $ = (id) => document.getElementById(id);
+    const inp = (id) => $(id);
+    const statusEl = $("status");
+    const pill = $("pill");
+
+    const NUDGE_UNTIL_MOVE_KEY = "notch.nudge.untilMove";
+    const STARTUP_GREETING_KEY = "notch.startupGreeting";
+    // id mode suara harus sama dengan PRESETS di src/main-modules/greeting-lang.ts
+    const GREETING_VOICES = ["cewek", "cowok", "anime-cewek", "anime-cowok", "system"];
+    const DEFAULT_GREETING = {
+      enabled: true,
+      mode: "random",
+      custom_text: "Halo, semangat menjalani hari!",
+      voice: "cewek"
+    };
+    const CONVERSATION_MOMENTS_KEY = "notch.conversationMoments";
+    const DEFAULT_CONVERSATION_MOMENTS = {
+      enabled: true,
+      on_play: true,
+      on_track_change: true,
+      on_pause: false,
+      on_return: true,
+      on_weather_change: true,
+      on_rain_soon: true,
+      on_low_battery: true,
+      on_charging: false,
+      return_after_min: 10,
+      cooldown_min: 3
+    };
+
+    const FOCUS_COMPANION_KEY = "notch.focusCompanion";
+    const DEFAULT_FOCUS_COMPANION = {
+      enabled: true,
+      on_start: true,
+      on_halfway: true,
+      on_focus_complete: true,
+      on_break_end: true
+    };
+
+    function readFocusCompanionPref() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(FOCUS_COMPANION_KEY) || "null");
+        if (!saved || typeof saved !== "object") return {
+          ...DEFAULT_FOCUS_COMPANION
+        };
+        return {
+          enabled: saved.enabled !== false,
+          on_start: saved.on_start !== false,
+          on_halfway: saved.on_halfway !== false,
+          on_focus_complete: saved.on_focus_complete !== false,
+          on_break_end: saved.on_break_end !== false
+        };
+      } catch {
+        return {
+          ...DEFAULT_FOCUS_COMPANION
+        };
+      }
+    }
+
+    function collectFocusCompanionPref() {
+      return {
+        enabled: inp("fc-enabled").checked,
+        on_start: inp("fc-on-start").checked,
+        on_halfway: inp("fc-on-halfway").checked,
+        on_focus_complete: inp("fc-on-focus-complete").checked,
+        on_break_end: inp("fc-on-break-end").checked
+      };
+    }
+
+    function persistFocusCompanionPref() {
+      try {
+        localStorage.setItem(FOCUS_COMPANION_KEY, JSON.stringify(collectFocusCompanionPref()));
+      } catch (e) {
+        say(`Tidak dapat menyimpan Focus Companion: ${e}`, "err");
+      }
+    }
+
+    function fillFocusCompanionPref() {
+      const pref = readFocusCompanionPref();
+      inp("fc-enabled").checked = pref.enabled;
+      inp("fc-on-start").checked = pref.on_start;
+      inp("fc-on-halfway").checked = pref.on_halfway;
+      inp("fc-on-focus-complete").checked = pref.on_focus_complete;
+      inp("fc-on-break-end").checked = pref.on_break_end;
+      syncFocusCompanionControls();
+    }
+
+    function syncFocusCompanionControls() {
+      const enabled = inp("fc-enabled").checked;
+      for (const id of ["fc-on-start", "fc-on-halfway", "fc-on-focus-complete", "fc-on-break-end"]) inp(id).disabled = !enabled;
+      inp("fc-events").classList.toggle("off", !enabled);
+      inp("fc-test").disabled = !enabled;
+    }
+
+    function emitFocusCompanionTest() {
+      if (!T.event || typeof T.event.emit !== "function") {
+        say("Event Tauri tidak tersedia untuk menguji Focus Companion.", "err");
+        return;
+      }
+      try {
+        const result = T.event.emit("focus-companion-test", {
+          text: "Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯",
+          subtitle: "Uji Focus Companion · sesi fokus"
+        });
+        if (result && typeof result.catch === "function") result.catch((error) => say(`Gagal menguji Focus Companion: ${error}`, "err"));
+        say("Mengirim contoh Focus Companion ke Notch…", "ok");
+      } catch (error) {
+        say(`Gagal menguji Focus Companion: ${error}`, "err");
+      }
+    }
+    inp("fc-enabled").addEventListener("change", syncFocusCompanionControls);
+    inp("fc-test").addEventListener("click", emitFocusCompanionTest);
+
+    function readUntilMovePref() {
+      try {
+        return localStorage.getItem(NUDGE_UNTIL_MOVE_KEY) === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function persistUntilMovePref() {
+      try {
+        localStorage.setItem(NUDGE_UNTIL_MOVE_KEY, inp("n-until-move").checked ? "1" : "0");
+      } catch (e) {
+        say(`Tidak dapat menyimpan preferensi nudge lokal: ${e}`, "err");
+      }
+    }
+
+    function readGreetingPref() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STARTUP_GREETING_KEY) || "null");
+        if (!saved || typeof saved !== "object") return {
+          ...DEFAULT_GREETING
+        };
+        return {
+          enabled: saved.enabled !== false,
+          mode: ["auto", "random", "halo", "morning", "noon", "afternoon", "evening", "custom"].includes(saved.mode) ? saved.mode : "auto",
+          custom_text: typeof saved.custom_text === "string" ? saved.custom_text.slice(0, 120) : DEFAULT_GREETING.custom_text,
+          voice: GREETING_VOICES.includes(saved.voice) ? saved.voice : DEFAULT_GREETING.voice
+        };
+      } catch {
+        return {
+          ...DEFAULT_GREETING
+        };
+      }
+    }
+
+    function collectGreetingPref() {
+      return {
+        enabled: inp("g-enabled").checked,
+        mode: inp("g-mode").value,
+        custom_text: inp("g-custom").value.trim().slice(0, 120) || DEFAULT_GREETING.custom_text,
+        voice: inp("g-voice").value
+      };
+    }
+
+    function persistGreetingPref() {
+      try {
+        localStorage.setItem(STARTUP_GREETING_KEY, JSON.stringify(collectGreetingPref()));
+      } catch (e) {
+        say(`Tidak dapat menyimpan greeting: ${e}`, "err");
+      }
+    }
+
+    function fillGreetingPref() {
+      const g = readGreetingPref();
+      inp("g-enabled").checked = g.enabled;
+      inp("g-mode").value = g.mode;
+      inp("g-custom").value = g.custom_text;
+      inp("g-voice").value = g.voice;
+      syncGreetingControls();
+    }
+
+    function syncGreetingControls() {
+      const enabled = inp("g-enabled").checked;
+      const custom = inp("g-mode").value === "custom";
+      inp("g-mode").disabled = !enabled;
+      inp("g-voice").disabled = !enabled;
+      inp("g-custom").disabled = !enabled || !custom;
+      $("g-custom-row").classList.toggle("off", !enabled || !custom);
+      $("g-test").disabled = !enabled;
+    }
+
+    function readConversationMomentsPref() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(CONVERSATION_MOMENTS_KEY) || "null");
+        if (!saved || typeof saved !== "object") return {
+          ...DEFAULT_CONVERSATION_MOMENTS
+        };
+        const numberInRange = (value, fallback, min, max) => {
+          const n = Number(value);
+          return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : fallback;
+        };
+        return {
+          enabled: saved.enabled !== false,
+          on_play: saved.on_play !== false,
+          on_track_change: saved.on_track_change !== false,
+          on_pause: saved.on_pause === true,
+          on_return: saved.on_return !== false,
+          on_weather_change: saved.on_weather_change !== false,
+          on_rain_soon: saved.on_rain_soon !== false,
+          on_low_battery: saved.on_low_battery !== false,
+          on_charging: saved.on_charging === true,
+          return_after_min: numberInRange(saved.return_after_min, DEFAULT_CONVERSATION_MOMENTS.return_after_min, 5, 120),
+          cooldown_min: numberInRange(saved.cooldown_min, DEFAULT_CONVERSATION_MOMENTS.cooldown_min, 1, 60)
+        };
+      } catch {
+        return {
+          ...DEFAULT_CONVERSATION_MOMENTS
+        };
+      }
+    }
+
+    function collectConversationMomentsPref() {
+      const numberInRange = (value, fallback, min, max) => {
+        const n = parseInt(value, 10);
+        return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+      };
+      return {
+        enabled: inp("cm-enabled").checked,
+        on_play: inp("cm-on-play").checked,
+        on_track_change: inp("cm-on-track").checked,
+        on_pause: inp("cm-on-pause").checked,
+        on_return: inp("cm-on-return").checked,
+        on_weather_change: inp("cm-on-weather").checked,
+        on_rain_soon: inp("cm-on-rain").checked,
+        on_low_battery: inp("cm-on-low-battery").checked,
+        on_charging: inp("cm-on-charging").checked,
+        return_after_min: numberInRange(inp("cm-return-min").value, DEFAULT_CONVERSATION_MOMENTS.return_after_min, 5, 120),
+        cooldown_min: numberInRange(inp("cm-cooldown-min").value, DEFAULT_CONVERSATION_MOMENTS.cooldown_min, 1, 60)
+      };
+    }
+
+    function persistConversationMomentsPref() {
+      try {
+        localStorage.setItem(CONVERSATION_MOMENTS_KEY, JSON.stringify(collectConversationMomentsPref()));
+      } catch (e) {
+        say(`Tidak dapat menyimpan Conversation Moments: ${e}`, "err");
+      }
+    }
+
+    function fillConversationMomentsPref() {
+      const pref = readConversationMomentsPref();
+      inp("cm-enabled").checked = pref.enabled;
+      inp("cm-on-play").checked = pref.on_play;
+      inp("cm-on-track").checked = pref.on_track_change;
+      inp("cm-on-pause").checked = pref.on_pause;
+      inp("cm-on-return").checked = pref.on_return;
+      inp("cm-on-weather").checked = pref.on_weather_change;
+      inp("cm-on-rain").checked = pref.on_rain_soon;
+      inp("cm-on-low-battery").checked = pref.on_low_battery;
+      inp("cm-on-charging").checked = pref.on_charging;
+      inp("cm-return-min").value = String(pref.return_after_min);
+      inp("cm-cooldown-min").value = String(pref.cooldown_min);
+      syncConversationMomentsControls();
+    }
+
+    function syncConversationMomentsControls() {
+      const enabled = inp("cm-enabled").checked;
+      for (const id of ["cm-on-play", "cm-on-track", "cm-on-pause", "cm-on-return", "cm-on-weather", "cm-on-rain", "cm-on-low-battery", "cm-on-charging"]) inp(id).disabled = !enabled;
+      const returnEnabled = enabled && inp("cm-on-return").checked;
+      inp("cm-return-min").disabled = !returnEnabled;
+      inp("cm-cooldown-min").disabled = !enabled;
+      inp("cm-events").classList.toggle("off", !enabled);
+      inp("cm-return-min").closest(".row")?.classList.toggle("off", !returnEnabled);
+      inp("cm-cooldown-min").closest(".row")?.classList.toggle("off", !enabled);
+      inp("cm-test").disabled = !enabled;
+      inp("cm-weather-test").disabled = !enabled;
+    }
+
+    function emitConversationMomentTest(text = "Asyik, kita ketemu momen baru! ✨", subtitle = "Uji Conversation Moments") {
+      const eventApi = T.event;
+      if (!eventApi || typeof eventApi.emit !== "function") {
+        say("Event Tauri tidak tersedia untuk menguji Conversation Moments.", "err");
+        return;
+      }
+      try {
+        const result = eventApi.emit("conversation-moments-test", {
+          text,
+          subtitle
+        });
+        if (result && typeof result.catch === "function") result.catch((error) => say(`Gagal menguji Conversation Moments: ${error}`, "err"));
+        say("Mengirim contoh Conversation Moments ke Notch…", "ok");
+      } catch (error) {
+        say(`Gagal menguji Conversation Moments: ${error}`, "err");
+      }
+    }
+    inp("cm-enabled").addEventListener("change", syncConversationMomentsControls);
+    inp("cm-on-return").addEventListener("change", syncConversationMomentsControls);
+    for (const id of ["cm-on-play", "cm-on-track", "cm-on-pause", "cm-on-weather", "cm-on-rain", "cm-on-low-battery", "cm-on-charging"]) {
+      inp(id).addEventListener("change", syncConversationMomentsControls);
+    }
+    inp("cm-test").addEventListener("click", () => emitConversationMomentTest());
+    inp("cm-weather-test").addEventListener("click", () => emitConversationMomentTest(
+      "Cuaca berubah, sepertinya hujan akan datang 🌧️",
+      "Simulasi Conversation Moment · momen cuaca"
+    ));
+
+    // Sapaan acak (lucu). [judul, punchline, jamMulai?, jamSelesai?]; tanpa jam = kapan saja,
+    // jamMulai > jamSelesai = melewati tengah malam. Harus sama dengan src/greeting.ts.
+    const PHRASES = [
+      ["{waktu}, NPC kesayangan!", "Dunia sudah loading, masa kamu belum?"],
+      ["Welcome back, legend.", "Akhirnya pemeran utamanya muncul."],
+      ["Wih, masih hidup!", "Server kehidupan masih online rupanya."],
+      ["{bonjour}, manusia sibuk.", "Sibuk beneran atau cuma buka tab baru?"],
+      ["Selamat datang kembali.", "Kami pura-pura nggak nungguin."],
+      ["Aura +1000.", "Tinggal produktifnya yang ditingkatkan."],
+      ["Look who's here.", "Notch kecil, ego besar."],
+      ["Hari baru, kamu lagi.", "Semoga hari ini bukan copy-paste kemarin.", 4, 11],
+      ["Hello, world!", "Error juga ikut menyambutmu."],
+      ["Compile dulu, panik kemudian.", "Kita profesional, katanya."],
+      ["Bug hunter detected.", "Semoga hari ini bukan bug yang berburu balik."],
+      ["Git push, then pray.", "Ritual leluhur software engineer."],
+      ["Code mode: ON.", "Produktivitas sedang dinegosiasikan."],
+      ["404: Motivasi not found.", "Coba restart manusia."],
+      ["Works on my machine.", "Kalimat terakhir sebelum meeting panjang."],
+      ["Commit your feelings.", "Jangan semuanya disimpan di local."],
+      ["Semangat, full-stack warrior.", "Frontend menangis, backend menyusul."],
+      ["Satu bug lagi.", "Kalimat yang mengakhiri tiga jam hidupmu."],
+      ["Psst... manusia.", "Iya, kamu. Jangan pura-pura nggak lihat."],
+      ["Aku melihatmu.", "Bukan CCTV, cuma penasaran."],
+      ["Produktif dikit, boleh?", "Biar hari ini punya plot."],
+      ["Bro is back.", "Timeline kembali masuk akal."],
+      ["Main character energy.", "Background music belum tersedia."],
+      ["Kamu terlihat sibuk.", "Alt-tab bukan olahraga kardio."],
+      ["Tenang, Bos.", "Masalahnya belum tentu tenang."],
+      ["Plot twist hari ini?", "Kamu menyelesaikan pekerjaan tepat waktu."],
+      ["Aura terdeteksi.", "Sumbernya belum diketahui."],
+      ["Jangan overthinking.", "CPU otakmu sudah 98%."],
+      ["Santai dulu, komandan.", "Tidak semua masalah perlu di-fix sekarang."],
+      ["Achievement unlocked.", "Kamu berhasil membuka aplikasi lagi."],
+      ["Masih melek, chief?", "Windows saja tahu kapan harus sleep.", 22, 4],
+      ["Night shift activated.", "Besok jangan salahkan alarm.", 19, 4],
+      ["Tidur adalah fitur premium.", "Dan kamu belum berlangganan.", 22, 4],
+      ["Last task, katanya.", "Kita tahu ending cerita ini.", 19, 4],
+      ["Sudah malam, bro.", "Bug boleh lembur, kamu jangan.", 19, 4],
+      ["Save your progress.", "Termasuk progres kesehatanmu.", 20, 4],
+      ["Closing time.", "Laptop boleh ditutup, pikiran juga.", 17, 4],
+      ["Good night, legend.", "Semoga mimpi tanpa stack trace.", 21, 4],
+    ];
+    const LAST_PHRASE_KEY = "notch.greeting.lastPhrase";
+    const inHours = (h, from, to) => (from <= to ? h >= from && h < to : h >= from || h < to);
+    const partOfDay = (h) => (h >= 4 && h < 11 ? "pagi" : h >= 11 && h < 15 ? "siang" : h >= 15 && h < 18 ? "sore" : "malam");
+
+    function pickRandomGreeting() {
+      const h = new Date().getHours();
+      const part = partOfDay(h);
+      let last = -1;
+      try {
+        last = Number(localStorage.getItem(LAST_PHRASE_KEY) ?? -1);
+      } catch {}
+      const pool = [];
+      PHRASES.forEach((p, i) => {
+        if (i === last) return;
+        const timed = p[2] !== undefined && p[3] !== undefined;
+        if (timed && !inHours(h, p[2], p[3])) return;
+        pool.push({
+          i,
+          w: timed ? 3 : 1
+        });
+      });
+      let r = Math.random() * pool.reduce((a, c) => a + c.w, 0);
+      let chosen = pool[pool.length - 1].i;
+      for (const c of pool) {
+        r -= c.w;
+        if (r < 0) {
+          chosen = c.i;
+          break;
+        }
+      }
+      try {
+        localStorage.setItem(LAST_PHRASE_KEY, String(chosen));
+      } catch {}
+      const text = PHRASES[chosen][0]
+        .replace("{waktu}", part[0].toUpperCase() + part.slice(1))
+        .replace("{bonjour}", part === "malam" ? "Bonsoir" : "Bonjour");
+      return {
+        text,
+        sub: PHRASES[chosen][1]
+      };
+    }
+
+    function greetingText(pref) {
+      if (pref.mode === "custom") return pref.custom_text.trim() || DEFAULT_GREETING.custom_text;
+      if (pref.mode === "halo") return "Halo!";
+      if (pref.mode === "morning") return "Selamat pagi!";
+      if (pref.mode === "noon") return "Selamat siang!";
+      if (pref.mode === "afternoon") return "Selamat sore!";
+      if (pref.mode === "evening") return "Selamat malam!";
+      const hour = new Date().getHours();
+      const timeGreeting = hour >= 4 && hour < 11 ? "Selamat pagi" : hour >= 11 && hour < 15 ? "Selamat siang" : hour >= 15 && hour < 18 ? "Selamat sore" : "Selamat malam";
+      return `Halo! ${timeGreeting}!`;
+    }
+
+    function estimateGreetingDuration(text) {
+      const words = String(text || "").trim().split(/\s+/).filter(Boolean).length;
+      return Math.min(11000, Math.max(3500, 1800 + words * 470));
+    }
+
+    function emitGreetingEvent(name, payload) {
+      try {
+        const result = T.event && typeof T.event.emit === "function" ? T.event.emit(name, payload) : null;
+        if (result && typeof result.catch === "function") result.catch((error) => console.warn("[Settings] Gagal mengirim event greeting:", error));
+      } catch (error) {
+        console.warn("[Settings] Gagal mengirim event greeting:", error);
+      }
+    }
+
+    function speakGreeting(text, sub = "") {
+      const voiceApi = window.__notchGreetingVoice;
+      if (!voiceApi) {
+        say("Modul suara greeting belum termuat. Muat ulang jendela Pengaturan.", "err");
+        return false;
+      }
+      const cardText = String(text || "").trim();
+      const cardSub = String(sub || "").trim();
+      const phrase = cardSub ? `${cardText} ${cardSub}` : cardText; // yang diucapkan: judul + punchline
+      if (!cardText) {
+        say("Teks greeting masih kosong.", "err");
+        return false;
+      }
+
+      const id = `settings-greeting-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      emitGreetingEvent("greeting-start", {
+        id,
+        text: cardText,
+        subtitle: cardSub || "Mencoba mengucapkan greeting…",
+        durationMs: estimateGreetingDuration(phrase) + 1800
+      });
+      say(`Sedang mengucapkan: ${phrase}`, "ok");
+
+      // Mesin yang sama dengan greeting saat Notch dimulai (klip neural per mode suara; fallback suara sistem).
+      voiceApi.speak(phrase, inp("g-voice").value).then((r) => {
+        emitGreetingEvent("greeting-end", {
+          id
+        });
+        if (!r.ok) {
+          say(`Greeting gagal diucapkan (${r.reason}). Periksa audio / voice Bahasa Indonesia di Windows.`, "err");
+        } else if (r.via === "system" && inp("g-voice").value !== "system") {
+          say("Tes selesai dengan suara sistem (klip belum dibuat — jalankan npm run greeting:audio).", "ok");
+        } else {
+          say("Tes greeting selesai.", "ok");
+        }
+      }).catch((error) => {
+        emitGreetingEvent("greeting-end", {
+          id
+        });
+        say(`Gagal mengucapkan greeting: ${error}`, "err");
+      });
+      return true;
+    }
+
+    function say(text, kind = "") {
+      statusEl.textContent = text;
+      statusEl.dataset.kind = kind;
+    }
+
+    window.addEventListener("error", (e) => say(`Error: ${e.message}`, "err"));
+    window.addEventListener("unhandledrejection", (e) => say(`Error: ${String(e.reason)}`, "err"));
+
+    let cfg = structuredClone(FALLBACK);
+    let loaded = false;
+
+    const norm = (h, fallback) => {
+      const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec((h ?? "").trim());
+      if (!m) return fallback;
+      let v = m[1].toLowerCase();
+      if (v.length === 3) v = v.split("").map((c) => c + c).join("");
+      return "#" + v;
+    };
+
+    const rgb = (h) => {
+      const n = parseInt(h.slice(1), 16);
+      return [n >> 16 & 255, n >> 8 & 255, n & 255];
+    };
+
+    const luma = (c) => (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255;
+    const radios = () => [...document.querySelectorAll('input[name="theme"]')];
+    const theme = () => radios().find((r) => r.checked)?.value ?? "auto";
+    const COLORS = ["background", "dark_bg", "light_bg", "text", "accent"];
+
+    function fill(c) {
+      const a = c.appearance;
+      radios().forEach((r) => r.checked = r.value === a.theme);
+      inp("background").value = norm(a.background, "#000000");
+      inp("dark_bg").value = norm(a.dark_bg, "#000000");
+      inp("light_bg").value = norm(a.light_bg, "#f5f5f7");
+      inp("text_auto").checked = !a.text;
+      inp("text").value = norm(a.text, "#ffffff");
+      inp("accent_auto").checked = !a.accent;
+      inp("accent").value = norm(a.accent, "#788cff");
+      inp("default-mood").value = a.default_mood || "normal";
+      inp("eye-theme").value = a.eye_theme || "aurora";
+      inp("notch-theme").value = a.notch_theme || "default";
+      inp("scale").value = String(c.scale);
+      inp("hide_fullscreen").checked = c.hide_fullscreen;
+
+      const pages = Array.isArray(c.pages) ? c.pages : FALLBACK.pages;
+      const currencyMigrationPending = localStorage.getItem("notch.currency-page-migrated") !== "1";
+      FEATURE_IDS.forEach((id) => inp("f-" + id).checked = pages.includes(id) || (id === "currency" && currencyMigrationPending));
+
+      const w = c.weather ?? FALLBACK.weather;
+      inp("w-lat").value = String(w.lat);
+      inp("w-lon").value = String(w.lon);
+      inp("w-city").value = w.city;
+
+      const n = c.nudge ?? FALLBACK.nudge;
+      inp("n-enabled").checked = !!n.enabled;
+      inp("n-min").value = String(n.idle_min);
+      inp("n-msg").value = n.message;
+      inp("n-emoji").value = n.emoji;
+      inp("n-mood").value = n.mood;
+      inp("n-sec").value = String(Math.round(n.show_ms / 1e3));
+      inp("n-silent").checked = !!n.only_silent;
+      inp("n-until-move").checked = readUntilMovePref();
+      syncNudgeDuration();
+      fillGreetingPref();
+      fillConversationMomentsPref();
+      fillFocusCompanionPref();
+
+      sync();
+    }
+
+    function syncNudgeDuration() {
+      const untilMove = inp("n-until-move").checked;
+      inp("n-sec").disabled = untilMove;
+      $("n-sec").closest(".row")?.classList.toggle("off", untilMove);
+    }
+
+    function collect() {
+      const c = structuredClone(cfg);
+      c.appearance = {
+        theme: theme(),
+        background: inp("background").value,
+        dark_bg: inp("dark_bg").value,
+        light_bg: inp("light_bg").value,
+        text: inp("text_auto").checked ? "" : inp("text").value,
+        accent: inp("accent_auto").checked ? "" : inp("accent").value,
+        default_mood: inp("default-mood").value || "normal",
+        eye_theme: inp("eye-theme").value || "aurora",
+        notch_theme: inp("notch-theme").value || "default"
+      };
+      c.scale = parseFloat(inp("scale").value);
+      c.hide_fullscreen = inp("hide_fullscreen").checked;
+      c.pages = collectPages();
+
+      const lat = parseFloat(inp("w-lat").value);
+      const lon = parseFloat(inp("w-lon").value);
+      if (isFinite(lat) && isFinite(lon)) {
+        c.weather = {
+          lat,
+          lon,
+          city: inp("w-city").value.trim() || "Lokasi saya"
+        };
+      }
+
+      c.nudge = collectNudge();
+      return c;
+    }
+
+    function collectNudge() {
+      const base = cfg.nudge ?? FALLBACK.nudge;
+      const mins = parseInt(inp("n-min").value, 10);
+      const secs = parseFloat(inp("n-sec").value);
+
+      return {
+        enabled: inp("n-enabled").checked,
+        idle_min: Number.isFinite(mins) ? Math.min(240, Math.max(1, mins)) : base.idle_min,
+        message: inp("n-msg").value.trim() || base.message,
+        emoji: inp("n-emoji").value.trim() || base.emoji,
+        mood: inp("n-mood").value || base.mood,
+        show_ms: Number.isFinite(secs) ? Math.round(Math.min(30, Math.max(2, secs)) * 1e3) : base.show_ms,
+        only_silent: inp("n-silent").checked
+      };
+    }
+
+    function collectPages() {
+      const on = new Set(FEATURE_IDS.filter((id) => inp("f-" + id).checked));
+      const base = Array.isArray(cfg.pages) ? cfg.pages : FALLBACK.pages;
+      const out = base.filter((n) => !FEATURE_IDS.includes(n) || on.has(n));
+
+      for (const id of FEATURE_IDS) {
+        if (!on.has(id) || out.includes(id)) continue;
+        if (id === "clock" && out.includes("media")) {
+          out.splice(out.indexOf("media") + 1, 0, id);
+        } else {
+          out.push(id);
+        }
+      }
+      return out;
+    }
+
+    const weatherValid = () => {
+      const lat = parseFloat(inp("w-lat").value);
+      const lon = parseFloat(inp("w-lon").value);
+      return isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    };
+
+    function syncEyeThemePicker() {
+      const selectedTheme = inp("eye-theme").value || "aurora";
+      const selectedMood = inp("default-mood").value || "normal";
+      document.querySelectorAll("[data-eye-theme-option]").forEach((el) => {
+        const btn = el;
+        const name = btn.dataset.eyeThemeOption;
+        btn.setAttribute("aria-pressed", String(name === selectedTheme));
+        const sample = btn.querySelector(".eyes");
+        if (sample) {
+          sample.dataset.eyeTheme = name || "aurora";
+          sample.dataset.mood = selectedMood;
+        }
+      });
+    }
+
+    function syncNotchThemePicker() {
+      const selected = inp("notch-theme").value || "default";
+      document.querySelectorAll("[data-notch-theme-option]").forEach((btn) => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.notchThemeOption === selected));
+      });
+    }
+
+    function sync() {
+      const t = theme();
+      const on = {
+        background: t === "custom",
+        dark_bg: t === "auto" || t === "dark",
+        light_bg: t === "auto" || t === "light",
+        text: !inp("text_auto").checked,
+        accent: !inp("accent_auto").checked
+      };
+
+      for (const k of COLORS) {
+        $(`row-${k}`).classList.toggle("off", !on[k] && (k === "background" || k === "dark_bg" || k === "light_bg"));
+        inp(k).disabled = !on[k];
+        $(`hex-${k}`).textContent = on[k] ? inp(k).value : (k === "text" || k === "accent" ? "otomatis" : "—");
+      }
+
+      $("scale_val").textContent = `${Number(inp("scale").value).toFixed(2)}×`;
+      const city = inp("w-city").value.trim() || "—";
+      $("w-current").textContent = weatherValid() ? `${city} (${inp("w-lat").value}, ${inp("w-lon").value})` : "koordinat tidak valid";
+      syncEyeThemePicker();
+      syncNotchThemePicker();
+      updatePill();
+    }
+
+    function updatePill() {
+      const c = collect();
+      const a = c.appearance;
+      const light = a.theme === "light" || (a.theme === "auto" && matchMedia("(prefers-color-scheme: light)").matches);
+      const bgHex = a.theme === "custom" ? a.background : (light ? a.light_bg : a.dark_bg);
+      const bg = rgb(norm(bgHex, "#000000"));
+      const fg = a.text ? rgb(norm(a.text, "#ffffff")) : (luma(bg) > 0.55 ? [17, 17, 17] : [255, 255, 255]);
+
+      const nt = a.notch_theme && a.notch_theme !== "default" ? a.notch_theme : "";
+      if (nt) {
+        // warna latar/teks dari css/notch-themes.css: buang nilai inline supaya tidak menimpa
+        pill.dataset.notchTheme = nt;
+        ["--p-bg", "--p-fg", "--p-fg-rgb"].forEach((k) => pill.style.removeProperty(k));
+      } else {
+        delete pill.dataset.notchTheme;
+        pill.style.setProperty("--p-bg", `rgb(${bg.join(",")})`);
+        pill.style.setProperty("--p-fg", `rgb(${fg.join(",")})`);
+        pill.style.setProperty("--p-fg-rgb", fg.join(","));
+      }
+      pill.toggleAttribute("data-accent-fixed", !!a.accent);
+      if (a.accent || !nt) pill.style.setProperty("--p-accent", a.accent ? rgb(norm(a.accent, "#788cff")).join(",") : "120,140,255");
+      else pill.style.removeProperty("--p-accent");
+      pill.style.setProperty("--p-scale", String(c.scale));
+    }
+
+    let previewTimer = 0;
+
+    function preview() {
+      if (!loaded) return;
+      clearTimeout(previewTimer);
+      previewTimer = window.setTimeout(() => {
+        invoke("cfg_preview", {
+          cfg: collect()
+        }).catch((e) => say(`Pratinjau gagal: ${e}`, "err"));
+      }, 60);
+    }
+
+    document.querySelectorAll("[data-eye-theme-option]").forEach((el) => {
+      el.addEventListener("click", () => {
+        inp("eye-theme").value = el.dataset.eyeThemeOption || "aurora";
+        sync();
+        preview();
+      });
+    });
+
+    document.querySelectorAll("[data-notch-theme-option]").forEach((el) => {
+      el.addEventListener("click", () => {
+        inp("notch-theme").value = el.dataset.notchThemeOption || "default";
+        sync();
+        preview();
+      });
+    });
+
+    document.querySelectorAll("input:not([data-weather]):not([data-os])").forEach((el) => {
+      const isScale = el.id === "scale";
+      el.addEventListener("input", () => {
+        sync();
+        if (!isScale) preview();
+      });
+      el.addEventListener("change", () => {
+        sync();
+        preview();
+      });
+    });
+
+    inp("n-mood").addEventListener("change", () => {
+      sync();
+      preview();
+    });
+
+    inp("n-until-move").addEventListener("change", () => {
+      syncNudgeDuration();
+      persistUntilMovePref();
+      // Opsi ini berbasis localStorage agar bisa berlaku tanpa restart.
+      say(inp("n-until-move").checked ? "Pesan akan bertahan sampai pointer bergerak lagi." : "Pesan memakai durasi yang dipilih.", "ok");
+    });
+
+    ["g-enabled", "g-mode"].forEach((id) => inp(id).addEventListener("change", syncGreetingControls));
+    // ganti mode suara = langsung dicoba
+    inp("g-voice").addEventListener("change", () => inp("g-test").click());
+    inp("g-test").addEventListener("click", () => {
+      const greeting = collectGreetingPref();
+      // Jangan menimpa status onstart/onerror; speakGreeting mengelola statusnya sendiri.
+      if (greeting.mode === "random") {
+        const pick = pickRandomGreeting();
+        speakGreeting(pick.text, pick.sub);
+      } else {
+        speakGreeting(greetingText(greeting));
+      }
+    });
+
+    inp("default-mood").addEventListener("change", () => {
+      sync();
+      preview();
+    });
+
+    // ---------- Pesan saat pointer diam ----------
+    for (const e of EMOJIS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "emo-btn";
+      b.textContent = e;
+      b.title = `Pakai ${e}`;
+      b.addEventListener("click", () => {
+        inp("n-emoji").value = e;
+        inp("n-emoji").dispatchEvent(new Event("input"));
+      });
+      $("n-presets").append(b);
+    }
+
+    $("n-test").addEventListener("click", async () => {
+      try {
+        await invoke("nudge_test", {
+          nudge: collectNudge()
+        });
+        say("Contoh pesan ditampilkan di notch.", "ok");
+      } catch (e) {
+        say(`Gagal menampilkan contoh: ${e}`, "err");
+      }
+    });
+
+    // ---------- Lokasi cuaca ----------
+    function pickPlace(h) {
+      inp("w-lat").value = h.latitude.toFixed(4);
+      inp("w-lon").value = h.longitude.toFixed(4);
+      inp("w-city").value = h.name;
+      $("w-results").replaceChildren();
+      sync();
+      say(`Lokasi dipilih: ${h.name}. Klik Simpan untuk menerapkan.`, "ok");
+    }
+
+    function showResults(hits) {
+      const ul = $("w-results");
+      ul.replaceChildren();
+
+      for (const h of hits) {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        const place = [h.name, h.admin1, h.country].filter(Boolean).join(", ");
+
+        const main = document.createElement("span");
+        main.textContent = place;
+
+        const sub = document.createElement("small");
+        sub.textContent = `${h.latitude.toFixed(2)}, ${h.longitude.toFixed(2)}`;
+
+        b.append(main, sub);
+        b.addEventListener("click", () => pickPlace(h));
+        li.append(b);
+        ul.append(li);
+      }
+    }
+
+    async function searchPlace() {
+      const q = inp("w-q").value.trim();
+      if (q.length < 2) {
+        say("Ketik minimal 2 huruf nama kota.", "err");
+        return;
+      }
+      say("Mencari…");
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), 8e3);
+
+      try {
+        const r = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=id&format=json`, {
+            signal: ctl.signal
+          }
+        );
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const hits = d.results ?? [];
+        showResults(hits);
+        say(hits.length ? "Pilih salah satu hasil." : "Kota tidak ditemukan. Coba ejaan lain atau isi koordinat manual.", hits.length ? "" : "err");
+      } catch (e) {
+        say(`Pencarian gagal: ${e}`, "err");
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    $("w-search").addEventListener("click", () => void searchPlace());
+    inp("w-q").addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") void searchPlace();
+    });
+    ["w-lat", "w-lon", "w-city"].forEach((id) => inp(id).addEventListener("input", sync));
+
+    // ---------- Jalan otomatis saat OS menyala ----------
+    async function refreshAutostart() {
+      try {
+        inp("autostart").checked = Boolean(await invoke("autostart_get"));
+      } catch {}
+    }
+
+    // Animasi lucu di dasar layar: disimpan di localStorage ("notch.bottomPlay") dan dibaca langsung
+    // oleh jendela notch, jadi tidak perlu tombol Simpan.
+    (() => {
+      const KEY = "notch.bottomPlay";
+      const box = inp("bottom_play");
+      try {
+        box.checked = localStorage.getItem(KEY) !== "0";
+      } catch {
+        box.checked = true;
+      }
+      box.addEventListener("change", () => {
+        try {
+          localStorage.setItem(KEY, box.checked ? "1" : "0");
+        } catch {
+          /* penyimpanan tidak tersedia */ }
+      });
+    })();
+
+    inp("autostart").addEventListener("change", async () => {
+      const want = inp("autostart").checked;
+      inp("autostart").disabled = true;
+      try {
+        const now = Boolean(await invoke("autostart_set", {
+          on: want
+        }));
+        inp("autostart").checked = now;
+        say(now ? "Notch akan berjalan otomatis saat komputer menyala." : "Jalan otomatis dimatikan.", "ok");
+      } catch (e) {
+        inp("autostart").checked = !want;
+        say(`Gagal mengubah jalan otomatis: ${e}`, "err");
+      } finally {
+        inp("autostart").disabled = false;
+      }
+    });
+
+    // ---------- Simpan ----------
+    const buttons = [$("save"), $("restart")];
+    const busy = (b) => buttons.forEach((x) => x.disabled = b);
+
+    async function save(restart) {
+      if (!loaded) {
+        say("Pengaturan belum berhasil dimuat, penyimpanan dibatalkan agar file lama tidak tertimpa.", "err");
+        return;
+      }
+      if (!weatherValid()) {
+        say("Koordinat cuaca tidak valid (lintang -90..90, bujur -180..180).", "err");
+        return;
+      }
+      if (!collectPages().some((n) => PAGE_IDS.includes(n))) {
+        say("Pilih minimal satu halaman di bagian Fitur.", "err");
+        return;
+      }
+
+      busy(true);
+      say("Menyimpan…");
+
+      try {
+        // Field yang tidak dikelola di jendela ini (mis. prayer.mode) bisa saja sudah
+        // diubah dari jendela notch sejak Settings dibuka; ambil ulang dari disk dulu
+        // supaya "Simpan" tidak menimpa balik ke nilai lama (basi) untuk field tsb.
+        cfg = await invoke("cfg_get");
+        const path = await invoke("cfg_save", {
+          cfg: collect()
+        });
+        cfg = collect();
+        persistUntilMovePref();
+        persistGreetingPref();
+        persistConversationMomentsPref();
+        persistFocusCompanionPref();
+        localStorage.setItem("notch.currency-page-migrated", "1");
+        say(`Tersimpan ✓ ${path}`, "ok");
+      } catch (e) {
+        say(`Gagal menyimpan: ${e}`, "err");
+        busy(false);
+        return;
+      }
+
+      if (restart) {
+        say("Tersimpan ✓ memulai ulang…", "ok");
+        try {
+          await invoke("cfg_restart");
+        } catch (e) {
+          say(`Tersimpan ✓ tapi restart gagal: ${e}`, "err");
+        }
+      }
+      busy(false);
+    }
+
+    $("save").addEventListener("click", () => void save(false));
+    $("restart").addEventListener("click", () => void save(true));
+
+    async function refreshPositionStatus() {
+      try {
+        const pos = await invoke("notch_get_position");
+        const status = $("pos-status");
+        if (status) {
+          status.textContent = pos.custom ?
+            `Kustom (x: ${Math.round(pos.x)}, y: ${Math.round(pos.y)})` :
+            "Tengah atas (bawaan)";
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    $("pos-reset")?.addEventListener("click", async () => {
+      try {
+        await invoke("notch_reset_position");
+        say("Posisi notch berhasil dikembalikan ke tengah atas ✓", "ok");
+        void refreshPositionStatus();
+      } catch (e) {
+        say(`Gagal reset posisi: ${e}`, "err");
+      }
+    });
+
+    if (T.event && T.event.listen) {
+      T.event.listen("position-changed", () => {
+        void refreshPositionStatus();
+      });
+    }
+
+    // Inisialisasi awal
+    fill(cfg);
+    (async () => {
+      try {
+        cfg = await invoke("cfg_get");
+        loaded = true;
+        fill(cfg);
+        say("Siap.");
+        void refreshAutostart();
+        void refreshPositionStatus();
+      } catch (e) {
+        say(`Gagal membaca pengaturan: ${e}`, "err");
+      }
+    })();
+  </script>
+
+  <script>
+    // Navigasi tab: satu panel tampil sekali, mendukung panah atas/bawah/kiri/kanan dan #hash.
+    (() => {
+      const tabs = [...document.querySelectorAll(".tab")];
+      const panels = [...document.querySelectorAll("[data-panel]")];
+
+      function show(id, focus) {
+        if (!panels.some((p) => p.id === id)) id = panels[0].id;
+        document.body.dataset.tab = id;
+        panels.forEach((p) => {
+          p.hidden = p.id !== id;
+        });
+        tabs.forEach((t) => {
+          const on = t.dataset.tab === id;
+          t.setAttribute("aria-selected", String(on));
+          t.tabIndex = on ? 0 : -1;
+          if (on && focus) t.focus();
+        });
+        window.scrollTo(0, 0);
+      }
+      tabs.forEach((t, i) => {
+        t.addEventListener("click", () => show(t.dataset.tab));
+        t.addEventListener("keydown", (e) => {
+          const k = {
+            ArrowDown: 1,
+            ArrowRight: 1,
+            ArrowUp: -1,
+            ArrowLeft: -1
+          } [e.key];
+          if (!k) return;
+          e.preventDefault();
+          show(tabs[(i + k + tabs.length) % tabs.length].dataset.tab, true);
+        });
+      });
+      show(location.hash.slice(1));
+    })();
+  </script>
+  <script type="module" src="/src/main-modules/settings-adhan-test.ts"></script>
+</body>
+
+</html>

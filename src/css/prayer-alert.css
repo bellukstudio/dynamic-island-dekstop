@@ -1,0 +1,69 @@
+/* ===== Alert adzan: visible selama audio adzan benar-benar berjalan ===== */
+#notch[data-view="prayerAlert"] {
+  width: 360px;
+  height: 80px;
+  border-radius: 0 0 40px 40px;
+}
+.l-prayer-alert {
+  width: 340px;
+  height: 74px;
+  padding: 0 16px;
+  gap: 13px;
+  justify-content: flex-start;
+  color: var(--fg);
+}
+#notch[data-view="prayerAlert"] .l-prayer-alert {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+  transition: opacity .18s ease, transform .3s cubic-bezier(.42, 0, .58, 1), visibility 0s;
+}
+.pr-alert-icon {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: rgb(var(--accent));
+  background: rgba(var(--accent), .13);
+  box-shadow: inset 0 0 0 1px rgba(var(--accent), .16);
+}
+.pr-alert-icon svg { width: 23px; height: 23px; }
+.pr-alert-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pr-alert-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-alert-copy small {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(var(--fg-rgb), .68);
+  font-size: 10.5px;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-alert-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+.pr-alert-right b { color: rgb(var(--accent)); font-size: 8px; line-height: 1; letter-spacing: .14em; }
+.pr-alert-wave { height: 17px; display: flex; align-items: center; justify-content: center; gap: 3px; }
+.pr-alert-wave i {
+  width: 3px;
+  height: 6px;
+  display: block;
+  border-radius: 4px;
+  background: rgb(var(--accent));
+  animation: pr-adhan-wave .75s ease-in-out infinite alternate;
+}
+.pr-alert-wave i:nth-child(2) { height: 12px; animation-delay: .12s; }
+.pr-alert-wave i:nth-child(3) { height: 17px; animation-delay: .24s; }
+.pr-alert-wave i:nth-child(4) { height: 10px; animation-delay: .36s; }
+.pr-alert-wave i:nth-child(5) { height: 5px; animation-delay: .48s; }
+@keyframes pr-adhan-wave { from { transform: scaleY(.45); opacity: .65; } to { transform: scaleY(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pr-alert-wave i { animation: none; } }

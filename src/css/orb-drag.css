@@ -1,0 +1,297 @@
+/* =====================================================================
+   MODE ORB — saat notch DITAHAN lalu digeser, badannya berubah jadi bola
+   bercahaya (squash & stretch mengikuti kecepatan kursor, cincin riak,
+   kilau berputar). Begitu dilepas (di atas / samping / bawah / melayang)
+   bola mengembang kembali ke bentuk notch semula dengan efek pegas.
+
+   Kelas yang dipasang main.ts:
+     #notch.is-orb        -> selama ditahan & bergeser
+     #shell.is-orb        -> idem, untuk cincin riak (#orb-fx)
+     #shell.orb-pop       -> denyut sekali saat bola menempel ke tepi
+     .is-orb-out          -> ~0,5 dtk setelah dilepas (transisi pegas balik)
+   Variabel dari JS: --orb-tx, --orb-ty (arah cahaya yang tertinggal di belakang bola)
+
+   MUAT FILE INI PALING AKHIR (setelah update-banner.css). Selektor
+   memakai #notch berulang agar menang atas aturan lama (is-dragging,
+   is-top, is-bottom, is-floating, [data-view] ber-!important).
+   ===================================================================== */
+
+/* ---------- bentuk bola ---------- */
+#shell #notch#notch#notch.is-orb {
+  --orb-d: 48px;
+  width: var(--orb-d) !important;
+  height: var(--orb-d) !important;
+  min-width: 0 !important;
+  border-radius: 50% !important;
+  background:
+    radial-gradient(
+      circle at 50% 58%,
+      rgba(var(--accent), 0.55),
+      rgba(var(--accent), 0.16) 62%,
+      transparent 100%
+    ),
+    var(--bg) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--fg-rgb), 0.16),
+    calc(var(--orb-tx, 0) * 1px) calc(10px + var(--orb-ty, 0) * 1px) 26px -6px
+      rgba(var(--accent), 0.8),
+    calc(var(--orb-tx, 0) * 1px) calc(var(--orb-ty, 0) * 1px) 22px
+      rgba(var(--accent), 0.45) !important;
+  /* tanpa transform: bentuk bola selalu lingkaran sempurna */
+  transform: none !important;
+  transform-origin: 50% 50% !important;
+  flex: none;
+  isolation: isolate;
+  animation: none !important;
+  cursor: grabbing !important;
+  /* mengecil jadi bola */
+  transition:
+    width 0.34s cubic-bezier(0.34, 1.3, 0.5, 1),
+    height 0.34s cubic-bezier(0.34, 1.3, 0.5, 1),
+    border-radius 0.3s ease,
+    box-shadow 0.12s linear !important;
+}
+
+/* semua isi notch (mata, hub, kartu, dll.) memudar; hanya bola yang terlihat */
+#shell #notch#notch#notch.is-orb > * {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.1s ease !important;
+}
+/* PENGECUALIAN: mata tetap tampil & dipusatkan ulang ke tengah bola 48px (berapa pun
+   ukuran layer idle di tampilan asalnya), supaya arah liriknya kelihatan selama digeser
+   (lihat orbLook() di main.ts: mata mengarah sesuai arah bola bergerak, kiri/kanan/atas/
+   bawah). Isi lain di layer idle (mis. mulut mood) tetap disembunyikan di mode bola. */
+#shell #notch#notch#notch.is-orb > .l-idle {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 4; /* di atas pusaran (::after, z-index 1) & kilau (::before, z-index 2) bola */
+  transition: opacity 0.1s ease !important;
+}
+#shell #notch#notch#notch.is-orb > .l-idle > *:not(.eyes) {
+  opacity: 0 !important;
+}
+
+/* ---------- permukaan bola ---------- */
+/* ::after = pusaran cahaya berputar (di bawah), ::before = kilau kaca (di atas).
+   PENTING: kedua lapisan dibuat BULAT SENDIRI (inset: 0 + border-radius: 50%) dan tanpa filter/blur.
+   Dulu pusaran memakai kotak lebih besar + blur yang diharapkan terpotong oleh overflow:hidden notch,
+   tetapi WebKit/WebView sering gagal memotong anak yang beranimasi pada induk ber-border-radius,
+   sehingga cahayanya "bocor" keluar lingkaran dan bola terlihat tidak bulat. */
+#notch.is-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    rgba(var(--accent), 1),
+    rgba(255, 255, 255, 0.5) 18%,
+    rgba(var(--accent), 0.3) 38%,
+    rgba(var(--accent), 0.95) 62%,
+    rgba(255, 255, 255, 0.32) 80%,
+    rgba(var(--accent), 1)
+  );
+  opacity: 0;
+  animation:
+    orb-fade-in 0.35s ease 0.05s forwards,
+    orb-swirl 2.4s linear infinite;
+}
+#notch.is-orb::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 31% 25%,
+      rgba(255, 255, 255, 0.85) 0,
+      rgba(255, 255, 255, 0.22) 17%,
+      transparent 36%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 52%,
+      rgba(0, 0, 0, 0.42) 100%
+    );
+  box-shadow:
+    inset 0 2px 5px rgba(255, 255, 255, 0.4),
+    inset 0 -7px 12px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  animation:
+    orb-fade-in 0.3s ease 0.05s forwards,
+    orb-breathe 1.4s ease-in-out 0.4s infinite;
+}
+
+@keyframes orb-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes orb-swirl {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.95);
+  }
+}
+
+/* ---------- menempel ke tepi (atas / bawah / kiri / kanan): cahaya menguat ---------- */
+#shell
+  #notch#notch#notch.is-orb:is(
+    .is-top,
+    .is-bottom,
+    .is-edge-left,
+    .is-edge-right
+  ) {
+  box-shadow:
+    0 0 0 1px rgba(var(--fg-rgb), 0.28),
+    0 8px 30px -4px rgba(var(--accent), 1),
+    0 0 34px rgba(var(--accent), 0.75) !important;
+}
+#notch.is-orb:is(.is-top, .is-bottom, .is-edge-left, .is-edge-right)::after {
+  animation:
+    orb-fade-in 0.2s ease forwards,
+    orb-swirl 1.1s linear infinite;
+}
+
+/* ---------- cincin riak di sekeliling bola (elemen #orb-fx dibuat main.ts) ---------- */
+#orb-fx {
+  --od: calc(48px * var(--s, 1)); /* sama dengan diameter bola (ikut skala) */
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--od);
+  height: var(--od);
+  margin-left: calc(var(--od) / -2);
+  box-sizing: border-box;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 3;
+  border: 2px solid rgba(var(--accent), 0);
+}
+#shell.is-bottom #orb-fx {
+  top: auto;
+  bottom: 0;
+}
+#shell.is-orb #orb-fx {
+  display: block;
+}
+#orb-fx::before,
+#orb-fx::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--accent), 0.65);
+  opacity: 0;
+  animation: orb-ripple 1.6s ease-out infinite;
+}
+#orb-fx::after {
+  animation-delay: 0.8s;
+}
+@keyframes orb-ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+/* denyut sekali saat bola "klik" menempel ke tepi layar */
+#shell.orb-pop #orb-fx {
+  animation: orb-snap 0.5s ease-out;
+}
+@keyframes orb-snap {
+  0% {
+    transform: scale(1);
+    border-color: rgba(var(--accent), 0.95);
+  }
+  100% {
+    transform: scale(2);
+    border-color: rgba(var(--accent), 0);
+  }
+}
+
+/* ---------- shell: tanpa padding tambahan & tanpa telinga selama mode bola ---------- */
+#shell:has(#notch.is-orb) {
+  padding-top: 0 !important;
+}
+#shell.is-orb.is-orb.is-orb::before,
+#shell.is-orb.is-orb.is-orb::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+/* bar posisi disembunyikan saat bola */
+#shell:has(#notch.is-orb) .pos-bar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* ---------- dilepas: mengembang kembali ke bentuk notch dengan efek pegas ---------- */
+#shell #notch#notch#notch.is-orb-out {
+  transition:
+    width 0.46s cubic-bezier(0.25, 1.15, 0.4, 1),
+    height 0.46s cubic-bezier(0.25, 1.15, 0.4, 1),
+    border-radius 0.4s cubic-bezier(0.25, 1.1, 0.4, 1),
+    box-shadow 0.3s ease,
+    transform 0.4s cubic-bezier(0.25, 1.2, 0.4, 1) !important;
+}
+/* telinga muncul lagi SETELAH badan hampir selesai mengembang */
+#shell.is-orb-out::before,
+#shell.is-orb-out::after {
+  transition: opacity 0.18s ease 0.3s !important;
+}
+
+/* hormati preferensi "kurangi gerakan" */
+@media (prefers-reduced-motion: reduce) {
+  #notch.is-orb::after,
+  #notch.is-orb::before,
+  #orb-fx::before,
+  #orb-fx::after {
+    animation: orb-fade-in 0.2s ease forwards;
+  }
+}
+/* paksa bola tetap lingkaran sempurna saat menempel di sisi kiri/kanan */
+#shell #notch#notch#notch.is-orb:is(.is-edge-left, .is-edge-right) {
+  width: var(--orb-d) !important;
+  height: var(--orb-d) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  aspect-ratio: 1 / 1 !important;
+  margin-block: 0 !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  clip-path: none !important;
+  transform: none !important;
+  translate: none !important;
+  scale: none !important;
+  rotate: none !important;
+  filter: none !important;
+}

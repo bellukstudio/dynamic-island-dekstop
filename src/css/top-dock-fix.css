@@ -1,0 +1,38 @@
+/* ---------- FIX: pecahan "telinga" muncul saat drag mendekati tepi atas ---------- */
+/* Penyebab: .is-top-approach (di-toggle updatePositionUI() saat kursor ~24-96px dari tepi atas,
+   sebelum posisi benar-benar ter-snap) dulu memaksa telinga #shell tampil dan badan #notch jadi
+   rata di atas. Padahal notch masih melayang di bawah tepi layar, jadi telinga terlihat sebagai
+   pecahan hitam yang menggantung di sudut atas pil.
+   Perbaikan: selama approach, telinga TETAP tersembunyi (ikut aturan .is-floating) dan badan tetap
+   memakai bentuk melayang. Telinga baru muncul setelah benar-benar menempel (.is-top). */
+#shell.is-top-approach::before,
+#shell.is-top-approach::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}
+
+/* Saat baru menempel di tengah drag: ratakan badan seketika (bukan animasi 0.22s dari bulat),
+   lalu munculkan telinga SETELAH badan rata, supaya tidak ada momen telinga + badan bulat. */
+#notch.is-dragging.is-top {
+  transition:
+    width 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    height 0.3s cubic-bezier(0.42, 0, 0.58, 1),
+    border-radius 0s,
+    background 0s !important;
+}
+#shell.is-top::before,
+#shell.is-top::after {
+  top: 0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: opacity 0.14s ease 0.06s !important;
+}
+/* Selama notch MASIH DITAHAN (drag, .moving), telinga disembunyikan sepenuhnya,
+   bahkan setelah posisi sudah ter-snap ke atas. Telinga baru muncul (fade) setelah dilepas. */
+#shell.is-top.moving::before,
+#shell.is-top.moving::after {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  transition: none !important;
+}

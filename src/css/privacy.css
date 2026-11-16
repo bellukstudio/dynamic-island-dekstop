@@ -1,0 +1,98 @@
+/* ---------- indikator privasi (versi 2) ----------
+   Hapus SEMUA aturan #privacy / .pv-* / pv-pulse yang lama di styles.css, lalu tempel blok ini.
+   HTML tidak berubah. */
+
+#privacy {
+  position: absolute;
+  z-index: 6;
+  display: none;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  /* tampilan lebar (hub, lirik, kartu): titik kecil di tengah tepi atas, seperti lampu kamera notch.
+     Area ini kosong; pojok kanan atas dipakai equalizer dan titik halaman. */
+  top: 6px;
+  right: 50%;
+  transform: translateX(50%);
+  transition:
+    top 0.45s cubic-bezier(0.34, 1.2, 0.5, 1),
+    right 0.45s cubic-bezier(0.34, 1.2, 0.5, 1),
+    transform 0.45s cubic-bezier(0.34, 1.2, 0.5, 1);
+}
+#notch[data-priv] #privacy {
+  display: flex;
+}
+
+/* idle: lencana di sisi kanan pil, sejajar dengan mata */
+#notch[data-view="idle"] #privacy {
+  top: 4px;
+  right: 8px;
+  transform: none;
+}
+/* compact: di sebelah kiri equalizer */
+#notch[data-view="compact"] #privacy {
+  top: 9px;
+  right: 46px;
+  transform: none;
+}
+
+/* lencana bulat berwarna dengan ikon gelap di dalamnya */
+#notch #privacy .pv-cam,
+#notch #privacy .pv-mic {
+  display: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgb(var(--pv));
+  color: rgba(0, 0, 0, 0.78);
+  line-height: 0;
+  box-shadow:
+    0 0 0 2px rgba(var(--pv), 0.22),
+    0 0 10px rgba(var(--pv), 0.5);
+  animation: pv-ring 2s ease-in-out infinite;
+  transition:
+    width 0.3s,
+    height 0.3s;
+}
+#notch #privacy .pv-cam {
+  --pv: 48, 209, 88;
+}
+#notch #privacy .pv-mic {
+  --pv: 255, 159, 10;
+}
+#notch[data-priv~="cam"] #privacy .pv-cam,
+#notch[data-priv~="mic"] #privacy .pv-mic {
+  display: grid;
+}
+
+#notch #privacy svg {
+  display: block;
+  width: 10px;
+  height: 10px;
+  stroke-width: 2.8;
+}
+
+/* di luar idle/compact: hanya titik, ikon disembunyikan supaya tidak menabrak isi halaman */
+#notch:not([data-view="idle"]):not([data-view="compact"]) #privacy .pv-cam,
+#notch:not([data-view="idle"]):not([data-view="compact"]) #privacy .pv-mic {
+  width: 7px;
+  height: 7px;
+}
+#notch:not([data-view="idle"]):not([data-view="compact"]) #privacy svg {
+  display: none;
+}
+
+@keyframes pv-ring {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(var(--pv), 0.22),
+      0 0 10px rgba(var(--pv), 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(var(--pv), 0.1),
+      0 0 14px rgba(var(--pv), 0.3);
+  }
+}

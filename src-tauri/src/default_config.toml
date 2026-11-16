@@ -1,0 +1,36 @@
+scale = 1.0              # 1.0 = normal, 0.8 = 80% (0.5 - 1.5)
+hide_fullscreen = true   # sembunyikan notch saat game/video fullscreen
+pages = ["media", "weather", "battery", "timer", "quick", "tools", "stats", "clipboard"]
+
+[weather]
+lat = -6.9175
+lon = 107.6191
+city = "Bandung"
+
+[timing]
+hub_auto_ms = 4000
+card_ms = 3500
+hud_ms = 1500
+hover_open_ms = 150
+hover_close_ms = 450
+sleep_after_s = 60
+
+[pomodoro]
+focus_min = 25
+break_min = 5
+long_break_min = 15
+rounds = 4
+
+[appearance]
+# theme: auto (ikut OS) | dark | light | custom
+theme = "auto"
+background = "#1e1e2e"  # hanya untuk theme = "custom"
+text = ""               # kosong = otomatis kontras
+dark_bg = "#000000"
+light_bg = "#f5f5f7"
+accent = ""             # kosong = otomatis dari cover album, contoh: "#ff6b6b"
+
+[position]
+custom = false          # false = posisi tengah atas bawaan, true = posisi kustom
+x = 0
+y = 0

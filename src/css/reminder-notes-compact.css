@@ -1,0 +1,607 @@
+/* ---------- reminder & catatan versi compact ---------- */
+.p-reminder,
+.p-note {
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 26px 18px;
+}
+
+.rm-add,
+.nt-add {
+  align-items: center;
+  gap: 4px;
+}
+.rm-add input#rm-input,
+.nt-add input#nt-input {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 8px;
+}
+
+.rm-add > button,
+.nt-add > button {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+}
+
+/* tombol hapus: netral, dengan lencana jumlah */
+.rm-add .rm-trash,
+.nt-add .nt-trash {
+  position: relative;
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  opacity: 0.7;
+}
+.rm-add .rm-trash:hover,
+.nt-add .nt-trash:hover {
+  background: rgba(var(--fg-rgb), 0.18);
+  opacity: 1;
+}
+.rm-trash b,
+.nt-trash b {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 99px;
+  background: rgb(var(--accent));
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+  pointer-events: none;
+}
+.rm-trash b:empty,
+.nt-trash b:empty {
+  display: none;
+}
+
+/* tombol waktu: hanya ikon jam; kalau sudah diisi berubah jadi chip */
+.p-reminder .rm-add .rm-when-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.p-reminder .rm-add .rm-when-wrap:hover {
+  background: rgba(var(--fg-rgb), 0.18);
+}
+.rm-when-wrap svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  opacity: 0.75;
+}
+.rm-when-wrap span {
+  max-width: 78px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 600;
+}
+.rm-when-wrap span:empty {
+  display: none;
+}
+.p-reminder .rm-add .rm-when-wrap.set {
+  background: rgba(var(--accent), 0.28);
+  color: rgb(var(--accent));
+}
+.p-reminder .rm-add .rm-when-wrap.set svg {
+  opacity: 1;
+}
+
+/* input tanggal tidak terlihat, tapi menutupi tombol sehingga klik langsung membuka picker */
+.p-reminder .rm-add .rm-when-wrap input[type="datetime-local"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex: none;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  color-scheme: dark;
+}
+.rm-when-wrap input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* daftar lebih lega karena header sudah digabung */
+.rm-list,
+.nt-list {
+  max-height: 66px;
+}
+
+/* ---------- reminder & catatan: satu baris form, ukuran nyaman ---------- */
+.p-reminder,
+.p-note {
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 26px 16px;
+}
+
+/* nt-add: textarea mini + tombol-tombol di sebelah kanan */
+.nt-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.nt-add textarea#nt-input {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: rgba(var(--fg-rgb), 0.08);
+  font-size: 12.5px;
+  font-family: inherit;
+  color: var(--fg);
+  line-height: 1.45;
+  resize: none;
+  overflow: hidden;
+}
+.nt-add textarea#nt-input::placeholder {
+  color: rgba(var(--fg-rgb), 0.4);
+}
+.nt-add-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nt-add > button,
+.nt-add-actions > button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+.nt-add > button svg,
+.nt-add-actions > button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* tombol hapus netral + lencana jumlah */
+.rm-add .rm-trash,
+.nt-add .nt-trash {
+  position: relative;
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  opacity: 0.75;
+}
+.rm-add .rm-trash:hover,
+.nt-add .nt-trash:hover {
+  background: rgba(var(--fg-rgb), 0.18);
+  opacity: 1;
+}
+.rm-trash b,
+.nt-trash b {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 99px;
+  background: rgb(var(--accent));
+  color: #000;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.rm-trash b:empty,
+.nt-trash b:empty {
+  display: none;
+}
+
+/* daftar: item kartu dengan 2 baris teks + meta */
+.nt-list {
+  max-height: 68px;
+  gap: 4px;
+}
+.rm-list {
+  max-height: 66px;
+  gap: 4px;
+}
+.rm-item {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+.rm-item .due {
+  font-size: 10.5px;
+}
+
+/* nt-item: kartu dengan preview 1 baris + meta */
+.nt-item {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px 4px;
+  border-radius: 9px;
+  background: rgba(var(--fg-rgb), 0.07);
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+  text-align: left;
+}
+.nt-item:hover {
+  background: rgba(var(--fg-rgb), 0.14);
+}
+.nt-item-preview {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg);
+  padding-right: 18px;
+}
+.nt-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.nt-item-date {
+  font-size: 9.5px;
+  opacity: 0.4;
+  white-space: nowrap;
+}
+.nt-item-len {
+  font-size: 9px;
+  opacity: 0.3;
+  white-space: nowrap;
+}
+/* tombol hapus mengambang di kanan atas kartu */
+.nt-item-del {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0;
+  cursor: pointer;
+  color: var(--fg);
+  transition: opacity 0.15s;
+}
+.nt-item:hover .nt-item-del {
+  opacity: 0.45;
+}
+.nt-item-del:hover {
+  opacity: 1 !important;
+  color: rgb(255, 90, 90);
+}
+
+.rm-empty,
+.nt-empty {
+  padding: 10px 0;
+}
+/* ---------- FIX UI PENGINGAT: form + date/time picker ---------- */
+
+/* Panel tetap tersusun vertikal; jangan jadikan panel sebagai baris horizontal. */
+.p-reminder {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 26px 10px;
+  overflow: hidden;
+}
+
+/* Baris input dan tombol aksi */
+.p-reminder .rm-add {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Hanya input teks reminder yang diperbesar.
+   Jangan menimpa input datetime-local transparan di dalam tombol kalender. */
+.p-reminder .rm-add input#rm-input {
+  box-sizing: border-box;
+  flex: 1 1 180px;
+  width: auto;
+  min-width: 0;
+  height: 48px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 13px;
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  cursor: text;
+}
+
+.p-reminder .rm-add input#rm-input::placeholder {
+  color: rgba(var(--fg-rgb), 0.45);
+}
+
+.p-reminder .rm-add input#rm-input:focus {
+  outline: none;
+  background: rgba(var(--fg-rgb), 0.12);
+  box-shadow: 0 0 0 1px rgba(var(--accent), 0.5);
+}
+
+/* Tombol jam, tambah, dan hapus: ukuran konsisten */
+.p-reminder .rm-add > button,
+.p-reminder .rm-add > .rm-when-wrap {
+  box-sizing: border-box;
+  flex: 0 0 48px;
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 13px;
+}
+
+.p-reminder .rm-add > button {
+  display: grid;
+  place-items: center;
+}
+
+.p-reminder .rm-add > button svg,
+.p-reminder .rm-add > .rm-when-wrap > svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* Kalau tombol waktu menampilkan label, izinkan chip melebar secukupnya. */
+.p-reminder .rm-add > .rm-when-wrap.set {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+/* Picker disembunyikan sampai mode pemilihan waktu diaktifkan. */
+.p-reminder .rm-pick {
+  display: none;
+  box-sizing: border-box;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Picker selalu mengambil satu baris baru, baik berada langsung di panel
+   maupun sebagai anak dari .rm-add. */
+.p-reminder.picking .rm-pick {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 0 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.p-reminder.picking > .rm-pick {
+  flex: none;
+}
+
+.p-reminder.picking .rm-list {
+  display: none;
+}
+
+/* Kotak tanggal, jam, dan menit. Gunakan flex, bukan grid enam kolom:
+   jumlah elemen picker bisa berbeda dari susunan grid sebelumnya. */
+.p-reminder .rm-pick .pk {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 1 82px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  width: auto;
+  min-width: 72px;
+  max-width: 100%;
+  height: 42px;
+  padding: 0 3px;
+  border-radius: 11px;
+  background: rgba(var(--fg-rgb), 0.08);
+}
+
+.p-reminder .rm-pick .pk-date {
+  flex: 1 1 145px;
+  min-width: 130px;
+}
+
+.p-reminder .rm-pick .pk button {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  flex: 0 0 27px;
+  place-items: center;
+  width: 27px;
+  min-width: 27px;
+  height: 36px;
+  min-height: 36px;
+  border-radius: 9px;
+  font-size: 19px;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0.82;
+  transition: background 0.15s, opacity 0.15s, transform 0.15s;
+}
+
+.p-reminder .rm-pick .pk button:hover {
+  background: rgba(var(--fg-rgb), 0.15);
+  opacity: 1;
+}
+
+.p-reminder .rm-pick .pk button:active {
+  transform: scale(0.92);
+}
+
+.p-reminder .rm-pick .pk span {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.p-reminder .rm-pick .pk-date span {
+  min-width: 72px;
+}
+
+.p-reminder .rm-pick > i {
+  flex: 0 0 auto;
+  display: block;
+  font-style: normal;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: center;
+  opacity: 0.65;
+}
+
+/* Tombol Atur dan batal */
+.p-reminder .rm-pick .pk-ok,
+.p-reminder .rm-pick .pk-x {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  height: 42px;
+  min-height: 42px;
+  border-radius: 11px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: filter 0.15s, background 0.15s;
+}
+
+.p-reminder .rm-pick .pk-ok {
+  min-width: 70px;
+  padding: 0 13px;
+  background: rgb(var(--accent));
+  color: #000;
+}
+
+.p-reminder .rm-pick .pk-ok:hover {
+  filter: brightness(1.12);
+}
+
+.p-reminder .rm-pick .pk-x {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  font-size: 19px;
+  background: rgba(var(--fg-rgb), 0.08);
+}
+
+.p-reminder .rm-pick .pk-x:hover {
+  background: rgba(255, 100, 100, 0.35);
+}
+
+/* Ukuran layar sempit: biarkan picker membungkus rapi, bukan meluber ke kanan. */
+@media (max-width: 520px) {
+  .p-reminder {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .p-reminder .rm-add {
+    gap: 5px;
+  }
+
+  .p-reminder .rm-add > button,
+  .p-reminder .rm-add > .rm-when-wrap {
+    flex-basis: 44px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  .p-reminder .rm-add input#rm-input {
+    height: 44px;
+    flex-basis: 140px;
+    font-size: 14px;
+  }
+
+  .p-reminder .rm-pick .pk-date {
+    flex-basis: 145px;
+    min-width: 130px;
+  }
+
+  .p-reminder .rm-pick .pk {
+    flex-basis: 76px;
+    min-width: 70px;
+  }
+
+  .p-reminder .rm-pick .pk button {
+    flex-basis: 23px;
+    width: 23px;
+    min-width: 23px;
+  }
+
+  .p-reminder .rm-pick .pk-ok {
+    min-width: 62px;
+    padding: 0 10px;
+  }
+
+  .p-reminder .rm-pick .pk-x {
+    width: 38px;
+    min-width: 38px;
+  }
+}

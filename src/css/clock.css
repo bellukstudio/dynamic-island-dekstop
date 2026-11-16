@@ -1,0 +1,99 @@
+/* =====================================================================
+   Jam & tanggal
+   - tampilan idle "clock": jam di KIRI, tanggal di KANAN (menggantikan mata)
+   - halaman hub "clock": jam besar di kiri, tanggal di kanan
+   ===================================================================== */
+
+/* ---------- notch dengan wajah jam (sama tinggi dengan idle, lebih lebar) ---------- */
+#notch[data-view="clock"] {
+  width: 220px;
+  height: 24px;
+  border-radius: 0 0 12px 12px;
+}
+.l-clock {
+  width: 220px;
+  height: 24px;
+  padding: 0 14px;
+  justify-content: space-between; /* jam di kiri, tanggal di kanan; tengah dikosongkan untuk titik privasi */
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#notch[data-view="clock"] .l-clock {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) scale(1);
+  transition:
+    opacity 0.3s 0.15s,
+    transform 0.45s 0.1s,
+    visibility 0s;
+}
+#cl-time {
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: var(--fg);
+}
+#cl-date {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(var(--fg-rgb), 0.62);
+}
+
+/* indikator mic/kamera di wajah jam: lencana dengan ikon, di tengah (area yang memang kosong) */
+#notch[data-view="clock"] #privacy {
+  top: 4px;
+  right: 50%;
+  transform: translateX(50%);
+}
+#notch[data-view="clock"] #privacy .pv-cam,
+#notch[data-view="clock"] #privacy .pv-mic {
+  width: 16px !important;
+  height: 16px !important;
+}
+#notch[data-view="clock"] #privacy svg {
+  display: block !important;
+}
+
+/* ---------- halaman hub ---------- */
+.p-clock {
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 34px 0 26px; /* kanan: ruang untuk titik halaman */
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+}
+.ck-time {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.ck-time strong {
+    font-size: 46px;
+    line-height: 1;
+    font-weight: 650;
+    letter-spacing: -1px;
+}
+.ck-time small {
+    font-size: 16px;
+    opacity: 0.45;
+}
+.ck-date {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    text-align: right;
+}
+.ck-date strong {
+    font-size: 18px;
+    font-weight: 650;
+}
+.ck-date small {
+    font-size: 12px;
+    color: rgba(var(--fg-rgb), 0.55);
+}
+#ck-sec {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(var(--fg-rgb), 0.5);
+}

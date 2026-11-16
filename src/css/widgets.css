@@ -1,0 +1,581 @@
+/* ---------- halaman cuaca ---------- */
+.p-wx {
+  padding: 0 30px 0 22px;
+  gap: 16px;
+}
+.wx-icon {
+  --wc: 255, 200, 80;
+  position: relative;
+  overflow: hidden;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  background: rgba(var(--wc), 0.14);
+  box-shadow: inset 0 0 0 1px rgba(var(--wc), 0.45);
+}
+.wx-icon[data-kind="clear"] {
+  --wc: 255, 200, 80;
+}
+.wx-icon[data-kind="night"] {
+  --wc: 150, 160, 255;
+}
+.wx-icon[data-kind="cloud"] {
+  --wc: 170, 190, 210;
+}
+.wx-icon[data-kind="rain"] {
+  --wc: 90, 170, 255;
+}
+.wx-icon[data-kind="storm"] {
+  --wc: 190, 130, 255;
+}
+.wx-icon[data-kind="fog"] {
+  --wc: 180, 180, 190;
+}
+
+#wx-emoji {
+  position: relative;
+  z-index: 1;
+}
+.wx-icon[data-kind="clear"] #wx-emoji {
+  animation: spin-slow 12s linear infinite;
+}
+.wx-icon[data-kind="night"] #wx-emoji,
+.wx-icon[data-kind="cloud"] #wx-emoji {
+  animation: floaty 3s ease-in-out infinite;
+}
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes floaty {
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.drops {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(120, 190, 255, 0.9), rgba(120, 190, 255, 0.9))
+      12px -8px / 2px 8px no-repeat,
+    linear-gradient(rgba(120, 190, 255, 0.9), rgba(120, 190, 255, 0.9))
+      28px -14px / 2px 8px no-repeat,
+    linear-gradient(rgba(120, 190, 255, 0.9), rgba(120, 190, 255, 0.9))
+      44px -4px / 2px 8px no-repeat;
+}
+.wx-icon[data-kind="rain"] .drops,
+.wx-icon[data-kind="storm"] .drops {
+  opacity: 1;
+  animation: fall 0.7s linear infinite;
+}
+@keyframes fall {
+  to {
+    transform: translateY(70px);
+  }
+}
+
+.wx-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.wx-text strong {
+  font-size: 34px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.wx-text small {
+  font-size: 12px;
+  color: rgba(var(--fg-rgb), 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wx-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(var(--fg-rgb), 0.5);
+}
+
+/* ---------- halaman baterai ---------- */
+.p-bat {
+  padding: 0 34px 0 26px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 14px;
+}
+.bat-big {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.bat-big strong {
+  font-size: 34px;
+  font-variant-numeric: tabular-nums;
+}
+.bat-big small {
+  font-size: 12px;
+  color: rgba(var(--fg-rgb), 0.55);
+}
+.bat-bar {
+  height: 8px;
+  border-radius: 8px;
+  background: rgba(var(--fg-rgb), 0.14);
+  overflow: hidden;
+}
+#bat-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 8px;
+  background: #7dffb0;
+  transition:
+    width 0.6s,
+    background 0.3s;
+}
+#bat-fill.low {
+  background: #ff8a8a;
+}
+#bat-fill.charging {
+  background: #ffd60a;
+}
+
+/* ---------- bluetooth ---------- */
+.ring {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: conic-gradient(#4cc3ff calc(var(--pct) * 1%), #2a2a2a 0);
+}
+.ring-in {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  color: #4cc3ff;
+}
+.ring-in svg {
+  width: 16px;
+  height: 16px;
+}
+.bt-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.bt-text strong {
+  font-size: 15px;
+}
+.bt-text small {
+  font-size: 12px;
+  color: rgba(var(--fg-rgb), 0.5);
+}
+.bt-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(76, 195, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(76, 195, 255, 0.4);
+  color: #8fdcff;
+}
+.bt-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------- perangkat colok/cabut ---------- */
+.dev-icon {
+  --dc: 120, 220, 255;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: rgb(var(--dc));
+  background: rgba(var(--dc), 0.14);
+  box-shadow: inset 0 0 0 1px rgba(var(--dc), 0.45);
+}
+.dev-icon svg {
+  width: 22px;
+  height: 22px;
+  position: relative;
+  z-index: 1;
+}
+.dev-icon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(var(--dc), 0.8);
+  opacity: 0;
+}
+.dev-icon.off {
+  filter: grayscale(1) brightness(0.7);
+}
+
+.dev-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dev-text strong {
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dev-text small {
+  font-size: 12px;
+  color: rgba(var(--fg-rgb), 0.5);
+}
+
+.dev-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(125, 255, 176, 0.12);
+  color: #7dffb0;
+  box-shadow: inset 0 0 0 1px rgba(125, 255, 176, 0.4);
+}
+.dev-chip svg {
+  width: 15px;
+  height: 15px;
+}
+.dev-chip.off {
+  background: rgba(255, 138, 138, 0.12);
+  color: #ff8a8a;
+  box-shadow: inset 0 0 0 1px rgba(255, 138, 138, 0.4);
+}
+
+.dev-icon[data-kind="charger"] {
+  --dc: 255, 214, 10;
+}
+.dev-icon[data-kind="usbc"] {
+  --dc: 190, 130, 255;
+}
+.dev-icon[data-kind="usb"] {
+  --dc: 120, 220, 255;
+}
+.dev-icon[data-kind="storage"] {
+  --dc: 90, 255, 170;
+}
+.dev-icon[data-kind="keyboard"],
+.dev-icon[data-kind="mouse"] {
+  --dc: 255, 160, 100;
+}
+.dev-icon[data-kind="audio"] {
+  --dc: 255, 105, 180;
+}
+.dev-icon[data-kind="phone"],
+.dev-icon[data-kind="camera"],
+.dev-icon[data-kind="printer"] {
+  --dc: 150, 180, 255;
+}
+
+.dev-icon.play::after {
+  animation: ripple 1s ease-out 2;
+}
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
+}
+
+.dev-icon.play[data-kind="usb"] svg,
+.dev-icon.play[data-kind="phone"] svg,
+.dev-icon.play[data-kind="camera"] svg,
+.dev-icon.play[data-kind="printer"] svg {
+  animation: plug-in 0.55s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+@keyframes plug-in {
+  from {
+    transform: translateX(-22px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.dev-icon.play[data-kind="usbc"] svg {
+  animation: plug-up 0.55s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+@keyframes plug-up {
+  from {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.dev-icon.play[data-kind="charger"] svg {
+  animation:
+    zap 0.5s steps(1) 4,
+    glow 1.2s ease-in-out infinite 0.5s;
+}
+@keyframes zap {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(var(--dc), 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(var(--dc), 1));
+  }
+}
+
+.dev-icon.play[data-kind="storage"] svg {
+  animation:
+    plug-in 0.5s cubic-bezier(0.34, 1.56, 0.5, 1) both,
+    blinkled 0.35s steps(1) 0.5s 6;
+}
+@keyframes blinkled {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.dev-icon.play[data-kind="keyboard"] svg,
+.dev-icon.play[data-kind="mouse"] svg {
+  animation: press 0.35s ease-in-out 3;
+}
+@keyframes press {
+  50% {
+    transform: scale(0.82) translateY(2px);
+  }
+}
+
+.dev-icon.play[data-kind="audio"] svg {
+  animation: beat 0.45s ease-in-out 4;
+}
+@keyframes beat {
+  50% {
+    transform: scale(1.22);
+  }
+}
+
+.l-hud {
+  width: 300px;
+  height: 52px;
+  padding: 0 20px;
+  gap: 12px;
+}
+#hud-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--fg);
+}
+.hud-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(var(--fg-rgb), 0.16);
+  overflow: hidden;
+}
+#hud-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 6px;
+  background: var(--fg);
+  transition:
+    width 0.12s ease-out,
+    background 0.2s;
+}
+#hud-fill.muted {
+  background: rgba(var(--fg-rgb), 0.35);
+}
+#hud-val {
+  width: 30px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--fg-rgb), 0.75);
+}
+.l-idle {
+  padding-bottom: 5px;
+  box-sizing: border-box;
+}
+
+/* ---------- skala dari config ---------- */
+#notch {
+  zoom: var(--s, 1);
+}
+
+/* ---------- halaman timer ---------- */
+.p-timer {
+  padding: 0 34px 20px 26px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+}
+.pom-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+#pom-time {
+  font-size: 38px;
+  line-height: 1;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+#pom-label {
+  font-size: 12px;
+  color: rgba(var(--fg-rgb), 0.55);
+}
+.pom-bar {
+  height: 5px;
+  border-radius: 5px;
+  background: rgba(var(--fg-rgb), 0.14);
+  overflow: hidden;
+}
+#pom-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 5px;
+  background: rgb(var(--accent));
+  transition:
+    width 0.3s linear,
+    background 0.3s;
+}
+#pom-fill.rest {
+  background: #7dffb0;
+}
+.pom-btns {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.pom-btns button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--fg);
+  cursor: pointer;
+  border-radius: 50%;
+  transition:
+    transform 0.15s,
+    background 0.15s;
+}
+.pom-btns button:hover {
+  background: rgba(var(--fg-rgb), 0.12);
+}
+.pom-btns button:active {
+  transform: scale(0.88);
+}
+.pom-btns svg {
+  width: 18px;
+  height: 18px;
+}
+.pom-btns svg[viewBox] {
+  fill: currentColor;
+}
+.pom-btns #pom-reset svg {
+  fill: none;
+}
+.pom-btns .main {
+  width: 36px;
+  height: 36px;
+  background: var(--fg);
+  color: var(--bg);
+}
+.pom-btns .main:hover {
+  background: #e8e8e8;
+}
+#pom-toggle .i-pause {
+  display: none;
+}
+#pom-toggle.running .i-pause {
+  display: block;
+}
+#pom-toggle.running .i-play {
+  display: none;
+}
+
+/* ---------- halaman kontrol cepat ---------- */
+.p-quick {
+  padding: 0 34px 0 22px;
+  gap: 10px;
+}
+.q-btn {
+  flex: 1;
+  height: 84px;
+  border: none;
+  border-radius: 22px;
+  cursor: pointer;
+  background: rgba(var(--fg-rgb), 0.08);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 11px;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.15s;
+}
+.q-btn svg {
+  width: 22px;
+  height: 22px;
+}
+.q-btn:active {
+  transform: scale(0.94);
+}
+.q-btn.on {
+  background: rgb(var(--accent));
+  color: #000;
+}
+.q-btn.na {
+  opacity: 0.3;
+  pointer-events: none;
+}

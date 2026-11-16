@@ -1,0 +1,86 @@
+/* ---------- input catatan: lebih besar ---------- */
+.p-note {
+  padding: 10px 26px 14px;
+  gap: 8px;
+  cursor: text;
+}
+
+.p-note .nt-add {
+  display: grid;
+  grid-template-columns: 1fr 36px;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.p-note .nt-add #nt-input {
+  grid-column: 1;
+  grid-row: 1 / span 2; /* textarea memanjang setinggi dua tombol */
+  width: 100%;
+  min-width: 0;
+  height: 78px;
+  min-height: 78px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: none;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: rgba(var(--fg-rgb), 0.08);
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.p-note .nt-add #nt-input::-webkit-scrollbar {
+  display: none;
+}
+.p-note .nt-add #nt-input::placeholder {
+  font-size: 14px;
+}
+.p-note .nt-add #nt-input:focus {
+  background: rgba(var(--fg-rgb), 0.12);
+  box-shadow: 0 0 0 1.5px rgba(var(--accent), 0.55);
+}
+
+.p-note .nt-add > button {
+  grid-column: 2;
+  width: 36px;
+  height: auto;
+  min-height: 0;
+  flex: none;
+  border-radius: 10px;
+}
+.p-note .nt-add #nt-add-btn {
+  grid-row: 1;
+}
+.p-note .nt-add #nt-clear {
+  grid-row: 2;
+}
+.p-note .nt-add > button svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* daftar catatan di bawah form */
+.p-note .nt-list {
+  max-height: 52px;
+}
+
+
+.p-reminder .rm-item .due {
+  max-width: 145px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 520px) {
+  .p-reminder .rm-pick .pk-repeat {
+    min-width: 68px;
+    height: 38px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+}
