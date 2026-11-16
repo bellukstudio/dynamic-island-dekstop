@@ -2481,6 +2481,7 @@ export component NotchWindow inherits Window {
                         behavior-save-status: root.behavior-save-status;
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
+                        save-position(mode) => { root.settings-save-position(mode); }
                         active-pages: root.active-pages;
                         hub-pages: root.hub-pages;
                         pages-save-status: root.pages-save-status;
