@@ -20,9 +20,12 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
     `light_bg`, `background`, `text`, `accent`. Default = hitam polos. `theme = "auto"` mengikuti tema aplikasi Windows
   - `[pomodoro]` dan `[timing]`
 - Halaman yang sudah ada: Media (tampilan saja), Jam, Timer (fokus/istirahat/istirahat panjang, ronde,
-  progress, reset/skip), Stats, Baterai, Catatan, Quick (Mic/Wi-Fi/Bluetooth), Tools (Keep awake/Tema/Kunci/Pusatkan)
-- Stats, Baterai, Quick/Tools, dan Catatan memakai crate bersama `../notch-core`; tiap halaman hanya
-  bekerja saat halamannya terlihat
+  progress, reset/skip), Stats, Baterai, Catatan, Clipboard (10 teks terbaru, salin ulang, hapus riwayat),
+  Quick (Mic/Wi-Fi/Bluetooth), Tools (Keep awake/Tema/Kunci/Pusatkan)
+- Stats, Baterai, Quick/Tools, Catatan, dan Clipboard memakai crate bersama `../notch-core`; polling UI
+  hanya berjalan saat halamannya terlihat
+- Clipboard mengikuti batas versi Tauri: 10 item teks di memori, maksimum 10.000 karakter per item,
+  duplikasi dipindah ke urutan teratas, salin ulang, dan hapus riwayat tanpa mengosongkan clipboard OS
 - **Catatan membaca/menulis `%APPDATA%\notch\notes.json`, file yang sama dengan versi Tauri.**
   Jangan mengedit catatan di kedua aplikasi sekaligus: Tauri menyimpan salinan di memori dan
   penulisan terakhir yang menang
@@ -32,7 +35,7 @@ Prototipe tahap 1 untuk menguji apakah Notch bisa dibuat tanpa webview memakai
 - **Quick/Tools mengubah pengaturan Windows sungguhan** (mic, Wi-Fi, Bluetooth, tema gelap, kunci layar)
 
 ## Belum ada
-- Media sungguhan (pemutar, cover album, lirik), Cuaca, Jadwal Shalat/Ramadan, Pengingat, Clipboard, Shelf,
+- Media sungguhan (pemutar, cover album, lirik), Cuaca, Jadwal Shalat/Ramadan, Pengingat, Shelf,
   Lirik, Privasi, Currency (halamannya tampil sebagai placeholder)
 - Menggeser notch dengan mouse dan dock samping (kiri/kanan). Posisi dibaca dari config; dock samping
   sementara diperlakukan seperti posisi melayang. Tombol "Pusatkan" mengembalikan ke tengah atas hanya untuk sesi ini

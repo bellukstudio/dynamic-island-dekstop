@@ -3,6 +3,7 @@
 
 pub mod battery;
 pub mod calendar;
+pub mod clipboard;
 pub mod config;
 pub mod decor;
 pub mod eyes;

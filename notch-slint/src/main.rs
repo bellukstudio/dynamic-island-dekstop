@@ -11,6 +11,7 @@ use std::time::{Duration, Instant};
 
 use notch_core::battery::{BatteryMonitor, Reading};
 use notch_core::calendar::{self, Date, Holidays, Item, View as CalView};
+use notch_core::clipboard::ClipboardMonitor;
 use notch_core::config::Config;
 use notch_core::decor;
 use notch_core::eyes::{self, Anim, EyeRenderer, Face, Morph, Mood, MoodState};
@@ -28,12 +29,12 @@ use slint::{
 slint::include_modules!();
 
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
-const COLLAPSED: (u32, u32) = (152, 38);
+const COLLAPSED: (u32, u32) = (162, 38);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
 const EXPANDED: (u32, u32) = (612, 240);
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
-const EYES_W: f32 = 120.0;
+const EYES_W: f32 = 130.0;
 const EYES_H: f32 = 34.0;
 
 /// Pengacak ringan untuk kedip dan tatapan acak (tanpa dependensi `rand`).
@@ -233,7 +234,28 @@ fn show_notes(model: &VecModel<NoteItem>, notes: Vec<Note>) {
             .collect::<Vec<_>>(),
     );
 }
-
+ 
+/// Perbarui tiga item terbaru pada halaman Clipboard. Riwayat internal tetap menyimpan 10 item.
+fn show_clipboard(model: &VecModel<ClipboardItem>, monitor: Option<&ClipboardMonitor>) {
+    let items = monitor.map(ClipboardMonitor::list).unwrap_or_default();
+    model.set_vec(
+        items
+            .into_iter()
+            .take(3)
+            .map(|text| {
+                let preview = text.replace('\n', " ").replace('\r', " ");
+                let mut chars = preview.chars();
+                let short: String = chars.by_ref().take(64).collect();
+                let preview = if chars.next().is_some() {
+                    format!("{short}…")
+                } else {
+                    short
+                };
+                ClipboardItem { preview: preview.into(), text: text.into() }
+            })
+            .collect::<Vec<_>>(),
+    );
+}
 
 fn col(c: Rgba) -> slint::Color {
     slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
@@ -407,12 +429,28 @@ fn main() -> Result<(), slint::PlatformError> {
     // --- State halaman ---
     let stats_timer = Rc::new(Timer::default());
     let battery_timer = Rc::new(Timer::default());
+    let clipboard_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     let battery = Rc::new(BatteryMonitor::new());
     let notes_path = notch_core::paths::data_file("notes.json");
     let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
+    let clipboard_monitor = Rc::new(if pages.iter().any(|page| page == "clipboard") {
+        match ClipboardMonitor::start() {
+            Ok(monitor) => Some(monitor),
+            Err(error) => {
+                eprintln!("[Clipboard] {error}");
+                None
+            }
+        }
+    } else {
+        None
+    });
+    let clipboard_model = Rc::new(VecModel::<ClipboardItem>::default());
+    win.set_clipboard_items(ModelRc::from(clipboard_model.clone()));
+    win.set_clipboard_available(clipboard_monitor.is_some());
+    show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
     let quick_busy = Arc::new(AtomicBool::new(false));
     let keep_awake = Arc::new(AtomicBool::new(false));
 
@@ -421,10 +459,11 @@ fn main() -> Result<(), slint::PlatformError> {
     // Catatan dimuat ulang dari disk setiap dibuka (perubahan dari versi Tauri ikut terbaca).
     let sync_pages: Rc<dyn Fn()> = {
         let weak = win.as_weak();
-        let (stats_timer, battery_timer) = (stats_timer.clone(), battery_timer.clone());
+        let (stats_timer, battery_timer, clipboard_timer) = (stats_timer.clone(), battery_timer.clone(), clipboard_timer.clone());
         let (monitor, battery) = (monitor.clone(), battery.clone());
         let (notes_store, notes_model, notes_path) =
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        let (clipboard_model, clipboard_monitor) = (clipboard_model.clone(), clipboard_monitor.clone());
         let quick_busy = quick_busy.clone();
         let keep_awake = keep_awake.clone();
         Rc::new(move || {
@@ -485,6 +524,20 @@ fn main() -> Result<(), slint::PlatformError> {
                 show_notes(&notes_model, store.list());
                 *notes_store.borrow_mut() = Some(store);
             }
+
+            // Clipboard: polling UI hanya berjalan saat halaman terlihat.
+            if visible && page == "clipboard" {
+                if !clipboard_timer.running() {
+                    show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
+                    let model = clipboard_model.clone();
+                    let monitor = clipboard_monitor.clone();
+                    clipboard_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
+                        show_clipboard(&model, monitor.as_ref());
+                    });
+                }
+            } else {
+                clipboard_timer.stop();
+            }
         })
     };
 
@@ -509,6 +562,24 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let monitor = clipboard_monitor.clone();
+        win.on_clipboard_copy(move |text| {
+            if let Some(monitor) = monitor.as_ref() {
+                monitor.copy(text.to_string());
+            }
+        });
+    }
+    {
+        let monitor = clipboard_monitor.clone();
+        let model = clipboard_model.clone();
+        win.on_clipboard_clear(move || {
+            if let Some(monitor) = monitor.as_ref() {
+                monitor.clear();
+            }
+            show_clipboard(&model, monitor.as_ref());
+        });
+    }
 
     // --- Kalender + hari libur Indonesia ---
     // Cache `holidays.json` dibaca sekarang (cepat); unduhan baru jalan di thread latar dan hasilnya
