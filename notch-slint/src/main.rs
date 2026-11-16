@@ -2290,7 +2290,7 @@ fn main() -> Result<(), slint::PlatformError> {
             String::new(),
             None::<Instant>,
             eye.borrow().last_move,
-            false,
+            None::<bool>,
             None::<bool>,
             String::new(),
             false,
@@ -2353,14 +2353,18 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Status baterai dibaca ringan; komentar hanya muncul pada transisi menuju kondisi.
             if let Reading::Present(value) = battery_reading {
-                let low = value.percent <= 15;
-                if low && !*was_low_battery && cfg.on_low_battery && event.is_none() {
-                    event = Some(("Baterai tinggal 15%. Saatnya mencari charger, ya! 🔋", "Conversation Moments · baterai lemah"));
+                // Sampel pertama hanya menjadi baseline; baterai yang memang sudah lemah
+                // ketika aplikasi dibuka tidak dianggap sebagai transisi baru.
+                let low = value.percent <= 15 && !value.charging;
+                if let Some(previous_low) = *was_low_battery {
+                    if low && !previous_low && cfg.on_low_battery && event.is_none() {
+                        event = Some(("Baterai tinggal 15%. Saatnya mencari charger, ya! 🔋", "Conversation Moments · baterai lemah"));
+                    }
                 }
                 if value.charging && *was_charging == Some(false) && cfg.on_charging && event.is_none() {
                     event = Some(("Laptop mulai mengisi daya. Energi kembali penuh! ⚡", "Conversation Moments · mulai mengisi daya"));
                 }
-                *was_low_battery = low;
+                *was_low_battery = Some(low);
                 *was_charging = Some(value.charging);
             }
 
