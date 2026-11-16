@@ -929,7 +929,22 @@ fn compress_pdf_raster(source: &[u8], target_size: u64) -> Result<Vec<u8>, Strin
         }
         low
     };
-    raster_pdf_bytes(source, RASTER_LADDER[selected])
+
+    // Sample-based estimates can miss unusually complex pages. Verify the actual
+    // document size and step down the ladder only when the rendered result misses
+    // the requested target. Keep the smallest result if no profile reaches it.
+    let mut best: Option<Vec<u8>> = None;
+    for profile in RASTER_LADDER.iter().skip(selected) {
+        let candidate = raster_pdf_bytes(source, *profile)?;
+        let is_better = best.as_ref().map(|current| candidate.len() < current.len()).unwrap_or(true);
+        if is_better {
+            best = Some(candidate);
+        }
+        if best.as_ref().is_some_and(|output| output.len() as u64 <= target_size) {
+            break;
+        }
+    }
+    best.ok_or_else(|| "Tidak ada hasil raster PDF yang dapat dibuat".to_string())
 }
 
 /// Compress PDF content, preserving text/vector where possible and rasterizing only as a last resort.
