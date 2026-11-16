@@ -1446,7 +1446,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
-                .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx"])
+                .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt", "csv"])
                 .pick_file();
             if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
                 w.set_convert_selected_path(path.to_string_lossy().to_string().into());
