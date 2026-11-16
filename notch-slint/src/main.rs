@@ -2162,6 +2162,41 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        let failed = convert_failed_files.clone();
+        let selected_paths = convert_selected_paths.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
+        win.on_convert_retry_one_failed(move |raw_name| {
+            if running.load(std::sync::atomic::Ordering::Acquire) {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Tunggu hingga batch aktif selesai sebelum retry satu file".into()); }
+                return;
+            }
+            let query = raw_name.to_string().trim().to_ascii_lowercase();
+            if query.is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Masukkan nama file yang gagal untuk diulang".into()); }
+                return;
+            }
+            let failed_paths = failed.lock().unwrap_or_else(|error| error.into_inner());
+            let matches = failed_paths.iter().filter(|path| {
+                let name = std::path::Path::new(path.as_str()).file_name()
+                    .map(|value| value.to_string_lossy().to_ascii_lowercase())
+                    .unwrap_or_default();
+                name == query || path.to_ascii_lowercase() == query
+            }).cloned().collect::<Vec<_>>();
+            drop(failed_paths);
+            if matches.is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("File gagal tidak ditemukan. Gunakan nama file lengkap".into()); }
+                return;
+            }
+            *selected_paths.borrow_mut() = matches.clone();
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_selected_path(matches[0].clone().into());
+                w.set_convert_files_text(format_convert_selection(&matches).into());
+                w.set_convert_status(format!("{} file cocok dimuat untuk retry. Tekan Konversi", matches.len()).into());
+            }
+        });
+    }
+    {
         let queue = convert_queue.clone();
         let statuses = convert_file_statuses.clone();
         let running = convert_running.clone();
