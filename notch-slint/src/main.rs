@@ -547,6 +547,36 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_shortcut_settings(cfg.shortcuts.open_settings.clone().into());
     win.set_shortcut_pomodoro(cfg.shortcuts.toggle_pomodoro.clone().into());
     win.set_shortcut_prayer(cfg.shortcuts.toggle_prayer.clone().into());
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_shortcuts(move |hub, settings, pomo, prayer| {
+            let mut next = updated_config.clone();
+            next.shortcuts.toggle_hub = hub.to_string();
+            next.shortcuts.open_settings = settings.to_string();
+            next.shortcuts.toggle_pomodoro = pomo.to_string();
+            next.shortcuts.toggle_prayer = prayer.to_string();
+            next.normalize();
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    if let Some(w) = weak.upgrade() {
+                        w.set_shortcut_hub(next.shortcuts.toggle_hub.clone().into());
+                        w.set_shortcut_settings(next.shortcuts.open_settings.clone().into());
+                        w.set_shortcut_pomodoro(next.shortcuts.toggle_pomodoro.clone().into());
+                        w.set_shortcut_prayer(next.shortcuts.toggle_prayer.clone().into());
+                        w.set_settings_save_status("Tersimpan. Mulai ulang aplikasi untuk menerapkan shortcut.".into());
+                    }
+                }
+                Err(error) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_settings_save_status(format!("Gagal menyimpan: {error}").into());
+                    }
+                }
+            }
+        });
+    }
 
     win.set_emoji_coffee(load_png(include_bytes!("../assets/emoji/2615.png")));
     win.set_emoji_tomato(load_png(include_bytes!("../assets/emoji/1f345.png")));

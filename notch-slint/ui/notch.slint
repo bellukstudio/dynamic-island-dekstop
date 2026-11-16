@@ -1003,8 +1003,10 @@ component SettingsPage inherits VerticalLayout {
     in property <string> shortcut-settings;
     in property <string> shortcut-pomodoro;
     in property <string> shortcut-prayer;
+    in property <string> save-status: "Ubah kombinasi, lalu tekan Simpan";
+    callback save-shortcuts(string, string, string, string);
     alignment: start;
-    spacing: 8px;
+    spacing: 7px;
     padding-left: 12px;
     padding-right: 12px;
 
@@ -1017,29 +1019,56 @@ component SettingsPage inherits VerticalLayout {
         border-color: #ffffff18;
         VerticalLayout {
             padding: 9px;
-            spacing: 7px;
-            HorizontalLayout {
-                Text { text: "Buka / tutup hub"; color: Theme.text; font-size: 11px; }
-                Text { text: root.shortcut-hub; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            spacing: 6px;
+            Text { text: "Buka / tutup hub"; color: Theme.text; font-size: 10px; }
+            hub-input := TextInput {
+                text: root.shortcut-hub;
+                color: Theme.text;
+                font-size: 12px;
+                single-line: true;
             }
-            HorizontalLayout {
-                Text { text: "Buka pengaturan"; color: Theme.text; font-size: 11px; }
-                Text { text: root.shortcut-settings; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            Text { text: "Buka pengaturan"; color: Theme.text; font-size: 10px; }
+            settings-input := TextInput {
+                text: root.shortcut-settings;
+                color: Theme.text;
+                font-size: 12px;
+                single-line: true;
             }
-            HorizontalLayout {
-                Text { text: "Pomodoro"; color: Theme.text; font-size: 11px; }
-                Text { text: root.shortcut-pomodoro; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            Text { text: "Pomodoro"; color: Theme.text; font-size: 10px; }
+            pomo-input := TextInput {
+                text: root.shortcut-pomodoro;
+                color: Theme.text;
+                font-size: 12px;
+                single-line: true;
             }
-            HorizontalLayout {
-                Text { text: "Jadwal shalat"; color: Theme.text; font-size: 11px; }
-                Text { text: root.shortcut-prayer; color: Theme.accent; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+            Text { text: "Jadwal shalat"; color: Theme.text; font-size: 10px; }
+            prayer-input := TextInput {
+                text: root.shortcut-prayer;
+                color: Theme.text;
+                font-size: 12px;
+                single-line: true;
+            }
+        }
+    }
+    HorizontalLayout {
+        alignment: end;
+        Chip {
+            label: "Simpan";
+            clicked => {
+                root.save-shortcuts(hub-input.text, settings-input.text, pomo-input.text, prayer-input.text);
             }
         }
     }
     Text {
-        text: "Pintasan ditampilkan dari config.toml. Editor dan penyimpanan langsung akan diaktifkan pada tahap berikutnya.";
+        text: root.save-status;
         color: Theme.text-faint;
         font-size: 10px;
+        wrap: word-wrap;
+    }
+    Text {
+        text: "Catatan: perubahan shortcut berlaku setelah aplikasi dimulai ulang.";
+        color: Theme.text-faint;
+        font-size: 9px;
         wrap: word-wrap;
     }
 }
@@ -1155,6 +1184,7 @@ export component NotchWindow inherits Window {
     in property <string> shortcut-settings: "Ctrl+Alt+,";
     in property <string> shortcut-pomodoro: "Ctrl+Alt+P";
     in property <string> shortcut-prayer: "Ctrl+Alt+A";
+    in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1206,6 +1236,7 @@ export component NotchWindow inherits Window {
     callback cal-today();
     callback cal-select(int);
     callback holidays-ready();
+    callback settings-save-shortcuts(string, string, string, string);
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1435,6 +1466,8 @@ export component NotchWindow inherits Window {
                         shortcut-settings: root.shortcut-settings;
                         shortcut-pomodoro: root.shortcut-pomodoro;
                         shortcut-prayer: root.shortcut-prayer;
+                        save-status: root.settings-save-status;
+                        save-shortcuts(hub, settings, pomo, prayer) => { root.settings-save-shortcuts(hub, settings, pomo, prayer); }
                     }
                     if root.page-id == "media": MediaPage {
                         lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active;
