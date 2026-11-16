@@ -546,7 +546,8 @@ static RESOURCE_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub(crate) fn set_resource_dir(app: &AppHandle) {
     if let Ok(d) = app.path().resource_dir() {
-        let _ = RESOURCE_DIR.set(d);
+        let _ = RESOURCE_DIR.set(d.clone());
+        notch_tools::pdf::set_resource_dir(d);
     }
 }
 
