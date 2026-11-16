@@ -2269,6 +2269,8 @@ fn main() -> Result<(), slint::PlatformError> {
             eye.borrow().last_move,
             false,
             None::<bool>,
+            String::new(),
+            false,
         )));
         let timer = Timer::default();
         timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
@@ -2278,8 +2280,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let title = w.get_media_title().to_string();
             let pointer_move = eye.borrow().last_move;
             let battery_reading = battery.read();
+            let weather_condition = w.get_weather_condition().to_string();
+            let weather_rain = w.get_weather_rain().to_string();
             let mut state = state.borrow_mut();
-            let (last_playing, last_title, last_message, last_move, was_low_battery, was_charging) = &mut *state;
+            let (last_playing, last_title, last_message, last_move, was_low_battery, was_charging, last_weather, was_rain_soon) = &mut *state;
             let mut event: Option<(&'static str, &'static str)> = None;
 
             if playing && !*last_playing && cfg.on_play {
@@ -2304,6 +2308,24 @@ fn main() -> Result<(), slint::PlatformError> {
             } else if !playing {
                 *last_title = String::new();
             }
+
+            // Perubahan kondisi dan prakiraan hujan hanya dinilai setelah data cuaca valid tersedia.
+            if !weather_condition.is_empty()
+                && weather_condition != "Memuat cuaca..."
+                && weather_condition != "Data cuaca belum tersedia"
+            {
+                if !last_weather.is_empty() && weather_condition != *last_weather
+                    && cfg.on_weather_change && event.is_none()
+                {
+                    event = Some(("Cuaca berubah. Sesuaikan aktivitasmu dengan kondisi di luar, ya! 🌤️", "Conversation Moments · kondisi cuaca berubah"));
+                }
+                *last_weather = weather_condition;
+            }
+            let rain_soon = weather_rain.starts_with("Hujan dalam ");
+            if rain_soon && !*was_rain_soon && cfg.on_rain_soon && event.is_none() {
+                event = Some(("Sepertinya hujan akan turun. Jangan lupa siapkan payung! ☔", "Conversation Moments · hujan segera"));
+            }
+            *was_rain_soon = rain_soon;
 
             // Status baterai dibaca ringan; komentar hanya muncul pada transisi menuju kondisi.
             if let Reading::Present(value) = battery_reading {
