@@ -3,6 +3,7 @@
 
 export struct NoteItem { id: string, text: string }
 export struct ClipboardItem { preview: string, text: string }
+export struct ReminderItem { id: string, text: string, due: string, done: bool }
 // Satu sel kalender. kind: 0 = biasa, 1 = libur, 2 = cuti bersama, 3 = hari peringatan.
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
@@ -70,11 +71,12 @@ global Icons {
 
 component Chip inherits Rectangle {
     in property <string> label;
+    in property <bool> selected: false;
     callback clicked;
     height: 28px;
     min-width: 64px;
     border-radius: 14px;
-    background: ta.has-hover ? Theme.chip-hover : Theme.chip;
+    background: root.selected ? Theme.accent.with-alpha(0.24) : (ta.has-hover ? Theme.chip-hover : Theme.chip);
     animate background { duration: 120ms; }
     Text {
         text: root.label;
@@ -673,6 +675,143 @@ component NotesPage inherits VerticalLayout {
     }
 }
 
+component ReminderPage inherits VerticalLayout {
+    in property <[ReminderItem]> items;
+    in property <bool> alert-visible: false;
+    in property <string> alert-text;
+    in property <string> alert-sub;
+    in property <int> weekdays-mask: 62;
+    in property <[bool]> weekday-selected;
+    in-out property <string> draft;
+    in-out property <string> date-time;
+    in-out property <string> repeat-mode: "none";
+    callback add(string, string, string, int);
+    callback toggle(string);
+    callback remove(string);
+    callback clear-done();
+    callback stop-alert();
+    callback snooze-alert();
+    callback toggle-weekday(int);
+
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-top: 4px;
+    padding-bottom: 2px;
+    spacing: 3px;
+
+    if root.alert-visible: Rectangle {
+        height: 34px;
+        border-radius: 11px;
+        background: #d9770628;
+        border-width: 1px;
+        border-color: #f59e0b88;
+        HorizontalLayout {
+            padding-left: 8px;
+            padding-right: 5px;
+            spacing: 4px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 1px;
+                Text { text: root.alert-text; color: Theme.text; font-size: 11px; font-weight: 700; overflow: elide; }
+                Text { text: root.alert-sub; color: Theme.text-dim; font-size: 9px; overflow: elide; }
+            }
+            Chip { label: "Tunda"; clicked => { root.snooze-alert(); } }
+            Chip { label: "Selesai"; selected: true; clicked => { root.stop-alert(); } }
+        }
+    }
+
+    HorizontalLayout {
+        height: 26px;
+        spacing: 5px;
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 13px;
+            background: Theme.chip;
+            input := TextInput {
+                x: 9px;
+                width: parent.width - 18px;
+                text <=> root.draft;
+                color: Theme.text;
+                font-size: 11px;
+                vertical-alignment: center;
+                single-line: true;
+                accepted => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); }
+            }
+            if input.text == "": Text {
+                x: 9px;
+                text: "Ingatkan aku untuk…";
+                color: Theme.text-faint;
+                font-size: 11px;
+                vertical-alignment: center;
+            }
+        }
+        Chip { label: "Tambah"; clicked => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); } }
+        Chip { label: "Bersih"; clicked => { root.clear-done(); } }
+    }
+
+    HorizontalLayout {
+        height: 24px;
+        spacing: 4px;
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 12px;
+            background: Theme.chip;
+            dt := TextInput {
+                x: 8px;
+                width: parent.width - 16px;
+                text <=> root.date-time;
+                color: Theme.text;
+                font-size: 10px;
+                vertical-alignment: center;
+                single-line: true;
+            }
+            if dt.text == "": Text {
+                x: 8px;
+                text: "DD/MM/YYYY HH:MM (opsional)";
+                color: Theme.text-faint;
+                font-size: 10px;
+                vertical-alignment: center;
+            }
+        }
+        Chip { label: "Sekali"; selected: root.repeat-mode == "none"; clicked => { root.repeat-mode = "none"; } }
+        Chip { label: "Harian"; selected: root.repeat-mode == "daily"; clicked => { root.repeat-mode = "daily"; } }
+        Chip { label: "Mingguan"; selected: root.repeat-mode == "weekly"; clicked => { root.repeat-mode = "weekly"; } }
+        Chip { label: "Bulanan"; selected: root.repeat-mode == "monthly"; clicked => { root.repeat-mode = "monthly"; } }
+    }
+
+    if root.repeat-mode == "weekly": HorizontalLayout {
+        height: 20px;
+        spacing: 3px;
+        for day[idx] in ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]: Chip {
+            label: day;
+            selected: root.weekday-selected[idx];
+            clicked => { root.toggle-weekday(idx); }
+        }
+    }
+
+    if root.items.length == 0: Text {
+        text: "Belum ada pengingat";
+        color: Theme.text-faint;
+        font-size: 10px;
+        horizontal-alignment: center;
+    }
+    for item in root.items: HorizontalLayout {
+        height: 20px;
+        spacing: 4px;
+        opacity: item.done ? 0.5 : 1;
+        Text { text: item.text; color: Theme.text; font-size: 10px; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
+        Text { text: item.due; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; }
+        RoundButton {
+            size: 18px;
+            commands: item.done ? Icons.reset : "M 4 12 L 9 17 L 20 6";
+            outline: true;
+            clicked => { root.toggle(item.id); }
+        }
+        RoundButton { size: 18px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
+    }
+}
+
 component ClipboardPage inherits VerticalLayout {
     in property <[ClipboardItem]> items;
     in property <bool> available: true;
@@ -883,6 +1022,15 @@ export component NotchWindow inherits Window {
     in property <[NoteItem]> notes;
     in property <[ClipboardItem]> clipboard-items;
     in property <bool> clipboard-available: true;
+    in property <[ReminderItem]> reminders;
+    in property <bool> reminder-alert-visible: false;
+    in property <string> reminder-alert-text;
+    in property <string> reminder-alert-sub;
+    in property <int> reminder-weekdays-mask: 62;
+    in property <[bool]> reminder-weekday-selected;
+    in-out property <string> reminder-draft;
+    in-out property <string> reminder-date-time;
+    in-out property <string> reminder-repeat-mode: "none";
     in property <string> weather-city: "Bandung";
     in property <string> weather-temp: "--°";
     in property <string> weather-condition: "Memuat cuaca...";
@@ -924,6 +1072,13 @@ export component NotchWindow inherits Window {
     callback remove-note(string);
     callback clipboard-copy(string);
     callback clipboard-clear();
+    callback reminder-add(string, string, string, int);
+    callback reminder-toggle(string);
+    callback reminder-remove(string);
+    callback reminder-clear-done();
+    callback reminder-stop-alert();
+    callback reminder-snooze-alert();
+    callback reminder-toggle-weekday(int);
     callback quick-toggle(string);
     callback cal-opened();
     callback cal-prev();
@@ -1109,6 +1264,24 @@ export component NotchWindow inherits Window {
                         icon: root.weather-icon;
                         status: root.weather-status;
                     }
+                    if root.page-id == "reminder": ReminderPage {
+                        items: root.reminders;
+                        alert-visible: root.reminder-alert-visible;
+                        alert-text: root.reminder-alert-text;
+                        alert-sub: root.reminder-alert-sub;
+                        weekdays-mask: root.reminder-weekdays-mask;
+                        weekday-selected: root.reminder-weekday-selected;
+                        draft <=> root.reminder-draft;
+                        date-time <=> root.reminder-date-time;
+                        repeat-mode <=> root.reminder-repeat-mode;
+                        add(text, date-time, repeat-mode, weekdays-mask) => { root.reminder-add(text, date-time, repeat-mode, weekdays-mask); }
+                        toggle(id) => { root.reminder-toggle(id); }
+                        remove(id) => { root.reminder-remove(id); }
+                        clear-done => { root.reminder-clear-done(); }
+                        stop-alert => { root.reminder-stop-alert(); }
+                        snooze-alert => { root.reminder-snooze-alert(); }
+                        toggle-weekday(i) => { root.reminder-toggle-weekday(i); }
+                    }
                     if root.page-id == "clipboard": ClipboardPage {
                         items: root.clipboard-items;
                         available: root.clipboard-available;
@@ -1126,7 +1299,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                     if root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
-                        && root.page-id != "weather" && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
+                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
                 }
             }

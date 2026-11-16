@@ -16,6 +16,7 @@ pub mod weather;
 pub mod layout;
 pub mod notes;
 pub mod paths;
+pub mod reminder;
 pub mod pomodoro;
 pub mod quick;
 pub mod stats;

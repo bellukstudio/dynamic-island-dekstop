@@ -19,6 +19,7 @@ use notch_core::layout::{self, Dock};
 use notch_core::notes::{Note, NotesStore};
 use notch_core::pomodoro::{Phase, Pomodoro};
 use notch_core::quick::{self, Quick};
+use notch_core::reminder::{self, Reminder};
 use notch_core::stats::StatsMonitor;
 use notch_core::theme::{Palette, Rgba};
 use slint::{
@@ -304,6 +305,53 @@ fn refresh_weather(
     });
 }
 
+
+fn local_timezone_offset_minutes() -> i32 {
+    #[cfg(windows)]
+    let output = {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", "(Get-Date).ToString('zzz')"])
+            .creation_flags(0x0800_0000)
+            .output()
+    };
+    #[cfg(not(windows))]
+    let output = std::process::Command::new("date").arg("+%z").output();
+
+    let Ok(output) = output else { return 0 };
+    let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let compact = raw.replace(':', "");
+    if compact.len() != 5 { return 0; }
+    let sign = if compact.starts_with('-') { -1 } else if compact.starts_with('+') { 1 } else { return 0 };
+    let hours = compact[1..3].parse::<i32>().unwrap_or(0);
+    let minutes = compact[3..5].parse::<i32>().unwrap_or(0);
+    -(sign * (hours * 60 + minutes))
+}
+
+fn weekday_selection(mask: u8) -> Vec<bool> {
+    (0..7).map(|day| mask & (1 << day) != 0).collect()
+}
+
+fn show_reminders(model: &VecModel<ReminderItem>, reminders: Vec<Reminder>, offset: i32) {
+    let items = reminders.into_iter().take(3).map(|r| {
+        let due = if r.due_at <= 0 {
+            "Tanpa waktu".to_string()
+        } else {
+            let (year, month, day, hour, minute) = reminder::local_parts(r.due_at, offset);
+            let when = format!("{day:02}/{month:02}/{year} {hour:02}:{minute:02}");
+            let repeat = match reminder::effective_repeat_mode(&r) {
+                "daily" => " · Harian",
+                "weekly" => " · Mingguan",
+                "monthly" => " · Bulanan",
+                _ => "",
+            };
+            format!("{when}{repeat}")
+        };
+        ReminderItem { id: r.id.into(), text: r.text.into(), due: due.into(), done: r.done }
+    }).collect::<Vec<_>>();
+    model.set_vec(items);
+}
+
 fn col(c: Rgba) -> slint::Color {
     slint::Color::from_argb_u8(c.a, c.r, c.g, c.b)
 }
@@ -477,6 +525,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let stats_timer = Rc::new(Timer::default());
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
+    let reminder_timer = Timer::default();
     let weather_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
     let battery = Rc::new(BatteryMonitor::new());
@@ -499,6 +548,14 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_clipboard_items(ModelRc::from(clipboard_model.clone()));
     win.set_clipboard_available(clipboard_monitor.is_some());
     show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
+    let reminder_model = Rc::new(VecModel::<ReminderItem>::default());
+    win.set_reminders(ModelRc::from(reminder_model.clone()));
+    let timezone_offset = local_timezone_offset_minutes();
+    let weekday_mask = Rc::new(Cell::new(62u8)); // Senin-Jumat, sama dengan pilihan awal Tauri
+    win.set_reminder_weekdays_mask(62);
+    win.set_reminder_weekday_selected(ModelRc::from(Rc::new(VecModel::from(weekday_selection(62)))));
+    show_reminders(&reminder_model, reminder::list(), timezone_offset);
+    let active_reminder = Rc::new(RefCell::new(None::<String>));
     let weather_busy = Arc::new(AtomicBool::new(false));
     win.set_weather_city(cfg.weather.city.clone().into());
     win.set_weather_status("Cuaca dimuat saat halaman dibuka".into());
@@ -631,6 +688,74 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     {
+        let model = reminder_model.clone();
+        let weak = win.as_weak();
+        win.on_reminder_add(move |text, date_time, repeat_mode, weekdays_mask| {
+            let text = text.to_string();
+            let date_time = date_time.to_string();
+            let mode = repeat_mode.to_string();
+            if text.trim().is_empty() { return; }
+            let due_at = if date_time.trim().is_empty() {
+                0
+            } else {
+                match reminder::parse_local_datetime(&date_time, timezone_offset) {
+                    Some(value) => value,
+                    None => {
+                        eprintln!("[Reminder] Format tanggal/waktu harus DD/MM/YYYY HH:MM");
+                        return;
+                    }
+                }
+            };
+            if mode == "weekly" && (weekdays_mask & 0x7f) == 0 {
+                eprintln!("[Reminder] Pilih setidaknya satu hari untuk pengulangan mingguan");
+                return;
+            }
+            let items = reminder::add(
+                text, due_at, mode, timezone_offset,
+                Some((weekdays_mask as u8) & 0x7f),
+            );
+            show_reminders(&model, items, timezone_offset);
+            if let Some(w) = weak.upgrade() {
+                w.set_reminder_draft("".into());
+                w.set_reminder_date_time("".into());
+                w.set_reminder_repeat_mode("none".into());
+            }
+        });
+    }
+    {
+        let model = reminder_model.clone();
+        win.on_reminder_toggle(move |id| {
+            show_reminders(&model, reminder::toggle(id.to_string()), timezone_offset);
+        });
+    }
+    {
+        let model = reminder_model.clone();
+        win.on_reminder_remove(move |id| {
+            show_reminders(&model, reminder::remove(id.to_string()), timezone_offset);
+        });
+    }
+    {
+        let model = reminder_model.clone();
+        win.on_reminder_clear_done(move || {
+            show_reminders(&model, reminder::clear_done(), timezone_offset);
+        });
+    }
+    {
+        let mask = weekday_mask.clone();
+        let weak = win.as_weak();
+        win.on_reminder_toggle_weekday(move |day| {
+            if (0..=6).contains(&day) {
+                let next = mask.get() ^ (1 << day);
+                mask.set(next);
+                if let Some(w) = weak.upgrade() {
+                    w.set_reminder_weekdays_mask(i32::from(next));
+                    w.set_reminder_weekday_selected(ModelRc::from(Rc::new(VecModel::from(weekday_selection(next)))));
+                }
+            }
+        });
+    }
+
+    {
         let monitor = clipboard_monitor.clone();
         win.on_clipboard_copy(move |text| {
             if let Some(monitor) = monitor.as_ref() {
@@ -646,6 +771,69 @@ fn main() -> Result<(), slint::PlatformError> {
                 monitor.clear();
             }
             show_clipboard(&model, monitor.as_ref());
+        });
+    }
+
+    // --- Reminder: data and recurrence rules use the same JSON schema as Tauri ---
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        let model = reminder_model.clone();
+        let active = active_reminder.clone();
+        reminder_timer.start(TimerMode::Repeated, Duration::from_secs(5), move || {
+            let items = reminder::list();
+            if let Some(w) = weak.upgrade() {
+                if w.get_page_id() == "reminder" {
+                    show_reminders(&model, items.clone(), timezone_offset);
+                }
+                let due = reminder::due_now();
+                let active_id = active.borrow().clone();
+                let active_due = active_id.as_ref().and_then(|id| due.iter().find(|r| &r.id == id));
+                if active_id.is_some() && active_due.is_none() {
+                    *active.borrow_mut() = None;
+                    w.set_reminder_alert_visible(false);
+                }
+                if active.borrow().is_none() {
+                    if let Some(r) = due.first() {
+                        *active.borrow_mut() = Some(r.id.clone());
+                        w.set_page_id("reminder".into());
+                        w.set_reminder_alert_visible(true);
+                        w.set_reminder_alert_text(r.text.clone().into());
+                        let when = if r.due_at > 0 {
+                            let (y, m, d, h, min) = reminder::local_parts(r.due_at, timezone_offset);
+                            format!("{d:02}/{m:02}/{y} {h:02}:{min:02}")
+                        } else {
+                            "Pengingat".to_string()
+                        };
+                        w.set_reminder_alert_sub(when.into());
+                        shell.place(&w, EXPANDED);
+                        w.set_expanded(true);
+                        show_reminders(&model, items, timezone_offset);
+                    }
+                }
+            }
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let active = active_reminder.clone();
+        let model = reminder_model.clone();
+        win.on_reminder_stop_alert(move || {
+            let id = active.borrow_mut().take();
+            if let Some(id) = id { let _ = reminder::stop(id); }
+            if let Some(w) = weak.upgrade() { w.set_reminder_alert_visible(false); }
+            show_reminders(&model, reminder::list(), timezone_offset);
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let active = active_reminder.clone();
+        let model = reminder_model.clone();
+        win.on_reminder_snooze_alert(move || {
+            let id = active.borrow_mut().take();
+            if let Some(id) = id { let _ = reminder::snooze(id, 5); }
+            if let Some(w) = weak.upgrade() { w.set_reminder_alert_visible(false); }
+            show_reminders(&model, reminder::list(), timezone_offset);
         });
     }
 
