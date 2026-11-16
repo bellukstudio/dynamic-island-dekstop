@@ -1239,11 +1239,19 @@ fn main() -> Result<(), slint::PlatformError> {
     // Klik / dobel klik pada notch (Tauri: klik -> happy atau marah bila 5x dalam 2 dtk; dobel -> love)
     {
         let eye = eye.clone();
-        win.on_pill_clicked(move || eye.borrow_mut().mood.click(Instant::now()));
+        let weak = win.as_weak();
+        win.on_pill_clicked(move || {
+            if weak.upgrade().map(|w| w.get_meeting_active()).unwrap_or(false) { return; }
+            eye.borrow_mut().mood.click(Instant::now());
+        });
     }
     {
         let eye = eye.clone();
-        win.on_pill_double_clicked(move || eye.borrow_mut().mood.double_click(Instant::now()));
+        let weak = win.as_weak();
+        win.on_pill_double_clicked(move || {
+            if weak.upgrade().map(|w| w.get_meeting_active()).unwrap_or(false) { return; }
+            eye.borrow_mut().mood.double_click(Instant::now());
+        });
     }
 
     // Mood dasar (tidur saat idle/malam, musik, baterai) dinilai ulang tiap 10 dtk (mood.ts)
@@ -1251,7 +1259,9 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let eye = eye.clone();
         let keep_awake = keep_awake.clone();
+        let weak = win.as_weak();
         base_timer.start(TimerMode::Repeated, Duration::from_secs(10), move || {
+            if weak.upgrade().map(|w| w.get_meeting_active()).unwrap_or(false) { return; }
             let mut e = eye.borrow_mut();
             e.mood.keep_awake = keep_awake.load(Ordering::Relaxed);
             e.mood.update_base(Instant::now(), platform::local_time().0);
@@ -1263,7 +1273,9 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let eye = eye.clone();
         let battery = battery.clone();
+        let weak = win.as_weak();
         let tick = move || {
+            if weak.upgrade().map(|w| w.get_meeting_active()).unwrap_or(false) { return; }
             if let Reading::Present(b) = battery.read() {
                 eye.borrow_mut().mood.on_battery(b.percent, b.charging, Instant::now(), platform::local_time().0);
             }
