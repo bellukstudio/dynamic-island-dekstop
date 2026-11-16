@@ -85,11 +85,25 @@ fn load_convert_queue_state() -> (std::collections::VecDeque<String>, Vec<(Strin
             let status = item.get("status")?.as_str()?.to_string();
             Some((path, if status == "Diproses" || status == "Pembatalan diminta" { "Menunggu".to_string() } else { status }))
         }).collect::<Vec<_>>()).unwrap_or_default();
-    let queue = statuses.iter().filter(|(path, status)| status == "Menunggu" && std::path::Path::new(path).is_file())
-        .map(|(path, _)| path.clone()).collect::<std::collections::VecDeque<_>>();
     let mut restored = statuses;
     for (path, status) in &mut restored {
         if status == "Menunggu" && !std::path::Path::new(path).is_file() { *status = "File tidak ditemukan".to_string(); }
+    }
+    let status_by_path = restored.iter().map(|(path, status)| (path.clone(), status.clone())).collect::<std::collections::HashMap<_, _>>();
+    let saved_order = value.get("queue").and_then(serde_json::Value::as_array)
+        .map(|items| items.iter().filter_map(serde_json::Value::as_str).map(str::to_string).collect::<Vec<_>>())
+        .unwrap_or_default();
+    let mut queue = std::collections::VecDeque::new();
+    for path in saved_order {
+        if status_by_path.get(&path).map(|status| status == "Menunggu").unwrap_or(false)
+            && std::path::Path::new(&path).is_file() && !queue.contains(&path) {
+            queue.push_back(path);
+        }
+    }
+    for (path, status) in &restored {
+        if status == "Menunggu" && std::path::Path::new(path).is_file() && !queue.contains(path) {
+            queue.push_back(path.clone());
+        }
     }
     (queue, restored)
 }
