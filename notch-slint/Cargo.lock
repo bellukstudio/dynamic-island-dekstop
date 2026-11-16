@@ -2944,6 +2944,11 @@ name = "notch-tools"
 version = "0.1.0"
 dependencies = [
  "image",
+ "lopdf",
+ "roxmltree",
+ "subsetter",
+ "ttf-parser",
+ "zip",
 ]
 
 [[package]]
