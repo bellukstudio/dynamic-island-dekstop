@@ -137,9 +137,9 @@ fn format_convert_file_statuses(statuses: &[(String, String)]) -> String {
         format!("[{status}] {name}")
     }).collect::<Vec<_>>();
     let suffix = if statuses.len() > lines.len() {
-        format!("\\n… dan {} file lainnya", statuses.len() - lines.len())
+        format!("\n… dan {} file lainnya", statuses.len() - lines.len())
     } else { String::new() };
-    format!("Status file ({}):\\n{}{}", statuses.len(), lines.join("\\n"), suffix)
+    format!("Status file ({}):\n{}{}", statuses.len(), lines.join("\n"), suffix)
 }
 
 fn format_convert_queue(queue: &std::collections::VecDeque<String>) -> String {
@@ -2163,6 +2163,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
         let running = convert_running.clone();
         let weak = win.as_weak();
         win.on_convert_remove_queue_file(move |raw_name| {
@@ -2174,15 +2175,21 @@ fn main() -> Result<(), slint::PlatformError> {
             let (removed, remaining) = {
                 let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
                 let before = pending.len();
-                pending.retain(|item| {
-                    let path = std::path::Path::new(item);
+                let removed_paths = pending.iter().filter(|item| {
+                    let path = std::path::Path::new(item.as_str());
                     let name = path.file_name().map(|v| v.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
-                    !name.contains(&query) && !item.to_ascii_lowercase().contains(&query)
-                });
+                    name.contains(&query) || item.to_ascii_lowercase().contains(&query)
+                }).cloned().collect::<Vec<_>>();
+                pending.retain(|item| !removed_paths.contains(item));
+                for removed_path in &removed_paths {
+                    if let Some(item) = statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == removed_path) {
+                        item.1 = "Dihapus".to_string();
+                    }
+                }
                 (before - pending.len(), pending.len())
             };
             if let Some(w) = weak.upgrade() {
-                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                let queue_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(queue_text.into());
                 w.set_convert_status(if removed > 0 {
                     format!("{removed} file dihapus dari antrean")
@@ -2194,6 +2201,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
         let running = convert_running.clone();
         let weak = win.as_weak();
         win.on_convert_clear_queue(move || {
@@ -2203,8 +2211,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 pending.clear();
                 count
             };
+            for item in statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut() {
+                if item.1 == "Menunggu" { item.1 = "Dihapus".to_string(); }
+            }
             if let Some(w) = weak.upgrade() {
-                let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
+                let queue_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(queue_text.into());
                 w.set_convert_status(if running.load(std::sync::atomic::Ordering::Acquire) {
                     format!("{removed} file menunggu dihapus; file aktif tetap diselesaikan").into()
