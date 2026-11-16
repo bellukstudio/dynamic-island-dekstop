@@ -87,6 +87,10 @@ pub fn validate_shortcuts(config: &Shortcuts) -> Result<(), String> {
         ("Pomodoro", config.toggle_pomodoro.as_str()),
         ("Jadwal shalat", config.toggle_prayer.as_str()),
         ("Color Picker", "Ctrl+Alt+Shift+P"),
+        ("Compress", "Ctrl+Alt+Shift+K"),
+        ("Convert", "Ctrl+Alt+Shift+C"),
+        ("File Transfer", "Ctrl+Alt+Shift+S"),
+        ("Android", "Ctrl+Alt+Shift+A"),
     ];
     let mut used = std::collections::HashMap::<Binding, &str>::new();
     for (label, combo) in entries {
@@ -185,6 +189,13 @@ mod tests {
         let mut shortcuts = Shortcuts::default();
         shortcuts.toggle_prayer = "Ctrl+Alt+Shift+P".into();
         assert!(validate_shortcuts(&shortcuts).unwrap_err().contains("Color Picker"));
+    }
+
+    #[test]
+    fn detects_conflict_with_fixed_feature_shortcut() {
+        let mut shortcuts = Shortcuts::default();
+        shortcuts.toggle_hub = "Ctrl+Alt+Shift+K".into();
+        assert!(validate_shortcuts(&shortcuts).unwrap_err().contains("Compress"));
     }
 
     #[test]
