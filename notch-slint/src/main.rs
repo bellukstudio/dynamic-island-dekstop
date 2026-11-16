@@ -197,6 +197,17 @@ fn move_convert_queue_item(queue: &mut std::collections::VecDeque<String>, raw_n
     true
 }
 
+fn sync_convert_status_order(queue: &std::collections::VecDeque<String>, statuses: &mut Vec<(String, String)>) {
+    let positions = queue.iter().enumerate().map(|(index, path)| (path.clone(), index)).collect::<std::collections::HashMap<_, _>>();
+    statuses.sort_by_key(|(path, status)| {
+        if status == "Menunggu" {
+            positions.get(path).copied().unwrap_or(usize::MAX)
+        } else {
+            usize::MAX
+        }
+    });
+}
+
 fn remove_finished_convert_statuses(statuses: &mut Vec<(String, String)>) -> usize {
     let before = statuses.len();
     statuses.retain(|(_, status)| status != "Berhasil" && status != "Dibatalkan" && status != "Dihapus" && status != "File tidak ditemukan");
@@ -2402,6 +2413,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_convert_move_queue_file(move |raw_name, direction| {
             let changed = move_convert_queue_item(&mut queue.lock().unwrap_or_else(|error| error.into_inner()), raw_name.as_str(), direction);
+            sync_convert_status_order(&queue.lock().unwrap_or_else(|error| error.into_inner()), &mut statuses.lock().unwrap_or_else(|error| error.into_inner()));
             save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
                 w.set_convert_queue_text(format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner())).into());
