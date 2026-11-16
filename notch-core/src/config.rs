@@ -466,6 +466,15 @@ mod tests {
     }
 
     #[test]
+    fn nudge_until_move_defaults_off_and_can_be_loaded() {
+        let defaults: Config = toml::from_str("").unwrap();
+        assert!(!defaults.nudge.until_move);
+
+        let configured: Config = toml::from_str("[nudge]\\nuntil_move = true\\n").unwrap();
+        assert!(configured.nudge.until_move);
+    }
+
+    #[test]
     fn migrate_adds_currency_to_older_page_configs() {
         let mut c: Config = toml::from_str("pages = [\\"media\\", \\"battery\\"]\\n").unwrap();
         c.normalize();
