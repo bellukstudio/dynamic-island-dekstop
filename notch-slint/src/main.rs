@@ -3373,9 +3373,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let prefs = prayer_prefs.clone();
         let pomo = pomo.clone();
+        let fetch_prayer = fetch_prayer.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_routines(move |mode, remind, minutes, focus, rest, long, rounds| {
+        win.on_settings_save_routines(move |mode, remind, minutes, focus, rest, long, rounds, province, city| {
             let mut next = updated_config.clone();
             let mode = mode.to_string();
             if !["tone", "adzan", "silent"].contains(&mode.as_str()) { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Mode shalat harus tone, adzan, atau silent".into()); } return; }
@@ -3387,16 +3388,27 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(rest) = parse(rest, 1, 60) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Istirahat harus 1–60 menit".into()); } return; };
             let Some(long) = parse(long, 1, 120) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Istirahat panjang harus 1–120 menit".into()); } return; };
             let Some(rounds) = parse(rounds, 1, 12) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Jumlah ronde harus 1–12".into()); } return; };
+            let province = province.to_string().trim().to_string();
+            let city = city.to_string().trim().to_string();
+            if province.is_empty() || province.chars().count() > 80 || city.is_empty() || city.chars().count() > 100 {
+                if let Some(w) = weak.upgrade() { w.set_settings_save_status("Provinsi wajib diisi (maks. 80 karakter) dan kabupaten/kota wajib diisi (maks. 100 karakter).".into()); }
+                return;
+            }
+            next.prayer.provinsi = province;
+            next.prayer.kabkota = city;
             next.prayer.mode = mode; next.prayer.remind_before = remind == "true"; next.prayer.remind_min = minutes;
             next.pomodoro.focus_min = focus; next.pomodoro.break_min = rest; next.pomodoro.long_break_min = long; next.pomodoro.rounds = rounds;
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
                     *prefs.borrow_mut() = next.prayer.clone();
+                    fetch_prayer(true);
                     let mut timer = pomo.borrow_mut();
                     timer.update_config(&next.pomodoro, Instant::now());
                     if let Some(w) = weak.upgrade() {
                         show_pomo(&w, &timer);
+                        w.set_prayer_province(next.prayer.provinsi.clone().into());
+                        w.set_prayer_city(next.prayer.kabkota.clone().into());
                         w.set_prayer_mode(next.prayer.mode.clone().into());
                         w.set_prayer_remind_before(next.prayer.remind_before.to_string().into());
                         w.set_prayer_remind_min(next.prayer.remind_min.to_string().into());

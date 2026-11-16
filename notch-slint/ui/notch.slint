@@ -1124,6 +1124,8 @@ component SettingsPage inherits VerticalLayout {
     in property <string> weather-lat: "-6.9175";
     in property <string> weather-lon: "107.6191";
     in property <string> weather-save-status: "";
+    in property <string> prayer-province: "Jawa Barat";
+    in property <string> prayer-city: "Kota Bandung";
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
     in property <string> prayer-remind-min: "10";
@@ -1174,7 +1176,7 @@ component SettingsPage inherits VerticalLayout {
     pure function page-enabled(id: string) -> bool { for page in root.active-pages: { if page == id { return true; } } return false; }
     callback save-behavior(string, string, string, string, bool);
     callback save-position(string);
-    callback save-routines(string, string, string, string, string, string, string);
+    callback save-routines(string, string, string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string, string, string);
     callback save-weather(string, string, string);
     callback save-shortcuts(string, string, string, string);
@@ -1515,6 +1517,10 @@ component SettingsPage inherits VerticalLayout {
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
+            Text { text: "Provinsi"; color: Theme.text-faint; font-size: 9px; }
+            prayer-province-input := TextInput { text: root.prayer-province; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Kabupaten / Kota"; color: Theme.text-faint; font-size: 9px; }
+            prayer-city-input := TextInput { text: root.prayer-city; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Mode notifikasi waktu shalat"; color: Theme.text-faint; font-size: 9px; }
             prayer-mode-input := TextInput { text: root.prayer-mode; visible: false; }
             HorizontalLayout {
@@ -1555,10 +1561,10 @@ component SettingsPage inherits VerticalLayout {
                         pomo-break-input.text = "5";
                         pomo-long-input.text = "15";
                         pomo-rounds-input.text = "4";
-                        root.save-routines("tone", "false", "10", "25", "5", "15", "4");
+                        root.save-routines("tone", "false", "10", "25", "5", "15", "4", prayer-province-input.text, prayer-city-input.text);
                     }
                 }
-                Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text); } }
+                Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text); } }
             }
         }
     }
@@ -2223,6 +2229,8 @@ export component NotchWindow inherits Window {
     callback settings-save-nudge(bool, string, string, string, string, string, bool);
     callback settings-test-nudge();
     callback settings-save-position(string);
+    in property <string> prayer-province: "Jawa Barat";
+    in property <string> prayer-city: "Kota Bandung";
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
     in property <string> prayer-remind-min: "10";
@@ -2230,7 +2238,7 @@ export component NotchWindow inherits Window {
     in property <string> pomodoro-break: "5";
     in property <string> pomodoro-long-break: "15";
     in property <string> pomodoro-rounds: "4";
-    callback settings-save-routines(string, string, string, string, string, string, string);
+    callback settings-save-routines(string, string, string, string, string, string, string, string, string);
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
     in property <string> compress-selected-path: "";
     in property <string> convert-selected-path: "";
@@ -2733,6 +2741,8 @@ export component NotchWindow inherits Window {
                         pages-save-status: root.pages-save-status;
                         save-pages(value) => { root.settings-save-pages(value); }
                         toggle-page(id, enabled) => { root.settings-toggle-page(id, enabled); }
+                        prayer-province: root.prayer-province;
+                        prayer-city: root.prayer-city;
                         prayer-mode: root.prayer-mode;
                         prayer-remind-before: root.prayer-remind-before;
                         prayer-remind-min: root.prayer-remind-min;
@@ -2740,7 +2750,7 @@ export component NotchWindow inherits Window {
                         pomodoro-break: root.pomodoro-break;
                         pomodoro-long-break: root.pomodoro-long-break;
                         pomodoro-rounds: root.pomodoro-rounds;
-                        save-routines(mode, remind, minutes, focus, rest, long, rounds) => { root.settings-save-routines(mode, remind, minutes, focus, rest, long, rounds); }
+                        save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city) => { root.settings-save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city); }
                         save-status: root.settings-save-status;
                         save-shortcuts(hub, settings, pomo, prayer) => { root.settings-save-shortcuts(hub, settings, pomo, prayer); }
                     }
