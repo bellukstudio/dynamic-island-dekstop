@@ -4349,7 +4349,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if t >= 1.0 {
                 active = None;
                 let mut interval = if w.get_media_playing() { 6 } else { 10 };
-                if w.get_eyes_mood() == "sleepy" { interval = 15; }
+                if w.get_eyes_mood().to_string() == "sleepy" { interval = 15; }
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let extra = (seed >> 32) as u64 % (if interval == 6 { 5 } else { 7 });
                 next_at = now + Duration::from_secs(interval + extra);
