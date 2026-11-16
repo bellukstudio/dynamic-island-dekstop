@@ -2806,7 +2806,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         preview_page.set(0);
                         *preview_path.borrow_mut() = first.clone();
                         w.set_convert_preview_page_text("Memuat preview…".into());
-                        request_convert_document_preview(weak_preview.clone(), first.clone(), 0);
+                        request_convert_document_preview(weak_preview.clone(), first.clone(), 0, preview_dpi.get());
                     }
                     w.set_convert_result_preview(Image::default());
                     w.set_convert_history_text(format_convert_history().into());
