@@ -1335,7 +1335,11 @@ fn main() -> Result<(), slint::PlatformError> {
         meeting_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_meeting_active() {
-                if started.get().is_none() { started.set(Some(Instant::now())); }
+                if started.get().is_none() {
+                    started.set(Some(Instant::now()));
+                    w.set_meeting_finished("".into());
+                    finished_at.set(None);
+                }
                 if let Some(at) = started.get() {
                     let secs = at.elapsed().as_secs();
                     let label = if secs >= 3600 {
@@ -1350,8 +1354,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 let mins = secs / 60;
                 let rem = secs % 60;
                 let label = if mins == 0 { format!("{secs} detik") } else if rem == 0 { format!("{mins} menit") } else { format!("{mins} menit {rem} detik") };
-                w.set_prayer_status(format!("Rapat selesai, {label}").into());
+                let finished_label = format!("Rapat selesai, {label}");
+                w.set_prayer_status(finished_label.clone().into());
+                w.set_meeting_finished(finished_label.into());
                 w.set_meeting_elapsed("00:00".into());
+                finished_at.set(Some(Instant::now()));
             } else if let Some(at) = finished_at.get() {
                 if at.elapsed() >= Duration::from_secs(6) {
                     w.set_meeting_finished("".into());
