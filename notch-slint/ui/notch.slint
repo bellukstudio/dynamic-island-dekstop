@@ -1333,6 +1333,20 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Skin lain: kawaii, boba, galaxy, matcha, candy, synthwave, slime, cotton, pumpkin, frost"; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             Text { text: "Aksen / latar gelap / terang (HEX)"; color: Theme.text-faint; font-size: 9px; }
             accent-input := TextInput { text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Biru"; selected: accent-input.text == "#6C8CFF"; clicked => { accent-input.text = "#6C8CFF"; } }
+                Chip { label: "Ungu"; selected: accent-input.text == "#A78BFA"; clicked => { accent-input.text = "#A78BFA"; } }
+                Chip { label: "Pink"; selected: accent-input.text == "#F472B6"; clicked => { accent-input.text = "#F472B6"; } }
+                Chip { label: "Hijau"; selected: accent-input.text == "#34D399"; clicked => { accent-input.text = "#34D399"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Oranye"; selected: accent-input.text == "#FB923C"; clicked => { accent-input.text = "#FB923C"; } }
+                Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
+                Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
+            }
             dark-bg-input := TextInput { text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; }
             light-bg-input := TextInput { text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
