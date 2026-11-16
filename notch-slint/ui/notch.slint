@@ -765,6 +765,7 @@ component ReminderPage inherits VerticalLayout {
     in property <bool> alert-visible: false;
     in property <string> alert-text;
     in property <string> alert-sub;
+    in property <string> status;
     in property <int> weekdays-mask: 62;
     in property <[bool]> weekday-selected;
     in-out property <string> draft;
@@ -863,6 +864,14 @@ component ReminderPage inherits VerticalLayout {
         Chip { label: "Harian"; selected: root.repeat-mode == "daily"; clicked => { root.repeat-mode = "daily"; } }
         Chip { label: "Mingguan"; selected: root.repeat-mode == "weekly"; clicked => { root.repeat-mode = "weekly"; } }
         Chip { label: "Bulanan"; selected: root.repeat-mode == "monthly"; clicked => { root.repeat-mode = "monthly"; } }
+    }
+
+    if root.status != "": Text {
+        text: root.status;
+        color: Theme.text-dim;
+        font-size: 9px;
+        horizontal-alignment: left;
+        height: 13px;
     }
 
     if root.repeat-mode == "weekly": HorizontalLayout {
@@ -2057,6 +2066,7 @@ export component NotchWindow inherits Window {
     in property <bool> reminder-alert-visible: false;
     in property <string> reminder-alert-text;
     in property <string> reminder-alert-sub;
+    in property <string> reminder-status;
     in property <int> reminder-weekdays-mask: 62;
     in property <[bool]> reminder-weekday-selected;
     in-out property <string> reminder-draft;
@@ -2683,6 +2693,7 @@ export component NotchWindow inherits Window {
                         alert-visible: root.reminder-alert-visible;
                         alert-text: root.reminder-alert-text;
                         alert-sub: root.reminder-alert-sub;
+                        status: root.reminder-status;
                         weekdays-mask: root.reminder-weekdays-mask;
                         weekday-selected: root.reminder-weekday-selected;
                         draft <=> root.reminder-draft;
