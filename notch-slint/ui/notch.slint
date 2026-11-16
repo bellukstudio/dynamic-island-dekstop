@@ -2292,6 +2292,7 @@ export component NotchWindow inherits Window {
     // 0 = atas, 1 = melayang, 2 = bawah, 3 = kiri, 4 = kanan.
     in property <int> dock: 0;
     in property <bool> play-interaction-active: false;
+    in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
@@ -2681,7 +2682,7 @@ export component NotchWindow inherits Window {
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
-            clicked => { root.pill-clicked(); }
+            clicked => { if (root.suppress-next-pill-click) { root.suppress-next-pill-click = false; } else { root.pill-clicked(); } }
             double-clicked => { root.pill-double-clicked(); }
 
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
