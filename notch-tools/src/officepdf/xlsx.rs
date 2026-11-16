@@ -872,3 +872,29 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
     }
     pdf.finish()
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::cell_ref;
+
+    #[test]
+    fn parses_valid_excel_cell_references() {
+        assert_eq!(cell_ref("A1"), Some((1, 1)));
+        assert_eq!(cell_ref("XFD1048576"), Some((1_048_576, 16_384)));
+    }
+
+    #[test]
+    fn rejects_cell_references_outside_excel_grid() {
+        assert_eq!(cell_ref("XFE1"), None);
+        assert_eq!(cell_ref("A1048577"), None);
+        assert_eq!(cell_ref("A0"), None);
+        assert_eq!(cell_ref("A1B"), None);
+        assert_eq!(cell_ref(""), None);
+    }
+
+    #[test]
+    fn rejects_column_overflow_without_panicking() {
+        assert_eq!(cell_ref("ZZZZZZZZZZZZZZZZZZZZ1"), None);
+    }
+}
