@@ -410,6 +410,28 @@ fn record_convert_history(input: &str, output: Option<&std::path::Path>, target:
     if let Ok(serialized) = serde_json::to_vec_pretty(&history) { let _ = std::fs::write(path, serialized); }
 }
 
+
+fn csv_escape_field(value: &str) -> String {
+    if value.contains(',') || value.contains('"') || value.contains('\n') || value.contains('\r') {
+        format!("\"{}\"", value.replace('"', "\"\""))
+    } else {
+        value.to_string()
+    }
+}
+
+fn convert_history_csv() -> String {
+    let mut rows = vec!["timestamp,name,output,target,status,detail".to_string()];
+    if let Some(entries) = load_convert_history().as_array() {
+        for entry in entries {
+            let field = |key: &str| entry.get(key).and_then(serde_json::Value::as_str).unwrap_or("");
+            let timestamp = entry.get("timestamp").and_then(serde_json::Value::as_u64).unwrap_or(0).to_string();
+            let values = [timestamp, field("name").to_string(), field("output").to_string(), field("target").to_string(), field("status").to_string(), field("detail").to_string()];
+            rows.push(values.iter().map(|value| csv_escape_field(value)).collect::<Vec<_>>().join(","));
+        }
+    }
+    rows.join("\r\n")
+}
+
 fn clear_convert_history() {
     let path = convert_history_path();
     if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
@@ -1851,6 +1873,19 @@ fn main() -> Result<(), slint::PlatformError> {
             win.set_convert_files_text(format_convert_selection(&restored_paths).into());
             win.set_convert_status(format!("{} file antrean dipulihkan dari sesi sebelumnya", restored_paths.len()).into());
         }
+    }
+    {
+        let weak = win.as_weak();
+        win.on_convert_history_export(move || {
+            let Some(path) = rfd::FileDialog::new().set_file_name("riwayat-konversi.csv").save_file() else { return; };
+            let result = std::fs::write(&path, convert_history_csv());
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_status(match result {
+                    Ok(()) => format!("Riwayat berhasil diekspor: {}", path.display()).into(),
+                    Err(error) => format!("Gagal mengekspor riwayat: {error}").into(),
+                });
+            }
+        });
     }
     {
         let weak = win.as_weak();
