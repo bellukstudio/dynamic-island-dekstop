@@ -510,7 +510,10 @@ fn recode_pdf_image(
         flate2::read::ZlibDecoder::new(&stream.content[..]).read_to_end(&mut raw).ok()?;
         if let Some(params) = pdf_decode_params(document, stream) {
             let predictor = pdf_dict_i64(&params, b"Predictor").unwrap_or(1);
-            if predictor >= 10 {
+            if predictor == 15 {
+                // PNG optimum stores a filter byte at the start of every row.
+                // Predictors 10–14 use a fixed filter without row tags, so leave
+                // those streams untouched until their distinct layout is supported.
                 let columns = pdf_dict_i64(&params, b"Columns").unwrap_or(1) as usize;
                 let colors = pdf_dict_i64(&params, b"Colors").unwrap_or(1) as usize;
                 let bits = pdf_dict_i64(&params, b"BitsPerComponent").unwrap_or(8);
@@ -518,7 +521,7 @@ fn recode_pdf_image(
                     return None;
                 }
                 raw = pdf_unpredict_png(&raw, components, width.checked_mul(components)?)?;
-            } else if predictor == 2 {
+            } else if predictor >= 10 || predictor == 2 {
                 return None;
             }
         }
