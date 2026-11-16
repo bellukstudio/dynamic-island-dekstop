@@ -35,6 +35,7 @@ mod compress;
 mod convert;
 mod transfer;
 mod android;
+mod android_mirror;
 
 slint::include_modules!();
 
@@ -535,6 +536,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let win = NotchWindow::new()?;
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
+    let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
     win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
@@ -1458,9 +1460,18 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        let android = android_state.clone();
+        let mirror = mirror_process.clone();
         let weak = win.as_weak();
         win.on_android_mirror(move || {
-            if let Some(w) = weak.upgrade() { w.set_android_status("Mirroring belum dipindahkan ke backend native Slint".into()); }
+            let serial = android.lock().unwrap_or_else(|e| e.into_inner()).serial().to_string();
+            let result = mirror.lock().unwrap_or_else(|e| e.into_inner()).start(&serial);
+            if let Some(w) = weak.upgrade() {
+                w.set_android_status(match result {
+                    Ok(message) => message.into(),
+                    Err(error) => format!("Mirroring gagal: {error}").into(),
+                });
+            }
         });
     }
 
