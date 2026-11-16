@@ -543,7 +543,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
     win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
-    win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
+    win.set_compress_status("Pilih gambar JPG/PNG/BMP atau dokumen DOCX/XLSX/PPTX untuk dikompres".into());
     let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
     privacy::start(win.as_weak());
     apply_theme(&win, &palette);
