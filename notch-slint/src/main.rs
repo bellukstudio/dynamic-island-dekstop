@@ -1412,7 +1412,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_compress_pick(move || {
             let selected = rfd::FileDialog::new()
-                .add_filter("Gambar", &["jpg", "jpeg", "png", "bmp"])
+                .add_filter("Gambar & Office", &["jpg", "jpeg", "png", "bmp", "docx", "xlsx", "pptx"])
                 .pick_file();
             if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
                 w.set_compress_status(format!("Dipilih: {}", path.display()).into());
@@ -1427,7 +1427,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let path_text = raw_path.to_string();
             let weak = weak.clone();
             std::thread::spawn(move || {
-                let result = compress::compress_image_file(std::path::Path::new(&path_text), 30);
+                let result = compress::compress_file(std::path::Path::new(&path_text), 30);
                 let message = match result {
                     Ok((output, before, after)) => format!("Selesai: {} ({} KB → {} KB)", output.display(), before / 1024, after / 1024),
                     Err(error) => format!("Gagal: {error}"),
