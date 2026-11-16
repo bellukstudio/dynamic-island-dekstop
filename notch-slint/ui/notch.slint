@@ -1045,8 +1045,6 @@ component SpeechBubble inherits Rectangle {
     background: #171923f5;
     border-width: 1px;
     border-color: Theme.accent.with-alpha(0.72);
-    drop-shadow-blur: 14px;
-    drop-shadow-color: #00000080;
     VerticalLayout {
         padding: 9px;
         spacing: 3px;
@@ -2216,12 +2214,12 @@ export component NotchWindow inherits Window {
         }
 
         // Notifikasi global: ketika hub menciut, pesan muncul sebagai balon percakapan dekat karakter.
-        if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != ""): SpeechBubble {
+        if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != ""): SpeechBubble {
             x: (parent.width - self.width) / 2;
             y: root.dock == 2 ? 0px : 42px;
             bottom: root.dock == 2;
-            message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text);
-            detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub);
+            message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text));
+            detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub));
         }
 
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
