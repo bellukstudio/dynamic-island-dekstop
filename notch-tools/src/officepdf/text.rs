@@ -513,7 +513,9 @@ impl Flow {
         self.mr = setup.right;
         self.mt = setup.top;
         self.mb = setup.bottom;
-        self.y = self.mt;
+        if setup.new_page || !self.open {
+            self.y = self.mt;
+        }
         if !self.open {
             self.ensure(pdf);
         }
