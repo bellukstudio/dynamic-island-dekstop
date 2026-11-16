@@ -1,0 +1,8 @@
+[package]
+name = "notch-tools"
+version = "0.1.0"
+edition = "2021"
+description = "Shared, UI-independent image and document tools for WellNotch"
+
+[dependencies]
+image = { version = "0.25.5", default-features = false, features = ["jpeg", "png", "webp", "bmp", "gif"] }
