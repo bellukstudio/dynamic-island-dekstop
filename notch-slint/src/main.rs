@@ -91,12 +91,22 @@ fn format_convert_history() -> String {
     }).collect::<Vec<_>>().join("\n")
 }
 
+fn convert_quality_override(path: &std::path::Path, raw: &str) -> Option<u8> {
+    let name = path.file_name()?.to_string_lossy();
+    raw.split(';').filter_map(|entry| {
+        let (key, value) = entry.trim().split_once('=')?;
+        if key.trim().eq_ignore_ascii_case(&name) {
+            value.split_once('@')?.1.trim().parse::<u8>().ok().map(|v| v.clamp(40, 100))
+        } else { None }
+    }).last()
+}
+
 fn convert_target_override(path: &std::path::Path, raw: &str) -> Option<String> {
     let name = path.file_name()?.to_string_lossy();
     raw.split(';').filter_map(|entry| {
         let (key, value) = entry.trim().split_once('=')?;
         if key.trim().eq_ignore_ascii_case(&name) {
-            let target = value.trim().trim_start_matches('.').to_ascii_lowercase();
+            let target = value.trim().split('@').next().unwrap_or(value).trim().trim_start_matches('.').to_ascii_lowercase();
             if target.is_empty() { None } else { Some(target) }
         } else {
             None
@@ -1705,6 +1715,8 @@ fn main() -> Result<(), slint::PlatformError> {
             cancel_requested.store(false, std::sync::atomic::Ordering::Release);
             if let Some(w) = weak.upgrade() {
                 w.set_convert_progress_text("0%".into());
+                w.set_convert_progress_value(0.0);
+                w.set_convert_eta_text("Menghitung estimasi…".into());
             }
             let weak = weak.clone();
             let cancel_requested = cancel_requested.clone();
@@ -1731,6 +1743,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     });
                     let source = std::path::Path::new(&path);
+                    let file_quality = convert_quality_override(source, &overrides).unwrap_or(quality);
                     let result: Result<(std::path::PathBuf, String), String> = (|| {
                         let target = if let Some(override_target) = convert_target_override(source, &overrides) {
                             override_target
@@ -1755,13 +1768,13 @@ fn main() -> Result<(), slint::PlatformError> {
                             ));
                         }
                         if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
-                            convert::convert_pdf_to_images(source, &target, dpi, quality)
+                            convert::convert_pdf_to_images(source, &target, dpi, file_quality)
                                 .map(|(output, pages, bytes)| (output, format!("{target.to_ascii_uppercase()} · {pages} halaman · {} KB", bytes / 1024)))
                         } else if target == "pdf" {
-                            convert::convert_to_pdf_with_quality(source, quality)
+                            convert::convert_to_pdf_with_quality(source, file_quality)
                                 .map(|output| (output, "PDF".to_string()))
                         } else {
-                            convert::convert_image_with_quality(source, &target, quality)
+                            convert::convert_image_with_quality(source, &target, file_quality)
                                 .map(|output| (output, target.to_ascii_uppercase()))
                         }
                     })();
@@ -1806,11 +1819,21 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let percent = (index + 1) * 100 / total;
                     let progress_text = format!("{percent}% ({}/{total})", index + 1);
+                    let eta_seconds = if index + 1 > 0 {
+                        let elapsed = std::time::Duration::from_secs(0);
+                        let _ = elapsed;
+                        0u64
+                    } else { 0u64 };
+                    let eta_text = if index + 1 >= total { "Selesai".to_string() } else {
+                        format!("Estimasi sisa sekitar {} file", total - index - 1)
+                    };
                     let weak_progress = weak.clone();
                     let history_text = format_convert_history();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(w) = weak_progress.upgrade() {
                             w.set_convert_progress_text(progress_text.into());
+                            w.set_convert_progress_value(percent as f32);
+                            w.set_convert_eta_text(eta_text.into());
                             w.set_convert_history_text(history_text.into());
                         }
                     });
