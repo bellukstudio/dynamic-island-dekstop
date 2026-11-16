@@ -558,6 +558,47 @@ mod platform {
         WorkArea { x: 0, y: 0, w: 1920, h: 1080 }
     }
 
+    /// Deteksi aplikasi foreground yang menutupi seluruh monitor (fullscreen/borderless).
+    /// Maximized biasa tidak terdeteksi karena masih menyisakan area taskbar.
+    pub fn foreground_is_fullscreen() -> bool {
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::Foundation::RECT;
+            use windows::Win32::Graphics::Gdi::{
+                GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+            };
+            use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
+
+            let hwnd = GetForegroundWindow();
+            if hwnd.0.is_null() {
+                return false;
+            }
+            let mut window_rect = RECT::default();
+            if !GetWindowRect(hwnd, &mut window_rect).as_bool() {
+                return false;
+            }
+            let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if monitor.0.is_null() {
+                return false;
+            }
+            let mut info = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if !GetMonitorInfoW(monitor, &mut info).as_bool() {
+                return false;
+            }
+            let bounds = info.rcMonitor;
+            const TOLERANCE: i32 = 2;
+            window_rect.left <= bounds.left + TOLERANCE
+                && window_rect.top <= bounds.top + TOLERANCE
+                && window_rect.right >= bounds.right - TOLERANCE
+                && window_rect.bottom >= bounds.bottom - TOLERANCE
+        }
+        #[cfg(not(windows))]
+        false
+    }
+
     /// (jam, menit, hari, bulan, tahun) waktu lokal.
     pub fn local_time() -> (u32, u32, u32, u32, u32) {
         #[cfg(windows)]
@@ -950,6 +991,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
+    let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
     win.set_convert_history_text(format_convert_history().into());
     win.set_convert_source_preview(Image::default());
@@ -965,6 +1007,28 @@ fn main() -> Result<(), slint::PlatformError> {
     apply_theme(&win, &palette);
     win.set_ui_scale(cfg.scale as f32);
     shell.place(&win, COLLAPSED);
+
+    // Sembunyikan notch saat aplikasi foreground benar-benar menutupi seluruh monitor.
+    // Timer tetap aktif ketika window disembunyikan agar notch muncul kembali setelah fullscreen berakhir.
+    let fullscreen_timer = Timer::default();
+    {
+        let weak = win.as_weak();
+        let enabled = hide_fullscreen.clone();
+        let hidden = Rc::new(Cell::new(false));
+        fullscreen_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let should_hide = enabled.get() && platform::foreground_is_fullscreen();
+            if should_hide && !hidden.get() {
+                if w.hide().is_ok() {
+                    hidden.set(true);
+                }
+            } else if !should_hide && hidden.get() {
+                if w.show().is_ok() {
+                    hidden.set(false);
+                }
+            }
+        });
+    }
 
     // Liquid movement: perpindahan acak yang halus, terbatas, dan hanya saat notch idle.
     // Durasi animasi dibuat lambat agar gerakan terasa organik, bukan berpindah mendadak.
@@ -1083,6 +1147,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_open(cfg.timing.hover_open_ms.to_string().into());
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
+    win.set_behavior_hide_fullscreen(cfg.hide_fullscreen);
     win.set_motion_enabled(cfg.motion.enabled);
     win.set_motion_interval(cfg.motion.interval_secs.to_string().into());
     win.set_motion_max_moves(cfg.motion.max_moves.to_string().into());
@@ -3249,10 +3314,11 @@ fn main() -> Result<(), slint::PlatformError> {
         let open_ms = open_ms.clone();
         let close_ms = close_ms.clone();
         let sleep_after_s = sleep_after_s.clone();
+        let hide_fullscreen = hide_fullscreen.clone();
         let eye_runtime = appearance_eye.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_behavior(move |scale, hover_open, hover_close, sleep_after| {
+        win.on_settings_save_behavior(move |scale, hover_open, hover_close, sleep_after, hide_fullscreen_enabled| {
             let mut next = updated_config.clone();
             let scale = scale.parse::<f64>().ok().filter(|v| (0.5..=1.5).contains(v));
             let hover_open = hover_open.parse::<u32>().ok().filter(|v| *v <= 2000);
@@ -3269,12 +3335,14 @@ fn main() -> Result<(), slint::PlatformError> {
             next.timing.hover_open_ms = hover_open;
             next.timing.hover_close_ms = hover_close;
             next.timing.sleep_after_s = sleep_after;
+            next.hide_fullscreen = hide_fullscreen_enabled;
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
                     open_ms.set(u64::from(hover_open));
                     close_ms.set(u64::from(hover_close));
                     sleep_after_s.set(sleep_after);
+                    hide_fullscreen.set(hide_fullscreen_enabled);
                     *shell.scale.borrow_mut() = scale as f32;
                     shell.memo.set((None, 0));
                     if let Some(eye) = eye_runtime.borrow().as_ref() {
@@ -3288,6 +3356,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_behavior_hover_open(hover_open.to_string().into());
                         w.set_behavior_hover_close(hover_close.to_string().into());
                         w.set_behavior_sleep_after(sleep_after.to_string().into());
+                        w.set_behavior_hide_fullscreen(hide_fullscreen_enabled);
                         w.set_behavior_save_status("Perilaku notch tersimpan dan langsung diterapkan.".into());
                     }
                 }

@@ -1149,7 +1149,8 @@ component SettingsPage inherits VerticalLayout {
     in property <string> behavior-hover-open: "150";
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
-    in property <string> behavior-save-status: "Skala, hover, dan idle";
+    in property <bool> behavior-hide-fullscreen: true;
+    in property <string> behavior-save-status: "Skala, hover, idle, dan fullscreen";
     in property <bool> motion-enabled: false;
     in property <string> motion-interval: "180";
     in property <string> motion-max-moves: "3";
@@ -1171,7 +1172,7 @@ component SettingsPage inherits VerticalLayout {
     callback save-pages(string);
     callback toggle-page(string, bool);
     pure function page-enabled(id: string) -> bool { for page in root.active-pages: { if page == id { return true; } } return false; }
-    callback save-behavior(string, string, string, string);
+    callback save-behavior(string, string, string, string, bool);
     callback save-position(string);
     callback save-routines(string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string, string, string);
@@ -1423,9 +1424,18 @@ component SettingsPage inherits VerticalLayout {
             behavior-hover-close-input := TextInput { text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
             behavior-sleep-input := TextInput { text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; }
+            hide-fullscreen-input := TextInput { text: root.behavior-hide-fullscreen ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Sembunyikan notch saat aplikasi fullscreen"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                Chip {
+                    label: hide-fullscreen-input.text == "true" ? "Aktif" : "Nonaktif";
+                    selected: hide-fullscreen-input.text == "true";
+                    clicked => { hide-fullscreen-input.text = hide-fullscreen-input.text == "true" ? "false" : "true"; }
+                }
+            }
             HorizontalLayout {
                 spacing: 5px;
-                Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text); } }
+                Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true"); } }
                 Chip {
                     label: "Reset default";
                     clicked => {
@@ -1433,7 +1443,8 @@ component SettingsPage inherits VerticalLayout {
                         behavior-hover-open-input.text = "150";
                         behavior-hover-close-input.text = "450";
                         behavior-sleep-input.text = "60";
-                        root.save-behavior("1.00", "150", "450", "60");
+                        hide-fullscreen-input.text = "true";
+                        root.save-behavior("1.00", "150", "450", "60", true);
                     }
                 }
             }
@@ -2175,6 +2186,7 @@ export component NotchWindow inherits Window {
     in property <string> behavior-hover-open: "150";
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
+    in property <bool> behavior-hide-fullscreen: true;
     in property <string> behavior-save-status: "";
     in property <bool> motion-enabled: false;
     in property <string> motion-interval: "180";
@@ -2206,7 +2218,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-dark-bg: "#000000";
     in property <string> appearance-light-bg: "#f5f5f7";
     callback settings-save-appearance(string, string, string, string, string, string, string, string, string);
-    callback settings-save-behavior(string, string, string, string);
+    callback settings-save-behavior(string, string, string, string, bool);
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool);
     callback settings-test-nudge();
@@ -2696,6 +2708,7 @@ export component NotchWindow inherits Window {
                         behavior-hover-open: root.behavior-hover-open;
                         behavior-hover-close: root.behavior-hover-close;
                         behavior-sleep-after: root.behavior-sleep-after;
+                        behavior-hide-fullscreen: root.behavior-hide-fullscreen;
                         behavior-save-status: root.behavior-save-status;
                         motion-enabled: root.motion-enabled;
                         motion-interval: root.motion-interval;
@@ -2712,7 +2725,7 @@ export component NotchWindow inherits Window {
                         save-nudge(enabled, idle, message, emoji, mood, show, silent) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent); }
                         test-nudge => { root.settings-test-nudge(); }
                         position-mode: root.position-mode;
-                        save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
+                        save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
                         save-position(mode) => { root.settings-save-position(mode); }
                         save-motion(enabled, interval, maximum) => { root.settings-save-motion(enabled, interval, maximum); }
                         active-pages: root.active-pages;
