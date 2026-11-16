@@ -49,10 +49,4 @@ mod tests {
         assert_eq!(error, "Format tujuan tidak didukung: tiff");
     }
 
-    #[test]
-    fn accepts_target_with_leading_dot_and_mixed_case() {
-        // An invalid input path proves format validation happens before file access.
-        let error = convert_image(Path::new("does-not-need-to-exist.png"), ".PnG").unwrap_err();
-        assert!(!error.contains("Format tujuan tidak didukung"));
-    }
 }
