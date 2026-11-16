@@ -1723,6 +1723,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let last_output = last_output.clone();
             let running_worker = running.clone();
             std::thread::spawn(move || {
+                let started = std::time::Instant::now();
                 let total = paths.len();
                 let mut completed = 0usize;
                 let mut failures = Vec::new();
@@ -1819,13 +1820,13 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let percent = (index + 1) * 100 / total;
                     let progress_text = format!("{percent}% ({}/{total})", index + 1);
+                    let elapsed = started.elapsed().as_secs_f64();
+                    let remaining = total.saturating_sub(index + 1);
                     let eta_seconds = if index + 1 > 0 {
-                        let elapsed = std::time::Duration::from_secs(0);
-                        let _ = elapsed;
-                        0u64
-                    } else { 0u64 };
-                    let eta_text = if index + 1 >= total { "Selesai".to_string() } else {
-                        format!("Estimasi sisa sekitar {} file", total - index - 1)
+                        (elapsed / (index + 1) as f64 * remaining as f64).ceil() as u64
+                    } else { 0 };
+                    let eta_text = if remaining == 0 { "Selesai".to_string() } else {
+                        format!("Perkiraan tersisa {:02}:{:02}", eta_seconds / 60, eta_seconds % 60)
                     };
                     let weak_progress = weak.clone();
                     let history_text = format_convert_history();
