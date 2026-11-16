@@ -2281,6 +2281,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     "File tidak ditemukan di antrean atau tidak sedang diproses".to_string()
                 }
             };
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
                 let status_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(status_text.into());
@@ -2350,6 +2351,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 (before - pending.len(), pending.len())
             };
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
                 let queue_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(queue_text.into());
@@ -2376,6 +2378,7 @@ fn main() -> Result<(), slint::PlatformError> {
             for item in statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut() {
                 if item.1 == "Menunggu" { item.1 = "Dihapus".to_string(); }
             }
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
             if let Some(w) = weak.upgrade() {
                 let queue_text = format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner()));
                 w.set_convert_queue_text(queue_text.into());
