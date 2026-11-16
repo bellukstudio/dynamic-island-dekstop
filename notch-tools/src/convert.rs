@@ -309,7 +309,7 @@ fn office_to_pdf_with_libreoffice(input: &Path) -> Result<Vec<u8>, String> {
             .map_err(|error| error.to_string())?
             .flatten()
             .map(|entry| entry.path())
-            .find(|path| path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")));
+            .find(|path| path.extension().is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("pdf")));
 
         match pdf_path {
             Some(path) => std::fs::read(&path)
