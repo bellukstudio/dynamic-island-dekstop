@@ -303,26 +303,31 @@ pub enum Shape {
 
 fn write_font(doc: &mut Document, fi: usize, face: &super::font::Face) -> ObjectId {
     use subsetter::GlyphRemapper;
-    let gids: Vec<u16> = face.used.keys().copied().collect();
+
+    // Multiple Unicode characters may share one font glyph. Build the subset from
+    // unique glyph IDs, but assign each Unicode character its own PDF CID.
+    let mut gids: Vec<u16> = face.used.values().map(|(gid, _)| *gid).collect();
+    gids.sort_unstable();
+    gids.dedup();
+
     let mut rm = GlyphRemapper::new();
     rm.remap(0);
     for g in &gids {
         rm.remap(*g);
     }
-    // CID = glyph id ASLI; CIDToGIDMap memetakan ke glyph id baru di font ter-subset
-    let (font_bytes, cid2gid) = match subsetter::subset(&face.data, 0, &rm) {
-        Ok(b) => {
-            let maxg = *gids.last().unwrap() as usize;
-            let mut m = vec![0u8; (maxg + 1) * 2];
-            for g in &gids {
-                let ng = rm.get(*g).unwrap_or(0);
-                m[*g as usize * 2] = (ng >> 8) as u8;
-                m[*g as usize * 2 + 1] = (ng & 0xff) as u8;
-            }
-            (b, Some(m))
-        }
-        Err(_) => (face.data.clone(), None),
-    };
+
+    let subset = subsetter::subset(&face.data, 0, &rm).ok();
+    let font_bytes = subset.unwrap_or_else(|| face.data.clone());
+    let max_cid = face.used.keys().copied().max().unwrap_or(0) as usize;
+    let mut cid_to_gid = vec![0u8; (max_cid + 1) * 2];
+
+    for (cid, (gid, _)) in &face.used {
+        let mapped_gid = if subset.is_some() { rm.get(*gid).unwrap_or(0) } else { *gid };
+        let offset = *cid as usize * 2;
+        cid_to_gid[offset] = (mapped_gid >> 8) as u8;
+        cid_to_gid[offset + 1] = (mapped_gid & 0xff) as u8;
+    }
+
     let tag = format!("{}{}AAAA", (b'A' + ((fi / 26) % 26) as u8) as char, (b'A' + (fi % 26) as u8) as char);
     let base_name = format!("{}+{}", tag, face.ps_name);
     let s = 1000.0 / face.upem;
@@ -335,7 +340,6 @@ fn write_font(doc: &mut Document, fi: usize, face: &super::font::Face) -> Object
     desc.set("Type", Object::Name(b"FontDescriptor".to_vec()));
     desc.set("FontName", Object::Name(base_name.clone().into_bytes()));
     // The embedded TrueType face uses a Unicode cmap and Identity-H encoding.
-    // Mark it as nonsymbolic so PDF readers apply normal Unicode font handling.
     desc.set("Flags", Object::Integer(32));
     desc.set(
         "FontBBox",
@@ -350,32 +354,27 @@ fn write_font(doc: &mut Document, fi: usize, face: &super::font::Face) -> Object
     let desc_id = doc.add_object(desc);
 
     let mut w_arr: Vec<Object> = Vec::new();
-    for g in &gids {
-        let adv = face_adv(face, *g);
-        w_arr.push(Object::Integer(*g as i64));
+    for (cid, (gid, _)) in &face.used {
+        let adv = face_adv(face, *gid);
+        w_arr.push(Object::Integer(*cid as i64));
         w_arr.push(Object::Array(vec![Object::Integer((adv as f32 * s).round() as i64)]));
     }
 
-    let mut cid = Dictionary::new();
-    cid.set("Type", Object::Name(b"Font".to_vec()));
-    cid.set("Subtype", Object::Name(b"CIDFontType2".to_vec()));
-    cid.set("BaseFont", Object::Name(base_name.clone().into_bytes()));
+    let mut cid_font = Dictionary::new();
+    cid_font.set("Type", Object::Name(b"Font".to_vec()));
+    cid_font.set("Subtype", Object::Name(b"CIDFontType2".to_vec()));
+    cid_font.set("BaseFont", Object::Name(base_name.clone().into_bytes()));
     let mut csi = Dictionary::new();
     csi.set("Registry", Object::string_literal("Adobe"));
     csi.set("Ordering", Object::string_literal("Identity"));
     csi.set("Supplement", Object::Integer(0));
-    cid.set("CIDSystemInfo", Object::Dictionary(csi));
-    cid.set("FontDescriptor", Object::Reference(desc_id));
-    cid.set("DW", Object::Integer(1000));
-    cid.set("W", Object::Array(w_arr));
-    match cid2gid {
-        Some(m) => {
-            let id = doc.add_object(Stream::new(Dictionary::new(), m));
-            cid.set("CIDToGIDMap", Object::Reference(id));
-        }
-        None => cid.set("CIDToGIDMap", Object::Name(b"Identity".to_vec())),
-    }
-    let cid_id = doc.add_object(cid);
+    cid_font.set("CIDSystemInfo", Object::Dictionary(csi));
+    cid_font.set("FontDescriptor", Object::Reference(desc_id));
+    cid_font.set("DW", Object::Integer(1000));
+    cid_font.set("W", Object::Array(w_arr));
+    let cid_map_id = doc.add_object(Stream::new(Dictionary::new(), cid_to_gid));
+    cid_font.set("CIDToGIDMap", Object::Reference(cid_map_id));
+    let cid_id = doc.add_object(cid_font);
 
     let tu = doc.add_object(Stream::new(Dictionary::new(), to_unicode(face).into_bytes()));
     let mut t0 = Dictionary::new();
@@ -397,14 +396,14 @@ fn to_unicode(face: &super::font::Face) -> String {
         "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n\
          /CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n",
     );
-    let items: Vec<(&u16, &char)> = face.used.iter().collect();
+    let items: Vec<(&u16, &(u16, char))> = face.used.iter().collect();
     for chunk in items.chunks(100) {
         let _ = writeln!(s, "{} beginbfchar", chunk.len());
-        for (g, c) in chunk {
+        for (cid, (_, ch)) in chunk {
             let mut buf = [0u16; 2];
-            let enc = c.encode_utf16(&mut buf);
+            let enc = ch.encode_utf16(&mut buf);
             let hex: String = enc.iter().map(|u| format!("{u:04X}")).collect();
-            let _ = writeln!(s, "<{:04X}> <{}>", g, hex);
+            let _ = writeln!(s, "<{:04X}> <{}>", cid, hex);
         }
         s.push_str("endbfchar\n");
     }
