@@ -439,7 +439,7 @@ fn clear_convert_history() {
 }
 
 // Ruang vertikal saat menciut mencakup pil dan balon notifikasi di luar area clip.
-const COLLAPSED: (u32, u32) = (162, 112);
+const COLLAPSED: (u32, u32) = (262, 112);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
 const EXPANDED: (u32, u32) = (612, 240);
 
