@@ -4503,29 +4503,61 @@ fn main() -> Result<(), slint::PlatformError> {
 
             // Envelope halus: setiap gerakan masuk dan kembali ke posisi netral tanpa hentakan.
             let envelope = (std::f32::consts::PI * t).sin().max(0.0);
-            // Liquid memakai beberapa riak dalam satu rangkaian; gerakan lain memakai gelombang dasar.
-            let wave_cycles = if kind == 0 { 2.0 } else { 1.0 };
-            let ripple_cycles = if kind == 0 { 5.0 } else { 3.0 };
-            let wave = (std::f32::consts::TAU * wave_cycles * t).sin();
-            let fast_wave = (std::f32::consts::TAU * ripple_cycles * t).sin();
+            let wave = (std::f32::consts::TAU * t).sin();
+            let fast_wave = (std::f32::consts::TAU * 3.0 * t).sin();
             let mut offset = 0.0;
             let mut sx = 1.0;
             let mut sy = 1.0;
 
+            // Gerakan perjalanan memakai beberapa titik tujuan yang dibatasi di dalam
+            // area transform Notch. Interpolasi smoothstep menghindari perpindahan patah.
+            let smooth = |v: f32| {
+                let v = v.clamp(0.0, 1.0);
+                v * v * (3.0 - 2.0 * v)
+            };
+            let random_offset = |index: u32, limit: f32| {
+                let mut value = seed
+                    .wrapping_add(u64::from(index).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+                value ^= value >> 30;
+                value = value.wrapping_mul(0xBF58_476D_1CE4_E5B9);
+                value ^= value >> 27;
+                value = value.wrapping_mul(0x94D0_49BB_1331_11EB);
+                value ^= value >> 31;
+                let unit = (value >> 40) as f32 / ((1u32 << 24) - 1) as f32;
+                (unit * 2.0 - 1.0) * limit
+            };
+            let travel_segment = |progress: f32, count: u32, limit: f32, return_home: bool| {
+                let scaled = progress.clamp(0.0, 1.0) * count as f32;
+                let index = (scaled.floor() as u32).min(count.saturating_sub(1));
+                let local = smooth(scaled - index as f32);
+                let from = if index == 0 { 0.0 } else { random_offset(index, limit) };
+                let to = if return_home && index + 1 == count {
+                    0.0
+                } else {
+                    random_offset(index + 1, limit)
+                };
+                from + (to - from) * local
+            };
+
             match kind {
-                0 => { // LIQUID: beberapa aliran bolak-balik dengan riak bentuk cepat.
-                    offset = direction * 34.0 * wave * envelope;
-                    sx += 0.09 * fast_wave * envelope;
-                    sy -= 0.07 * fast_wave * envelope;
+                0 => { // LIQUID: 3–6 langkah pendek dengan arah dan jarak bervariasi.
+                    let steps = 3 + (seed as u32 % 4);
+                    offset = travel_segment(t, steps, 56.0, true);
+                    sx += 0.055 * fast_wave * envelope;
+                    sy -= 0.045 * fast_wave * envelope;
+                    let ripple = (std::f32::consts::TAU * 5.0 * t).sin() * envelope;
+                    sx += 0.035 * ripple;
+                    sy -= 0.03 * ripple;
                 }
-                1 => { // GHOST: berjalan sambil meregang tinggi, lalu kembali turun.
+                1 => { // GHOST: meluncur pelan sambil menjulang, lalu menyusut.
                     let lift = (std::f32::consts::PI * t).sin().max(0.0);
                     sx = 1.0 - 0.13 * lift;
                     sy = 1.0 + 0.38 * lift;
-                    offset = direction * 34.0 * envelope;
+                    offset = direction * 42.0 * smooth(t);
                 }
-                2 => { // ROAM: meluncur lebih jauh ke satu sisi lalu pulang.
-                    offset = direction * 78.0 * envelope;
+                2 => { // ROAM: satu atau dua perjalanan, kemudian kembali ke titik awal.
+                    let legs = if seed & 1 == 0 { 2 } else { 3 };
+                    offset = travel_segment(t, legs, 78.0, true);
                     sx += 0.035 * envelope;
                     sy -= 0.025 * envelope;
                 }
