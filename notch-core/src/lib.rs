@@ -3,6 +3,8 @@
 
 pub mod battery;
 pub mod calendar;
+#[cfg(feature = "net")]
+pub mod currency;
 pub mod clipboard;
 pub mod config;
 pub mod decor;
