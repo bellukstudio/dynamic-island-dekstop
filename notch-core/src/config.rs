@@ -114,8 +114,13 @@ const EYE_THEMES: &[&str] = &["aurora", "neon", "pastel", "pixel", "holo", "embe
 // "default" = tampilan lama (warna dari theme/dark_bg/light_bg/background). Selain itu: tema siap pakai (css/notch-themes.css).
 const NOTCH_THEMES: &[&str] = &["default", "aurora", "obsidian", "neon", "sakura", "matcha"];
 
+const APPEARANCE_THEMES: &[&str] = &["auto", "dark", "light", "custom"];
+
 impl Appearance {
     pub fn sanitize(&mut self) {
+        if !APPEARANCE_THEMES.contains(&self.theme.as_str()) {
+            self.theme = Appearance::default().theme;
+        }
         if !NOTCH_THEMES.contains(&self.notch_theme.as_str()) {
             self.notch_theme = Appearance::default().notch_theme;
         }
@@ -424,7 +429,8 @@ mod tests {
         assert!(c.pages.iter().any(|p| p == "prayer"));
         assert_eq!(c.pomodoro.focus_min, 25);
         assert_eq!(c.timing.hover_open_ms, 150);
-        assert_eq!(c.appearance.notch_theme, "default");\n        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
+        assert_eq!(c.appearance.notch_theme, "default");
+        assert_eq!(c.appearance.theme, "auto");\n        assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
     }
 
     #[test]
@@ -443,6 +449,13 @@ mod tests {
         assert_eq!(c.scale, 1.5);
         assert!(!c.pages.is_empty());
         assert_eq!(c.appearance.notch_theme, "default");
+    }
+
+    #[test]
+    fn normalize_rejects_unknown_appearance_theme() {
+        let mut c: Config = toml::from_str("[appearance]\ntheme = \"ultraviolet\"\n").unwrap();
+        c.normalize();
+        assert_eq!(c.appearance.theme, "auto");
     }
 
     #[test]
