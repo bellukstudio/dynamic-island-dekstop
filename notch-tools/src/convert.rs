@@ -115,10 +115,58 @@ pub fn convert_image(path: &Path, target: &str) -> Result<PathBuf, String> {
         _ => unreachable!(),
     };
 
-    let mut bytes = std::io::Cursor::new(Vec::new());
-    image.write_to(&mut bytes, format)
+    let encoded = match format {
+        ImageFormat::Jpeg => {
+            let flattened = flatten_white(&image);
+            let mut bytes = Vec::new();
+            JpegEncoder::new_with_quality(&mut bytes, 85)
+                .encode_image(&flattened)
+                .map_err(|error| format!("Gagal mengodekan JPEG: {error}"))?;
+            bytes
+        }
+        ImageFormat::Png => encode_image(&image, ImageFormat::Png)?,
+        ImageFormat::WebP => encode_image(&to_8bit(&image), ImageFormat::WebP)?,
+        ImageFormat::Bmp => encode_image(&flatten_white(&image), ImageFormat::Bmp)?,
+        ImageFormat::Gif => encode_image(
+            &image::DynamicImage::ImageRgba8(image.to_rgba8()),
+            ImageFormat::Gif,
+        )?,
+        _ => unreachable!(),
+    };
+    write_converted(path, extension, &encoded)
+}
+
+fn flatten_white(image: &image::DynamicImage) -> image::DynamicImage {
+    use image::DynamicImage;
+    if !image.color().has_alpha() {
+        return DynamicImage::ImageRgb8(image.to_rgb8());
+    }
+    let rgba = image.to_rgba8();
+    let mut output = image::RgbImage::new(rgba.width(), rgba.height());
+    for (x, y, pixel) in rgba.enumerate_pixels() {
+        let alpha = pixel[3] as u32;
+        let blend = |channel: u8| {
+            ((channel as u32 * alpha + 255 * (255 - alpha) + 127) / 255) as u8
+        };
+        output.put_pixel(x, y, image::Rgb([blend(pixel[0]), blend(pixel[1]), blend(pixel[2])]));
+    }
+    DynamicImage::ImageRgb8(output)
+}
+
+fn to_8bit(image: &image::DynamicImage) -> image::DynamicImage {
+    use image::DynamicImage;
+    if image.color().has_alpha() {
+        DynamicImage::ImageRgba8(image.to_rgba8())
+    } else {
+        DynamicImage::ImageRgb8(image.to_rgb8())
+    }
+}
+
+fn encode_image(image: &image::DynamicImage, format: ImageFormat) -> Result<Vec<u8>, String> {
+    let mut output = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut output, format)
         .map_err(|error| format!("Gagal mengodekan gambar: {error}"))?;
-    write_converted(path, extension, bytes.get_ref())
+    Ok(output.into_inner())
 }
 
 fn decode_image(path: &Path) -> Result<image::DynamicImage, String> {
