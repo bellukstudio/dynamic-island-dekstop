@@ -3201,8 +3201,16 @@ fn main() -> Result<(), slint::PlatformError> {
 
 #[cfg(test)]
 mod convert_queue_display_tests {
-    use super::{format_convert_file_statuses, format_convert_queue, move_convert_queue_item, remove_finished_convert_statuses, sync_convert_status_order};
+    use super::{csv_escape_field, format_convert_file_statuses, format_convert_queue, move_convert_queue_item, remove_finished_convert_statuses, sync_convert_status_order};
     use std::collections::VecDeque;
+
+    #[test]
+    fn csv_fields_escape_quotes_commas_and_newlines() {
+        assert_eq!(csv_escape_field("plain"), "plain");
+        assert_eq!(csv_escape_field("a,b"), "\"a,b\"");
+        assert_eq!(csv_escape_field("say \"hi\""), "\"say \"\"hi\"\"\"");
+        assert_eq!(csv_escape_field("line1\nline2"), "\"line1\nline2\"");
+    }
 
     #[test]
     fn file_status_display_includes_each_state_and_filename() {
