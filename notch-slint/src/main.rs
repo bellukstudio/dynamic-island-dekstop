@@ -1017,8 +1017,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let work = platform::work_area(Some((current.x, current.y)));
             let size = w.window().size();
             let margin = 36i32;
-            let min_x = work.x + margin;
-            let max_x = (work.x + work.w - size.width as i32 - margin).max(min_x);
+            // Posisi kustom Shell memakai titik tengah horizontal dan sisi atas vertikal.
+            let half_width = size.width as i32 / 2;
+            let min_x = work.x + half_width + margin;
+            let max_x = (work.x + work.w - half_width - margin).max(min_x);
             let min_y = work.y + margin;
             let max_y = (work.y + work.h - size.height as i32 - margin).max(min_y);
 
