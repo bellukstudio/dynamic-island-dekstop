@@ -2436,6 +2436,49 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        use slint::winit_030::{winit, EventResult, WinitWindowAccessor};
+        let weak = win.as_weak();
+        let selected_paths = convert_selected_paths.clone();
+        let last_output = convert_last_output.clone();
+        let running = convert_running.clone();
+        win.window().on_winit_window_event(move |_, event| {
+            if let winit::event::WindowEvent::DroppedFile(path) = event {
+                if running.load(std::sync::atomic::Ordering::Acquire) {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_convert_status("Selesaikan atau batalkan batch sebelum menambahkan file".into());
+                    }
+                    return EventResult::Propagate;
+                }
+                if !path.is_file() {
+                    return EventResult::Propagate;
+                }
+                if convert::available_targets(path).is_empty() {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_convert_status(format!("Format file tidak didukung: {}", path.display()).into());
+                    }
+                    return EventResult::Propagate;
+                }
+                let raw = path.to_string_lossy().to_string();
+                let mut selected = selected_paths.borrow_mut();
+                if !selected.iter().any(|existing| existing.eq_ignore_ascii_case(&raw)) {
+                    selected.push(raw.clone());
+                }
+                let paths = selected.clone();
+                drop(selected);
+                *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
+                if let Some(w) = weak.upgrade() {
+                    w.set_convert_selected_path(paths.first().cloned().unwrap_or(raw).into());
+                    w.set_convert_files_text(format_convert_selection(&paths).into());
+                    w.set_convert_history_text(format_convert_history().into());
+                    w.set_convert_progress_text("".into());
+                    w.set_convert_status(format!("{} file siap dikonversi · file diterima dari Explorer", paths.len()).into());
+                }
+            }
+            EventResult::Propagate
+        });
+    }
+
     win.run()
 }
 
