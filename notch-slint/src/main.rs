@@ -1495,7 +1495,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             completed += 1;
                             outputs.push(format!("{} ({detail})", output.display()));
                         }
-                        Err(error) => failures.push(format!("{}: {error}", source.file_name().unwrap_or_default().to_string_lossy())),
+                        Err(error) => failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))),
                     }
                 }
                 let mut message = format!("Batch selesai: {completed}/{total} file berhasil");
