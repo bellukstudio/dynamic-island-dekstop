@@ -34,6 +34,7 @@ mod colorpick;
 mod compress;
 mod convert;
 mod transfer;
+mod android;
 
 slint::include_modules!();
 
@@ -533,6 +534,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     let win = NotchWindow::new()?;
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
+    let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
     win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
@@ -1372,6 +1374,75 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let state = android_state.clone();
+        let weak = win.as_weak();
+        win.on_android_refresh(move || {
+            let mut android = state.lock().unwrap_or_else(|e| e.into_inner());
+            let status = android.status();
+            let devices = android.devices();
+            if let Some(w) = weak.upgrade() {
+                w.set_android_status(status.into());
+                w.set_android_devices(devices.into());
+                w.set_android_serial(android.serial().into());
+            }
+        });
+    }
+    {
+        let state = android_state.clone();
+        let weak = win.as_weak();
+        win.on_android_select_device(move |serial| {
+            state.lock().unwrap_or_else(|e| e.into_inner()).set_serial(serial.to_string());
+            if let Some(w) = weak.upgrade() { w.set_android_status("Perangkat dipilih".into()); }
+        });
+    }
+    {
+        let state = android_state.clone();
+        let weak = win.as_weak();
+        win.on_android_list(move |path| {
+            let state = state.clone();
+            let path = path.to_string();
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let entries = state.lock().unwrap_or_else(|e| e.into_inner()).list(&path);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() { w.set_android_entries(entries.into()); w.set_android_path(path.into()); }
+                });
+            });
+        });
+    }
+    {
+        let state = android_state.clone();
+        let weak = win.as_weak();
+        win.on_android_push(move |_serial, remote| {
+            let selected = rfd::FileDialog::new().pick_files().unwrap_or_default();
+            if selected.is_empty() { return; }
+            let state = state.clone();
+            let remote = remote.to_string();
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let mut ok = 0usize;
+                let mut errors = Vec::new();
+                for path in selected {
+                    match state.lock().unwrap_or_else(|e| e.into_inner()).push(&path, &remote) {
+                        Ok(()) => ok += 1,
+                        Err(e) => errors.push(e),
+                    }
+                }
+                let msg = if errors.is_empty() { format!("{ok} file berhasil dikirim") } else { format!("{ok} berhasil, gagal: {}", errors.join("; ")) };
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() { w.set_android_status(msg.into()); }
+                });
+            });
+        });
+    }
+    {
+        let weak = win.as_weak();
+        win.on_android_mirror(move || {
+            if let Some(w) = weak.upgrade() { w.set_android_status("Mirroring belum dipindahkan ke backend native Slint".into()); }
+        });
+    }
+
     // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
     let hotkey_poll_timer = Timer::default();
     {
@@ -1398,6 +1469,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     hotkeys::Action::ColorPicker => {
                         colorpick::toggle();
+                    }
+                    hotkeys::Action::OpenAndroid => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("android".into());
+                            expand();
+                        }
                     }
                     hotkeys::Action::OpenTransfer => {
                         if let Some(w) = weak.upgrade() {

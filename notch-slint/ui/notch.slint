@@ -1181,6 +1181,60 @@ component TransferPage inherits VerticalLayout {
     }
     Text { text: "Perangkat lain yang satu jaringan dapat membuka alamat di atas untuk mengunduh atau mengirim file."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
 }
+component AndroidPage inherits VerticalLayout {
+    in property <string> status: "Periksa perangkat Android";
+    in property <string> devices: "";
+    in property <string> entries: "";
+    in property <string> current-path: "/sdcard/Download";
+    in property <string> selected-serial: "";
+    callback refresh();
+    callback list(string);
+    callback push(string, string);
+    callback select-device(string);
+    callback mirror();
+    alignment: start;
+    padding-left: 12px;
+    padding-right: 12px;
+    spacing: 6px;
+    Text { text: "Android"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "ADB · USB / Wireless debugging"; color: Theme.accent; font-size: 10px; font-weight: 700; }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 9px;
+        border-width: 1px;
+        border-color: #ffffff18;
+        VerticalLayout {
+            padding: 8px;
+            spacing: 5px;
+            Text { text: root.status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "Perangkat terdeteksi"; color: Theme.text; font-size: 10px; }
+            devices-input := TextInput { text: root.devices; color: Theme.text; font-size: 9px; single-line: false; }
+            serial-input := TextInput { text: root.selected-serial; color: Theme.text; font-size: 10px; single-line: true; }
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Chip { label: "Deteksi"; clicked => { root.refresh(); } }
+        Chip { label: "Pilih"; clicked => { root.select-device(serial-input.text); } }
+    }
+    Rectangle {
+        background: #ffffff0b;
+        border-radius: 9px;
+        VerticalLayout {
+            padding: 8px;
+            spacing: 5px;
+            Text { text: "Jalur HP"; color: Theme.text-faint; font-size: 9px; }
+            path-input := TextInput { text: root.current-path; color: Theme.text; font-size: 10px; single-line: true; }
+            Chip { label: "Baca folder"; clicked => { root.list(path-input.text); } }
+            Text { text: root.entries; color: Theme.text; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    HorizontalLayout {
+        alignment: start;
+        Chip { label: "Kirim file ke HP"; clicked => { root.push(serial-input.text, path-input.text); } }
+        Chip { label: "Mirroring"; clicked => { root.mirror(); } }
+    }
+}
 component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
@@ -1299,6 +1353,11 @@ export component NotchWindow inherits Window {
     in property <string> convert-status: "Pilih gambar untuk dikonversi";
     in property <string> transfer-status: "Server belum aktif";
     in property <string> transfer-address: "";
+    in property <string> android-status: "Periksa perangkat Android";
+    in property <string> android-devices: "";
+    in property <string> android-entries: "";
+    in property <string> android-path: "/sdcard/Download";
+    in property <string> android-serial: "";
     in property <string> transfer-shared-count-text: "0";
 
     in property <[string]> lyric-lines;
@@ -1362,6 +1421,11 @@ export component NotchWindow inherits Window {
     callback transfer-stop();
     callback transfer-add-files();
     callback transfer-open-inbox();
+    callback android-refresh();
+    callback android-list(string);
+    callback android-push(string, string);
+    callback android-select-device(string);
+    callback android-mirror();
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
@@ -1586,6 +1650,18 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
+                    if root.page-id == "android": AndroidPage {
+                        status: root.android-status;
+                        devices: root.android-devices;
+                        entries: root.android-entries;
+                        current-path: root.android-path;
+                        selected-serial: root.android-serial;
+                        refresh => { root.android-refresh(); }
+                        list(path) => { root.android-list(path); }
+                        push(serial, path) => { root.android-push(serial, path); }
+                        select-device(serial) => { root.android-select-device(serial); }
+                        mirror => { root.android-mirror(); }
+                    }
                     if root.page-id == "transfer": TransferPage {
                         status: root.transfer-status;
                         address: root.transfer-address;
