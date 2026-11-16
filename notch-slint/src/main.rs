@@ -3771,6 +3771,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() {
                         w.set_motion_enabled(enabled);
                         w.set_dock_play_enabled(dock_play_enabled);
+                        if !dock_play_enabled { w.set_play_test_request(false); }
                         w.set_motion_interval(interval.to_string().into());
                         w.set_motion_max_moves(maximum.to_string().into());
                         w.set_motion_save_status(if dock_play_enabled {
