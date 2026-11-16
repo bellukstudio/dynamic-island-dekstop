@@ -221,7 +221,7 @@ impl Prayer {
 }
 
 // Naikkan angka ini setiap kali ada fitur baru yang perlu dinyalakan untuk config lama.
-pub const PAGES_VERSION: u32 = 6;
+pub const PAGES_VERSION: u32 = 7;
 // (nama fitur, versi PAGES_VERSION saat fitur itu ditambahkan).
 // Dengan begitu fitur lama yang sengaja dimatikan pengguna tidak ikut menyala lagi
 // ketika versi dinaikkan untuk fitur baru.
@@ -233,6 +233,7 @@ const NEW_FEATURES: &[(&str, u32)] = &[
     ("reminder", 4),
     ("notes", 4),
     ("prayer", 5),
+    ("currency", 7),
 ];
 
 // Config lama mendapat fitur baru satu kali. Setelah disimpan dari UI, angka versinya
@@ -353,7 +354,7 @@ impl Default for Config {
             hide_fullscreen: true,
             pages: [
                 "media", "clock", "weather", "battery", "timer", "quick", "tools", "stats",
-                "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer",
+                "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "currency",
             ]
             .iter()
             .map(|s| s.to_string())
