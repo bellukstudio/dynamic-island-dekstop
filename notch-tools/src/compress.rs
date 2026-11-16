@@ -453,7 +453,7 @@ fn recode_pdf_image(
     let is_filter = |name: &[u8]| filters.len() == 1 && filters[0].as_slice() == name;
 
     let image = if is_filter(b"DCTDecode") {
-        decode_image(&stream.content)?
+        decode_image(&stream.content).ok()?
     } else if is_filter(b"FlateDecode") {
         let width = pdf_dict_i64(&stream.dict, b"Width")? as usize;
         let height = pdf_dict_i64(&stream.dict, b"Height")? as usize;
@@ -580,7 +580,7 @@ pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(P
 }
 
 
-/// Compress a supported image or Office Open XML document.
+/// Compress a supported image, PDF, or Office Open XML document.
 pub fn compress_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
     if ext == "pdf" {
