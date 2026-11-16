@@ -89,6 +89,46 @@ where
     Ok(total)
 }
 
+
+/** Render a representative sample of pages for fast size estimation. */
+pub fn for_each_page_sample<F>(
+    source: &[u8],
+    dpi: u32,
+    sample_count: usize,
+    mut callback: F,
+) -> Result<usize, String>
+where
+    F: FnMut(usize, usize, DynamicImage) -> Result<(), String>,
+{
+    use pdfium_render::prelude::PdfRenderConfig;
+    let _guard = PDFIUM_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let pdfium = bind_pdfium()?;
+    let document = pdfium.load_pdf_from_byte_slice(source, None)
+        .map_err(|error| format!("PDF tidak dapat dibuka: {error}"))?;
+    let pages = document.pages();
+    let total = pages.len() as usize;
+    if total == 0 {
+        return Err("PDF tidak punya halaman".into());
+    }
+    let indices: Vec<u16> = if sample_count > 0 && total > sample_count {
+        (0..sample_count).map(|index| (index * total / sample_count) as u16).collect()
+    } else {
+        (0..pages.len()).collect()
+    };
+    let dpi = dpi.clamp(36, 600);
+    for index in indices {
+        let page = pages.get(index).map_err(|error| error.to_string())?;
+        let width = ((page.width().value / 72.0 * dpi as f32).round() as i32).max(1);
+        let height = ((page.height().value / 72.0 * dpi as f32).round() as i32).max(1);
+        let config = PdfRenderConfig::new().set_target_size(width, height);
+        let bitmap = page.render_with_config(&config).map_err(|error| error.to_string())?;
+        let image = bitmap.as_image().into_dynamic_image()
+            .ok_or_else(|| "Gagal membaca bitmap halaman PDF".to_string())?;
+        callback(index as usize, total, image)?;
+    }
+    Ok(total)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
