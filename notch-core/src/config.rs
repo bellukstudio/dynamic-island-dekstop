@@ -339,13 +339,41 @@ impl Config {
         migrate(self);
     }
 
-    /// Simpan konfigurasi melalui file sementara agar file lama tidak terpotong bila gagal.
+    /// Simpan konfigurasi melalui file sementara lalu ganti file lama secara atomik.
+    /// Windows membutuhkan MoveFileExW karena std::fs::rename tidak menimpa tujuan yang sudah ada.
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
+        use std::io;
         if let Some(parent) = path.parent() { std::fs::create_dir_all(parent)?; }
-        let content = toml::to_string_pretty(self).map_err(std::io::Error::other)?;
+        let content = toml::to_string_pretty(self).map_err(io::Error::other)?;
         let temp = path.with_extension("toml.tmp");
         std::fs::write(&temp, content)?;
-        std::fs::rename(temp, path)
+
+        #[cfg(windows)]
+        {
+            use std::os::windows::ffi::OsStrExt;
+            use windows::core::PCWSTR;
+            use windows::Win32::Storage::FileSystem::{
+                MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+            };
+            let from: Vec<u16> = temp.as_os_str().encode_wide().chain(Some(0)).collect();
+            let to: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+            // SAFETY: both UTF-16 buffers are NUL-terminated and live through the call.
+            if let Err(error) = unsafe {
+                MoveFileExW(
+                    PCWSTR(from.as_ptr()),
+                    PCWSTR(to.as_ptr()),
+                    MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+                )
+            } {
+                let _ = std::fs::remove_file(&temp);
+                return Err(io::Error::other(error));
+            }
+            Ok(())
+        }
+        #[cfg(not(windows))]
+        {
+            std::fs::rename(&temp, path)
+        }
     }
 
     /// Baca config.toml TANPA menulis apa pun (beda dengan `init` di Tauri yang membuat/menambah file).
@@ -406,6 +434,23 @@ mod tests {
         c.normalize();
         assert_eq!(c.shortcuts.toggle_hub, "Ctrl+Alt+N");
         assert_eq!(c.shortcuts.open_settings, "Ctrl+Shift+S");
+    }
+
+    #[test]
+    fn save_replaces_existing_config_file() {
+        let dir = std::env::temp_dir().join(format!("notch-core-save-{}", std::process::id()));
+        let path = dir.join("config.toml");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(&path, "scale = 0.5\\n").unwrap();
+
+        let mut config = Config::default();
+        config.scale = 1.25;
+        config.save(&path).unwrap();
+        let saved: Config = toml::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(saved.scale, 1.25);
+        assert!(!path.with_extension("toml.tmp").exists());
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
