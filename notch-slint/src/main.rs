@@ -532,6 +532,17 @@ mod platform {
         None
     }
 
+    /// Status tombol kiri mouse global untuk drag native (Windows).
+    pub fn left_mouse_down() -> bool {
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::UI::WindowsAndMessaging::{GetAsyncKeyState, VK_LBUTTON};
+            return GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0;
+        }
+        #[cfg(not(windows))]
+        false
+    }
+
     /// Area kerja monitor (di luar taskbar) tempat notch berada, dalam piksel fisik: lebar penuh monitor,
     /// vertikal mengikuti area kerja (sama dengan `monitor_work_area` di src-tauri/src/lib.rs).
     /// `near` = titik (mis. tengah posisi kustom) untuk memilih monitor; `None` = monitor utama.
@@ -1032,6 +1043,87 @@ fn main() -> Result<(), slint::PlatformError> {
                     hidden.set(false);
                 }
             }
+        });
+    }
+
+    // Drag native: polling pointer global agar seluruh permukaan Notch dapat dipindahkan
+    // tanpa WebView/Tauri. Ambang 3px membedakan klik biasa dari drag.
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        let mut was_down = false;
+        let mut drag: Option<((i32, i32), (i32, i32), bool)> = None;
+        let drag_timer = Timer::default();
+        drag_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let down = platform::left_mouse_down();
+            let cursor = platform::cursor_pos();
+            if down && !was_down {
+                if let Some((cx, cy)) = cursor {
+                    let p = w.window().position();
+                    let z = w.window().size();
+                    if cx >= p.x && cx < p.x + z.width as i32
+                        && cy >= p.y && cy < p.y + z.height as i32
+                        && !w.get_expanded()
+                        && !w.get_play_interaction_active()
+                    {
+                        drag = Some(((cx, cy), (p.x, p.y), false));
+                        w.set_play_interaction_active(true);
+                    }
+                }
+            }
+            if down {
+                if let (Some((cx, cy)), Some((start_cursor, start_window, moved))) = (cursor, drag) {
+                    let dx = cx - start_cursor.0;
+                    let dy = cy - start_cursor.1;
+                    let is_moved = moved || dx.abs() + dy.abs() >= 3;
+                    if is_moved {
+                        w.window().set_position(PhysicalPosition::new(start_window.0 + dx, start_window.1 + dy));
+                        drag = Some((start_cursor, start_window, true));
+                    }
+                }
+            } else if was_down {
+                if let Some((_, _, moved)) = drag.take() {
+                    if moved {
+                        if let Some((cx, cy)) = cursor {
+                            let work = platform::work_area(Some((cx, cy)));
+                            let size = w.window().size();
+                            let half_w = size.width as i32 / 2;
+                            let margin = 24;
+                            let (pos, mode) = if cx <= work.x + margin {
+                                ((layout::LEFT_TX, cy), "left")
+                            } else if cx >= work.x + work.w - margin {
+                                ((layout::RIGHT_TX, cy), "right")
+                            } else if cy >= work.y + work.h - margin {
+                                ((cx, layout::BOTTOM_TY), "bottom")
+                            } else if cy <= work.y + layout::TOP_SNAP + margin {
+                                ((cx, work.y), "top")
+                            } else {
+                                ((cx, cy - (size.height as i32 / 2)), "floating")
+                            };
+                            shell.pos.set(Some(pos));
+                            shell.memo.set((None, 0));
+                            shell.place(&w, COLLAPSED);
+                            let mut next = updated_config.clone();
+                            next.position.custom = true;
+                            next.position.x = pos.0;
+                            next.position.y = pos.1;
+                            if next.save(&config_path).is_ok() {
+                                updated_config = next;
+                            }
+                            w.set_position_mode(mode.into());
+                            w.set_play_interaction_active(false);
+                        } else {
+                            w.set_play_interaction_active(false);
+                        }
+                    } else {
+                        w.set_play_interaction_active(false);
+                    }
+                }
+            }
+            was_down = down;
         });
     }
 
