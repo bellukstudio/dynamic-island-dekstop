@@ -222,6 +222,102 @@ impl Prayer {
     }
 }
 
+/// Sapaan suara ketika aplikasi Notch mulai berjalan.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct Greeting {
+    pub enabled: bool,
+    pub mode: String,
+    pub custom_text: String,
+    pub voice: String,
+}
+impl Default for Greeting {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            mode: "random".into(),
+            custom_text: "Halo, semangat menjalani hari!".into(),
+            voice: "cewek".into(),
+        }
+    }
+}
+impl Greeting {
+    pub fn sanitize(&mut self) {
+        if !["random", "auto", "halo", "morning", "noon", "afternoon", "evening", "custom"].contains(&self.mode.as_str()) {
+            self.mode = Greeting::default().mode;
+        }
+        if !["cewek", "cowok", "anime-cewek", "anime-cowok", "system"].contains(&self.voice.as_str()) {
+            self.voice = Greeting::default().voice;
+        }
+        self.custom_text = self.custom_text.trim().chars().take(120).collect();
+        if self.custom_text.is_empty() {
+            self.custom_text = Greeting::default().custom_text;
+        }
+    }
+}
+
+/// Preferensi komentar otomatis berdasarkan aktivitas dan kondisi perangkat.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct ConversationMoments {
+    pub enabled: bool,
+    pub on_play: bool,
+    pub on_track_change: bool,
+    pub on_pause: bool,
+    pub on_return: bool,
+    pub on_weather_change: bool,
+    pub on_rain_soon: bool,
+    pub on_low_battery: bool,
+    pub on_charging: bool,
+    pub return_after_min: u32,
+    pub cooldown_min: u32,
+}
+impl Default for ConversationMoments {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            on_play: true,
+            on_track_change: true,
+            on_pause: false,
+            on_return: true,
+            on_weather_change: true,
+            on_rain_soon: true,
+            on_low_battery: true,
+            on_charging: false,
+            return_after_min: 10,
+            cooldown_min: 3,
+        }
+    }
+}
+impl ConversationMoments {
+    pub fn sanitize(&mut self) {
+        self.return_after_min = self.return_after_min.clamp(5, 120);
+        self.cooldown_min = self.cooldown_min.clamp(1, 60);
+    }
+}
+
+/// Momen ketika Focus Companion memberi dorongan selama sesi Pomodoro.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct FocusCompanion {
+    pub enabled: bool,
+    pub on_start: bool,
+    pub on_halfway: bool,
+    pub on_focus_complete: bool,
+    pub on_break_end: bool,
+}
+impl Default for FocusCompanion {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            on_start: true,
+            on_halfway: true,
+            on_focus_complete: true,
+            on_break_end: true,
+        }
+    }
+}
+
 // Naikkan angka ini setiap kali ada fitur baru yang perlu dinyalakan untuk config lama.
 pub const PAGES_VERSION: u32 = 7;
 // (nama fitur, versi PAGES_VERSION saat fitur itu ditambahkan).
@@ -348,6 +444,9 @@ pub struct Config {
     pub position: Position,
     pub prayer: Prayer,
     pub shortcuts: Shortcuts,
+    pub greeting: Greeting,
+    pub conversation_moments: ConversationMoments,
+    pub focus_companion: FocusCompanion,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -371,6 +470,9 @@ impl Default for Config {
             position: Position::default(),
             prayer: Prayer::default(),
             shortcuts: Shortcuts::default(),
+            greeting: Greeting::default(),
+            conversation_moments: ConversationMoments::default(),
+            focus_companion: FocusCompanion::default(),
         }
     }
 }
@@ -389,6 +491,8 @@ impl Config {
         self.prayer.sanitize();
         self.appearance.sanitize();
         self.shortcuts.sanitize();
+        self.greeting.sanitize();
+        self.conversation_moments.sanitize();
         migrate(self);
     }
 
