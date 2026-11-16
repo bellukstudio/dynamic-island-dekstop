@@ -601,8 +601,10 @@ impl<'a> Conv<'a> {
     }
 
     fn table(&mut self, t: Node, out: &mut Vec<Block>) {
+        const MAX_TABLE_COLS: usize = 1_024;
+        const MAX_TABLE_ROWS: usize = 100_000;
         let cols: Vec<f32> = kid(t, "tblGrid")
-            .map(|g| kids(g, "gridCol").iter().filter_map(|c| fnum(at(*c, "w"))).map(|v| v / 20.0).collect())
+            .map(|g| kids(g, "gridCol").iter().take(MAX_TABLE_COLS).filter_map(|c| fnum(at(*c, "w"))).map(|v| v / 20.0).collect())
             .unwrap_or_default();
         let mut borders = false;
         if let Some(pr) = kid(t, "tblPr") {
@@ -616,11 +618,11 @@ impl<'a> Conv<'a> {
             }
         }
         let mut rows = Vec::new();
-        for tr in kids(t, "tr") {
+        for tr in kids(t, "tr").into_iter().take(MAX_TABLE_ROWS) {
             let mut cells = Vec::new();
             for tc in kids(tr, "tc") {
                 let pr = kid(tc, "tcPr");
-                let span = pr.and_then(|p| kid(p, "gridSpan")).and_then(|g| at(g, "val")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1);
+                let span = pr.and_then(|p| kid(p, "gridSpan")).and_then(|g| at(g, "val")).and_then(|v| v.parse::<usize>().ok()).unwrap_or(1).clamp(1, MAX_TABLE_COLS);
                 let fill = pr.and_then(|p| kid(p, "shd")).and_then(|s| at(s, "fill")).and_then(|f| if f == "auto" { None } else { hex(f) });
                 let cont = pr.and_then(|p| kid(p, "vMerge")).map(|v| at(v, "val") != Some("restart")).unwrap_or(false);
                 if let Some(cb) = pr.and_then(|p| kid(p, "tcBorders")) {
