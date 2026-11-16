@@ -1898,8 +1898,8 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let percent = (index + 1) * 100 / total;
                     let progress_text = format!("{percent}% ({processed}/{total})");
-                    let queue_text = format!("{remaining} file menunggu");
                     let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
+                    let queue_text = format!("{remaining} file menunggu");
                     let elapsed = started.elapsed().as_secs_f64();
                     let eta_seconds = if index + 1 > 0 {
                         (elapsed / (index + 1) as f64 * remaining as f64).ceil() as u64
