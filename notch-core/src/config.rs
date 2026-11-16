@@ -570,6 +570,24 @@ mod tests {
     }
 
     #[test]
+    fn automation_preferences_have_defaults_and_sanitize_invalid_values() {
+        let defaults = Config::default();
+        assert_eq!(defaults.greeting.mode, "random");
+        assert_eq!(defaults.greeting.voice, "cewek");
+        assert!(defaults.conversation_moments.enabled);
+        assert!(defaults.focus_companion.enabled);
+
+        let mut configured: Config = toml::from_str(
+            "[greeting]\\nmode = \\"unknown\\"\\nvoice = \\"unknown\\"\\n[conversation_moments]\\nreturn_after_min = 0\\ncooldown_min = 90\\n",
+        ).unwrap();
+        configured.normalize();
+        assert_eq!(configured.greeting.mode, "random");
+        assert_eq!(configured.greeting.voice, "cewek");
+        assert_eq!(configured.conversation_moments.return_after_min, 5);
+        assert_eq!(configured.conversation_moments.cooldown_min, 60);
+    }
+
+    #[test]
     fn nudge_until_move_defaults_off_and_can_be_loaded() {
         let defaults: Config = toml::from_str("").unwrap();
         assert!(!defaults.nudge.until_move);
