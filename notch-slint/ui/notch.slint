@@ -2316,6 +2316,8 @@ export component NotchWindow inherits Window {
     in property <string> eyes-mood: "normal";
     in property <float> eyes-offset-x: 0;
     in property <float> eyes-offset-y: 0;
+    in property <float> eyes-scale-x: 1.0;
+    in property <float> eyes-scale-y: 1.0;
 
     in property <float> cpu: 0;
     in property <float> ram: 0;
@@ -2670,10 +2672,10 @@ export component NotchWindow inherits Window {
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
             Image {
                 source: root.eyes-image;
-                x: (root.dock >= 3 ? 0px : (parent.width - 130px) / 2) + root.eyes-offset-x * 1px;
+                x: (root.dock >= 3 ? 0px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
                 y: root.eyes-offset-y * 1px;
-                width: root.dock >= 3 ? 34px : 130px;
-                height: root.dock >= 3 ? 130px : 34px;
+                width: (root.dock >= 3 ? 34px : 130px) * root.eyes-scale-x;
+                height: (root.dock >= 3 ? 130px : 34px) * root.eyes-scale-y;
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
