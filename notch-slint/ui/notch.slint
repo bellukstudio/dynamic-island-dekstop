@@ -1273,7 +1273,7 @@ component CompressPage inherits VerticalLayout {
 component ConvertPage inherits VerticalLayout {
     in property <string> file-path: "";
     in property <string> target-format: "png";
-    in property <string> status: "Pilih gambar untuk dikonversi";
+    in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
     callback run(string, string);
     callback pick-file();
     alignment: start;
