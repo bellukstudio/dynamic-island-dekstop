@@ -1443,7 +1443,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
-                .add_filter("Gambar", &["jpg", "jpeg", "png", "webp", "bmp", "gif"])
+                .add_filter("Gambar & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "docx", "xlsx", "pptx"])
                 .pick_file();
             if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
                 w.set_convert_selected_path(path.to_string_lossy().to_string().into());
@@ -1458,7 +1458,12 @@ fn main() -> Result<(), slint::PlatformError> {
             let format = raw_format.to_string();
             let weak = weak.clone();
             std::thread::spawn(move || {
-                let result = convert::convert_image(std::path::Path::new(&path), &format);
+                let source = std::path::Path::new(&path);
+                let result = if format.eq_ignore_ascii_case("pdf") {
+                    convert::convert_office_to_pdf(source)
+                } else {
+                    convert::convert_image(source, &format)
+                };
                 let message = match result {
                     Ok(output) => format!("Konversi selesai: {}", output.display()),
                     Err(error) => format!("Gagal: {error}"),
