@@ -4225,13 +4225,37 @@ fn main() -> Result<(), slint::PlatformError> {
 
             if blocked {
                 active = None;
-                w.set_play_offset(0.0);
-                w.set_play_body_scale_x(1.0);
-                w.set_play_body_scale_y(1.0);
-                w.set_eyes_offset_x(0.0);
-                w.set_eyes_offset_y(0.0);
-                w.set_eyes_scale_x(1.0);
-                w.set_eyes_scale_y(1.0);
+                // Hover, panel, meeting, Adzan, atau saklar mati menghentikan trik baru,
+                // tetapi badan kembali netral dengan redaman agar tidak tersentak.
+                let dt = now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.001, 0.05);
+                last_frame = now;
+                let steps = (dt / 0.008).ceil().clamp(1.0, 8.0) as u32;
+                let h = dt / steps as f32;
+                for _ in 0..steps {
+                    spring_offset.1 += (-105.0 * spring_offset.0 - 17.0 * spring_offset.1) * h;
+                    spring_offset.0 += spring_offset.1 * h;
+                    spring_sx.1 += (-165.0 * spring_sx.0 - 20.0 * spring_sx.1) * h;
+                    spring_sx.0 += spring_sx.1 * h;
+                    spring_sy.1 += (-165.0 * spring_sy.0 - 20.0 * spring_sy.1) * h;
+                    spring_sy.0 += spring_sy.1 * h;
+                }
+                let ox = spring_offset.0.clamp(-90.0, 90.0);
+                let sx = (1.0 + spring_sx.0).clamp(0.78, 1.25);
+                let sy = (1.0 + spring_sy.0).clamp(0.78, 1.45);
+                let side = dock == 3 || dock == 4;
+                w.set_play_offset(ox);
+                w.set_play_body_scale_x(sx);
+                w.set_play_body_scale_y(sy);
+                w.set_eyes_offset_x(if side { 0.0 } else { ox * 0.10 });
+                w.set_eyes_offset_y(if side { ox * 0.10 } else { 0.0 });
+                w.set_eyes_scale_x(sx);
+                w.set_eyes_scale_y(sy);
+                if ox.abs() < 0.08 && spring_offset.1.abs() < 0.5
+                    && spring_sx.0.abs() < 0.001 && spring_sy.0.abs() < 0.001 {
+                    spring_offset = (0.0, 0.0);
+                    spring_sx = (0.0, 0.0);
+                    spring_sy = (0.0, 0.0);
+                }
                 next_at = now + Duration::from_secs(3);
                 return;
             }
