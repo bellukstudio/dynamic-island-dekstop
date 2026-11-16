@@ -1444,7 +1444,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
-    let convert_last_output = Rc::new(RefCell::new(None::<std::path::PathBuf>));
+    let convert_last_output = std::sync::Arc::new(std::sync::Mutex::new(None::<std::path::PathBuf>));
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1482,7 +1482,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 return;
             }
-            *last_output.borrow_mut() = None;
+            *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let total = paths.len();
@@ -1513,7 +1513,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
-                            *last_output.borrow_mut() = Some(output.clone());
+                            *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(output.clone());
                             outputs.push(format!("{} ({detail})", output.display()));
                         }
                         Err(error) => failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))),
@@ -1538,7 +1538,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let last_output = convert_last_output.clone();
         let weak = win.as_weak();
         win.on_convert_reveal(move || {
-            let output = last_output.borrow().clone();
+            let output = last_output.lock().unwrap_or_else(|error| error.into_inner()).clone();
             if let Some(output) = output {
                 let folder = output.parent().unwrap_or_else(|| std::path::Path::new("."));
                 if let Err(error) = transfer::open_inbox(folder) {
