@@ -238,6 +238,25 @@ mod tests {
     }
 
     #[test]
+    fn converts_transparent_png_to_jpeg_and_keeps_both_outputs() {
+        let directory = std::env::temp_dir().join(format!("notch-convert-image-test-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let source = directory.join("transparent.png");
+        let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            8, 8, image::Rgba([200, 40, 20, 0]),
+        ));
+        image.save(&source).unwrap();
+
+        let first = super::convert_image(&source, "jpg").unwrap();
+        let second = super::convert_image(&source, "jpg").unwrap();
+        assert_ne!(first, second);
+        assert!(std::fs::read(&first).unwrap().starts_with(&[0xff, 0xd8]));
+        assert!(std::fs::read(&second).unwrap().starts_with(&[0xff, 0xd8]));
+
+        let _ = std::fs::remove_dir_all(directory);
+    }
+
+    #[test]
     fn converted_outputs_get_unique_names_instead_of_overwriting() {
         let directory = std::env::temp_dir().join(format!("notch-convert-test-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
