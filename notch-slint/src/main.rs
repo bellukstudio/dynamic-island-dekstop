@@ -777,14 +777,18 @@ fn main() -> Result<(), slint::PlatformError> {
     let prayer_busy=Arc::new(AtomicBool::new(false));let prayer_data=Arc::new(Mutex::new(PrayerSchedule::default()));
     let prayer_fired=Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
     let weather_busy = Arc::new(AtomicBool::new(false));
+    let weather_location = Rc::new(RefCell::new((cfg.weather.lat, cfg.weather.lon, cfg.weather.city.clone())));
     win.set_weather_city(cfg.weather.city.clone().into());
+    win.set_weather_lat(cfg.weather.lat.to_string().into());
+    win.set_weather_lon(cfg.weather.lon.to_string().into());
     win.set_weather_status("Cuaca dimuat saat halaman dibuka".into());
     {
         let weak = win.as_weak();
         let busy = weather_busy.clone();
-        let (lat, lon, city) = (cfg.weather.lat, cfg.weather.lon, cfg.weather.city.clone());
+        let location = weather_location.clone();
         win.on_weather_refresh(move || {
-            refresh_weather(weak.clone(), busy.clone(), lat, lon, city.clone());
+            let (lat, lon, city) = location.borrow().clone();
+            refresh_weather(weak.clone(), busy.clone(), lat, lon, city);
         });
     }
     let quick_busy = Arc::new(AtomicBool::new(false));
@@ -801,7 +805,7 @@ fn main() -> Result<(), slint::PlatformError> {
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
         let (clipboard_model, clipboard_monitor) = (clipboard_model.clone(), clipboard_monitor.clone());
         let weather_busy = weather_busy.clone();
-        let (weather_lat, weather_lon, weather_city) = (cfg.weather.lat, cfg.weather.lon, cfg.weather.city.clone());
+        let weather_location = weather_location.clone();
         let quick_busy = quick_busy.clone();
         let keep_awake = keep_awake.clone();
         Rc::new(move || {
@@ -880,12 +884,12 @@ fn main() -> Result<(), slint::PlatformError> {
             // Cuaca: ambil data saat halaman terlihat, lalu perbarui tiap lima menit.
             if visible && page == "weather" {
                 if !weather_timer.running() {
-                    refresh_weather(weak.clone(), weather_busy.clone(), weather_lat, weather_lon, weather_city.clone());
+                    let (lat, lon, city) = weather_location.borrow().clone();
+                    refresh_weather(weak.clone(), weather_busy.clone(), lat, lon, city.clone());
                     let weak_w = weak.clone();
                     let busy_w = weather_busy.clone();
-                    let city_w = weather_city.clone();
                     weather_timer.start(TimerMode::Repeated, Duration::from_secs(5 * 60), move || {
-                        refresh_weather(weak_w.clone(), busy_w.clone(), weather_lat, weather_lon, city_w.clone());
+                        refresh_weather(weak_w.clone(), busy_w.clone(), lat, lon, city.clone());
                     });
                 }
             } else {
@@ -1621,6 +1625,47 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let weak = win.as_weak();
+        let location = weather_location.clone();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_weather(move |city, lat, lon| {
+            let city = city.to_string().trim().to_string();
+            let Some(lat) = lat.to_string().trim().parse::<f64>().ok().filter(|v| v.is_finite() && (-90.0..=90.0).contains(v)) else {
+                if let Some(w) = weak.upgrade() { w.set_weather_save_status("Latitude harus angka antara -90 dan 90.".into()); }
+                return;
+            };
+            let Some(lon) = lon.to_string().trim().parse::<f64>().ok().filter(|v| v.is_finite() && (-180.0..=180.0).contains(v)) else {
+                if let Some(w) = weak.upgrade() { w.set_weather_save_status("Longitude harus angka antara -180 dan 180.".into()); }
+                return;
+            };
+            if city.is_empty() || city.len() > 80 {
+                if let Some(w) = weak.upgrade() { w.set_weather_save_status("Nama kota wajib diisi (maksimal 80 karakter).".into()); }
+                return;
+            }
+            let mut next = updated_config.clone();
+            next.weather.city = city.clone();
+            next.weather.lat = lat;
+            next.weather.lon = lon;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next;
+                    *location.borrow_mut() = (lat, lon, city.clone());
+                    if let Some(w) = weak.upgrade() {
+                        w.set_weather_city(city.clone().into());
+                        w.set_weather_lat(lat.to_string().into());
+                        w.set_weather_lon(lon.to_string().into());
+                        w.set_weather_save_status("Lokasi tersimpan. Memperbarui cuaca...".into());
+                        w.invoke_weather_refresh();
+                    }
+                }
+                Err(error) => if let Some(w) = weak.upgrade() {
+                    w.set_weather_save_status(format!("Gagal menyimpan: {error}").into());
+                }
+            }
+        });
+    }
     {
         let weak = win.as_weak();
         let shell = shell.clone();
