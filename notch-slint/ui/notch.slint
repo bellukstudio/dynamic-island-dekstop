@@ -1168,9 +1168,35 @@ component SettingsPage inherits VerticalLayout {
     in property <bool> nudge-only-silent: true;
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
+    in property <bool> greeting-enabled: true;
+    in property <string> greeting-mode: "random";
+    in property <string> greeting-voice: "cewek";
+    in property <string> greeting-custom-text: "Halo, semangat menjalani hari!";
+    in property <string> greeting-save-status: "";
+    in property <bool> conversation-enabled: true;
+    in property <bool> conversation-on-play: true;
+    in property <bool> conversation-on-track-change: true;
+    in property <bool> conversation-on-pause: false;
+    in property <bool> conversation-on-return: true;
+    in property <bool> conversation-on-weather-change: true;
+    in property <bool> conversation-on-rain-soon: true;
+    in property <bool> conversation-on-low-battery: true;
+    in property <bool> conversation-on-charging: false;
+    in property <string> conversation-return-after-min: "10";
+    in property <string> conversation-cooldown-min: "3";
+    in property <string> conversation-save-status: "";
+    in property <bool> focus-companion-enabled: true;
+    in property <bool> focus-companion-on-start: true;
+    in property <bool> focus-companion-on-halfway: true;
+    in property <bool> focus-companion-on-focus-complete: true;
+    in property <bool> focus-companion-on-break-end: true;
+    in property <string> focus-companion-save-status: "";
     callback save-motion(bool, string, string);
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
     callback test-nudge();
+    callback save-greeting(bool, string, string, string);
+    callback save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
+    callback save-focus-companion(bool, bool, bool, bool, bool);
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
@@ -1535,6 +1561,111 @@ component SettingsPage inherits VerticalLayout {
                 } }
             }
             Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Greeting suara saat Notch dimulai"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 6px;
+            greeting-enabled-input := TextInput { text: root.greeting-enabled ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Aktifkan greeting suara"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: greeting-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: greeting-enabled-input.text == "true"; clicked => { greeting-enabled-input.text = greeting-enabled-input.text == "true" ? "false" : "true"; } }
+            }
+            greeting-mode-input := TextInput { text: root.greeting-mode; visible: false; }
+            Text { text: "Mode sapaan"; color: Theme.text-faint; font-size: 9px; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Acak lucu"; selected: greeting-mode-input.text == "random"; clicked => { greeting-mode-input.text = "random"; } }
+                Chip { label: "Otomatis"; selected: greeting-mode-input.text == "auto"; clicked => { greeting-mode-input.text = "auto"; } }
+                Chip { label: "Halo"; selected: greeting-mode-input.text == "halo"; clicked => { greeting-mode-input.text = "halo"; } }
+                Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Siang"; selected: greeting-mode-input.text == "noon"; clicked => { greeting-mode-input.text = "noon"; } }
+                Chip { label: "Sore"; selected: greeting-mode-input.text == "afternoon"; clicked => { greeting-mode-input.text = "afternoon"; } }
+                Chip { label: "Malam"; selected: greeting-mode-input.text == "evening"; clicked => { greeting-mode-input.text = "evening"; } }
+                Chip { label: "Custom"; selected: greeting-mode-input.text == "custom"; clicked => { greeting-mode-input.text = "custom"; } }
+            }
+            greeting-voice-input := TextInput { text: root.greeting-voice; visible: false; }
+            Text { text: "Mode suara"; color: Theme.text-faint; font-size: 9px; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Cewek"; selected: greeting-voice-input.text == "cewek"; clicked => { greeting-voice-input.text = "cewek"; } }
+                Chip { label: "Cowok"; selected: greeting-voice-input.text == "cowok"; clicked => { greeting-voice-input.text = "cowok"; } }
+                Chip { label: "Anime cewek"; selected: greeting-voice-input.text == "anime-cewek"; clicked => { greeting-voice-input.text = "anime-cewek"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Anime cowok"; selected: greeting-voice-input.text == "anime-cowok"; clicked => { greeting-voice-input.text = "anime-cowok"; } }
+                Chip { label: "Suara sistem"; selected: greeting-voice-input.text == "system"; clicked => { greeting-voice-input.text = "system"; } }
+            }
+            Text { text: "Teks kustom (maks. 120 karakter)"; color: Theme.text-faint; font-size: 9px; }
+            greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
+            Chip { label: "Simpan pengaturan greeting"; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
+            Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Conversation Moments"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 5px;
+            cm-enabled-input := TextInput { text: root.conversation-enabled ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Aktifkan komentar kontekstual"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: cm-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: cm-enabled-input.text == "true"; clicked => { cm-enabled-input.text = cm-enabled-input.text == "true" ? "false" : "true"; } }
+            }
+            cm-play-input := TextInput { text: root.conversation-on-play ? "true" : "false"; visible: false; }
+            cm-track-input := TextInput { text: root.conversation-on-track-change ? "true" : "false"; visible: false; }
+            cm-pause-input := TextInput { text: root.conversation-on-pause ? "true" : "false"; visible: false; }
+            cm-return-input := TextInput { text: root.conversation-on-return ? "true" : "false"; visible: false; }
+            cm-weather-input := TextInput { text: root.conversation-on-weather-change ? "true" : "false"; visible: false; }
+            cm-rain-input := TextInput { text: root.conversation-on-rain-soon ? "true" : "false"; visible: false; }
+            cm-battery-input := TextInput { text: root.conversation-on-low-battery ? "true" : "false"; visible: false; }
+            cm-charging-input := TextInput { text: root.conversation-on-charging ? "true" : "false"; visible: false; }
+            VerticalLayout {
+                spacing: 3px;
+                PageToggle { label: "Saat musik mulai diputar"; checked: cm-play-input.text == "true"; toggled(v) => { cm-play-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat lagu berganti"; checked: cm-track-input.text == "true"; toggled(v) => { cm-track-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat musik dijeda atau selesai"; checked: cm-pause-input.text == "true"; toggled(v) => { cm-pause-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat kembali setelah lama tidak aktif"; checked: cm-return-input.text == "true"; toggled(v) => { cm-return-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat kondisi cuaca berubah"; checked: cm-weather-input.text == "true"; toggled(v) => { cm-weather-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat hujan segera diperkirakan"; checked: cm-rain-input.text == "true"; toggled(v) => { cm-rain-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat baterai turun ke 15%"; checked: cm-battery-input.text == "true"; toggled(v) => { cm-battery-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat laptop mulai mengisi daya"; checked: cm-charging-input.text == "true"; toggled(v) => { cm-charging-input.text = v ? "true" : "false"; } }
+            }
+            Text { text: "Anggap kembali setelah (5–120 menit)"; color: Theme.text-faint; font-size: 9px; }
+            cm-return-min-input := TextInput { text: root.conversation-return-after-min; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Jeda antar komentar (1–60 menit)"; color: Theme.text-faint; font-size: 9px; }
+            cm-cooldown-input := TextInput { text: root.conversation-cooldown-min; color: Theme.text; font-size: 11px; single-line: true; }
+            Chip { label: "Simpan Conversation Moments"; clicked => {
+                root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
+            } }
+            Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Focus Companion"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 5px;
+            fc-enabled-input := TextInput { text: root.focus-companion-enabled ? "true" : "false"; visible: false; }
+            fc-start-input := TextInput { text: root.focus-companion-on-start ? "true" : "false"; visible: false; }
+            fc-halfway-input := TextInput { text: root.focus-companion-on-halfway ? "true" : "false"; visible: false; }
+            fc-complete-input := TextInput { text: root.focus-companion-on-focus-complete ? "true" : "false"; visible: false; }
+            fc-break-input := TextInput { text: root.focus-companion-on-break-end ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Aktifkan teman fokus Pomodoro"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: fc-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: fc-enabled-input.text == "true"; clicked => { fc-enabled-input.text = fc-enabled-input.text == "true" ? "false" : "true"; } }
+            }
+            VerticalLayout {
+                spacing: 3px;
+                PageToggle { label: "Saat sesi fokus dimulai"; checked: fc-start-input.text == "true"; toggled(v) => { fc-start-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat mencapai setengah sesi"; checked: fc-halfway-input.text == "true"; toggled(v) => { fc-halfway-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat sesi fokus selesai"; checked: fc-complete-input.text == "true"; toggled(v) => { fc-complete-input.text = v ? "true" : "false"; } }
+                PageToggle { label: "Saat waktu istirahat selesai"; checked: fc-break-input.text == "true"; toggled(v) => { fc-break-input.text = v ? "true" : "false"; } }
+            }
+            Chip { label: "Simpan Focus Companion"; clicked => {
+                root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
+            } }
+            Text { text: root.focus-companion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -2232,6 +2363,29 @@ export component NotchWindow inherits Window {
     in property <bool> nudge-only-silent: true;
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
+    in property <bool> greeting-enabled: true;
+    in property <string> greeting-mode: "random";
+    in property <string> greeting-voice: "cewek";
+    in property <string> greeting-custom-text: "Halo, semangat menjalani hari!";
+    in property <string> greeting-save-status: "";
+    in property <bool> conversation-enabled: true;
+    in property <bool> conversation-on-play: true;
+    in property <bool> conversation-on-track-change: true;
+    in property <bool> conversation-on-pause: false;
+    in property <bool> conversation-on-return: true;
+    in property <bool> conversation-on-weather-change: true;
+    in property <bool> conversation-on-rain-soon: true;
+    in property <bool> conversation-on-low-battery: true;
+    in property <bool> conversation-on-charging: false;
+    in property <string> conversation-return-after-min: "10";
+    in property <string> conversation-cooldown-min: "3";
+    in property <string> conversation-save-status: "";
+    in property <bool> focus-companion-enabled: true;
+    in property <bool> focus-companion-on-start: true;
+    in property <bool> focus-companion-on-halfway: true;
+    in property <bool> focus-companion-on-focus-complete: true;
+    in property <bool> focus-companion-on-break-end: true;
+    in property <string> focus-companion-save-status: "";
     in property <bool> nudge-visible: false;
     in property <string> nudge-detail: "";
     in property <string> position-mode: "top";
@@ -2255,6 +2409,9 @@ export component NotchWindow inherits Window {
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge();
+    callback settings-save-greeting(bool, string, string, string);
+    callback settings-save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
+    callback settings-save-focus-companion(bool, bool, bool, bool, bool);
     callback settings-save-position(string);
     in property <string> prayer-province: "Jawa Barat";
     in property <string> prayer-city: "Kota Bandung";
@@ -2760,8 +2917,34 @@ export component NotchWindow inherits Window {
                         nudge-only-silent: root.nudge-only-silent;
                         nudge-until-move: root.nudge-until-move;
                         nudge-save-status: root.nudge-save-status;
+                        greeting-enabled: root.greeting-enabled;
+                        greeting-mode: root.greeting-mode;
+                        greeting-voice: root.greeting-voice;
+                        greeting-custom-text: root.greeting-custom-text;
+                        greeting-save-status: root.greeting-save-status;
+                        conversation-enabled: root.conversation-enabled;
+                        conversation-on-play: root.conversation-on-play;
+                        conversation-on-track-change: root.conversation-on-track-change;
+                        conversation-on-pause: root.conversation-on-pause;
+                        conversation-on-return: root.conversation-on-return;
+                        conversation-on-weather-change: root.conversation-on-weather-change;
+                        conversation-on-rain-soon: root.conversation-on-rain-soon;
+                        conversation-on-low-battery: root.conversation-on-low-battery;
+                        conversation-on-charging: root.conversation-on-charging;
+                        conversation-return-after-min: root.conversation-return-after-min;
+                        conversation-cooldown-min: root.conversation-cooldown-min;
+                        conversation-save-status: root.conversation-save-status;
+                        focus-companion-enabled: root.focus-companion-enabled;
+                        focus-companion-on-start: root.focus-companion-on-start;
+                        focus-companion-on-halfway: root.focus-companion-on-halfway;
+                        focus-companion-on-focus-complete: root.focus-companion-on-focus-complete;
+                        focus-companion-on-break-end: root.focus-companion-on-break-end;
+                        focus-companion-save-status: root.focus-companion-save-status;
                         save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move); }
                         test-nudge => { root.settings-test-nudge(); }
+                        save-greeting(enabled, mode, voice, custom-text) => { root.settings-save-greeting(enabled, mode, voice, custom-text); }
+                        save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown) => { root.settings-save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown); }
+                        save-focus-companion(enabled, start, halfway, complete, break-end) => { root.settings-save-focus-companion(enabled, start, halfway, complete, break-end); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
                         save-autostart(enabled) => { root.settings-save-autostart(enabled); }
