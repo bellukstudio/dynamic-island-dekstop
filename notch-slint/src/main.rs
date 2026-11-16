@@ -1468,8 +1468,8 @@ fn main() -> Result<(), slint::PlatformError> {
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
-            let quality = raw_quality.parse::<u8>().unwrap_or(85).clamp(40, 100);
-            let dpi = raw_dpi.parse::<u32>().unwrap_or(150).clamp(36, 400);
+            let quality = raw_quality.to_string().parse::<u8>().unwrap_or(85).clamp(40, 100);
+            let dpi = raw_dpi.to_string().parse::<u32>().unwrap_or(150).clamp(36, 400);
             let mut paths = selected_paths.borrow().clone();
             if paths.first().map(String::as_str) != Some(path.as_str()) {
                 paths = vec![path];
