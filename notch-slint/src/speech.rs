@@ -34,7 +34,6 @@ try {{
   $synth.Speak('{safe_text}')
 }} finally {{ $synth.Dispose() }}
 "#);
-            use std::io::Write;
             use std::process::{Command, Stdio};
             let encoded = {
                 let mut bytes = Vec::with_capacity(script.len() * 2);
