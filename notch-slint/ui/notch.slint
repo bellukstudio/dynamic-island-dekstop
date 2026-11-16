@@ -198,6 +198,7 @@ component MediaPlayer inherits HorizontalLayout {
     callback prev;
     callback toggle;
     callback next;
+    callback seek(float);
     callback open-lyrics;
 
     spacing: 18px;
@@ -238,15 +239,23 @@ component MediaPlayer inherits HorizontalLayout {
             Text { text: root.pos-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
             Rectangle {
                 horizontal-stretch: 1;
-                height: 4px;
+                height: 12px;
                 y: (parent.height - self.height) / 2;
-                border-radius: 2px;
-                background: Theme.track;
+                background: transparent;
                 Rectangle {
-                    width: parent.width * clamp(root.progress, 0, 1);
-                    height: parent.height;
+                    y: 4px;
+                    height: 4px;
                     border-radius: 2px;
-                    background: Theme.text;
+                    background: Theme.track;
+                    Rectangle {
+                        width: parent.width * clamp(root.progress, 0, 1);
+                        height: parent.height;
+                        border-radius: 2px;
+                        background: Theme.text;
+                    }
+                }
+                TouchArea {
+                    clicked => { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); }
                 }
             }
             Text { text: root.dur-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
@@ -323,11 +332,13 @@ component MediaPage inherits Rectangle {
     callback prev;
     callback toggle;
     callback next;
+    callback seek(float);
     MediaPlayer {
         visible: !root.lyrics-open;
         art: root.art; has-art: root.has-art; title: root.title; artist: root.artist;
         pos-text: root.pos-text; dur-text: root.dur-text; progress: root.progress; playing: root.playing;
         prev => { root.prev(); } toggle => { root.toggle(); } next => { root.next(); }
+        seek(v) => { root.seek(v); }
         open-lyrics => { root.lyrics-open = true; }
     }
     if root.lyrics-open: LyricsPanel {
@@ -1249,6 +1260,7 @@ export component NotchWindow inherits Window {
                         art: root.media-art; has-art: root.media-has-art; title: root.media-title; artist: root.media-artist;
                         pos-text: root.media-pos-text; dur-text: root.media-dur-text; progress: root.media-progress; playing: root.media-playing;
                         prev => { root.media-control("prev"); } toggle => { root.media-control("toggle"); } next => { root.media-control("next"); }
+                        seek(v) => { root.media-seek(v * root.media-length); }
                     }
                     if root.page-id == "clock" && !root.cal-open: ClockPage {
                         clock-text: root.clock-text;
