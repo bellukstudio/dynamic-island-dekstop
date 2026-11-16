@@ -2210,7 +2210,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(item) = statuses.lock().unwrap_or_else(|error| error.into_inner()).iter_mut().find(|(item_path, _)| item_path == &path) {
                     item.1 = "Dibatalkan".to_string();
                 }
-                format!("File {} dibatalkan dari antrean", std::path::Path::new(&path).file_name().unwrap_or_default().to_string_lossy())
+                format!("File {} dibatalkan dari antrean", std::path::Path::new(&path).file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))
             } else {
                 let active = active_file.lock().unwrap_or_else(|error| error.into_inner()).clone();
                 if let Some(path) = active.filter(|path| matches_name(path)) {
