@@ -4059,13 +4059,15 @@ fn main() -> Result<(), slint::PlatformError> {
             let cfg = config.borrow();
             let mut state = state_tick.borrow_mut();
             if last_move > state.1 + 0.001 {
-                let was_visible = state.0 && w.get_nudge_visible();
+                // Sapaan balik ditampilkan setiap kali periode diam berakhir dengan gerakan,
+                // termasuk bila kartu awal sudah tertutup otomatis (until_move = false).
+                let was_nudge_shown = state.0 && !state.3;
                 let was_return_card = state.3;
                 state.0 = false;
                 state.1 = last_move;
                 state.2 = 0.0;
                 state.3 = false;
-                if was_visible && !was_return_card && cfg.enabled && cfg.until_move {
+                if was_nudge_shown && !was_return_card && cfg.enabled {
                     state.0 = true;
                     state.2 = elapsed;
                     state.3 = true;
