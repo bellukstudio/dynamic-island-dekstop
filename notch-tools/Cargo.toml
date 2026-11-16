@@ -6,3 +6,8 @@ description = "Shared, UI-independent image and document tools for WellNotch"
 
 [dependencies]
 image = { version = "0.25.5", default-features = false, features = ["jpeg", "png", "webp", "bmp", "gif"] }
+zip = "2"
+lopdf = "0.34"
+roxmltree = "0.20"
+ttf-parser = "0.25"
+subsetter = "0.2"
