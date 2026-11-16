@@ -317,12 +317,13 @@ fn write_font(doc: &mut Document, fi: usize, face: &super::font::Face) -> Object
     }
 
     let subset = subsetter::subset(&face.data, 0, &rm).ok();
+    let was_subset = subset.is_some();
     let font_bytes = subset.unwrap_or_else(|| face.data.clone());
     let max_cid = face.used.keys().copied().max().unwrap_or(0) as usize;
     let mut cid_to_gid = vec![0u8; (max_cid + 1) * 2];
 
     for (cid, (gid, _)) in &face.used {
-        let mapped_gid = if subset.is_some() { rm.get(*gid).unwrap_or(0) } else { *gid };
+        let mapped_gid = if was_subset { rm.get(*gid).unwrap_or(0) } else { *gid };
         let offset = *cid as usize * 2;
         cid_to_gid[offset] = (mapped_gid >> 8) as u8;
         cid_to_gid[offset + 1] = (mapped_gid & 0xff) as u8;
