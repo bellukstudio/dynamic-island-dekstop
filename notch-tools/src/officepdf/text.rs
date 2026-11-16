@@ -353,7 +353,12 @@ pub const CELL_PAD_X: f32 = 5.0;
 pub const CELL_PAD_Y: f32 = 2.5;
 
 fn img_size(b: &ImgBlock, width: f32) -> (f32, f32) {
-    if b.w > width && b.w > 0.0 {
+    if !b.w.is_finite() || !b.h.is_finite() || !width.is_finite()
+        || b.w <= 0.0 || b.h <= 0.0 || width <= 0.0
+    {
+        return (0.0, 0.0);
+    }
+    if b.w > width {
         (width, b.h * width / b.w)
     } else {
         (b.w, b.h)
@@ -566,6 +571,30 @@ impl Flow {
                 x += w;
             }
             self.y += rh;
+        }
+    }
+}
+
+
+#[cfg(test)]
+mod image_layout_tests {
+    use super::{img_size, Align, ImgBlock};
+
+    #[test]
+    fn image_dimensions_are_scaled_to_available_width() {
+        let image = ImgBlock { idx: 0, w: 200.0, h: 100.0, align: Align::Left };
+        assert_eq!(img_size(&image, 100.0), (100.0, 50.0));
+    }
+
+    #[test]
+    fn invalid_image_dimensions_are_ignored() {
+        let invalid = [
+            ImgBlock { idx: 0, w: f32::NAN, h: 10.0, align: Align::Left },
+            ImgBlock { idx: 0, w: 10.0, h: f32::INFINITY, align: Align::Left },
+            ImgBlock { idx: 0, w: -1.0, h: 10.0, align: Align::Left },
+        ];
+        for image in invalid {
+            assert_eq!(img_size(&image, 100.0), (0.0, 0.0));
         }
     }
 }
