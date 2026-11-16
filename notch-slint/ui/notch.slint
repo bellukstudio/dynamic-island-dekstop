@@ -1307,6 +1307,7 @@ component ConvertPage inherits VerticalLayout {
         Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text, quality-input.text, dpi-input.text); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
+    Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
 }
 component TransferPage inherits VerticalLayout {
@@ -1701,7 +1702,8 @@ export component NotchWindow inherits Window {
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
     in property <string> compress-selected-path: "";
     in property <string> convert-selected-path: "";
-    in property <string> convert-status: "Pilih gambar untuk dikonversi";
+    in property <string> convert-status: "Pilih file untuk dikonversi";
+    in property <string> convert-progress-text: "";
     in property <string> transfer-status: "Server belum aktif";
     in property <string> transfer-address: "";
     in property <string> android-status: "Periksa perangkat Android";
