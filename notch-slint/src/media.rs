@@ -63,3 +63,27 @@ mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
+
+#[cfg(test)]
+mod tests {
+ use super::*;
+ #[test]
+ fn synced_lyrics_highlight_latest_timestamp() {
+  let lines=vec![Line{at:2.0,text:"one".into()},Line{at:5.0,text:"two".into()},Line{at:9.0,text:"three".into()}];
+  assert_eq!(active_lyric(&lines,1.0,20.0,true),-1);
+  assert_eq!(active_lyric(&lines,5.5,20.0,true),1);
+  assert_eq!(active_lyric(&lines,19.0,20.0,true),2);
+ }
+ #[test]
+ fn plain_lyrics_use_playback_fraction_without_claiming_sync() {
+  let lines=vec![Line{at:0.0,text:"one".into()},Line{at:0.0,text:"two".into()},Line{at:0.0,text:"three".into()},Line{at:0.0,text:"four".into()}];
+  assert_eq!(active_lyric(&lines,0.0,100.0,false),0);
+  assert_eq!(active_lyric(&lines,51.0,100.0,false),2);
+  assert_eq!(active_lyric(&lines,99.0,100.0,false),3);
+  assert_eq!(active_lyric(&lines,1.0,0.0,false),-1);
+ }
+ #[test]
+ fn empty_lyrics_have_no_active_line() {
+  assert_eq!(active_lyric(&[],10.0,100.0,true),-1);
+ }
+}
