@@ -2274,17 +2274,25 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
         let (weak, pomo) = (win.as_weak(), pomo.clone());
+        let focus_started = companion_focus_started.clone();
+        let halfway_shown = companion_halfway_shown.clone();
         win.on_reset_pomo(move || {
             let mut p = pomo.borrow_mut();
             p.reset();
+            focus_started.set(false);
+            halfway_shown.set(false);
             if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
         });
     }
     {
         let (weak, pomo) = (win.as_weak(), pomo.clone());
+        let focus_started = companion_focus_started.clone();
+        let halfway_shown = companion_halfway_shown.clone();
         win.on_skip_pomo(move || {
             let mut p = pomo.borrow_mut();
             p.skip();
+            focus_started.set(false);
+            halfway_shown.set(false);
             if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
         });
     }
