@@ -434,6 +434,7 @@ impl Flow {
     }
     pub fn page_break(&mut self, pdf: &mut Pdf) {
         if pdf.page_count() >= self.max_pages {
+            self.open = false;
             return;
         }
         pdf.new_page(self.pw, self.ph);
@@ -459,6 +460,9 @@ impl Flow {
         } else {
             self.ensure(pdf);
         }
+        if !self.open {
+            return;
+        }
         if !self.at_top() {
             self.y += p.before;
         }
@@ -466,6 +470,9 @@ impl Flow {
         for l in &lines {
             if self.y + l.h > self.bottom() + 0.5 && !self.at_top() {
                 self.page_break(pdf);
+                if !self.open {
+                    return;
+                }
             }
             draw_line(pdf, l, p.align, self.ml, self.y);
             self.y += l.h;
@@ -475,6 +482,9 @@ impl Flow {
 
     pub fn image(&mut self, pdf: &mut Pdf, i: &ImgBlock) {
         self.ensure(pdf);
+        if !self.open {
+            return;
+        }
         let avail = self.avail();
         let (mut w, mut h) = img_size(i, avail);
         let maxh = self.bottom() - self.mt;
@@ -484,6 +494,9 @@ impl Flow {
         }
         if self.y + h > self.bottom() + 0.5 && !self.at_top() {
             self.page_break(pdf);
+            if !self.open {
+                return;
+            }
         }
         let off = match i.align {
             Align::Center => (avail - w) / 2.0,
@@ -496,6 +509,9 @@ impl Flow {
 
     pub fn table(&mut self, pdf: &mut Pdf, t: &Table) {
         self.ensure(pdf);
+        if !self.open {
+            return;
+        }
         let avail = self.avail();
         let ncols = t.rows.iter().map(|r| r.iter().map(|c| c.span.max(1)).sum::<usize>()).max().unwrap_or(0);
         if ncols == 0 {
@@ -532,6 +548,9 @@ impl Flow {
             }
             if self.y + rh > self.bottom() + 0.5 && !self.at_top() {
                 self.page_break(pdf);
+                if !self.open {
+                    return;
+                }
             }
             let mut x = self.ml;
             for (c, w) in row.iter().zip(&widths) {
