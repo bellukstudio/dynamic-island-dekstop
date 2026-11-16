@@ -1955,12 +1955,14 @@ fn main() -> Result<(), slint::PlatformError> {
                             failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone())));
                         }
                     }
-                    let percent = (index + 1) * 100 / total;
-                    let progress_text = format!("{percent}% ({processed}/{total})");
+                    let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
+                    let effective_total = (processed + remaining).max(1);
+                    let percent = processed * 100 / effective_total;
+                    let progress_text = format!("{percent}% ({processed}/{effective_total})");
                     let queue_text = format_convert_queue(&queue.lock().unwrap_or_else(|error| error.into_inner()));
                     let elapsed = started.elapsed().as_secs_f64();
-                    let eta_seconds = if index + 1 > 0 {
-                        (elapsed / (index + 1) as f64 * remaining as f64).ceil() as u64
+                    let eta_seconds = if processed > 0 {
+                        (elapsed / processed as f64 * remaining as f64).ceil() as u64
                     } else { 0 };
                     let eta_text = if remaining == 0 { "Selesai".to_string() } else {
                         format!("Perkiraan tersisa {:02}:{:02}", eta_seconds / 60, eta_seconds % 60)
