@@ -6,6 +6,9 @@
 pub const BOTTOM_TY: i32 = 100_000;
 /// Jarak ke tepi atas (px) di bawah ini masih dianggap menempel di atas.
 pub const TOP_SNAP: i32 = 8;
+/// Sentinel posisi kustom untuk docking vertikal. `x` menyimpan sisi, `y` menyimpan pusat vertikal.
+pub const LEFT_TX: i32 = -100_000;
+pub const RIGHT_TX: i32 = 100_000;
 
 /// Area kerja monitor dalam piksel fisik: horizontal = lebar monitor penuh, vertikal = di luar taskbar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -25,6 +28,10 @@ pub enum Dock {
     Floating,
     /// Menempel di dasar layar: atas membulat, telinga di bawah.
     Bottom,
+    /// Menempel di sisi kiri: sisi kiri rata, mata disusun vertikal.
+    Left,
+    /// Menempel di sisi kanan: sisi kanan rata, mata disusun vertikal.
+    Right,
 }
 
 /// Hitung pojok kiri-atas jendela dan modenya.
@@ -32,6 +39,18 @@ pub enum Dock {
 pub fn place(work: &WorkArea, width: i32, height: i32, pos: Option<(i32, i32)>) -> ((i32, i32), Dock) {
     match pos {
         None => ((work.x + (work.w - width) / 2, work.y), Dock::Top),
+        Some((LEFT_TX, cy)) => {
+            let x = work.x;
+            let min_y = work.y + height / 2;
+            let max_y = (work.y + work.h - height / 2).max(min_y);
+            ( (x, cy.clamp(min_y, max_y) - height / 2), Dock::Left )
+        }
+        Some((RIGHT_TX, cy)) => {
+            let x = work.x + (work.w - width).max(0);
+            let min_y = work.y + height / 2;
+            let max_y = (work.y + work.h - height / 2).max(min_y);
+            ( (x, cy.clamp(min_y, max_y) - height / 2), Dock::Right )
+        }
         Some((cx, ty)) => {
             let half_w = width / 2;
             let min_x = work.x + half_w;
@@ -88,6 +107,13 @@ mod tests {
         let ((_, y), d) = place(&W, 600, 300, Some((960, BOTTOM_TY)));
         assert_eq!(d, Dock::Bottom);
         assert_eq!(y, 1040 - 300);
+    }
+
+    #[test]
+    fn side_docking_uses_vertical_center_and_screen_edge() {
+        assert_eq!(place(&W, 300, 262, Some((LEFT_TX, 520))), ((0, 389), Dock::Left));
+        assert_eq!(place(&W, 300, 262, Some((RIGHT_TX, 520))), ((1620, 389), Dock::Right));
+        assert_eq!(place(&W, 300, 262, Some((LEFT_TX, -500))), ((0, 0), Dock::Left));
     }
 
     #[test]
