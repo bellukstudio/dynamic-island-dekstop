@@ -589,6 +589,35 @@ mod tests {
     }
 
     #[test]
+    fn automation_preferences_round_trip_through_toml() {
+        let mut config = Config::default();
+        config.greeting.enabled = false;
+        config.greeting.mode = "custom".into();
+        config.greeting.voice = "anime-cowok".into();
+        config.greeting.custom_text = "Selamat bekerja!".into();
+        config.conversation_moments.enabled = false;
+        config.conversation_moments.on_track_change = false;
+        config.conversation_moments.return_after_min = 25;
+        config.conversation_moments.cooldown_min = 7;
+        config.focus_companion.enabled = false;
+        config.focus_companion.on_halfway = false;
+
+        let serialized = toml::to_string(&config).unwrap();
+        let restored: Config = toml::from_str(&serialized).unwrap();
+
+        assert!(!restored.greeting.enabled);
+        assert_eq!(restored.greeting.mode, "custom");
+        assert_eq!(restored.greeting.voice, "anime-cowok");
+        assert_eq!(restored.greeting.custom_text, "Selamat bekerja!");
+        assert!(!restored.conversation_moments.enabled);
+        assert!(!restored.conversation_moments.on_track_change);
+        assert_eq!(restored.conversation_moments.return_after_min, 25);
+        assert_eq!(restored.conversation_moments.cooldown_min, 7);
+        assert!(!restored.focus_companion.enabled);
+        assert!(!restored.focus_companion.on_halfway);
+    }
+
+    #[test]
     fn nudge_until_move_defaults_off_and_can_be_loaded() {
         let defaults: Config = toml::from_str("").unwrap();
         assert!(!defaults.nudge.until_move);
