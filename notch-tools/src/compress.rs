@@ -293,10 +293,299 @@ pub fn compress_office_file(path: &Path, target_reduction_percent: u8) -> Result
     Ok((output_path, original_size, output_size))
 }
 
+
+#[derive(Clone, Copy)]
+struct PdfProfile {
+    quality: u8,
+    scale: f32,
+    grayscale: bool,
+}
+
+const PDF_LADDER: [PdfProfile; 18] = [
+    PdfProfile { quality: 92, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 85, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 78, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 70, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 62, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 54, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 46, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 38, scale: 1.0, grayscale: false },
+    PdfProfile { quality: 50, scale: 0.8, grayscale: false },
+    PdfProfile { quality: 42, scale: 0.7, grayscale: false },
+    PdfProfile { quality: 40, scale: 0.6, grayscale: false },
+    PdfProfile { quality: 36, scale: 0.5, grayscale: false },
+    PdfProfile { quality: 32, scale: 0.4, grayscale: false },
+    PdfProfile { quality: 30, scale: 0.3, grayscale: false },
+    PdfProfile { quality: 35, scale: 0.4, grayscale: true },
+    PdfProfile { quality: 30, scale: 0.3, grayscale: true },
+    PdfProfile { quality: 25, scale: 0.25, grayscale: true },
+    PdfProfile { quality: 20, scale: 0.2, grayscale: true },
+];
+
+fn pdf_is_image_xobject(stream: &lopdf::Stream) -> bool {
+    matches!(stream.dict.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name.as_slice() == b"Image")
+}
+
+fn pdf_filter_names(stream: &lopdf::Stream) -> Vec<Vec<u8>> {
+    use lopdf::Object;
+    match stream.dict.get(b"Filter") {
+        Ok(Object::Name(name)) => vec![name.clone()],
+        Ok(Object::Array(items)) => items.iter()
+            .filter_map(|item| if let Object::Name(name) = item { Some(name.clone()) } else { None })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn pdf_dict_i64(dict: &lopdf::Dictionary, key: &[u8]) -> Option<i64> {
+    dict.get(key).ok()?.as_i64().ok()
+}
+
+fn pdf_components(doc: &lopdf::Document, dict: &lopdf::Dictionary) -> Option<usize> {
+    use lopdf::Object;
+    let color_space = dict.get(b"ColorSpace").ok()?;
+    let color_space = match color_space {
+        Object::Reference(id) => doc.get_object(*id).ok()?,
+        value => value,
+    };
+    match color_space {
+        Object::Name(name) => match name.as_slice() {
+            b"DeviceGray" => Some(1),
+            b"DeviceRGB" => Some(3),
+            _ => None,
+        },
+        Object::Array(items) if items.len() >= 2 => {
+            if !matches!(&items[0], Object::Name(name) if name.as_slice() == b"ICCBased") {
+                return None;
+            }
+            let profile = match &items[1] {
+                Object::Reference(id) => doc.get_object(*id).ok()?,
+                value => value,
+            };
+            if let Object::Stream(stream) = profile {
+                match pdf_dict_i64(&stream.dict, b"N")? {
+                    1 => Some(1),
+                    3 => Some(3),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+fn pdf_decode_params(doc: &lopdf::Document, stream: &lopdf::Stream) -> Option<lopdf::Dictionary> {
+    use lopdf::Object;
+    let value = stream.dict.get(b"DecodeParms").ok()?;
+    let value = match value {
+        Object::Reference(id) => doc.get_object(*id).ok()?,
+        value => value,
+    };
+    match value {
+        Object::Dictionary(dict) => Some(dict.clone()),
+        Object::Array(items) => match items.first()? {
+            Object::Dictionary(dict) => Some(dict.clone()),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn pdf_paeth(a: u8, b: u8, c: u8) -> u8 {
+    let (a, b, c) = (a as i32, b as i32, c as i32);
+    let predictor = a + b - c;
+    let (pa, pb, pc) = ((predictor - a).abs(), (predictor - b).abs(), (predictor - c).abs());
+    if pa <= pb && pa <= pc { a as u8 } else if pb <= pc { b as u8 } else { c as u8 }
+}
+
+fn pdf_unpredict_png(data: &[u8], bytes_per_pixel: usize, row_bytes: usize) -> Option<Vec<u8>> {
+    let stride = row_bytes.checked_add(1)?;
+    if row_bytes == 0 || data.len() < stride {
+        return None;
+    }
+    let rows = data.len() / stride;
+    let mut output = Vec::with_capacity(rows.checked_mul(row_bytes)?);
+    let mut previous = vec![0u8; row_bytes];
+    for row in 0..rows {
+        let filter = data[row * stride];
+        let mut line = data[row * stride + 1..(row + 1) * stride].to_vec();
+        match filter {
+            0 => {}
+            1 => for index in bytes_per_pixel..row_bytes {
+                line[index] = line[index].wrapping_add(line[index - bytes_per_pixel]);
+            },
+            2 => for index in 0..row_bytes {
+                line[index] = line[index].wrapping_add(previous[index]);
+            },
+            3 => for index in 0..row_bytes {
+                let left = if index >= bytes_per_pixel { line[index - bytes_per_pixel] as u16 } else { 0 };
+                line[index] = line[index].wrapping_add(((left + previous[index] as u16) / 2) as u8);
+            },
+            4 => for index in 0..row_bytes {
+                let left = if index >= bytes_per_pixel { line[index - bytes_per_pixel] } else { 0 };
+                let upper_left = if index >= bytes_per_pixel { previous[index - bytes_per_pixel] } else { 0 };
+                line[index] = line[index].wrapping_add(pdf_paeth(left, previous[index], upper_left));
+            },
+            _ => return None,
+        }
+        output.extend_from_slice(&line);
+        previous = line;
+    }
+    Some(output)
+}
+
+fn recode_pdf_image(
+    document: &lopdf::Document,
+    stream: &lopdf::Stream,
+    profile: PdfProfile,
+) -> Option<(Vec<u8>, u32, u32, bool)> {
+    use lopdf::Object;
+    if matches!(stream.dict.get(b"ImageMask"), Ok(Object::Boolean(true)))
+        || matches!(stream.dict.get(b"Mask"), Ok(Object::Array(_)))
+        || stream.dict.has(b"Decode")
+    {
+        return None;
+    }
+    let components = pdf_components(document, &stream.dict)?;
+    let filters = pdf_filter_names(stream);
+    let is_filter = |name: &[u8]| filters.len() == 1 && filters[0].as_slice() == name;
+
+    let image = if is_filter(b"DCTDecode") {
+        decode_image(&stream.content)?
+    } else if is_filter(b"FlateDecode") {
+        let width = pdf_dict_i64(&stream.dict, b"Width")? as usize;
+        let height = pdf_dict_i64(&stream.dict, b"Height")? as usize;
+        if pdf_dict_i64(&stream.dict, b"BitsPerComponent")? != 8 || width == 0 || height == 0 {
+            return None;
+        }
+        let mut raw = Vec::new();
+        flate2::read::ZlibDecoder::new(&stream.content[..]).read_to_end(&mut raw).ok()?;
+        if let Some(params) = pdf_decode_params(document, stream) {
+            let predictor = pdf_dict_i64(&params, b"Predictor").unwrap_or(1);
+            if predictor >= 10 {
+                let columns = pdf_dict_i64(&params, b"Columns").unwrap_or(1) as usize;
+                let colors = pdf_dict_i64(&params, b"Colors").unwrap_or(1) as usize;
+                let bits = pdf_dict_i64(&params, b"BitsPerComponent").unwrap_or(8);
+                if bits != 8 || colors != components || columns != width {
+                    return None;
+                }
+                raw = pdf_unpredict_png(&raw, components, width.checked_mul(components)?)?;
+            } else if predictor == 2 {
+                return None;
+            }
+        }
+        let expected = width.checked_mul(height)?.checked_mul(components)?;
+        if raw.len() < expected {
+            return None;
+        }
+        raw.truncate(expected);
+        if components == 1 {
+            image::DynamicImage::ImageLuma8(image::GrayImage::from_raw(width as u32, height as u32, raw)?)
+        } else {
+            image::DynamicImage::ImageRgb8(image::RgbImage::from_raw(width as u32, height as u32, raw)?)
+        }
+    } else {
+        return None;
+    };
+
+    let mut image = scaled(&image, profile.scale);
+    if profile.grayscale && image.color().has_color() {
+        image = image::DynamicImage::ImageLuma8(image.to_luma8());
+    }
+    let (width, height) = (image.width(), image.height());
+    let encoded = encode_jpeg(&image, profile.quality).ok()?;
+    if encoded.len() >= stream.content.len() {
+        return None;
+    }
+    Some((encoded, width, height, !image.color().has_color()))
+}
+
+fn compress_pdf_bytes(source: &[u8], profile: PdfProfile) -> Result<Vec<u8>, String> {
+    use lopdf::Object;
+    let mut document = lopdf::Document::load_mem(source)
+        .map_err(|error| format!("PDF tidak valid atau tidak dapat dibuka: {error}"))?;
+    let image_ids: Vec<lopdf::ObjectId> = document.objects.iter()
+        .filter_map(|(id, object)| match object {
+            Object::Stream(stream) if pdf_is_image_xobject(stream) => Some(*id),
+            _ => None,
+        })
+        .collect();
+    for id in image_ids {
+        let replacement = match document.objects.get(&id) {
+            Some(Object::Stream(stream)) => recode_pdf_image(&document, stream, profile),
+            _ => None,
+        };
+        if let Some((bytes, width, height, grayscale)) = replacement {
+            if let Some(Object::Stream(stream)) = document.objects.get_mut(&id) {
+                stream.set_content(bytes);
+                stream.dict.set("Width", Object::Integer(width as i64));
+                stream.dict.set("Height", Object::Integer(height as i64));
+                stream.dict.set("BitsPerComponent", Object::Integer(8));
+                stream.dict.set("Filter", Object::Name(b"DCTDecode".to_vec()));
+                stream.dict.remove(b"DecodeParms");
+                if grayscale {
+                    stream.dict.set("ColorSpace", Object::Name(b"DeviceGray".to_vec()));
+                }
+            }
+        }
+    }
+    document.prune_objects();
+    document.delete_zero_length_streams();
+    document.compress();
+    let mut output = Vec::new();
+    document.save_to(&mut output)
+        .map_err(|error| format!("Gagal menyimpan hasil kompresi PDF: {error}"))?;
+    Ok(output)
+}
+
+/// Compress embedded JPEG and supported Flate PDF images without rasterizing text or vector art.
+pub fn compress_pdf_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
+    if path.extension().and_then(|value| value.to_str()).unwrap_or("").eq_ignore_ascii_case("pdf") == false {
+        return Err("File bukan PDF".into());
+    }
+    let source = std::fs::read(path).map_err(|error| format!("Tidak bisa membaca PDF: {error}"))?;
+    if source.is_empty() {
+        return Err("File PDF kosong".into());
+    }
+    let original_size = source.len() as u64;
+    let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
+    let last = PDF_LADDER.len() - 1;
+    let worst = compress_pdf_bytes(&source, PDF_LADDER[last])?;
+    let selected = if worst.len() as u64 > target {
+        last
+    } else {
+        let (mut low, mut high) = (0usize, last);
+        while low < high {
+            let middle = (low + high) / 2;
+            let candidate = compress_pdf_bytes(&source, PDF_LADDER[middle])?;
+            if candidate.len() as u64 <= target {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+        low
+    };
+    let output = compress_pdf_bytes(&source, PDF_LADDER[selected])?;
+    if output.len() as u64 >= original_size {
+        return Err("PDF tidak dapat diperkecil dengan aman. Teks dan elemen vektor tetap dipertahankan.".into());
+    }
+    let output_path = unique_output(path, "pdf");
+    let output_size = output.len() as u64;
+    std::fs::write(&output_path, output)
+        .map_err(|error| format!("Gagal menyimpan hasil: {error}"))?;
+    Ok((output_path, original_size, output_size))
+}
+
+
 /// Compress a supported image or Office Open XML document.
 pub fn compress_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-    if matches!(ext.as_str(), "docx" | "xlsx" | "pptx") {
+    if ext == "pdf" {
+        compress_pdf_file(path, target_reduction_percent)
+    } else if matches!(ext.as_str(), "docx" | "xlsx" | "pptx") {
         compress_office_file(path, target_reduction_percent)
     } else {
         compress_image_file(path, target_reduction_percent)
