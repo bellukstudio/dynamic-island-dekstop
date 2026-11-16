@@ -321,7 +321,9 @@ fn write_font(doc: &mut Document, fi: usize, face: &super::font::Face) -> Object
     let mut desc = Dictionary::new();
     desc.set("Type", Object::Name(b"FontDescriptor".to_vec()));
     desc.set("FontName", Object::Name(base_name.clone().into_bytes()));
-    desc.set("Flags", Object::Integer(4));
+    // The embedded TrueType face uses a Unicode cmap and Identity-H encoding.
+    // Mark it as nonsymbolic so PDF readers apply normal Unicode font handling.
+    desc.set("Flags", Object::Integer(32));
     desc.set(
         "FontBBox",
         Object::Array(face.bbox.iter().map(|v| Object::Integer((*v as f32 * s).round() as i64)).collect()),
