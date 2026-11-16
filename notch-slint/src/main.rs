@@ -41,6 +41,64 @@ mod android_mirror;
 
 slint::include_modules!();
 
+fn convert_history_path() -> std::path::PathBuf {
+    notch_core::paths::data_file("convert-history.json")
+}
+
+fn load_convert_history() -> serde_json::Value {
+    std::fs::read_to_string(convert_history_path())
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .filter(serde_json::Value::is_array)
+        .unwrap_or_else(|| serde_json::json!([]))
+}
+
+fn format_convert_history() -> String {
+    let history = load_convert_history();
+    let Some(entries) = history.as_array() else { return "Belum ada riwayat konversi".into(); };
+    if entries.is_empty() { return "Belum ada riwayat konversi".into(); }
+    entries.iter().rev().take(8).map(|entry| {
+        let name = entry.get("name").and_then(serde_json::Value::as_str).unwrap_or("File");
+        let target = entry.get("target").and_then(serde_json::Value::as_str).unwrap_or("-");
+        let status = entry.get("status").and_then(serde_json::Value::as_str).unwrap_or("?");
+        let detail = entry.get("detail").and_then(serde_json::Value::as_str).unwrap_or("");
+        format!("{name} → {target} · {status}{detail}")
+    }).collect::<Vec<_>>().join("\\n")
+}
+
+fn record_convert_history(input: &str, output: Option<&std::path::Path>, target: &str, status: &str) {
+    let path = convert_history_path();
+    let mut history = load_convert_history();
+    let Some(entries) = history.as_array_mut() else { return; };
+    let name = std::path::Path::new(input).file_name()
+        .map(|value| value.to_string_lossy().into_owned())
+        .unwrap_or_else(|| input.to_string());
+    let output_text = output.map(|value| value.to_string_lossy().into_owned()).unwrap_or_default();
+    let detail = output.map(|value| {
+        std::fs::metadata(value).ok().map(|metadata| format!(" · {} KB", metadata.len() / 1024)).unwrap_or_default()
+    }).unwrap_or_default();
+    entries.push(serde_json::json!({
+        "timestamp": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|value| value.as_secs()).unwrap_or(0),
+        "name": name,
+        "output": output_text,
+        "target": target.to_ascii_uppercase(),
+        "status": status,
+        "detail": detail
+    }));
+    if entries.len() > 30 {
+        let excess = entries.len() - 30;
+        entries.drain(0..excess);
+    }
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    if let Ok(serialized) = serde_json::to_vec_pretty(&history) { let _ = std::fs::write(path, serialized); }
+}
+
+fn clear_convert_history() {
+    let path = convert_history_path();
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    let _ = std::fs::write(path, "[]");
+}
+
 // Ukuran jendela = pil + bahu melengkung (14 px kiri/kanan) + sedikit ruang animasi.
 const COLLAPSED: (u32, u32) = (162, 38);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
