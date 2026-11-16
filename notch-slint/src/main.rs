@@ -1055,6 +1055,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut updated_config = cfg.clone();
         let mut was_down = false;
         let mut drag: Option<((i32, i32), (i32, i32), bool)> = None;
+        let click_suppress_timer = Timer::default();
         let drag_timer = Timer::default();
         drag_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
@@ -1067,7 +1068,6 @@ fn main() -> Result<(), slint::PlatformError> {
                     if cx >= p.x && cx < p.x + z.width as i32
                         && cy >= p.y && cy < p.y + z.height as i32
                         && !w.get_expanded()
-                        && !w.get_play_interaction_active()
                     {
                         drag = Some(((cx, cy), (p.x, p.y), false));
                         w.set_play_interaction_active(true);
@@ -1088,9 +1088,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some((_, _, moved)) = drag.take() {
                     if moved {
                         if let Some((cx, cy)) = cursor {
+                            w.set_suppress_next_pill_click(true);
+                            let clear_weak = weak.clone();
+                            click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
+                                if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
+                            });
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
-                            let half_w = size.width as i32 / 2;
                             let margin = 24;
                             let (pos, mode) = if cx <= work.x + margin {
                                 ((layout::LEFT_TX, cy), "left")
