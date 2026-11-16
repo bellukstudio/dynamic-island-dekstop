@@ -164,6 +164,25 @@ mod tests {
     }
 
     #[test]
+    fn png_predictor_rejects_incomplete_rows() {
+        assert!(super::pdf_unpredict_png(&[0, 1, 2, 3, 4], 1, 2).is_none());
+    }
+
+    #[test]
+    fn png_predictor_decodes_up_filter() {
+        // Filter 2: each byte is the difference from the previous row.
+        let decoded = super::pdf_unpredict_png(&[2, 1, 2, 3, 4], 1, 2).unwrap();
+        assert_eq!(decoded, vec![1, 2, 4, 6]);
+    }
+
+    #[test]
+    fn png_predictor_decodes_sub_filter() {
+        // Filter 1: each byte after the first is the difference from its left byte.
+        let decoded = super::pdf_unpredict_png(&[1, 5, 2, 3], 1, 3).unwrap();
+        assert_eq!(decoded, vec![5, 7, 10]);
+    }
+
+    #[test]
     fn rejects_malformed_pdf_without_creating_an_output() {
         let path = std::env::temp_dir().join(format!("notch-tools-invalid-{}.pdf", std::process::id()));
         std::fs::write(&path, b"not a PDF").unwrap();
@@ -427,7 +446,7 @@ fn pdf_paeth(a: u8, b: u8, c: u8) -> u8 {
 
 fn pdf_unpredict_png(data: &[u8], bytes_per_pixel: usize, row_bytes: usize) -> Option<Vec<u8>> {
     let stride = row_bytes.checked_add(1)?;
-    if row_bytes == 0 || data.len() < stride {
+    if row_bytes == 0 || data.len() < stride || data.len() % stride != 0 {
         return None;
     }
     let rows = data.len() / stride;
@@ -504,10 +523,11 @@ fn recode_pdf_image(
             }
         }
         let expected = width.checked_mul(height)?.checked_mul(components)?;
-        if raw.len() < expected {
+        // Reject incomplete or unexpectedly padded decoded streams instead of silently
+        // truncating rows; unsupported/malformed image data is left untouched in the PDF.
+        if raw.len() != expected {
             return None;
         }
-        raw.truncate(expected);
         if components == 1 {
             image::DynamicImage::ImageLuma8(image::GrayImage::from_raw(width as u32, height as u32, raw)?)
         } else {
