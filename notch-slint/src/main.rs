@@ -1068,6 +1068,8 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_appearance_notch_theme(cfg.appearance.notch_theme.clone().into());
     win.set_appearance_mood(cfg.appearance.default_mood.clone().into());
     win.set_appearance_accent(cfg.appearance.accent.clone().into());
+    win.set_appearance_custom_bg(cfg.appearance.background.clone().into());
+    win.set_appearance_custom_text(cfg.appearance.text.clone().into());
     win.set_appearance_dark_bg(cfg.appearance.dark_bg.clone().into());
     win.set_appearance_light_bg(cfg.appearance.light_bg.clone().into());
     win.set_prayer_mode(cfg.prayer.mode.clone().into());
@@ -3141,19 +3143,21 @@ fn main() -> Result<(), slint::PlatformError> {
         let sleep_after_s = sleep_after_s.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, dark, light| {
+        win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, custom_bg, custom_text, dark, light| {
             let mut next = updated_config.clone();
             next.appearance.theme = theme.to_string();
             next.appearance.eye_theme = eye.to_string();
             next.appearance.notch_theme = notch.to_string();
             next.appearance.default_mood = mood.to_string();
             next.appearance.accent = accent.to_string();
+            next.appearance.background = custom_bg.to_string();
+            next.appearance.text = custom_text.to_string();
             next.appearance.dark_bg = dark.to_string();
             next.appearance.light_bg = light.to_string();
             next.normalize();
-            if !["auto", "dark", "light"].contains(&next.appearance.theme.as_str()) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Tema harus auto, dark, atau light".into()); } return; }
+            if !["auto", "dark", "light", "custom"].contains(&next.appearance.theme.as_str()) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Tema harus auto, dark, atau light".into()); } return; }
             let valid_hex = |v: &str| v.is_empty() || (v.len() == 7 && v.starts_with("#") && v[1..].bytes().all(|b| b.is_ascii_hexdigit()));
-            if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Warna harus memakai format HEX #RRGGBB".into()); } return; }
+            if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.background) || !valid_hex(&next.appearance.text) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Warna harus memakai format HEX #RRGGBB".into()); } return; }
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
@@ -3187,6 +3191,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_appearance_notch_theme(next.appearance.notch_theme.clone().into());
                         w.set_appearance_mood(next.appearance.default_mood.clone().into());
                         w.set_appearance_accent(next.appearance.accent.clone().into());
+                        w.set_appearance_custom_bg(next.appearance.background.clone().into());
+                        w.set_appearance_custom_text(next.appearance.text.clone().into());
                         w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into());
                         w.set_appearance_light_bg(next.appearance.light_bg.clone().into());
                         w.set_appearance_save_status("Tampilan tersimpan dan langsung diterapkan.".into());
