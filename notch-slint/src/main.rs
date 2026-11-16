@@ -167,6 +167,28 @@ fn convert_target_override(path: &std::path::Path, raw: &str) -> Option<String> 
     }).last()
 }
 
+
+fn move_convert_queue_item(queue: &mut std::collections::VecDeque<String>, raw_name: &str, direction: i32) -> bool {
+    let query = raw_name.trim().to_ascii_lowercase();
+    if query.is_empty() || direction == 0 { return false; }
+    let index = queue.iter().position(|path| {
+        let name = std::path::Path::new(path).file_name()
+            .map(|value| value.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+        name == query || path.to_ascii_lowercase() == query
+    });
+    let Some(index) = index else { return false; };
+    let target = if direction < 0 { index.checked_sub(1) } else if index + 1 < queue.len() { Some(index + 1) } else { None };
+    let Some(target) = target else { return false; };
+    queue.swap(index, target);
+    true
+}
+
+fn remove_finished_convert_statuses(statuses: &mut Vec<(String, String)>) -> usize {
+    let before = statuses.len();
+    statuses.retain(|(_, status)| status != "Berhasil" && status != "Dibatalkan" && status != "Dihapus" && status != "File tidak ditemukan");
+    before - statuses.len()
+}
+
 fn format_convert_file_statuses(statuses: &[(String, String)]) -> String {
     if statuses.is_empty() { return "Belum ada file dalam antrean".into(); }
     let lines = statuses.iter().take(10).map(|(path, status)| {
@@ -1808,6 +1830,45 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
+        let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
+        let running = convert_running.clone();
+        win.on_convert_add_files(move || {
+            let selected = rfd::FileDialog::new()
+                .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt", "csv"])
+                .pick_files().unwrap_or_default().into_iter()
+                .map(|path| path.to_string_lossy().to_string()).collect::<Vec<_>>();
+            if selected.is_empty() { return; }
+            let mut added = 0usize;
+            {
+                let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
+                let mut file_statuses = statuses.lock().unwrap_or_else(|error| error.into_inner());
+                for path in &selected {
+                    if pending.contains(path) || file_statuses.iter().any(|(known, status)| known == path && (status == "Menunggu" || status == "Diproses")) { continue; }
+                    pending.push_back(path.clone());
+                    file_statuses.push((path.clone(), "Menunggu".to_string()));
+                    added += 1;
+                }
+            }
+            if !running.load(std::sync::atomic::Ordering::Acquire) {
+                let mut chosen = selected_paths.borrow_mut();
+                for path in &selected {
+                    if !chosen.contains(path) { chosen.push(path.clone()); }
+                }
+            }
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
+            if let Some(w) = weak.upgrade() {
+                let all = selected_paths.borrow().clone();
+                if let Some(first) = all.first() { w.set_convert_selected_path(first.clone().into()); }
+                w.set_convert_files_text(format_convert_selection(&all).into());
+                w.set_convert_queue_text(format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner())).into());
+                w.set_convert_status(format!("{added} file baru ditambahkan ke antrean").into());
+            }
+        });
+    }
+    {
+        let weak = win.as_weak();
+        let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
         let preview_page = convert_preview_page.clone();
         let preview_dpi = convert_preview_dpi.clone();
@@ -2321,6 +2382,32 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_selected_path(matches[0].clone().into());
                 w.set_convert_files_text(format_convert_selection(&matches).into());
                 w.set_convert_status(format!("{} file cocok dimuat untuk retry. Tekan Konversi", matches.len()).into());
+            }
+        });
+    }
+    {
+        let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
+        let weak = win.as_weak();
+        win.on_convert_move_queue_file(move |raw_name, direction| {
+            let changed = move_convert_queue_item(&mut queue.lock().unwrap_or_else(|error| error.into_inner()), raw_name.as_str(), direction);
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_queue_text(format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner())).into());
+                w.set_convert_status(if changed { "Urutan antrean diperbarui".into() } else { "File tidak ditemukan atau sudah di batas antrean".into() });
+            }
+        });
+    }
+    {
+        let queue = convert_queue.clone();
+        let statuses = convert_file_statuses.clone();
+        let weak = win.as_weak();
+        win.on_convert_remove_finished(move || {
+            let removed = remove_finished_convert_statuses(&mut statuses.lock().unwrap_or_else(|error| error.into_inner()));
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &statuses.lock().unwrap_or_else(|error| error.into_inner()));
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_queue_text(format_convert_file_statuses(&statuses.lock().unwrap_or_else(|error| error.into_inner())).into());
+                w.set_convert_status(format!("{removed} file selesai/dibatalkan dibersihkan dari daftar").into());
             }
         });
     }
