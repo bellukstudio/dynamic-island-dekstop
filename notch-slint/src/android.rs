@@ -25,7 +25,7 @@ impl AndroidState {
             Ok(devices) if devices.is_empty() => "Belum ada perangkat. Aktifkan USB debugging dan izinkan komputer ini.".into(),
             Ok(devices) => {
                 let mut lines = Vec::new();
-                for d in devices {
+                for d in &devices {
                     lines.push(format!("{} | {} | {}{}", d.serial, d.model, d.state, if d.wifi { " | Wi-Fi" } else { "" }));
                 }
                 if self.serial.is_empty() {
