@@ -1039,6 +1039,9 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_open(cfg.timing.hover_open_ms.to_string().into());
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
+    win.set_motion_enabled(cfg.motion.enabled);
+    win.set_motion_interval(cfg.motion.interval_secs.to_string().into());
+    win.set_motion_max_moves(cfg.motion.max_moves.to_string().into());
     win.set_hub_pages(cfg.pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
@@ -3050,6 +3053,46 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_motion(move |enabled, interval, maximum| {
+            let interval = interval.parse::<u32>().ok().filter(|v| (60..=3600).contains(v));
+            let maximum = maximum.parse::<u32>().ok().filter(|v| (1..=10).contains(v));
+            let (Some(interval), Some(maximum)) = (interval, maximum) else {
+                if let Some(w) = weak.upgrade() {
+                    w.set_motion_save_status("Interval harus 60–3600 detik dan batas perpindahan 1–10.".into());
+                }
+                return;
+            };
+            let mut next = updated_config.clone();
+            next.motion.enabled = enabled;
+            next.motion.interval_secs = interval;
+            next.motion.max_moves = maximum;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next;
+                    if let Some(w) = weak.upgrade() {
+                        w.set_motion_enabled(enabled);
+                        w.set_motion_interval(interval.to_string().into());
+                        w.set_motion_max_moves(maximum.to_string().into());
+                        w.set_motion_save_status(if enabled {
+                            "Liquid movement tersimpan. Pengaturan baru berlaku setelah aplikasi dimulai ulang.".into()
+                        } else {
+                            "Liquid movement dinonaktifkan. Pengaturan baru berlaku setelah aplikasi dimulai ulang.".into()
+                        });
+                    }
+                }
+                Err(error) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_motion_save_status(format!("Gagal menyimpan: {error}").into());
+                    }
+                }
             }
         });
     }
