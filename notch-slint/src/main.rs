@@ -4497,8 +4497,10 @@ fn main() -> Result<(), slint::PlatformError> {
             // Envelope halus: setiap gerakan masuk dan kembali ke posisi netral tanpa hentakan.
             let envelope = (std::f32::consts::PI * t).sin().max(0.0);
             // Liquid memakai beberapa riak dalam satu rangkaian; gerakan lain memakai gelombang dasar.
-            let wave = (std::f32::consts::TAU * if kind == 0 { 2.0 } else { 1.0 } * t).sin();
-            let fast_wave = (std::f32::consts::TAU * if kind == 0 { 5.0 } else { 3.0 } * t).sin();
+            let wave_cycles = if kind == 0 { 2.0 } else { 1.0 };
+            let ripple_cycles = if kind == 0 { 5.0 } else { 3.0 };
+            let wave = (std::f32::consts::TAU * wave_cycles * t).sin();
+            let fast_wave = (std::f32::consts::TAU * ripple_cycles * t).sin();
             let mut offset = 0.0;
             let mut sx = 1.0;
             let mut sy = 1.0;
