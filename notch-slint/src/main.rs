@@ -4185,6 +4185,8 @@ fn main() -> Result<(), slint::PlatformError> {
             if !supported || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
                 w.set_eyes_offset_x(0.0);
                 w.set_eyes_offset_y(0.0);
+                w.set_eyes_scale_x(1.0);
+                w.set_eyes_scale_y(1.0);
                 return;
             }
 
@@ -4193,6 +4195,8 @@ fn main() -> Result<(), slint::PlatformError> {
             if phase >= 1.8 {
                 w.set_eyes_offset_x(0.0);
                 w.set_eyes_offset_y(0.0);
+                w.set_eyes_scale_x(1.0);
+                w.set_eyes_scale_y(1.0);
                 return;
             }
             let progress = phase / 1.8;
@@ -4200,14 +4204,18 @@ fn main() -> Result<(), slint::PlatformError> {
             let wave = (progress * std::f32::consts::TAU * 2.0).sin();
             let drift = wave * envelope * 3.2;
             let settle = wave.abs() * envelope * 0.8;
+            // Squash/stretch kecil pada wajah; orientasi dibalik untuk dock samping.
+            let squash = wave * envelope * 0.035;
             if dock == 2 {
-                // Dock bawah: gerak kiri-kanan, sedikit memantul ke atas.
                 w.set_eyes_offset_x(drift);
                 w.set_eyes_offset_y(-settle);
+                w.set_eyes_scale_x(1.0 + squash);
+                w.set_eyes_scale_y(1.0 - squash);
             } else {
-                // Dock kiri/kanan: sumbu gerak diputar 90 derajat.
                 w.set_eyes_offset_x(-settle);
                 w.set_eyes_offset_y(drift);
+                w.set_eyes_scale_x(1.0 - squash);
+                w.set_eyes_scale_y(1.0 + squash);
             }
         });
     }
