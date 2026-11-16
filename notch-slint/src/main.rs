@@ -569,6 +569,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let started = Rc::new(Cell::new(None::<Instant>));
+        let finished_at = Rc::new(Cell::new(None::<Instant>));
         meeting_timer.start(TimerMode::Repeated, Duration::from_secs(1), move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_meeting_active() {
@@ -589,6 +590,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 let label = if mins == 0 { format!("{secs} detik") } else if rem == 0 { format!("{mins} menit") } else { format!("{mins} menit {rem} detik") };
                 w.set_prayer_status(format!("Rapat selesai, {label}").into());
                 w.set_meeting_elapsed("00:00".into());
+            } else if let Some(at) = finished_at.get() {
+                if at.elapsed() >= Duration::from_secs(6) {
+                    w.set_meeting_finished("".into());
+                    finished_at.set(None);
+                }
             }
         });
     }

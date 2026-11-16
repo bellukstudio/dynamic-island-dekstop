@@ -1038,6 +1038,10 @@ export component NotchWindow inherits Window {
     in property <bool> adhan-active: false;
     in property <string> adhan-prayer: "";
     in property <int> adhan-phase: 0;
+    in property <bool> meeting-active: false;
+    in property <string> meeting-elapsed: "00:00";
+    in property <string> meeting-source: "";
+    in property <string> meeting-finished: "";
     // 0 = menempel di atas, 1 = melayang (digeser dari tepi), 2 = menempel di dasar layar.
     in property <int> dock: 0;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
@@ -1255,6 +1259,40 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
+            }
+
+            // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
+            Rectangle {
+                visible: (root.meeting-active || root.meeting-finished != "") && !root.expanded;
+                x: (parent.width - 130px) / 2;
+                y: 0px;
+                width: 130px;
+                height: 34px;
+                border-radius: 17px;
+                background: #171923f5;
+                border-width: 1px;
+                border-color: root.meeting-active ? #e5a84b : Theme.ok;
+                HorizontalLayout {
+                    x: 9px;
+                    width: parent.width - 18px;
+                    height: parent.height;
+                    spacing: 5px;
+                    Text { text: "●"; color: root.meeting-active ? #e5a84b : Theme.ok; font-size: 9px; vertical-alignment: center; }
+                    Text {
+                        text: root.meeting-active ? root.meeting-elapsed : root.meeting-finished;
+                        color: #ffffff;
+                        font-size: 11px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    Text {
+                        text: root.meeting-active ? root.meeting-source : "SELESAI";
+                        color: #c9cbd3;
+                        font-size: 8px;
+                        vertical-alignment: center;
+                    }
+                }
             }
 
             // Overlay Adzan saat notch menciut: status jelas dan kontrol berhenti.
