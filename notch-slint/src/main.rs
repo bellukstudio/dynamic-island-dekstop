@@ -1066,35 +1066,9 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     // Animasi perpindahan jendela native saat pengguna mengganti docking.
-    // Timer tetap hidup di UI thread; state baru menggantikan animasi sebelumnya.
+    // Timer berjalan hanya selama transisi; state baru menggantikan animasi sebelumnya.
     let dock_move_state = Rc::new(RefCell::new(None::<(i32, i32, i32, i32, Instant)>));
     let dock_move_timer = Rc::new(Timer::default());
-    {
-        let state = dock_move_state.clone();
-        let timer_weak = Rc::downgrade(&dock_move_timer);
-        let weak = win.as_weak();
-        dock_move_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
-            let Some((sx, sy, tx, ty, started_at)) = *state.borrow() else {
-                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
-                return;
-            };
-            let Some(w) = weak.upgrade() else {
-                state.replace(None);
-                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
-                return;
-            };
-            let t = (started_at.elapsed().as_secs_f32() / 0.360).clamp(0.0, 1.0);
-            let eased = 1.0 - (1.0 - t).powi(3);
-            let x = sx as f32 + (tx - sx) as f32 * eased;
-            let y = sy as f32 + (ty - sy) as f32 * eased;
-            w.window().set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
-            if t >= 1.0 {
-                state.replace(None);
-                if let Some(timer) = timer_weak.upgrade() { timer.stop(); }
-            }
-        });
-        dock_move_timer.stop();
-    }
 
     {
         let weak = win.as_weak();
