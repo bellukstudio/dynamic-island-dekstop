@@ -2945,7 +2945,11 @@ fn main() -> Result<(), slint::PlatformError> {
                         if let Some(eye) = eye_runtime.borrow().as_ref() {
                             let mut eye = eye.borrow_mut();
                             let skin = eyes::skin_index(&next.appearance.eye_theme);
-                            eye.renderer = EyeRenderer::new(&next.appearance.eye_theme, EYES_W, EYES_H);
+                            eye.renderer = if matches!(w.get_dock(), 3 | 4) {
+                                EyeRenderer::new_vertical(&next.appearance.eye_theme, EYES_H, EYES_W)
+                            } else {
+                                EyeRenderer::new(&next.appearance.eye_theme, EYES_W, EYES_H)
+                            };
                             eye.skin = skin;
                             let mood = Mood::parse(&next.appearance.default_mood).unwrap_or(Mood::Normal);
                             eye.mood = MoodState::new(mood, next.timing.sleep_after_s, Instant::now());
