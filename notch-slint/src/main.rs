@@ -1084,6 +1084,13 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_motion_enabled(cfg.motion.enabled);
     win.set_motion_interval(cfg.motion.interval_secs.to_string().into());
     win.set_motion_max_moves(cfg.motion.max_moves.to_string().into());
+    win.set_nudge_enabled(cfg.nudge.enabled);
+    win.set_nudge_idle_min(cfg.nudge.idle_min.to_string().into());
+    win.set_nudge_message(cfg.nudge.message.clone().into());
+    win.set_nudge_emoji(cfg.nudge.emoji.clone().into());
+    win.set_nudge_mood(cfg.nudge.mood.clone().into());
+    win.set_nudge_show_ms(cfg.nudge.show_ms.to_string().into());
+    win.set_nudge_only_silent(cfg.nudge.only_silent);
     win.set_hub_pages(cfg.pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
@@ -3008,6 +3015,55 @@ fn main() -> Result<(), slint::PlatformError> {
                     Ok(message) => message.into(),
                     Err(error) => format!("Gagal menghentikan mirroring: {error}").into(),
                 });
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent| {
+            let idle = idle.to_string().trim().parse::<u32>().ok().filter(|v| (1..=240).contains(v));
+            let show = show.to_string().trim().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v));
+            let message = message.to_string().trim().to_string();
+            let emoji = emoji.to_string().trim().to_string();
+            let mood = mood.to_string().trim().to_ascii_lowercase();
+            let allowed_moods = ["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"];
+            let (Some(idle), Some(show)) = (idle, show) else {
+                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Idle harus 1–240 menit dan durasi 2000–30000 ms.".into()); }
+                return;
+            };
+            if message.is_empty() || message.chars().count() > 80 || emoji.is_empty() || emoji.chars().count() > 12 || !allowed_moods.contains(&mood.as_str()) {
+                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Pesan wajib 1–80 karakter, emoji 1–12 karakter, dan ekspresi harus valid.".into()); }
+                return;
+            }
+            let mut next = updated_config.clone();
+            next.nudge.enabled = enabled;
+            next.nudge.idle_min = idle;
+            next.nudge.message = message;
+            next.nudge.emoji = emoji;
+            next.nudge.mood = mood;
+            next.nudge.show_ms = show;
+            next.nudge.only_silent = only_silent;
+            next.nudge.sanitize();
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next.clone();
+                    if let Some(w) = weak.upgrade() {
+                        w.set_nudge_enabled(next.nudge.enabled);
+                        w.set_nudge_idle_min(next.nudge.idle_min.to_string().into());
+                        w.set_nudge_message(next.nudge.message.clone().into());
+                        w.set_nudge_emoji(next.nudge.emoji.clone().into());
+                        w.set_nudge_mood(next.nudge.mood.clone().into());
+                        w.set_nudge_show_ms(next.nudge.show_ms.to_string().into());
+                        w.set_nudge_only_silent(next.nudge.only_silent);
+                        w.set_nudge_save_status("Pengaturan sapaan otomatis tersimpan.".into());
+                    }
+                }
+                Err(error) => if let Some(w) = weak.upgrade() {
+                    w.set_nudge_save_status(format!("Gagal menyimpan: {error}").into());
+                }
             }
         });
     }

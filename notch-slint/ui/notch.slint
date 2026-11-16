@@ -1152,7 +1152,24 @@ component SettingsPage inherits VerticalLayout {
     in property <string> motion-interval: "180";
     in property <string> motion-max-moves: "3";
     in property <string> motion-save-status: "";
+    in property <bool> nudge-enabled: true;
+    in property <string> nudge-idle-min: "2";
+    in property <string> nudge-message: "Kamu kemana, kok diam saja?";
+    in property <string> nudge-emoji: "🥺";
+    in property <string> nudge-mood: "sad";
+    in property <string> nudge-show-ms: "6000";
+    in property <bool> nudge-only-silent: true;
+    in property <string> nudge-save-status: "";
+    in property <bool> nudge-enabled: true;
+    in property <string> nudge-idle-min: "2";
+    in property <string> nudge-message: "Kamu kemana, kok diam saja?";
+    in property <string> nudge-emoji: "🥺";
+    in property <string> nudge-mood: "sad";
+    in property <string> nudge-show-ms: "6000";
+    in property <bool> nudge-only-silent: true;
+    in property <string> nudge-save-status: "";
     callback save-motion(bool, string, string);
+    callback save-nudge(bool, string, string, string, string, string, bool);
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
@@ -1416,6 +1433,50 @@ component SettingsPage inherits VerticalLayout {
             motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
             Chip { label: "Simpan liquid movement"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text); } }
             Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        }
+    }
+    Text { text: "Notifikasi & perilaku otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 6px;
+            HorizontalLayout {
+                Text { text: "Sapaan otomatis saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Chip { label: nudge-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-enabled-input.text == "true"; clicked => { nudge-enabled-input.text = nudge-enabled-input.text == "true" ? "false" : "true"; } }
+            }
+            nudge-enabled-input := TextInput { text: root.nudge-enabled ? "true" : "false"; visible: false; }
+            Text { text: "Waktu idle sebelum sapaan (1–240 menit)"; color: Theme.text-faint; font-size: 9px; }
+            nudge-idle-input := TextInput { text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Pesan (maksimal 80 karakter)"; color: Theme.text-faint; font-size: 9px; }
+            nudge-message-input := TextInput { text: root.nudge-message; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Emoji"; color: Theme.text-faint; font-size: 9px; }
+            nudge-emoji-input := TextInput { text: root.nudge-emoji; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Ekspresi saat menyapa"; color: Theme.text-faint; font-size: 9px; }
+            nudge-mood-input := TextInput { text: root.nudge-mood; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
+                Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
+                Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
+                Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
+            }
+            Text { text: "Lama pesan tampil (2000–30000 ms)"; color: Theme.text-faint; font-size: 9px; }
+            nudge-show-input := TextInput { text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; }
+            HorizontalLayout {
+                Text { text: "Hanya saat tidak ada media diputar"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                Chip { label: nudge-silent-input.text == "true" ? "Ya" : "Tidak"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
+            }
+            nudge-silent-input := TextInput { text: root.nudge-only-silent ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    nudge-enabled-input.text = "true"; nudge-idle-input.text = "2";
+                    nudge-message-input.text = "Kamu kemana, kok diam saja?"; nudge-emoji-input.text = "🥺";
+                    nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true";
+                    root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true);
+                } }
+                Chip { label: "Simpan notifikasi"; selected: true; clicked => {
+                    root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true");
+                } }
+            }
+            Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
     Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -2113,6 +2174,7 @@ export component NotchWindow inherits Window {
     callback settings-save-appearance(string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string);
     callback settings-save-motion(bool, string, string);
+    callback settings-save-nudge(bool, string, string, string, string, string, bool);
     callback settings-save-position(string);
     in property <string> prayer-mode: "tone";
     in property <string> prayer-remind-before: "false";
@@ -2602,6 +2664,15 @@ export component NotchWindow inherits Window {
                         motion-interval: root.motion-interval;
                         motion-max-moves: root.motion-max-moves;
                         motion-save-status: root.motion-save-status;
+                        nudge-enabled: root.nudge-enabled;
+                        nudge-idle-min: root.nudge-idle-min;
+                        nudge-message: root.nudge-message;
+                        nudge-emoji: root.nudge-emoji;
+                        nudge-mood: root.nudge-mood;
+                        nudge-show-ms: root.nudge-show-ms;
+                        nudge-only-silent: root.nudge-only-silent;
+                        nudge-save-status: root.nudge-save-status;
+                        save-nudge(enabled, idle, message, emoji, mood, show, silent) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
                         save-position(mode) => { root.settings-save-position(mode); }
