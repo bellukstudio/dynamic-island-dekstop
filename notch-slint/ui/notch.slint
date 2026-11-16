@@ -1276,6 +1276,7 @@ component ConvertPage inherits VerticalLayout {
     in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
     callback run(string, string, string, string);
     callback pick-file();
+    callback reveal();
     alignment: start;
     padding-left: 14px;
     padding-right: 14px;
@@ -1304,6 +1305,7 @@ component ConvertPage inherits VerticalLayout {
         alignment: end;
         Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
         Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text, quality-input.text, dpi-input.text); } }
+        Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
 }
@@ -1783,6 +1785,7 @@ export component NotchWindow inherits Window {
     callback compress-selected-path(string);
     callback convert-run(string, string, string, string);
     callback convert-pick();
+    callback convert-reveal();
     callback convert-selected-path(string);
     callback transfer-start();
     callback transfer-stop();
@@ -2077,6 +2080,7 @@ export component NotchWindow inherits Window {
                         status: root.convert-status;
                         run(path, format, quality, dpi) => { root.convert-run(path, format, quality, dpi); }
                         pick-file => { root.convert-pick(); }
+                        reveal => { root.convert-reveal(); }
                     }
                     if root.page-id == "compress": CompressPage {
                         status: root.compress-status;
