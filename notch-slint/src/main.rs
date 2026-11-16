@@ -1507,6 +1507,8 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let weak = weak.clone();
             let cancel_requested = cancel_requested.clone();
+            let last_output = last_output.clone();
+            let running_worker = running.clone();
             std::thread::spawn(move || {
                 let total = paths.len();
                 let mut completed = 0usize;
@@ -1593,7 +1595,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     message.push_str(" · Gagal: ");
                     message.push_str(&failures.join(" | "));
                 }
-                running.store(false, std::sync::atomic::Ordering::Release);
+                running_worker.store(false, std::sync::atomic::Ordering::Release);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
