@@ -1276,7 +1276,7 @@ component ConvertPage inherits VerticalLayout {
     in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
     in property <string> history-text: "Belum ada riwayat konversi";
     in property <string> files-text: "Belum ada file dipilih";
-    callback run(string, string, string, string);
+    callback run(string, string, string, string, string);
     callback pick-file();
     callback reveal();
     callback cancel();
@@ -1297,8 +1297,10 @@ component ConvertPage inherits VerticalLayout {
             spacing: 5px;
             Text { text: "File sumber (bisa pilih beberapa file sekaligus)"; color: Theme.text-faint; font-size: 10px; }
             path-input := TextInput { text: root.file-path; color: Theme.text; font-size: 11px; single-line: true; }
-            Text { text: "Format tujuan: auto (disarankan) atau PNG/JPG/WebP/BMP/GIF/PDF. Auto memilih format sesuai setiap file, termasuk batch campuran."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+            Text { text: "Format tujuan global: auto (disarankan) atau PNG/JPG/WebP/BMP/GIF/PDF."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
             format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "Override per file (opsional): nama-file=png; dokumen.pdf=jpg"; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+            overrides-input := TextInput { text: ""; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Kualitas JPEG/PDF (40–100)"; color: Theme.text-faint; font-size: 10px; }
             quality-input := TextInput { text: "90"; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Resolusi halaman PDF (DPI, 36–400)"; color: Theme.text-faint; font-size: 10px; }
@@ -1308,7 +1310,7 @@ component ConvertPage inherits VerticalLayout {
     HorizontalLayout {
         alignment: end;
         Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
-        Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text, quality-input.text, dpi-input.text); } }
+        Chip { label: "Konversi"; clicked => { root.run(path-input.text, format-input.text, quality-input.text, dpi-input.text, overrides-input.text); } }
         Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
@@ -1820,7 +1822,7 @@ export component NotchWindow inherits Window {
     callback compress-run(string);
     callback compress-pick();
     callback compress-selected-path(string);
-    callback convert-run(string, string, string, string);
+    callback convert-run(string, string, string, string, string);
     callback convert-pick();
     callback convert-reveal();
     callback convert-cancel();
@@ -2119,7 +2121,7 @@ export component NotchWindow inherits Window {
                         status: root.convert-status;
                         history-text: root.convert-history-text;
                         files-text: root.convert-files-text;
-                        run(path, format, quality, dpi) => { root.convert-run(path, format, quality, dpi); }
+                        run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
                         pick-file => { root.convert-pick(); }
                         reveal => { root.convert-reveal(); }
                         cancel => { root.convert-cancel(); }
