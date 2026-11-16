@@ -19,7 +19,7 @@ fn image_to_pdf_bytes(image: &image::DynamicImage) -> Result<Vec<u8>, String> {
         image::DynamicImage::ImageRgb8(image.to_rgb8())
     };
 
-    let (width, height) = flat.dimensions();
+    let (width, height) = (flat.width(), flat.height());
     let mut jpeg = Vec::new();
     JpegEncoder::new_with_quality(&mut jpeg, 85)
         .encode_image(&flat)
@@ -174,5 +174,12 @@ mod tests {
     fn rejects_unsupported_target_before_accessing_the_file() {
         let error = convert_image(Path::new("does-not-need-to-exist.png"), "tiff").unwrap_err();
         assert_eq!(error, "Format tujuan tidak didukung: tiff");
+    }
+
+    #[test]
+    fn creates_a_valid_pdf_header_from_a_small_image() {
+        let image = image::DynamicImage::ImageRgb8(image::RgbImage::from_pixel(1, 1, image::Rgb([255, 255, 255])));
+        let bytes = super::image_to_pdf_bytes(&image).unwrap();
+        assert!(bytes.starts_with(b"%PDF-"));
     }
 }
