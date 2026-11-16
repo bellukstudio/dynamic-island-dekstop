@@ -593,7 +593,7 @@ impl<'a> Conv<'a> {
         let Some(rel) = self.rels.get(&rid).cloned() else { return };
         let Some(bytes) = read_bytes(self.z, &rel.target) else { return };
         let Some(info) = self.pdf.add_image(&rel.target, &bytes) else { return };
-        if w <= 0.0 || h <= 0.0 {
+        if !w.is_finite() || !h.is_finite() || w <= 0.0 || h <= 0.0 || w > 100_000.0 || h > 100_000.0 {
             w = info.w as f32 * 0.75;
             h = info.h as f32 * 0.75;
         }
@@ -669,7 +669,18 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
             mb = fnum(at(m, "bottom")).map(|v| v / 20.0).unwrap_or(mb);
         }
     }
-    let (mt, mb) = (mt.min(ph / 3.0), mb.min(ph / 3.0));
+    // Metadata ukuran halaman/margin berasal dari XML dan harus dibatasi sebelum
+    // dipakai sebagai koordinat PDF.
+    if !pw.is_finite() || !ph.is_finite() || !(72.0..=14_400.0).contains(&pw) || !(72.0..=14_400.0).contains(&ph) {
+        (pw, ph) = (595.3, 841.9);
+    }
+    let safe_margin = |v: f32, max: f32, fallback: f32| {
+        if v.is_finite() { v.clamp(0.0, max) } else { fallback.min(max) }
+    };
+    ml = safe_margin(ml, pw / 3.0, 72.0);
+    mr = safe_margin(mr, pw / 3.0, 72.0);
+    mt = safe_margin(mt, ph / 3.0, 72.0);
+    mb = safe_margin(mb, ph / 3.0, 72.0);
 
     let mut blocks = Vec::new();
     {
