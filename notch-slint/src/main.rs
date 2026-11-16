@@ -575,6 +575,10 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_pomodoro_break(cfg.pomodoro.break_min.to_string().into());
     win.set_pomodoro_long_break(cfg.pomodoro.long_break_min.to_string().into());
     win.set_pomodoro_rounds(cfg.pomodoro.rounds.to_string().into());
+    win.set_behavior_scale(format!("{:.2}", cfg.scale).into());
+    win.set_behavior_hover_open(cfg.timing.hover_open_ms.to_string().into());
+    win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
+    win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
