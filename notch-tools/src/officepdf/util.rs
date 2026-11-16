@@ -11,12 +11,19 @@ pub fn open_zip(src: &[u8]) -> Result<Zip, String> {
 }
 
 pub fn read_bytes(z: &mut Zip, name: &str) -> Option<Vec<u8>> {
-    let mut f = z.by_name(name).ok()?;
-    if f.size() > 256 * 1024 * 1024 {
-        return None; // pagar zip-bomb
+    const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
+    let f = z.by_name(name).ok()?;
+    if f.size() > MAX_ENTRY_BYTES {
+        return None; // pagar zip-bomb berdasarkan ukuran yang tercatat
     }
-    let mut v = Vec::with_capacity(f.size() as usize);
-    f.read_to_end(&mut v).ok()?;
+    let capacity = usize::try_from(f.size()).ok()?;
+    let mut v = Vec::with_capacity(capacity);
+    // Jangan hanya percaya ukuran di central directory: batasi byte aktual
+    // yang dikeluarkan decompressor untuk menghadapi arsip yang malformed.
+    f.take(MAX_ENTRY_BYTES + 1).read_to_end(&mut v).ok()?;
+    if v.len() as u64 > MAX_ENTRY_BYTES {
+        return None;
+    }
     Some(v)
 }
 
