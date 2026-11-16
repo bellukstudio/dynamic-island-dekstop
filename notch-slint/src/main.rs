@@ -59,6 +59,20 @@ fn convert_history_path() -> std::path::PathBuf {
     notch_core::paths::data_file("convert-history.json")
 }
 
+fn convert_overrides_path() -> std::path::PathBuf {
+    notch_core::paths::data_file("convert-overrides.txt")
+}
+
+fn load_convert_overrides() -> String {
+    std::fs::read_to_string(convert_overrides_path()).unwrap_or_default()
+}
+
+fn save_convert_overrides(value: &str) {
+    let path = convert_overrides_path();
+    if let Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); }
+    let _ = std::fs::write(path, value);
+}
+
 fn load_convert_history() -> serde_json::Value {
     std::fs::read_to_string(convert_history_path())
         .ok()
@@ -1705,6 +1719,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
+    win.set_convert_overrides_text(load_convert_overrides().into());
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1751,6 +1766,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
             let overrides = raw_overrides.to_string();
+            save_convert_overrides(&overrides);
             let output_dir = output_dir.borrow().clone();
             let quality = raw_quality.to_string().parse::<u8>().unwrap_or(90).clamp(40, 100);
             let dpi = raw_dpi.to_string().parse::<u32>().unwrap_or(150).clamp(36, 400);
