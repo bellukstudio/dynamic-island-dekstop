@@ -1236,7 +1236,7 @@ component SettingsPage inherits VerticalLayout {
 
 component CompressPage inherits VerticalLayout {
     in property <string> file-path: "";
-    in property <string> status: "Pilih file JPG, PNG, atau BMP untuk dikompres";
+    in property <string> status: "Pilih gambar atau dokumen Office untuk dikompres";
     callback run(string);
     callback pick-file();
     alignment: start;
@@ -1244,7 +1244,7 @@ component CompressPage inherits VerticalLayout {
     padding-right: 14px;
     spacing: 8px;
     Text { text: "Compress"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { text: "Kompresi gambar lokal · target pengurangan 30%"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Text { text: "Kompresi gambar & Office · target pengurangan 30%"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
@@ -1253,14 +1253,14 @@ component CompressPage inherits VerticalLayout {
         VerticalLayout {
             padding: 9px;
             spacing: 6px;
-            Text { text: "Lokasi file JPG/JPEG/PNG/BMP"; color: Theme.text-faint; font-size: 10px; }
+            Text { text: "Lokasi file JPG/JPEG/PNG/BMP/DOCX/XLSX/PPTX"; color: Theme.text-faint; font-size: 10px; }
             path-input := TextInput {
                 text: root.file-path;
                 color: Theme.text;
                 font-size: 11px;
                 single-line: true;
             }
-            Text { text: "Hasil disimpan sebagai nama_compressed.<format> di folder yang sama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "Hasil disimpan sebagai nama_compressed.<format> (Office tetap memakai ekstensi aslinya) di folder yang sama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
     HorizontalLayout {
