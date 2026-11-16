@@ -735,3 +735,56 @@ pub fn convert(src: &[u8], mut pdf: Pdf) -> Result<Vec<u8>, String> {
     }
     pdf.finish()
 }
+
+
+#[cfg(test)]
+mod section_tests {
+    use super::*;
+
+    fn setup(xml: &str, previous: PageSetup, new_page: bool) -> PageSetup {
+        let doc = roxmltree::Document::parse(xml).unwrap();
+        section_setup(doc.root_element(), previous, new_page)
+    }
+
+    fn defaults() -> PageSetup {
+        PageSetup {
+            width: 595.3, height: 841.9, left: 72.0, right: 72.0,
+            top: 72.0, bottom: 72.0, new_page: false,
+        }
+    }
+
+    #[test]
+    fn landscape_section_swaps_page_dimensions() {
+        let page = setup(
+            r#"<sectPr><pgSz w="11906" h="16838" orient="landscape"/></sectPr>"#,
+            defaults(),
+            false,
+        );
+        assert!(page.width > page.height);
+        assert!((page.width - 841.9).abs() < 0.1);
+        assert!((page.height - 595.3).abs() < 0.1);
+    }
+
+    #[test]
+    fn continuous_section_does_not_force_a_page_break() {
+        let page = setup(
+            r#"<sectPr><type val="continuous"/><pgSz w="16838" h="11906"/></sectPr>"#,
+            defaults(),
+            true,
+        );
+        assert!(!page.new_page);
+    }
+
+    #[test]
+    fn next_page_section_uses_bounded_margins() {
+        let page = setup(
+            r#"<sectPr><type val="nextPage"/><pgSz w="11906" h="16838"/><pgMar left="-100" right="999999" top="1440" bottom="1440"/></sectPr>"#,
+            defaults(),
+            true,
+        );
+        assert!(page.new_page);
+        assert_eq!(page.left, 0.0);
+        assert!(page.right <= page.width / 3.0);
+        assert!((page.top - 72.0).abs() < 0.1);
+    }
+}
