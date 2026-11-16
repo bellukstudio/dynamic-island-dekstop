@@ -1035,6 +1035,8 @@ export component NotchWindow inherits Window {
     title: "Notch";
 
     in property <bool> expanded: false;
+    in property <bool> adhan-active: false;
+    in property <string> adhan-prayer: "";
     // 0 = menempel di atas, 1 = melayang (digeser dari tepi), 2 = menempel di dasar layar.
     in property <int> dock: 0;
     // Skala bentuk (config `scale`): radius hub 32 px dan telinga 10 px dikalikan nilai ini, seperti di Tauri.
@@ -1121,6 +1123,7 @@ export component NotchWindow inherits Window {
     in property <image> emoji-moon;
 
     callback media-control(string);
+    callback adhan-stop();
     callback media-seek(float);
     callback hover-changed(bool);
     callback pill-clicked();
@@ -1250,6 +1253,42 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
+            }
+
+            // Overlay Adzan saat notch menciut: status jelas dan kontrol berhenti.
+            Rectangle {
+                visible: root.adhan-active && !root.expanded;
+                x: (parent.width - 130px) / 2;
+                y: 0px;
+                width: 130px;
+                height: 34px;
+                border-radius: 17px;
+                background: #171923f5;
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.8);
+                HorizontalLayout {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    spacing: 6px;
+                    Text { text: "◖"; color: Theme.accent; font-size: 16px; vertical-alignment: center; }
+                    Text {
+                        text: "ADZAN  " + root.adhan-prayer;
+                        color: Theme.text;
+                        font-size: 10px;
+                        font-weight: 700;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        width: 22px;
+                        height: 22px;
+                        mouse-cursor: pointer;
+                        clicked => { root.adhan-stop(); }
+                        Rectangle { background: self.parent.has-hover ? #ffffff30 : #ffffff18; border-radius: 11px; }
+                        Text { text: "■"; color: #ff8b8b; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
+                    }
+                }
             }
 
             // Hub: tab + halaman

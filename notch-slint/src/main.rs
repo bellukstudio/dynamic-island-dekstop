@@ -724,6 +724,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
       win.on_media_control(|action| media::control(&action));
+    win.on_adhan_stop(|| media::stop_adhan());
     win.on_media_seek(|position| media::seek(f64::from(position)));
       win.on_prayer_set_mode(move|v|{let mut p=prefs.borrow_mut();p.mode=v.to_string();if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_mode(p.mode.clone().into());}});
     }

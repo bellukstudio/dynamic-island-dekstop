@@ -92,7 +92,14 @@ mod platform {
  }
 
  /// Putar adzan dari aset bawaan. MCI menjalankan decoding MP3 secara native di Windows.
+ pub fn stop_adhan(){
+  use windows::core::PCWSTR;
+  use windows::Win32::Media::Multimedia::mciSendStringW;
+  let command:Vec<u16>="stop notch_adhan".encode_utf16().chain(std::iter::once(0)).collect();
+  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,0,windows::Win32::Foundation::HWND::default());}
+ }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
+  let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);}});
   std::thread::spawn(move||{
    let paused=pause_all();
    let path=notch_core::paths::data_file("adzan.mp3");
@@ -120,13 +127,13 @@ mod platform {
     Ok(())=>format!("Adzan {prayer_name} selesai"),
     Err(e)=>format!("Adzan gagal diputar: {e}"),
    };
-   let _=weak.upgrade_in_event_loop(move|w|w.set_prayer_status(message.into()));
+   let _=weak.upgrade_in_event_loop(move|w|{w.set_adhan_active(false);w.set_prayer_status(message.into());});
    let _=paused;
   });
  }
 
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){}}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){}}
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
@@ -136,6 +143,8 @@ pub fn pause_all()->usize{platform::pause_all()}
 pub fn resume_paused(){platform::resume_paused();}
 /// Putar audio adzan bawaan sambil menjeda lalu memulihkan media pengguna.
 pub fn play_adhan(w:Weak<NotchWindow>,name:String){platform::play_adhan(w,name);}
+/// Hentikan audio adzan yang sedang berjalan.
+pub fn stop_adhan(){platform::stop_adhan();}
 
 #[cfg(test)]
 mod tests {
