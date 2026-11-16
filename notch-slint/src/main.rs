@@ -4315,6 +4315,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 || !supported
                 || w.get_expanded()
                 || w.get_play_interaction_active()
+                || w.get_nudge_visible()
+                || w.get_reminder_alert_visible()
+                || !w.get_meeting_finished().is_empty()
                 || w.get_meeting_active()
                 || w.get_adhan_active();
 
