@@ -51,3 +51,23 @@ pub fn convert_bytes(ext: &str, src: &[u8]) -> Result<Vec<u8>, String> {
         Err(_) => Err("Konversi dokumen gagal (kesalahan internal)".into()),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{convert_bytes, supports};
+
+    #[test]
+    fn supports_only_the_three_open_xml_office_formats() {
+        assert!(supports("docx"));
+        assert!(supports("xlsx"));
+        assert!(supports("pptx"));
+        assert!(!supports("doc"));
+        assert!(!supports("pdf"));
+    }
+
+    #[test]
+    fn rejects_unsupported_format_before_parsing_input() {
+        let error = convert_bytes("txt", b"not a document").unwrap_err();
+        assert_eq!(error, "Format .txt tidak didukung mesin PDF bawaan");
+    }
+}
