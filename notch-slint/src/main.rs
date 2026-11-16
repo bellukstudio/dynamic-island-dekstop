@@ -2026,6 +2026,36 @@ fn main() -> Result<(), slint::PlatformError> {
         let queue = convert_queue.clone();
         let running = convert_running.clone();
         let weak = win.as_weak();
+        win.on_convert_remove_queue_file(move |raw_name| {
+            let query = raw_name.to_string().trim().to_ascii_lowercase();
+            if query.is_empty() {
+                if let Some(w) = weak.upgrade() { w.set_convert_status("Masukkan nama file atau path yang ingin dihapus".into()); }
+                return;
+            }
+            let (removed, remaining) = {
+                let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
+                let before = pending.len();
+                pending.retain(|item| {
+                    let path = std::path::Path::new(item);
+                    let name = path.file_name().map(|v| v.to_string_lossy().to_ascii_lowercase()).unwrap_or_default();
+                    !name.contains(&query) && !item.to_ascii_lowercase().contains(&query)
+                });
+                (before - pending.len(), pending.len())
+            };
+            if let Some(w) = weak.upgrade() {
+                w.set_convert_queue_text(format!("{remaining} file menunggu").into());
+                w.set_convert_status(if removed > 0 {
+                    format!("{removed} file dihapus dari antrean")
+                } else {
+                    "Tidak ada file antrean yang cocok".to_string()
+                }.into());
+            }
+        });
+    }
+    {
+        let queue = convert_queue.clone();
+        let running = convert_running.clone();
+        let weak = win.as_weak();
         win.on_convert_clear_queue(move || {
             let removed = {
                 let mut pending = queue.lock().unwrap_or_else(|error| error.into_inner());
