@@ -1,5 +1,5 @@
 use image::{codecs::jpeg::JpegEncoder, ImageReader};
-use std::io::Cursor;
+use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy)]
@@ -175,5 +175,104 @@ mod tests {
 
         let _ = std::fs::remove_file(source);
         let _ = std::fs::remove_file(output);
+    }
+}
+
+
+fn recode_embedded_jpeg(source: &[u8], profile: Profile) -> Option<Vec<u8>> {
+    let image = scaled(&decode_image(source).ok()?, profile.scale);
+    let output = encode_jpeg(&image, profile.quality).ok()?;
+    (output.len() < source.len()).then_some(output)
+}
+
+fn recode_embedded_png(source: &[u8], profile: Profile) -> Option<Vec<u8>> {
+    let image = scaled(&decode_image(source).ok()?, profile.scale);
+    let output = encode_png(&image).ok()?;
+    (output.len() < source.len()).then_some(output)
+}
+
+fn compress_office_bytes(source: &[u8], profile: Profile) -> Result<Vec<u8>, String> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(source))
+        .map_err(|error| format!("Paket Office tidak valid: {error}"))?;
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .compression_level(Some(9));
+
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
+        let name = entry.name().to_string();
+        if entry.is_dir() {
+            writer.add_directory(name, options).map_err(|error| error.to_string())?;
+            continue;
+        }
+
+        let mut data = Vec::with_capacity(entry.size() as usize);
+        entry.read_to_end(&mut data).map_err(|error| error.to_string())?;
+        let lower_name = name.to_ascii_lowercase();
+        if lower_name.contains("/media/") {
+            if lower_name.ends_with(".jpg") || lower_name.ends_with(".jpeg") {
+                if let Some(reencoded) = recode_embedded_jpeg(&data, profile) {
+                    data = reencoded;
+                }
+            } else if lower_name.ends_with(".png") {
+                if let Some(reencoded) = recode_embedded_png(&data, profile) {
+                    data = reencoded;
+                }
+            }
+        }
+
+        writer.start_file(name, options).map_err(|error| error.to_string())?;
+        writer.write_all(&data).map_err(|error| error.to_string())?;
+    }
+
+    writer.finish()
+        .map_err(|error| error.to_string())
+        .map(|cursor| cursor.into_inner())
+}
+
+/// Compress DOCX, XLSX, or PPTX packages, including embedded JPEG/PNG media.
+pub fn compress_office_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if !matches!(ext.as_str(), "docx" | "xlsx" | "pptx") {
+        return Err(format!("Format Office tidak didukung: .{ext}"));
+    }
+
+    let source = std::fs::read(path).map_err(|error| format!("Tidak bisa membaca file: {error}"))?;
+    let original_size = source.len() as u64;
+    if original_size == 0 {
+        return Err("File kosong, tidak dapat dikompres.".into());
+    }
+    let target = original_size * (100 - target_reduction_percent.clamp(1, 95) as u64) / 100;
+    let worst = compress_office_bytes(&source, *LADDER.last().unwrap())?;
+    let output = if worst.len() as u64 > target {
+        worst
+    } else {
+        let (mut low, mut high) = (0usize, LADDER.len() - 1);
+        while low < high {
+            let middle = (low + high) / 2;
+            let candidate = compress_office_bytes(&source, LADDER[middle])?;
+            if candidate.len() as u64 <= target {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+        compress_office_bytes(&source, LADDER[low])?
+    };
+
+    let output_path = unique_output(path, &ext);
+    let output_size = output.len() as u64;
+    std::fs::write(&output_path, output).map_err(|error| format!("Gagal menyimpan hasil: {error}"))?;
+    Ok((output_path, original_size, output_size))
+}
+
+/// Compress a supported image or Office Open XML document.
+pub fn compress_file(path: &Path, target_reduction_percent: u8) -> Result<(PathBuf, u64, u64), String> {
+    let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
+    if matches!(ext.as_str(), "docx" | "xlsx" | "pptx") {
+        compress_office_file(path, target_reduction_percent)
+    } else {
+        compress_image_file(path, target_reduction_percent)
     }
 }
