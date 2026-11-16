@@ -217,7 +217,7 @@ impl Fonts {
         }
         // Never encode an unsupported character as glyph 0 while claiming it is the
         // original Unicode character in ToUnicode. Prefer the replacement glyph, then '?'.
-        for fallback in ['\\u{fffd}', '?'] {
+        for fallback in ['\u{fffd}', '?'] {
             if let Some(g) = fc.cmap.get(&(fallback as u32)) {
                 return Some((*g, fallback));
             }
@@ -292,8 +292,8 @@ mod tests {
 
     #[test]
     fn unsupported_character_uses_unicode_replacement_glyph_when_available() {
-        let fonts = fonts(&[('\\u{fffd}' as u32, 1), ('?' as u32, 2)]);
-        assert_eq!(fonts.gid(0, '漢'), Some((1, '\\u{fffd}')));
+        let fonts = fonts(&[('\u{fffd}' as u32, 1), ('?' as u32, 2)]);
+        assert_eq!(fonts.gid(0, '漢'), Some((1, '\u{fffd}')));
     }
 
     #[test]
