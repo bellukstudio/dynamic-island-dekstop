@@ -522,6 +522,7 @@ fn show_calendar(w: &NotchWindow, model: &VecModel<CalCell>, view: &CalView, hol
 
 fn main() -> Result<(), slint::PlatformError> {
     if let Some(resource_dir) = std::env::current_exe().ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf)) {
+        notch_tools::pdf::set_resource_dir(resource_dir.clone());
         notch_tools::compress::set_resource_dir(resource_dir);
     }
     // Config dibaca saja (tidak pernah ditulis/dibuat dari sini).
