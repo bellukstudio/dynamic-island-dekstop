@@ -158,4 +158,22 @@ mod tests {
         let error = compress_image_file(Path::new("missing.gif"), 30).unwrap_err();
         assert!(error.contains("JPG, PNG, atau BMP"));
     }
+
+    #[test]
+    fn compresses_png_and_writes_a_distinct_output_file() {
+        let source = std::env::temp_dir().join(format!("notch-tools-test-{}.png", std::process::id()));
+        let image = image::DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            64, 64, image::Rgba([30, 120, 220, 180]),
+        ));
+        image.save(&source).unwrap();
+
+        let (output, before, after) = compress_image_file(&source, 30).unwrap();
+        assert!(output.exists());
+        assert_eq!(output.extension().and_then(|value| value.to_str()), Some("png"));
+        assert!(before > 0);
+        assert!(after > 0);
+
+        let _ = std::fs::remove_file(source);
+        let _ = std::fs::remove_file(output);
+    }
 }
