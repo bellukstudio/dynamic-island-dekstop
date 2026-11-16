@@ -1400,6 +1400,17 @@ component SettingsPage inherits VerticalLayout {
     }
     HorizontalLayout {
         alignment: end;
+        spacing: 5px;
+        Chip {
+            label: "Reset default";
+            clicked => {
+                hub-input.text = "Ctrl+Alt+N";
+                settings-input.text = "Ctrl+Alt+,";
+                pomo-input.text = "Ctrl+Alt+P";
+                prayer-input.text = "Ctrl+Alt+A";
+                root.save-shortcuts("Ctrl+Alt+N", "Ctrl+Alt+,", "Ctrl+Alt+P", "Ctrl+Alt+A");
+            }
+        }
         Chip {
             label: "Simpan";
             clicked => {
