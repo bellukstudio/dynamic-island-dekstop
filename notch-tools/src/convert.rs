@@ -312,6 +312,17 @@ mod tests {
     use std::path::Path;
 
     #[test]
+    fn rejects_pdf_targets_other_than_png_and_jpg_before_reading() {
+        let error = super::convert_pdf_to_images(
+            Path::new("missing.pdf"),
+            "webp",
+            150,
+            85,
+        ).unwrap_err();
+        assert!(error.contains("Gunakan PNG atau JPG"));
+    }
+
+    #[test]
     fn rejects_unsupported_target_before_accessing_the_file() {
         let error = convert_image(Path::new("does-not-need-to-exist.png"), "tiff").unwrap_err();
         assert_eq!(error, "Format tujuan tidak didukung: tiff");
