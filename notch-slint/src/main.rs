@@ -1437,6 +1437,27 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        let state = android_state.clone();
+        let weak = win.as_weak();
+        win.on_android_pull(move |remote| {
+            let destination = rfd::FileDialog::new().set_title("Pilih folder tujuan").pick_folder();
+            let Some(destination) = destination else { return };
+            let state = state.clone();
+            let remote = remote.to_string();
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let result = state.lock().unwrap_or_else(|e| e.into_inner()).pull(&remote, &destination);
+                let message = match result {
+                    Ok(()) => format!("File berhasil diambil ke {}", destination.display()),
+                    Err(error) => format!("Gagal mengambil file: {error}"),
+                };
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(w) = weak.upgrade() { w.set_android_status(message.into()); }
+                });
+            });
+        });
+    }
+    {
         let weak = win.as_weak();
         win.on_android_mirror(move || {
             if let Some(w) = weak.upgrade() { w.set_android_status("Mirroring belum dipindahkan ke backend native Slint".into()); }

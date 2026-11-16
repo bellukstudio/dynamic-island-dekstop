@@ -1190,6 +1190,7 @@ component AndroidPage inherits VerticalLayout {
     callback refresh();
     callback list(string);
     callback push(string, string);
+    callback pull(string);
     callback select-device(string);
     callback mirror();
     alignment: start;
@@ -1232,6 +1233,7 @@ component AndroidPage inherits VerticalLayout {
     HorizontalLayout {
         alignment: start;
         Chip { label: "Kirim file ke HP"; clicked => { root.push(serial-input.text, path-input.text); } }
+        Chip { label: "Ambil file dari HP"; clicked => { root.pull(path-input.text); } }
         Chip { label: "Mirroring"; clicked => { root.mirror(); } }
     }
 }
@@ -1424,6 +1426,7 @@ export component NotchWindow inherits Window {
     callback android-refresh();
     callback android-list(string);
     callback android-push(string, string);
+    callback android-pull(string);
     callback android-select-device(string);
     callback android-mirror();
 
@@ -1659,6 +1662,7 @@ export component NotchWindow inherits Window {
                         refresh => { root.android-refresh(); }
                         list(path) => { root.android-list(path); }
                         push(serial, path) => { root.android-push(serial, path); }
+                        pull(path) => { root.android-pull(path); }
                         select-device(serial) => { root.android-select-device(serial); }
                         mirror => { root.android-mirror(); }
                     }

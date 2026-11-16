@@ -49,6 +49,11 @@ impl AndroidState {
             Err(e) => format!("Gagal membaca folder: {e}"),
         }
     }
+    pub fn pull(&self, remote: &str, destination: &Path) -> Result<(), String> {
+        let adb = self.adb.as_ref().ok_or("ADB belum tersedia")?;
+        if self.serial.is_empty() { return Err("Pilih perangkat terlebih dahulu".into()); }
+        adb.pull(&self.serial, remote, destination)
+    }
     pub fn push(&self, local: &Path, remote: &str) -> Result<(), String> {
         let adb = self.adb.as_ref().ok_or("ADB belum tersedia")?;
         if self.serial.is_empty() { return Err("Pilih perangkat terlebih dahulu".into()); }
