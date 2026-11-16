@@ -1273,6 +1273,7 @@ component CompressPage inherits VerticalLayout {
 component ConvertPage inherits VerticalLayout {
     in property <string> file-path: "";
     in property <string> target-format: "auto";
+    in property <string> overrides-text: "";
     in property <string> status: "Pilih gambar, PDF, atau dokumen Office untuk dikonversi";
     in property <string> progress-text: "";
     in property <string> history-text: "Belum ada riwayat konversi";
@@ -1317,7 +1318,7 @@ component ConvertPage inherits VerticalLayout {
             Text { text: "Format tujuan global: auto (disarankan) atau PNG/JPG/WebP/BMP/GIF/PDF."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
             format-input := TextInput { text: root.target-format; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Override per file: nama-file=png@80; dokumen.pdf=jpg@70 (kualitas 40–100)"; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
-            overrides-input := TextInput { text: ""; color: Theme.text; font-size: 11px; single-line: true; }
+            overrides-input := TextInput { text: root.overrides-text; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Kualitas JPEG/PDF (40–100)"; color: Theme.text-faint; font-size: 10px; }
             quality-input := TextInput { text: "90"; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Resolusi halaman PDF (DPI, 36–400)"; color: Theme.text-faint; font-size: 10px; }
@@ -1823,6 +1824,7 @@ export component NotchWindow inherits Window {
     in property <string> compress-status: "Pilih file JPG untuk mengompres gambar";
     in property <string> compress-selected-path: "";
     in property <string> convert-selected-path: "";
+    in property <string> convert-overrides-text: "";
     in property <string> convert-status: "Pilih file untuk dikonversi";
     in property <string> convert-progress-text: "";
     in property <float> convert-progress-value: 0;
@@ -2220,6 +2222,7 @@ export component NotchWindow inherits Window {
                     }
                     if root.page-id == "convert": ConvertPage {
                         file-path: root.convert-selected-path;
+                        overrides-text: root.convert-overrides-text;
                         status: root.convert-status;
                         history-text: root.convert-history-text;
                         files-text: root.convert-files-text;
