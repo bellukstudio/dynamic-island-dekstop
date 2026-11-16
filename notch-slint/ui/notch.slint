@@ -2,6 +2,7 @@
 // dan tema dari `[appearance]`. Semua warna berasal dari `Theme`, yang diisi Rust saat start.
 
 export struct NoteItem { id: string, text: string }
+export struct ShelfItem { path: string, name: string, dir: bool }
 export struct ClipboardItem { preview: string, text: string }
 export struct ReminderItem { id: string, text: string, due: string, done: bool }
 // Satu sel kalender. kind: 0 = biasa, 1 = libur, 2 = cuti bersama, 3 = hari peringatan.
@@ -670,8 +671,41 @@ component WeatherPage inherits HorizontalLayout {
     }
 }
 
+component ShelfPage inherits VerticalLayout {
+    in property <[ShelfItem]> items;
+    in property <string> status: "File yang disimpan di sini tidak disalin";
+    callback add();
+    callback open(string);
+    callback reveal(string);
+    callback remove(string);
+    callback clear();
+    padding-left: 12px; padding-right: 12px; padding-top: 6px; spacing: 6px;
+    HorizontalLayout {
+        Text { text: "Shelf"; color: Theme.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
+        Chip { label: "Tambah file"; clicked => { root.add(); } }
+        Chip { label: "Bersihkan"; clicked => { root.clear(); } }
+    }
+    Text { text: root.status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+    if root.items.length == 0: Text { text: "Belum ada file. Tambahkan file atau folder untuk menyimpannya di Shelf."; color: Theme.text-faint; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; }
+    for item in root.items: Rectangle {
+        height: 44px; border-radius: 9px; background: #ffffff0b;
+        HorizontalLayout {
+            padding-left: 8px; padding-right: 6px; spacing: 5px;
+            VerticalLayout {
+                alignment: center; horizontal-stretch: 1; spacing: 2px;
+                Text { text: item.dir ? "📁 " + item.name : "📄 " + item.name; color: Theme.text; font-size: 10px; overflow: elide; }
+                Text { text: item.path; color: Theme.text-faint; font-size: 8px; overflow: elide; }
+            }
+            Chip { label: "Buka"; clicked => { root.open(item.path); } }
+            Chip { label: "Lokasi"; clicked => { root.reveal(item.path); } }
+            RoundButton { size: 22px; commands: Icons.close; outline: true; clicked => { root.remove(item.path); } }
+        }
+    }
+}
 component NotesPage inherits VerticalLayout {
     in property <[NoteItem]> notes;
+    in property <[ShelfItem]> shelf-items;
+    in property <string> shelf-status: "File yang disimpan di sini tidak disalin";
     callback add(string);
     callback remove(string);
     padding-left: 24px;
@@ -1513,6 +1547,11 @@ export component NotchWindow inherits Window {
     callback reset-pomo();
     callback skip-pomo();
     callback add-note(string);
+    callback shelf-add();
+    callback shelf-open(string);
+    callback shelf-reveal(string);
+    callback shelf-remove(string);
+    callback shelf-clear();
     callback remove-note(string);
     callback clipboard-copy(string);
     callback clipboard-clear();
@@ -1881,6 +1920,15 @@ export component NotchWindow inherits Window {
                         net-text: root.net-text; sys-text: root.sys-text;
                     }
                     if root.page-id == "battery": BatteryPage { present: root.battery-present; percent: root.battery-percent; charging: root.battery-charging; }
+                    if root.page-id == "shelf": ShelfPage {
+                        items: root.shelf-items;
+                        status: root.shelf-status;
+                        add => { root.shelf-add(); }
+                        open(path) => { root.shelf-open(path); }
+                        reveal(path) => { root.shelf-reveal(path); }
+                        remove(path) => { root.shelf-remove(path); }
+                        clear => { root.shelf-clear(); }
+                    }
                     if root.page-id == "notes": NotesPage {
                         notes: root.notes;
                         add(t) => { root.add-note(t); }
@@ -1931,7 +1979,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                     if root.page-id != "settings" && root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
-                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
+                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "shelf" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
                 }
             }

@@ -29,6 +29,7 @@ use slint::{
 };
 
 mod privacy;
+mod shelf;
 mod hotkeys;
 mod colorpick;
 mod compress;
