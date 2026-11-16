@@ -29,6 +29,7 @@ use slint::{
 };
 
 mod privacy;
+mod hotkeys;
 
 slint::include_modules!();
 
@@ -1212,6 +1213,36 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut p = pomo.borrow_mut();
             p.skip();
             if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
+        });
+    }
+
+    // --- Global shortcut Windows: diproses di thread UI agar aman untuk state Slint ---
+    {
+        let (hotkey_rx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
+        let (expand, collapse, pomo) = (expand.clone(), collapse.clone(), pomo.clone());
+        let weak = win.as_weak();
+        let poll = Timer::default();
+        poll.start(TimerMode::Repeated, Duration::from_millis(60), move || {
+            while let Ok(action) = hotkey_rx.try_recv() {
+                match action {
+                    hotkeys::Action::ToggleHub => {
+                        if let Some(w) = weak.upgrade() {
+                            if w.get_expanded() { collapse(); } else { expand(); }
+                        }
+                    }
+                    hotkeys::Action::TogglePomodoro => {
+                        let mut p = pomo.borrow_mut();
+                        p.toggle(Instant::now());
+                        if let Some(w) = weak.upgrade() { show_pomo(&w, &p); }
+                    }
+                    hotkeys::Action::OpenPrayer => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_page_id("prayer".into());
+                            expand();
+                        }
+                    }
+                }
+            }
         });
     }
 
