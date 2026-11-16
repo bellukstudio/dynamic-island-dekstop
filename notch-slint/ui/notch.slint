@@ -1145,7 +1145,7 @@ component ConvertPage inherits VerticalLayout {
 component TransferPage inherits VerticalLayout {
     in property <string> status: "Server belum aktif";
     in property <string> address: "";
-    in property <int> shared-count: 0;
+    in property <string> shared-count-text: "0";
     callback start();
     callback stop();
     callback add-files();
@@ -1166,7 +1166,7 @@ component TransferPage inherits VerticalLayout {
             spacing: 6px;
             Text { text: root.status; color: Theme.text; font-size: 11px; wrap: word-wrap; }
             Text { text: root.address; color: Theme.accent; font-size: 10px; wrap: word-wrap; }
-            Text { text: "File dibagikan: " + root.shared-count; color: Theme.text-faint; font-size: 10px; }
+            Text { text: "File dibagikan: " + root.shared-count-text; color: Theme.text-faint; font-size: 10px; }
         }
     }
     HorizontalLayout {
@@ -1299,7 +1299,7 @@ export component NotchWindow inherits Window {
     in property <string> convert-status: "Pilih gambar untuk dikonversi";
     in property <string> transfer-status: "Server belum aktif";
     in property <string> transfer-address: "";
-    in property <int> transfer-shared-count: 0;
+    in property <string> transfer-shared-count-text: "0";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -1589,7 +1589,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "transfer": TransferPage {
                         status: root.transfer-status;
                         address: root.transfer-address;
-                        shared-count: root.transfer-shared-count;
+                        shared-count-text: root.transfer-shared-count-text;
                         start => { root.transfer-start(); }
                         stop => { root.transfer-stop(); }
                         add-files => { root.transfer-add-files(); }

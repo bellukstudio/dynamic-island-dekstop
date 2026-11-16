@@ -532,7 +532,7 @@ fn main() -> Result<(), slint::PlatformError> {
     });
 
     let win = NotchWindow::new()?;
-    let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_dir().join("Notch"))));
+    let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     win.set_convert_selected_path("".into());
     win.set_compress_selected_path("".into());
     win.set_compress_status("Pilih file JPG untuk mengompres gambar".into());
@@ -1357,7 +1357,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(paths) = rfd::FileDialog::new().pick_files() {
                 let strings = paths.into_iter().map(|p| p.to_string_lossy().into_owned()).collect();
                 let count = state.lock().unwrap_or_else(|e| e.into_inner()).add_files(strings);
-                if let Some(w) = weak.upgrade() { w.set_transfer_shared_count(count as i32); w.set_transfer_status("Daftar file dibagikan diperbarui".into()); }
+                if let Some(w) = weak.upgrade() { w.set_transfer_shared_count_text(count.to_string().into()); w.set_transfer_status("Daftar file dibagikan diperbarui".into()); }
             }
         });
     }

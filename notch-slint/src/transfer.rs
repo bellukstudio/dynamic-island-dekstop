@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tokio::runtime::Runtime;
 
-mod transfer_server;
+#[path = "transfer_server.rs"]\nmod transfer_server;
 
 type TransferFiles = transfer_server::Files;
 
