@@ -1342,7 +1342,20 @@ component SettingsPage inherits VerticalLayout {
             behavior-hover-close-input := TextInput { text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
             behavior-sleep-input := TextInput { text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text); } }
+            HorizontalLayout {
+                spacing: 5px;
+                Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text); } }
+                Chip {
+                    label: "Reset default";
+                    clicked => {
+                        behavior-scale-input.text = "1.00";
+                        behavior-hover-open-input.text = "150";
+                        behavior-hover-close-input.text = "450";
+                        behavior-sleep-input.text = "60";
+                        root.save-behavior("1.00", "150", "450", "60");
+                    }
+                }
+            }
             Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
