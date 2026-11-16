@@ -731,6 +731,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let win = NotchWindow::new()?;
     win.set_convert_history_text(format_convert_history().into());
+    win.set_convert_source_preview(Image::default());
+    win.set_convert_result_preview(Image::default());
     let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
     let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
     let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
@@ -1772,7 +1774,6 @@ fn main() -> Result<(), slint::PlatformError> {
                     });
                     match result {
                         Ok((output, detail)) => {
-                            completed += 1;
                             let relocated = if output_dir.trim().is_empty() {
                                 Ok(output.clone())
                             } else {
@@ -1780,6 +1781,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             };
                             match relocated {
                                 Ok(final_output) => {
+                                    completed += 1;
                                     record_convert_history(&path, Some(&final_output), &history_target, "OK");
                                     *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(final_output.clone());
                                     let preview_path = final_output.clone();
