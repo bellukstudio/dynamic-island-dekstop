@@ -1280,6 +1280,7 @@ component ConvertPage inherits VerticalLayout {
     in property <string> eta-text: "";
     in property <string> queue-text: "Antrean kosong";
     in property <string> preview-page-text: "Halaman 1 / 1";
+    in property <string> preview-status: "";
     in property <float> progress-value: 0;
     in property <image> source-preview;
     in property <image> result-preview;
@@ -1394,6 +1395,7 @@ component ConvertPage inherits VerticalLayout {
                 Text { text: root.preview-page-text; color: Theme.text-faint; font-size: 9px; vertical-alignment: center; }
                 Chip { label: "›"; clicked => { root.preview-next(); } }
             }
+            Text { text: root.preview-status; color: #ffb36b; font-size: 9px; wrap: word-wrap; }
         }
     }
     Rectangle {
@@ -1821,6 +1823,8 @@ export component NotchWindow inherits Window {
     in property <string> convert-progress-text: "";
     in property <float> convert-progress-value: 0;
     in property <string> convert-preview-page-text: "Halaman 1 / 1";
+    in property <string> convert-preview-status: "";
+    in property <int> convert-preview-total: 1;
     in property <string> convert-eta-text: "";
     in property <string> convert-queue-text: "Antrean kosong";
     in property <string> convert-history-text: "Belum ada riwayat konversi";
@@ -2216,6 +2220,7 @@ export component NotchWindow inherits Window {
                         queue-text: root.convert-queue-text;
                         progress-value: root.convert-progress-value;
                         preview-page-text: root.convert-preview-page-text;
+                        preview-status: root.convert-preview-status;
                         source-preview: root.convert-source-preview;
                         result-preview: root.convert-result-preview;
                         run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
