@@ -1193,7 +1193,7 @@ component SettingsPage inherits VerticalLayout {
     in property <string> focus-companion-save-status: "";
     callback save-motion(bool, string, string);
     callback save-nudge(bool, string, string, string, string, string, bool, bool);
-    callback test-nudge(bool, string, string, string, string);
+    callback test-nudge(string, string, string, string, bool);
     callback save-greeting(bool, string, string, string);
     callback save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback save-focus-companion(bool, bool, bool, bool, bool);
@@ -2408,7 +2408,7 @@ export component NotchWindow inherits Window {
     callback settings-save-autostart(bool);
     callback settings-save-motion(bool, string, string);
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
-    callback settings-test-nudge(bool, string, string, string, string);
+    callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
     callback settings-save-conversation(bool, bool, bool, bool, bool, bool, bool, bool, bool, string, string);
     callback settings-save-focus-companion(bool, bool, bool, bool, bool);

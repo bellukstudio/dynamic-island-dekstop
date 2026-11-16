@@ -3312,7 +3312,6 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let weak = win.as_weak();
-        let config = nudge_runtime_config.clone();
         let eye = appearance_eye.clone();
         let timer = Timer::default();
         win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
