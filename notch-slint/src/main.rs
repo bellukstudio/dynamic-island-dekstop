@@ -77,6 +77,19 @@ fn format_convert_history() -> String {
     }).collect::<Vec<_>>().join("\n")
 }
 
+fn convert_target_override(path: &std::path::Path, raw: &str) -> Option<String> {
+    let name = path.file_name()?.to_string_lossy();
+    raw.split(';').filter_map(|entry| {
+        let (key, value) = entry.trim().split_once('=')?;
+        if key.trim().eq_ignore_ascii_case(&name) {
+            let target = value.trim().trim_start_matches('.').to_ascii_lowercase();
+            if target.is_empty() { None } else { Some(target) }
+        } else {
+            None
+        }
+    }).last()
+}
+
 fn format_convert_selection(paths: &[String]) -> String {
     if paths.is_empty() { return "Belum ada file dipilih".into(); }
     let mut lines = paths.iter().take(10).map(|raw| {
@@ -1565,9 +1578,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let last_output = convert_last_output.clone();
         let running = convert_running.clone();
         let cancel_requested = convert_cancel_requested.clone();
-        win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
+        win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi, raw_overrides| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
+            let overrides = raw_overrides.to_string();
             let quality = raw_quality.to_string().parse::<u8>().unwrap_or(90).clamp(40, 100);
             let dpi = raw_dpi.to_string().parse::<u32>().unwrap_or(150).clamp(36, 400);
             let mut paths = selected_paths.borrow().clone();
@@ -1622,7 +1636,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     });
                     let source = std::path::Path::new(&path);
                     let result: Result<(std::path::PathBuf, String), String> = (|| {
-                        let target = if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
+                        let target = if let Some(override_target) = convert_target_override(source, &overrides) {
+                            override_target
+                        } else if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
                             convert::default_target(source)
                                 .ok_or_else(|| format!("Format sumber tidak didukung: {}", source.display()))?
                                 .to_string()
@@ -1653,11 +1669,13 @@ fn main() -> Result<(), slint::PlatformError> {
                                 .map(|output| (output, target.to_ascii_uppercase()))
                         }
                     })();
-                    let history_target = if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
-                        convert::default_target(source).unwrap_or("unknown").to_string()
-                    } else {
-                        format.trim().trim_start_matches('.').to_ascii_lowercase()
-                    };
+                    let history_target = convert_target_override(source, &overrides).unwrap_or_else(|| {
+                        if format.trim().is_empty() || format.eq_ignore_ascii_case("auto") {
+                            convert::default_target(source).unwrap_or("unknown").to_string()
+                        } else {
+                            format.trim().trim_start_matches('.').to_ascii_lowercase()
+                        }
+                    });
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
