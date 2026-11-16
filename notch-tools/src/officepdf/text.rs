@@ -504,19 +504,16 @@ impl Flow {
     }
 
     pub fn section(&mut self, pdf: &mut Pdf, setup: PageSetup) {
-        if setup.new_page && self.open {
-            self.page_break(pdf);
-        }
         self.pw = setup.width;
         self.ph = setup.height;
         self.ml = setup.left;
         self.mr = setup.right;
         self.mt = setup.top;
         self.mb = setup.bottom;
-        if setup.new_page || !self.open {
+        if setup.new_page {
+            self.page_break(pdf);
+        } else if !self.open {
             self.y = self.mt;
-        }
-        if !self.open {
             self.ensure(pdf);
         }
     }
