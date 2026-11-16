@@ -578,7 +578,7 @@ mod tests {
         assert!(defaults.focus_companion.enabled);
 
         let mut configured: Config = toml::from_str(
-            "[greeting]\\nmode = \\"unknown\\"\\nvoice = \\"unknown\\"\\n[conversation_moments]\\nreturn_after_min = 0\\ncooldown_min = 90\\n",
+            "[greeting]\nmode = \"unknown\"\nvoice = \"unknown\"\n[conversation_moments]\nreturn_after_min = 0\ncooldown_min = 90\n",
         ).unwrap();
         configured.normalize();
         assert_eq!(configured.greeting.mode, "random");
