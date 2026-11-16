@@ -620,6 +620,7 @@ component WeatherPage inherits HorizontalLayout {
     in property <string> rain;
     in property <string> icon;
     in property <string> status;
+    callback refresh();
 
     padding-left: 26px;
     padding-right: 26px;
@@ -648,6 +649,7 @@ component WeatherPage inherits HorizontalLayout {
         Text { text: root.feels; color: Theme.text; font-size: 13px; }
         Text { text: root.humidity; color: Theme.text-dim; font-size: 12px; }
         Text { text: root.rain; color: Theme.accent; font-size: 12px; font-weight: 600; }
+        Chip { label: "Perbarui cuaca"; clicked => { root.refresh(); } }
         Text {
             text: root.status;
             color: #ff9b8f;
@@ -1702,6 +1704,7 @@ export component NotchWindow inherits Window {
     in property <image> emoji-tomato;
     in property <image> emoji-moon;
 
+    callback weather-refresh();
     callback prayer-refresh();
     callback prayer-set-mode(string);
     callback prayer-set-remind(bool);
@@ -2143,6 +2146,7 @@ export component NotchWindow inherits Window {
                         remove(id) => { root.remove-note(id); }
                     }
                     if root.page-id == "weather": WeatherPage {
+                        refresh => { root.weather-refresh(); }
                         city: root.weather-city;
                         temperature: root.weather-temp;
                         condition: root.weather-condition;

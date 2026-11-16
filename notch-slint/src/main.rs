@@ -779,6 +779,14 @@ fn main() -> Result<(), slint::PlatformError> {
     let weather_busy = Arc::new(AtomicBool::new(false));
     win.set_weather_city(cfg.weather.city.clone().into());
     win.set_weather_status("Cuaca dimuat saat halaman dibuka".into());
+    {
+        let weak = win.as_weak();
+        let busy = weather_busy.clone();
+        let (lat, lon, city) = (cfg.weather.lat, cfg.weather.lon, cfg.weather.city.clone());
+        win.on_weather_refresh(move || {
+            refresh_weather(weak.clone(), busy.clone(), lat, lon, city.clone());
+        });
+    }
     let quick_busy = Arc::new(AtomicBool::new(false));
     let keep_awake = Arc::new(AtomicBool::new(false));
 
