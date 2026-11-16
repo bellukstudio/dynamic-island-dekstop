@@ -4216,14 +4216,22 @@ fn main() -> Result<(), slint::PlatformError> {
             if active.is_none() && now >= next_at {
                 seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
                 let roll = (seed >> 32) as u32;
-                let sleepy = w.get_eyes_mood() == "sleepy";
+                let sleepy = w.get_eyes_mood().to_string() == "sleepy";
                 let playing = w.get_media_playing();
+                // Bobot gerakan: saat musik, dance/liquid lebih sering; saat mengantuk,
+                // hanya gerakan kecil dan yawn yang dipilih.
                 let choice = if sleepy {
-                    (roll % 4) as u8 + 4 // squish, sway, dance ringan, yawn
+                    [4u8, 5, 4, 5, 7][(roll % 5) as usize]
                 } else if playing {
-                    (roll % 7) as u8 // liquid, ghost, roam, wiggle, squish, sway, dance
+                    match roll % 12 {
+                        0..=2 => 0, 3 => 1, 4 => 2, 5 => 3, 6 => 4, 7 => 5,
+                        _ => 6,
+                    }
                 } else {
-                    (roll % 8) as u8
+                    match roll % 16 {
+                        0..=3 => 0, 4..=5 => 1, 6..=7 => 2, 8 => 3,
+                        9..=10 => 4, 11..=12 => 5, 13 => 6, _ => 7,
+                    }
                 };
                 let duration_ms = match choice {
                     0 => 2_500, // liquid
