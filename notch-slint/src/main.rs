@@ -1444,6 +1444,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
+    let convert_last_output = Rc::new(RefCell::new(None::<std::path::PathBuf>));
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1465,6 +1466,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
+        let last_output = convert_last_output.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
@@ -1480,13 +1482,25 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 return;
             }
+            *last_output.borrow_mut() = None;
             let weak = weak.clone();
             std::thread::spawn(move || {
                 let total = paths.len();
                 let mut completed = 0usize;
                 let mut failures = Vec::new();
                 let mut outputs = Vec::new();
-                for path in paths {
+                for (index, path) in paths.into_iter().enumerate() {
+                    let display_name = std::path::Path::new(&path)
+                        .file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| path.clone());
+                    let progress = format!("Mengonversi {}/{}: {}", index + 1, total, display_name);
+                    let weak_progress = weak.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(w) = weak_progress.upgrade() {
+                            w.set_convert_status(progress.into());
+                        }
+                    });
                     let source = std::path::Path::new(&path);
                     let result = if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
                         convert::convert_pdf_to_images(source, &format, dpi, quality)
@@ -1499,6 +1513,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     match result {
                         Ok((output, detail)) => {
                             completed += 1;
+                            *last_output.borrow_mut() = Some(output.clone());
                             outputs.push(format!("{} ({detail})", output.display()));
                         }
                         Err(error) => failures.push(format!("{}: {error}", source.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| path.clone()))),
@@ -1517,6 +1532,23 @@ fn main() -> Result<(), slint::PlatformError> {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
             });
+        });
+    }
+    {
+        let last_output = convert_last_output.clone();
+        let weak = win.as_weak();
+        win.on_convert_reveal(move || {
+            let output = last_output.borrow().clone();
+            if let Some(output) = output {
+                let folder = output.parent().unwrap_or_else(|| std::path::Path::new("."));
+                if let Err(error) = transfer::open_inbox(folder) {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_convert_status(format!("Gagal membuka folder hasil: {error}").into());
+                    }
+                }
+            } else if let Some(w) = weak.upgrade() {
+                w.set_convert_status("Belum ada hasil konversi untuk dibuka".into());
+            }
         });
     }
 
