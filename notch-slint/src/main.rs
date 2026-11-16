@@ -4045,6 +4045,11 @@ fn main() -> Result<(), slint::PlatformError> {
                             expand();
                         }
                     }
+                    hotkeys::Action::ShortcutRegistrationFailed => {
+                        if let Some(w) = weak.upgrade() {
+                            w.set_settings_save_status("Windows menolak salah satu shortcut karena sedang dipakai aplikasi lain atau sistem. Ganti kombinasinya.".into());
+                        }
+                    }
                 }
             }
         });
