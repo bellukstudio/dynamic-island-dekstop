@@ -3249,7 +3249,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.appearance.dark_bg = dark.to_string();
             next.appearance.light_bg = light.to_string();
             next.normalize();
-            if !["auto", "dark", "light", "custom"].contains(&next.appearance.theme.as_str()) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Tema harus auto, dark, atau light".into()); } return; }
+            if !["auto", "dark", "light", "custom"].contains(&next.appearance.theme.as_str()) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Tema harus auto, dark, light, atau custom".into()); } return; }
             let valid_hex = |v: &str| v.is_empty() || (v.len() == 7 && v.starts_with("#") && v[1..].bytes().all(|b| b.is_ascii_hexdigit()));
             if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.background) || !valid_hex(&next.appearance.text) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Warna harus memakai format HEX #RRGGBB".into()); } return; }
             match next.save(&config_path) {
