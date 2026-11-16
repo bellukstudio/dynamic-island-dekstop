@@ -470,7 +470,7 @@ mod tests {
         let defaults: Config = toml::from_str("").unwrap();
         assert!(!defaults.nudge.until_move);
 
-        let configured: Config = toml::from_str("[nudge]\\nuntil_move = true\\n").unwrap();
+        let configured: Config = toml::from_str("[nudge]\nuntil_move = true\n").unwrap();
         assert!(configured.nudge.until_move);
     }
 
