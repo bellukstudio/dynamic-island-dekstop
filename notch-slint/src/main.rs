@@ -3192,24 +3192,27 @@ fn main() -> Result<(), slint::PlatformError> {
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
         win.on_settings_save_greeting(move |enabled, mode, voice, custom_text| {
-            let mut next = updated_config.clone();
-            next.greeting.enabled = enabled;
-            next.greeting.mode = mode.to_string();
-            next.greeting.voice = voice.to_string();
-            next.greeting.custom_text = custom_text.to_string();
-            next.greeting.sanitize();
-            if !["random", "auto", "halo", "morning", "noon", "afternoon", "evening", "custom"].contains(&next.greeting.mode.as_str()) {
+            let mode = mode.to_string();
+            let voice = voice.to_string();
+            let custom_text = custom_text.to_string().trim().to_string();
+            if !["random", "auto", "halo", "morning", "noon", "afternoon", "evening", "custom"].contains(&mode.as_str()) {
                 if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Mode greeting tidak valid.".into()); }
                 return;
             }
-            if !["cewek", "cowok", "anime-cewek", "anime-cowok", "system"].contains(&next.greeting.voice.as_str()) {
+            if !["cewek", "cowok", "anime-cewek", "anime-cowok", "system"].contains(&voice.as_str()) {
                 if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Mode suara tidak valid.".into()); }
                 return;
             }
-            if next.greeting.mode == "custom" && next.greeting.custom_text.trim().is_empty() {
-                if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Teks greeting kustom wajib diisi.".into()); }
+            if custom_text.chars().count() > 120 || (mode == "custom" && custom_text.is_empty()) {
+                if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Teks greeting kustom wajib diisi dan maksimal 120 karakter.".into()); }
                 return;
             }
+            let mut next = updated_config.clone();
+            next.greeting.enabled = enabled;
+            next.greeting.mode = mode;
+            next.greeting.voice = voice;
+            next.greeting.custom_text = custom_text;
+            next.greeting.sanitize();
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next.clone();
