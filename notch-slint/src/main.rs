@@ -123,6 +123,25 @@ fn format_convert_selection(paths: &[String]) -> String {
     lines.join("\n")
 }
 
+fn load_convert_preview(path: &std::path::Path) -> Image {
+    let candidate = if path.is_dir() {
+        let mut files = std::fs::read_dir(path).ok().into_iter().flatten()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .filter(|candidate| {
+                candidate.extension().and_then(|value| value.to_str())
+                    .map(|ext| matches!(ext.to_ascii_lowercase().as_str(), "png" | "jpg" | "jpeg" | "webp" | "bmp" | "gif"))
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+        files.sort();
+        files.into_iter().next()
+    } else {
+        Some(path.to_path_buf())
+    };
+    candidate.and_then(|candidate| Image::load_from_path(&candidate).ok()).unwrap_or_default()
+}
+
 fn copy_convert_directory(source: &std::path::Path, destination: &std::path::Path) -> Result<(), String> {
     std::fs::create_dir_all(destination).map_err(|error| error.to_string())?;
     for entry in std::fs::read_dir(source).map_err(|error| error.to_string())? {
@@ -1636,6 +1655,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 *selected_paths.borrow_mut() = selected.clone();
                 w.set_convert_history_text(format_convert_history().into());
                 w.set_convert_files_text(format_convert_selection(&selected).into());
+                w.set_convert_source_preview(load_convert_preview(std::path::Path::new(first)));
+                w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
                 w.set_convert_progress_text("".into());
@@ -1761,6 +1782,13 @@ fn main() -> Result<(), slint::PlatformError> {
                                 Ok(final_output) => {
                                     record_convert_history(&path, Some(&final_output), &history_target, "OK");
                                     *last_output.lock().unwrap_or_else(|error| error.into_inner()) = Some(final_output.clone());
+                                    let preview_path = final_output.clone();
+                                    let weak_preview = weak.clone();
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(w) = weak_preview.upgrade() {
+                                            w.set_convert_result_preview(load_convert_preview(&preview_path));
+                                        }
+                                    });
                                     outputs.push(format!("{} ({detail})", final_output.display()));
                                 }
                                 Err(error) => {
@@ -2474,6 +2502,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() {
                     w.set_convert_selected_path(paths.first().cloned().unwrap_or(raw).into());
                     w.set_convert_files_text(format_convert_selection(&paths).into());
+                    if let Some(first) = paths.first() {
+                        w.set_convert_source_preview(load_convert_preview(std::path::Path::new(first)));
+                    }
+                    w.set_convert_result_preview(Image::default());
                     w.set_convert_history_text(format_convert_history().into());
                     w.set_convert_progress_text("".into());
                     w.set_convert_status(format!("{} file siap dikonversi · file diterima dari Explorer", paths.len()).into());
