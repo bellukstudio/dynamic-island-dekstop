@@ -1351,14 +1351,14 @@ component SettingsPage inherits VerticalLayout {
         VerticalLayout { padding: 9px; spacing: 6px;
             HorizontalLayout {
                 Text { text: "Gerakan acak saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: motion-enabled-input.checked ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.checked; clicked => { motion-enabled-input.checked = !motion-enabled-input.checked; } }
+                Chip { label: motion-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.text == "true"; clicked => { motion-enabled-input.text = motion-enabled-input.text == "true" ? "false" : "true"; } }
             }
-            motion-enabled-input := CheckBox { checked: root.motion-enabled; visible: false; }
+            motion-enabled-input := TextInput { text: root.motion-enabled ? "true" : "false"; visible: false; }
             Text { text: "Interval perpindahan (60–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
             motion-interval-input := TextInput { text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
             motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan liquid movement"; clicked => { root.save-motion(motion-enabled-input.checked, motion-interval-input.text, motion-max-input.text); } }
+            Chip { label: "Simpan liquid movement"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text); } }
             Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
