@@ -199,13 +199,159 @@ fn write_converted(source: &Path, extension: &str, bytes: &[u8]) -> Result<PathB
     Ok(output)
 }
 
+// ---------------------------------------------------------------------------------------------
+// LibreOffice fallback untuk format Office lama/lain dan dokumen yang gagal di mesin bawaan.
+// Implementasi ini UI-independent agar Tauri dan Slint memakai perilaku konversi yang sama.
+// ---------------------------------------------------------------------------------------------
+const OFFICE_EXTENSIONS: [&str; 11] = [
+    "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt",
+];
+// CSV termasuk format Office yang dapat dibuka LibreOffice.
+fn is_office_extension(ext: &str) -> bool {
+    OFFICE_EXTENSIONS.contains(&ext) || ext == "csv"
+}
+
+fn find_soffice() -> Option<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(path) = std::env::var_os("SOFFICE_PATH") {
+        candidates.push(PathBuf::from(path));
+    }
+
+    if cfg!(target_os = "windows") {
+        for root in ["C:\\Program Files\\LibreOffice", "C:\\Program Files (x86)\\LibreOffice"] {
+            candidates.push(Path::new(root).join("program").join("soffice.exe"));
+        }
+    } else {
+        for path in [
+            "/usr/bin/soffice",
+            "/usr/bin/libreoffice",
+            "/usr/local/bin/soffice",
+            "/snap/bin/libreoffice",
+            "/opt/libreoffice/program/soffice",
+            "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+        ] {
+            candidates.push(PathBuf::from(path));
+        }
+    }
+
+    if let Some(paths) = std::env::var_os("PATH") {
+        for directory in std::env::split_paths(&paths) {
+            for name in ["soffice.exe", "soffice", "libreoffice"] {
+                candidates.push(directory.join(name));
+            }
+        }
+    }
+
+    candidates.into_iter().find(|path| path.is_file())
+}
+
+fn soffice() -> Option<&'static PathBuf> {
+    static SOFFICE: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+    SOFFICE.get_or_init(find_soffice).as_ref()
+}
+
+fn file_url(path: &Path) -> String {
+    let value = path.to_string_lossy().replace('\\', "/").replace(' ', "%20");
+    if value.starts_with('/') {
+        format!("file://{value}")
+    } else {
+        format!("file:///{value}")
+    }
+}
+
+fn configure_no_window(command: &mut std::process::Command) -> &mut std::process::Command {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    command
+}
+
+fn office_to_pdf_with_libreoffice(input: &Path) -> Result<Vec<u8>, String> {
+    let executable = soffice().ok_or_else(|| "LibreOffice tidak ditemukan".to_string())?;
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    static TEMP_SEQUENCE: std::sync::atomic::AtomicU64 =
+        std::sync::atomic::AtomicU64::new(0);
+    let _guard = LOCK.lock().unwrap_or_else(|error| error.into_inner());
+
+    let temp = std::env::temp_dir();
+    let output_dir = temp.join(format!(
+        "notch-convert-{}-{}",
+        std::process::id(),
+        TEMP_SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    std::fs::create_dir_all(&output_dir)
+        .map_err(|error| format!("Gagal membuat folder sementara: {error}"))?;
+    let profile = temp.join("notch-lo-profile");
+
+    let result = (|| {
+        let mut command = std::process::Command::new(executable);
+        if std::env::var_os("APPDIR").is_some() {
+            command.env_remove("LD_LIBRARY_PATH");
+        }
+        let output = configure_no_window(&mut command)
+            .arg(format!("-env:UserInstallation={}", file_url(&profile)))
+            .args([
+                "--headless",
+                "--norestore",
+                "--nolockcheck",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+            ])
+            .arg(&output_dir)
+            .arg(input)
+            .output()
+            .map_err(|error| format!("Gagal menjalankan LibreOffice: {error}"))?;
+
+        let pdf_path = std::fs::read_dir(&output_dir)
+            .map_err(|error| error.to_string())?
+            .flatten()
+            .map(|entry| entry.path())
+            .find(|path| path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("pdf")));
+
+        match pdf_path {
+            Some(path) => std::fs::read(&path)
+                .map_err(|error| format!("Hasil LibreOffice tidak terbaca: {error}")),
+            None => {
+                let message = String::from_utf8_lossy(&output.stderr);
+                let message = message.lines().rev()
+                    .find(|line| !line.trim().is_empty())
+                    .unwrap_or("tidak ada keluaran PDF");
+                Err(format!("LibreOffice gagal: {message}"))
+            }
+        }
+    })();
+
+    let _ = std::fs::remove_dir_all(&output_dir);
+    result
+}
+
+fn office_to_pdf_bytes(path: &Path, extension: &str) -> Result<Vec<u8>, String> {
+    if crate::officepdf::supports(extension) {
+        match crate::officepdf::convert_to_pdf(path) {
+            Ok(bytes) => return Ok(bytes),
+            Err(native_error) => {
+                if soffice().is_none() {
+                    return Err(native_error);
+                }
+                eprintln!(
+                    "convert: mesin Office bawaan gagal ({native_error}), mencoba LibreOffice"
+                );
+            }
+        }
+    }
+    office_to_pdf_with_libreoffice(path)
+}
+
 /// Convert a DOCX, XLSX, or PPTX to PDF and save the result beside the source file.
 pub fn convert_office_to_pdf(path: &Path) -> Result<PathBuf, String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-    if !crate::officepdf::supports(&ext) {
+    if !is_office_extension(&ext) {
         return Err(format!("Format Office tidak didukung: .{ext}"));
     }
-    let bytes = crate::officepdf::convert_to_pdf(path)?;
+    let bytes = office_to_pdf_bytes(path, &ext)?;
     write_converted(path, "pdf", &bytes)
 }
 
@@ -299,10 +445,32 @@ fn unique_converted_path(source: &Path, extension: &str) -> PathBuf {
 /// Convert an image or supported Office document to PDF.
 pub fn convert_to_pdf(path: &Path) -> Result<PathBuf, String> {
     let ext = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-    if crate::officepdf::supports(&ext) {
+    if is_office_extension(&ext) {
         convert_office_to_pdf(path)
     } else {
         convert_image(path, "pdf")
+    }
+}
+
+#[cfg(test)]
+mod office_format_tests {
+    use super::is_office_extension;
+
+    #[test]
+    fn recognizes_modern_and_legacy_office_formats() {
+        for extension in [
+            "docx", "xlsx", "pptx", "doc", "xls", "ppt",
+            "odt", "ods", "odp", "rtf", "txt", "csv",
+        ] {
+            assert!(is_office_extension(extension), "{extension}");
+        }
+    }
+
+    #[test]
+    fn does_not_treat_unrelated_extensions_as_office_documents() {
+        for extension in ["pdf", "png", "jpg", "webp", "exe", ""] {
+            assert!(!is_office_extension(extension), "{extension}");
+        }
     }
 }
 
