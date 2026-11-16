@@ -2705,17 +2705,17 @@ export component NotchWindow inherits Window {
                 visible: !root.expanded && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
                 x: (root.dock >= 3 ? 13px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
                 y: (root.dock >= 3 ? 112px : 27px) + root.eyes-offset-y * 1px;
-                width: root.eyes-mood == "happy" ? 14px
+                width: (root.eyes-mood == "happy" ? 14px
                     : root.eyes-mood == "sleepy" ? 7px
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "angry" ? 12px
                     : root.eyes-mood == "love" ? 15px
                     : root.eyes-mood == "suspicious" ? 10px
-                    : root.eyes-mood == "sad" ? 11px : 10px;
-                height: root.eyes-mood == "happy" || root.eyes-mood == "angry" || root.eyes-mood == "love" || root.eyes-mood == "sad" ? 6px
+                    : root.eyes-mood == "sad" ? 11px : 10px) * root.eyes-scale-x;
+                height: (root.eyes-mood == "happy" || root.eyes-mood == "angry" || root.eyes-mood == "love" || root.eyes-mood == "sad" ? 6px
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "sleepy" ? 2px
-                    : root.eyes-mood == "suspicious" ? 5px : 3px;
+                    : root.eyes-mood == "suspicious" ? 5px : 3px) * root.eyes-scale-y;
                 border-radius: root.eyes-mood == "surprised" ? 4px
                     : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 7px
                     : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px
