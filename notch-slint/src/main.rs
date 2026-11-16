@@ -1787,10 +1787,24 @@ fn main() -> Result<(), slint::PlatformError> {
     let convert_file_statuses = std::sync::Arc::new(std::sync::Mutex::new(Vec::<(String, String)>::new()));
     let convert_active_file = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
     let convert_cancel_active_file = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let (restored_queue, restored_statuses) = load_convert_queue_state();
+    *convert_queue.lock().unwrap_or_else(|error| error.into_inner()) = restored_queue;
+    *convert_file_statuses.lock().unwrap_or_else(|error| error.into_inner()) = restored_statuses;
     let initial_output_dir = load_convert_output_dir();
     let convert_output_dir = Rc::new(RefCell::new(initial_output_dir.clone()));
     win.set_convert_output_dir_text(initial_output_dir.into());
     win.set_convert_overrides_text(load_convert_overrides().into());
+    {
+        let queue_text = format_convert_file_statuses(&convert_file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
+        win.set_convert_queue_text(queue_text.into());
+        let restored_paths = convert_queue.lock().unwrap_or_else(|error| error.into_inner()).iter().cloned().collect::<Vec<_>>();
+        if let Some(first) = restored_paths.first() {
+            *convert_selected_paths.borrow_mut() = restored_paths.clone();
+            win.set_convert_selected_path(first.clone().into());
+            win.set_convert_files_text(format_convert_selection(&restored_paths).into());
+            win.set_convert_status(format!("{} file antrean dipulihkan dari sesi sebelumnya", restored_paths.len()).into());
+        }
+    }
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
@@ -1875,6 +1889,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let total = paths.len();
             *queue.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().cloned().collect();
             *file_statuses.lock().unwrap_or_else(|error| error.into_inner()) = paths.iter().map(|path| (path.clone(), "Menunggu".to_string())).collect();
+            save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
             failed_files.lock().unwrap_or_else(|error| error.into_inner()).clear();
             *active_file.lock().unwrap_or_else(|error| error.into_inner()) = None;
             cancel_active_file.store(false, std::sync::atomic::Ordering::Release);
@@ -1920,6 +1935,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             item.1 = "Diproses".to_string();
                         }
                     }
+                    save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                     let queue_text = format_convert_file_statuses(&file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                     let weak_queue = weak.clone();
                     let _ = slint::invoke_from_event_loop(move || {
@@ -2048,6 +2064,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     }
                     *active_file.lock().unwrap_or_else(|error| error.into_inner()) = None;
+                    save_convert_queue_state(&queue.lock().unwrap_or_else(|error| error.into_inner()), &file_statuses.lock().unwrap_or_else(|error| error.into_inner()));
                     let remaining = queue.lock().unwrap_or_else(|error| error.into_inner()).len();
                     let effective_total = (processed + remaining).max(1);
                     let percent = processed * 100 / effective_total;
