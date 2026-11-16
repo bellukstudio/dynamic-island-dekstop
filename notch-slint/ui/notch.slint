@@ -2292,6 +2292,7 @@ export component NotchWindow inherits Window {
     // 0 = atas, 1 = melayang, 2 = bawah, 3 = kiri, 4 = kanan.
     in property <int> dock: 0;
     in property <bool> play-interaction-active: false;
+    in property <bool> dragging: false;
     in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
@@ -2654,14 +2655,14 @@ export component NotchWindow inherits Window {
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset : 0px);
         // Saat dock samping, pil kecil berorientasi portrait; hub terbuka tetap horizontal ke dalam layar.
         // Skala badan mengikuti pegas Bottom/Side Play, sementara titik docking tetap menjadi jangkar.
-        width: root.expanded ? 580px : (root.dock >= 3 ? 34px : 130px) * root.play-body-scale-x;
-        height: root.expanded ? 202px : (root.dock >= 3 ? 130px : 34px) * root.play-body-scale-y;
+        width: root.expanded ? 580px : (root.dragging ? 58px : (root.dock >= 3 ? 34px : 130px) * root.play-body-scale-x);
+        height: root.expanded ? 202px : (root.dragging ? 58px : (root.dock >= 3 ? 130px : 34px) * root.play-body-scale-y);
         background: Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
-        border-top-left-radius: (root.dock == 0 || root.dock == 3) ? 0px : self.r;
-        border-top-right-radius: (root.dock == 0 || root.dock == 4) ? 0px : self.r;
-        border-bottom-left-radius: (root.dock == 2 || root.dock == 3) ? 0px : self.r;
-        border-bottom-right-radius: (root.dock == 2 || root.dock == 4) ? 0px : self.r;
+        border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
+        border-top-right-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 4) ? 0px : self.r);
+        border-bottom-left-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 3) ? 0px : self.r);
+        border-bottom-right-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 4) ? 0px : self.r);
         animate r { duration: 220ms; easing: ease-out-quart; }
         clip: true;
         animate width { duration: 220ms; easing: ease-out-quart; }
@@ -2695,11 +2696,12 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
+                visible: !root.dragging;
             }
 
             // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
             Rectangle {
-                visible: !root.expanded && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
+                visible: !root.dragging && !root.expanded && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
                 x: (root.dock >= 3 ? 13px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
                 y: (root.dock >= 3 ? 112px : 27px) + root.eyes-offset-y * 1px;
                 width: (root.eyes-mood == "happy" ? 14px
