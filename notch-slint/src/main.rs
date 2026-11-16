@@ -22,6 +22,7 @@ use notch_core::prayer::{self, Day as PrayerDay};
 use notch_core::quick::{self, Quick};
 use notch_core::reminder::{self, Reminder};
 use notch_core::stats::StatsMonitor;
+use slint::Model;
 use notch_core::theme::{Palette, Rgba};
 use slint::{
     ComponentHandle, Global, Image, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel,
@@ -736,6 +737,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
+    let shelf_store = Rc::new(RefCell::new(shelf::Store::open(notch_core::paths::data_file("shelf.json"))));
+    let shelf_model = Rc::new(VecModel::<ShelfItem>::default());
+    let shelf_items = shelf_store.borrow().list();
+    shelf_model.set_vec(shelf_items.into_iter().map(|item| ShelfItem {
+        path: item.path.into(), name: item.name.into(), dir: item.dir,
+    }).collect());
+    win.set_shelf_items(ModelRc::from(shelf_model.clone()));
     let clipboard_monitor = Rc::new(if pages.iter().any(|page| page == "clipboard") {
         match ClipboardMonitor::start() {
             Ok(monitor) => Some(monitor),
@@ -898,6 +906,49 @@ fn main() -> Result<(), slint::PlatformError> {
             show_notes(&model, s.remove(id.as_str()));
         });
     }
+    {
+        let store = shelf_store.clone();
+        let model = shelf_model.clone();
+        let weak = win.as_weak();
+        win.on_shelf_add(move || {
+            let selected = rfd::FileDialog::new().pick_files();
+            let Some(paths) = selected else { return; };
+            let paths = paths.into_iter().map(|path| path.to_string_lossy().to_string()).collect();
+            let items = store.borrow_mut().add(paths);
+            model.set_vec(items.into_iter().map(|item| ShelfItem {
+                path: item.path.into(), name: item.name.into(), dir: item.dir,
+            }).collect());
+            if let Some(w) = weak.upgrade() {
+                w.set_shelf_status(format!("{} item tersimpan. File asli tidak dipindahkan.", model.row_count()).into());
+            }
+        });
+    }
+    {
+        let store = shelf_store.clone();
+        let model = shelf_model.clone();
+        let weak = win.as_weak();
+        win.on_shelf_remove(move |path| {
+            let items = store.borrow_mut().remove(path.as_str());
+            model.set_vec(items.into_iter().map(|item| ShelfItem {
+                path: item.path.into(), name: item.name.into(), dir: item.dir,
+            }).collect());
+            if let Some(w) = weak.upgrade() { w.set_shelf_status(format!("Item dihapus dari Shelf · {} tersisa", model.row_count()).into()); }
+        });
+    }
+    {
+        let store = shelf_store.clone();
+        let model = shelf_model.clone();
+        let weak = win.as_weak();
+        win.on_shelf_clear(move || {
+            let items = store.borrow_mut().clear();
+            model.set_vec(items.into_iter().map(|item| ShelfItem {
+                path: item.path.into(), name: item.name.into(), dir: item.dir,
+            }).collect());
+            if let Some(w) = weak.upgrade() { w.set_shelf_status("Shelf dikosongkan. File asli tetap aman.".into()); }
+        });
+    }
+    win.on_shelf_open(|path| shelf::open(path.as_str()));
+    win.on_shelf_reveal(|path| shelf::reveal(path.as_str()));
 
 
     {
