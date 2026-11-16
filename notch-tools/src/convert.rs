@@ -221,6 +221,49 @@ fn is_office_extension(ext: &str) -> bool {
     OFFICE_EXTENSIONS.contains(&ext) || ext == "csv"
 }
 
+const IMAGE_TARGETS: [&str; 6] = ["png", "jpg", "webp", "bmp", "gif", "pdf"];
+
+fn extension_of(path: &Path) -> String {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase()
+}
+
+/// Return the formats supported by the conversion engine for this input file.
+pub fn available_targets(path: &Path) -> Vec<&'static str> {
+    let ext = extension_of(path);
+    match ext.as_str() {
+        "jpg" | "jpeg" | "png" | "webp" | "bmp" | "gif" => {
+            let current = if ext == "jpeg" { "jpg" } else { ext.as_str() };
+            IMAGE_TARGETS.iter().copied().filter(|target| *target != current).collect()
+        }
+        "pdf" => {
+            if crate::pdf::is_available() { vec!["png", "jpg"] } else { Vec::new() }
+        }
+        _ if is_office_extension(&ext) => {
+            if crate::officepdf::supports(&ext) || soffice().is_some() {
+                vec!["pdf"]
+            } else {
+                Vec::new()
+            }
+        }
+        _ => Vec::new(),
+    }
+}
+
+/// Pick a sensible per-file target. The auto option can therefore be used for mixed batches.
+pub fn default_target(path: &Path) -> Option<&'static str> {
+    let ext = extension_of(path);
+    match ext.as_str() {
+        "jpg" | "jpeg" | "webp" | "bmp" | "gif" => Some("png"),
+        "png" => Some("jpg"),
+        "pdf" => Some("png"),
+        _ if is_office_extension(&ext) => Some("pdf"),
+        _ => None,
+    }
+}
+
 fn find_soffice() -> Option<PathBuf> {
     let mut candidates = Vec::new();
     if let Some(path) = std::env::var_os("SOFFICE_PATH") {
@@ -466,7 +509,18 @@ pub fn convert_to_pdf_with_quality(path: &Path, quality: u8) -> Result<PathBuf, 
 
 #[cfg(test)]
 mod office_format_tests {
-    use super::is_office_extension;
+    use super::{default_target, is_office_extension};
+    use std::path::Path;
+
+    #[test]
+    fn chooses_a_default_target_for_each_supported_input_family() {
+        assert_eq!(default_target(Path::new("photo.jpg")), Some("png"));
+        assert_eq!(default_target(Path::new("photo.png")), Some("jpg"));
+        assert_eq!(default_target(Path::new("document.pdf")), Some("png"));
+        assert_eq!(default_target(Path::new("document.docx")), Some("pdf"));
+        assert_eq!(default_target(Path::new("document.CSV")), Some("pdf"));
+        assert_eq!(default_target(Path::new("archive.zip")), None);
+    }
 
     #[test]
     fn recognizes_modern_and_legacy_office_formats() {
