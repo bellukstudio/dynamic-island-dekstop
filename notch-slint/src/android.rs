@@ -29,8 +29,10 @@ impl AndroidState {
                     lines.push(format!("{} | {} | {}{}", d.serial, d.model, d.state, if d.wifi { " | Wi-Fi" } else { "" }));
                 }
                 if self.serial.is_empty() {
-                    if let Some(first) = lines.first() {
-                        self.serial = first.split(" | ").next().unwrap_or("").to_string();
+                    if let Some(ready) = devices.iter().find(|device| device.state == "device") {
+                        self.serial = ready.serial.clone();
+                    } else if let Some(first) = devices.first() {
+                        self.serial = first.serial.clone();
                     }
                 }
                 lines.join("\n")
@@ -38,7 +40,7 @@ impl AndroidState {
             Err(e) => format!("Gagal membaca perangkat: {e}"),
         }
     }
-    pub fn set_serial(&mut self, serial: String) { self.serial = serial; }
+    pub fn set_serial(&mut self, serial: String) { self.serial = serial.trim().to_string(); }
     pub fn serial(&self) -> &str { &self.serial }
     pub fn list(&self, path: &str) -> String {
         let Some(adb) = self.adb.as_ref() else { return "ADB belum tersedia".into() };

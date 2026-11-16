@@ -41,7 +41,11 @@ impl MirrorProcess {
             use std::os::windows::process::CommandExt;
             command.creation_flags(0x0800_0000);
         }
-        let child = command.spawn().map_err(|e| format!("Gagal menjalankan scrcpy: {e}"))?;
+        let mut child = command.spawn().map_err(|e| format!("Gagal menjalankan scrcpy: {e}"))?;
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        if let Some(status) = child.try_wait().map_err(|e| format!("Gagal memeriksa scrcpy: {e}"))? {
+            return Err(format!("scrcpy langsung berhenti ({status}). Pastikan USB debugging aktif dan perangkat berstatus \"device\"."));
+        }
         self.child = Some(child);
         Ok(format!("Mirroring dimulai untuk {serial}. Kontrol layar melalui jendela scrcpy."))
     }
