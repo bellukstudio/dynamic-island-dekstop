@@ -986,6 +986,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
     win.set_hub_pages(cfg.pages.join(", ").into());
+    win.set_position_mode("top".into());
     win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(cfg.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
     {
         let weak = win.as_weak();
@@ -1041,6 +1042,44 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let shell = shell.clone();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_position(move |mode| {
+            let mode = mode.to_string();
+            if !["top", "floating", "bottom"].contains(&mode.as_str()) {
+                if let Some(w) = weak.upgrade() { w.set_behavior_save_status("Mode posisi tidak valid".into()); }
+                return;
+            }
+            let work = platform::work_area(None);
+            let center_x = work.x + work.w / 2;
+            let next_pos = match mode.as_str() {
+                "top" => None,
+                "floating" => Some((center_x, work.y + 100)),
+                "bottom" => Some((center_x, notch_core::layout::BOTTOM_TY)),
+                _ => None,
+            };
+            let mut next = updated_config.clone();
+            match next_pos {
+                Some((x, y)) => { next.position.custom = true; next.position.x = x; next.position.y = y; }
+                None => { next.position.custom = false; next.position.x = 0; next.position.y = 0; }
+            }
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next;
+                    shell.pos.set(next_pos);
+                    if let Some(w) = weak.upgrade() {
+                        shell.place(&w, COLLAPSED);
+                        w.set_position_mode(mode.clone().into());
+                        w.set_behavior_save_status(format!("Posisi notch disimpan: {mode}").into());
+                    }
+                }
+                Err(error) => { if let Some(w) = weak.upgrade() { w.set_behavior_save_status(format!("Gagal menyimpan posisi: {error}").into()); } }
+            }
+        });
+    }
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
