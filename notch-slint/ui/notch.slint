@@ -1277,6 +1277,8 @@ component ConvertPage inherits VerticalLayout {
     in property <string> history-text: "Belum ada riwayat konversi";
     in property <string> files-text: "Belum ada file dipilih";
     in property <string> output-dir-text: "";
+    in property <string> eta-text: "";
+    in property <float> progress-value: 0;
     in property <image> source-preview;
     in property <image> result-preview;
     callback run(string, string, string, string, string);
@@ -1324,7 +1326,22 @@ component ConvertPage inherits VerticalLayout {
         Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
-    Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
+    Rectangle {
+        height: 7px;
+        border-radius: 4px;
+        background: Theme.track;
+        Rectangle {
+            width: parent.width * clamp(root.progress-value, 0, 100) / 100;
+            height: parent.height;
+            border-radius: 4px;
+            background: Theme.accent;
+            animate width { duration: 180ms; easing: ease-out; }
+        }
+    }
+    HorizontalLayout {
+        Text { text: root.eta-text; color: Theme.text-faint; font-size: 9px; horizontal-stretch: 1; }
+        Text { text: root.convert-progress-text; color: Theme.accent; font-size: 10px; }
+    }
     Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
     Rectangle {
         background: #ffffff08;
@@ -1785,6 +1802,8 @@ export component NotchWindow inherits Window {
     in property <string> convert-selected-path: "";
     in property <string> convert-status: "Pilih file untuk dikonversi";
     in property <string> convert-progress-text: "";
+    in property <float> convert-progress-value: 0;
+    in property <string> convert-eta-text: "";
     in property <string> convert-history-text: "Belum ada riwayat konversi";
     in property <string> convert-files-text: "Belum ada file dipilih";
     in property <string> convert-output-dir-text: "";
@@ -2172,6 +2191,8 @@ export component NotchWindow inherits Window {
                         history-text: root.convert-history-text;
                         files-text: root.convert-files-text;
                         output-dir-text: root.convert-output-dir-text;
+                        eta-text: root.convert-eta-text;
+                        progress-value: root.convert-progress-value;
                         source-preview: root.convert-source-preview;
                         result-preview: root.convert-result-preview;
                         run(path, format, quality, dpi, overrides) => { root.convert-run(path, format, quality, dpi, overrides); }
