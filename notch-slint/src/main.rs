@@ -566,6 +566,13 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_appearance_accent(cfg.appearance.accent.clone().into());
     win.set_appearance_dark_bg(cfg.appearance.dark_bg.clone().into());
     win.set_appearance_light_bg(cfg.appearance.light_bg.clone().into());
+    win.set_prayer_mode(cfg.prayer.mode.clone().into());
+    win.set_prayer_remind_before(cfg.prayer.remind_before.to_string().into());
+    win.set_prayer_remind_min(cfg.prayer.remind_min.to_string().into());
+    win.set_pomodoro_focus(cfg.pomodoro.focus_min.to_string().into());
+    win.set_pomodoro_break(cfg.pomodoro.break_min.to_string().into());
+    win.set_pomodoro_long_break(cfg.pomodoro.long_break_min.to_string().into());
+    win.set_pomodoro_rounds(cfg.pomodoro.rounds.to_string().into());
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
@@ -1515,6 +1522,31 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => { updated_config = next.clone(); if let Some(w) = weak.upgrade() { w.set_appearance_theme(next.appearance.theme.clone().into()); w.set_appearance_eye_theme(next.appearance.eye_theme.clone().into()); w.set_appearance_notch_theme(next.appearance.notch_theme.clone().into()); w.set_appearance_mood(next.appearance.default_mood.clone().into()); w.set_appearance_accent(next.appearance.accent.clone().into()); w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into()); w.set_appearance_light_bg(next.appearance.light_bg.clone().into()); w.set_appearance_save_status("Tampilan tersimpan. Sebagian perubahan visual aktif saat startup.".into()); } },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_routines(move |mode, remind, minutes, focus, rest, long, rounds| {
+            let mut next = updated_config.clone();
+            let mode = mode.to_string();
+            if !["tone", "adzan", "silent"].contains(&mode.as_str()) { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Mode shalat harus tone, adzan, atau silent".into()); } return; }
+            let remind = remind.to_string();
+            if !["true", "false"].contains(&remind.as_str()) { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Pengingat harus true atau false".into()); } return; }
+            let parse = |v: slint::SharedString, min: u32, max: u32| -> Option<u32> { let n = v.parse::<u32>().ok()?; if (min..=max).contains(&n) { Some(n) } else { None } };
+            let Some(minutes) = parse(minutes, 1, 120) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Menit pengingat harus 1–120".into()); } return; };
+            let Some(focus) = parse(focus, 1, 180) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Fokus Pomodoro harus 1–180 menit".into()); } return; };
+            let Some(rest) = parse(rest, 1, 60) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Istirahat harus 1–60 menit".into()); } return; };
+            let Some(long) = parse(long, 1, 120) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Istirahat panjang harus 1–120 menit".into()); } return; };
+            let Some(rounds) = parse(rounds, 1, 12) else { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Jumlah ronde harus 1–12".into()); } return; };
+            next.prayer.mode = mode; next.prayer.remind_before = remind == "true"; next.prayer.remind_min = minutes;
+            next.pomodoro.focus_min = focus; next.pomodoro.break_min = rest; next.pomodoro.long_break_min = long; next.pomodoro.rounds = rounds;
+            match next.save(&config_path) {
+                Ok(()) => { updated_config = next.clone(); if let Some(w) = weak.upgrade() { w.set_prayer_mode(next.prayer.mode.clone().into()); w.set_prayer_remind_before(next.prayer.remind_before.to_string().into()); w.set_prayer_remind_min(next.prayer.remind_min.to_string().into()); w.set_pomodoro_focus(next.pomodoro.focus_min.to_string().into()); w.set_pomodoro_break(next.pomodoro.break_min.to_string().into()); w.set_pomodoro_long_break(next.pomodoro.long_break_min.to_string().into()); w.set_pomodoro_rounds(next.pomodoro.rounds.to_string().into()); w.set_settings_save_status("Pengaturan shalat dan Pomodoro tersimpan.".into()); } },
+                Err(error) => { if let Some(w) = weak.upgrade() { w.set_settings_save_status(format!("Gagal menyimpan: {error}").into()); } }
             }
         });
     }
