@@ -1035,6 +1035,38 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
+component SpeechBubble inherits Rectangle {
+    in property <string> message;
+    in property <string> detail;
+    in property <bool> bottom: false;
+    height: 58px;
+    width: 250px;
+    border-radius: 14px;
+    background: #171923f5;
+    border-width: 1px;
+    border-color: Theme.accent.with-alpha(0.72);
+    drop-shadow-blur: 14px;
+    drop-shadow-color: #00000080;
+    VerticalLayout {
+        padding: 9px;
+        spacing: 3px;
+        Text { text: root.message; color: Theme.text; font-size: 11px; font-weight: 700; overflow: elide; }
+        Text { text: root.detail; color: Theme.text-dim; font-size: 9px; overflow: elide; }
+    }
+    Path {
+        x: 116px;
+        y: root.bottom ? 0px : parent.height - 7px;
+        width: 16px;
+        height: 8px;
+        viewbox-width: 16;
+        viewbox-height: 8;
+        commands: root.bottom ? "M 0 8 L 8 0 L 16 8 Z" : "M 0 0 L 8 8 L 16 0 Z";
+        fill: #171923f5;
+        stroke: Theme.accent.with-alpha(0.72);
+        stroke-width: 1px;
+    }
+}
+
 component PageToggle inherits Rectangle {
     in property <string> label;
     in property <bool> checked: false;
@@ -2165,6 +2197,15 @@ export component NotchWindow inherits Window {
             visible: root.has-decor;
             opacity: root.expanded ? 1 : 0;
             animate opacity { duration: 220ms; }
+        }
+
+        // Notifikasi global: ketika hub menciut, pesan muncul sebagai balon percakapan dekat karakter.
+        if !root.expanded && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != ""): SpeechBubble {
+            x: (parent.width - self.width) / 2;
+            y: root.dock == 2 ? 0px : 42px;
+            bottom: root.dock == 2;
+            message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : root.reminder-alert-text);
+            detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : root.reminder-alert-sub);
         }
 
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
