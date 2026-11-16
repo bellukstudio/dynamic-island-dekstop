@@ -15,7 +15,7 @@ femtovg = ["slint/renderer-femtovg"]
 notch-core = { path = "../notch-core", features = ["net"] }
 notch-tools = { path = "../notch-tools" }
 png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
-slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2", "unstable-winit-030"] }
+slint = { version = "1", default-features = false, features = ["std", "backend-winit", "compat-1-2", "unstable-winit-030", "image-default-formats"] }
 arboard = { version = "3", default-features = false }
 rfd = "0.15"
 serde_json = "1"
