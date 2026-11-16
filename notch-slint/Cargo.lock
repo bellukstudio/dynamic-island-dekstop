@@ -2628,10 +2628,18 @@ version = "0.1.0"
 dependencies = [
  "image",
  "notch-core",
+ "notch-tools",
  "png 0.17.16",
  "slint",
  "slint-build",
  "windows 0.61.3",
+]
+
+[[package]]
+name = "notch-tools"
+version = "0.1.0"
+dependencies = [
+ "image",
 ]
 
 [[package]]
