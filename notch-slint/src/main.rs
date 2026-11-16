@@ -66,6 +66,25 @@ fn format_convert_history() -> String {
     }).collect::<Vec<_>>().join("\n")
 }
 
+fn format_convert_selection(paths: &[String]) -> String {
+    if paths.is_empty() { return "Belum ada file dipilih".into(); }
+    let mut lines = paths.iter().take(10).map(|raw| {
+        let path = std::path::Path::new(raw);
+        let name = path.file_name().map(|value| value.to_string_lossy().into_owned()).unwrap_or_else(|| raw.clone());
+        let size = std::fs::metadata(path).map(|metadata| {
+            let bytes = metadata.len();
+            if bytes >= 1024 * 1024 { format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0)) }
+            else { format!("{} KB", bytes / 1024) }
+        }).unwrap_or_else(|_| "ukuran tidak diketahui".into());
+        let targets = convert::available_targets(path);
+        let target_text = if targets.is_empty() { "tidak tersedia".to_string() } else { targets.join("/") };
+        let default = convert::default_target(path).unwrap_or("-");
+        format!("{name} · {size} · auto: {default} · pilihan: {target_text}")
+    }).collect::<Vec<_>>();
+    if paths.len() > 10 { lines.push(format!("… dan {} file lainnya", paths.len() - 10)); }
+    lines.join("\n")
+}
+
 fn record_convert_history(input: &str, output: Option<&std::path::Path>, target: &str, status: &str) {
     let path = convert_history_path();
     let mut history = load_convert_history();
@@ -1521,6 +1540,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if let (Some(first), Some(w)) = (selected.first(), weak.upgrade()) {
                 *selected_paths.borrow_mut() = selected.clone();
                 w.set_convert_history_text(format_convert_history().into());
+                w.set_convert_files_text(format_convert_selection(&selected).into());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
                 w.set_convert_progress_text("".into());
