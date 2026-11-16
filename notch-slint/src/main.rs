@@ -2341,3 +2341,37 @@ fn main() -> Result<(), slint::PlatformError> {
 
     win.run()
 }
+
+#[cfg(test)]
+mod convert_target_override_tests {
+    use super::convert_target_override;
+    use std::path::Path;
+
+    #[test]
+    fn matches_file_names_case_insensitively() {
+        assert_eq!(
+            convert_target_override(Path::new("C:/docs/Report.PDF"), "photo.png=webp; report.pdf=jpg"),
+            Some("jpg".to_string())
+        );
+    }
+
+    #[test]
+    fn ignores_entries_for_other_files_and_empty_targets() {
+        assert_eq!(
+            convert_target_override(Path::new("photo.png"), "document.pdf=jpg; photo.png="),
+            None
+        );
+        assert_eq!(
+            convert_target_override(Path::new("photo.png"), "document.pdf=jpg"),
+            None
+        );
+    }
+
+    #[test]
+    fn normalizes_dot_prefixed_target_extensions() {
+        assert_eq!(
+            convert_target_override(Path::new("photo.png"), "photo.png=.webp"),
+            Some("webp".to_string())
+        );
+    }
+}
