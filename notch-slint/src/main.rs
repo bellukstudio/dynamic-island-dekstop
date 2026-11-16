@@ -2736,8 +2736,36 @@ fn main() -> Result<(), slint::PlatformError> {
 
 #[cfg(test)]
 mod convert_target_override_tests {
-    use super::convert_target_override;
+    use super::{convert_quality_override, convert_target_override};
     use std::path::Path;
+
+    #[test]
+    fn per_file_quality_is_clamped_and_case_insensitive() {
+        assert_eq!(
+            convert_quality_override(std::path::Path::new("Report.PDF"), "photo.png=webp@120; report.pdf=jpg@35"),
+            Some(40)
+        );
+        assert_eq!(
+            convert_quality_override(std::path::Path::new("photo.png"), "photo.png=jpg@82"),
+            Some(82)
+        );
+    }
+
+    #[test]
+    fn per_file_quality_requires_a_valid_quality_suffix() {
+        assert_eq!(
+            convert_quality_override(std::path::Path::new("photo.png"), "photo.png=jpg"),
+            None
+        );
+        assert_eq!(
+            convert_quality_override(std::path::Path::new("photo.png"), "photo.png=jpg@high"),
+            None
+        );
+        assert_eq!(
+            convert_quality_override(std::path::Path::new("photo.png"), "other.png=jpg@80"),
+            None
+        );
+    }
 
     #[test]
     fn matches_file_names_case_insensitively() {
