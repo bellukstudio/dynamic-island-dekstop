@@ -1022,12 +1022,10 @@ component SettingsPage inherits VerticalLayout {
     in property <string> behavior-hover-open: "150";
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
-    in property <string> behavior-save-status: "";
-    in property <string> behavior-scale: "1.00";
-    in property <string> behavior-hover-open: "150";
-    in property <string> behavior-hover-close: "450";
-    in property <string> behavior-sleep-after: "60";
     in property <string> behavior-save-status: "Skala, hover, dan idle";
+    in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer";
+    in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
+    callback save-pages(string);
     callback save-behavior(string, string, string, string);
     callback save-routines(string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string);
@@ -1075,6 +1073,16 @@ component SettingsPage inherits VerticalLayout {
                 font-size: 12px;
                 single-line: true;
             }
+        }
+    }
+    Text { text: "Halaman hub"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
+        VerticalLayout { padding: 9px; spacing: 5px;
+            Text { text: "Urutan sekaligus fitur aktif. Pisahkan ID halaman dengan koma."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            pages-input := TextInput { text: root.hub-pages; color: Theme.text; font-size: 10px; single-line: false; }
+            Chip { label: "Simpan halaman hub"; clicked => { root.save-pages(pages-input.text); } }
+            Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            Text { text: "ID: media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, android, transfer, convert, compress, settings"; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
     Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
@@ -1434,6 +1442,14 @@ export component NotchWindow inherits Window {
     in property <string> shortcut-pomodoro: "Ctrl+Alt+P";
     in property <string> shortcut-prayer: "Ctrl+Alt+A";
     in property <string> settings-save-status: "Ubah kombinasi, lalu tekan Simpan";
+    in property <string> behavior-scale: "1.00";
+    in property <string> behavior-hover-open: "150";
+    in property <string> behavior-hover-close: "450";
+    in property <string> behavior-sleep-after: "60";
+    in property <string> behavior-save-status: "";
+    in property <string> hub-pages: "";
+    in property <string> pages-save-status: "";
+    callback settings-save-pages(string);
     in property <string> appearance-theme: "auto";
     in property <string> appearance-eye-theme: "aurora";
     in property <string> appearance-notch-theme: "default";
@@ -1810,6 +1826,9 @@ export component NotchWindow inherits Window {
                         behavior-sleep-after: root.behavior-sleep-after;
                         behavior-save-status: root.behavior-save-status;
                         save-behavior(scale, open, close, sleep) => { root.settings-save-behavior(scale, open, close, sleep); }
+                        hub-pages: root.hub-pages;
+                        pages-save-status: root.pages-save-status;
+                        save-pages(value) => { root.settings-save-pages(value); }
                         prayer-mode: root.prayer-mode;
                         prayer-remind-before: root.prayer-remind-before;
                         prayer-remind-min: root.prayer-remind-min;

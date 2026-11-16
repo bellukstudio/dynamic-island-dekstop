@@ -579,6 +579,60 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hover_open(cfg.timing.hover_open_ms.to_string().into());
     win.set_behavior_hover_close(cfg.timing.hover_close_ms.to_string().into());
     win.set_behavior_sleep_after(cfg.timing.sleep_after_s.to_string().into());
+    win.set_hub_pages(cfg.pages.join(", ").into());
+    {
+        let weak = win.as_weak();
+        let config_path = notch_core::paths::config_path();
+        let mut updated_config = cfg.clone();
+        win.on_settings_save_pages(move |value| {
+            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings"];
+            let mut pages = Vec::<String>::new();
+            for item in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                if !allowed.contains(&item) {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_pages_save_status(format!("ID halaman tidak dikenal: {item}").into());
+                    }
+                    return;
+                }
+                if !pages.iter().any(|p| p == item) {
+                    pages.push(item.to_string());
+                }
+            }
+            if pages.is_empty() || !pages.iter().any(|p| p == "media") {
+                if let Some(w) = weak.upgrade() {
+                    w.set_pages_save_status("Minimal sertakan halaman media.".into());
+                }
+                return;
+            }
+            let mut next = updated_config.clone();
+            next.pages = pages.clone();
+            next.pages_version = notch_core::config::PAGES_VERSION;
+            match next.save(&config_path) {
+                Ok(()) => {
+                    updated_config = next;
+                    let tabs: Vec<String> = pages.iter().filter(|p| p.as_str() != "lyrics").cloned().collect();
+                    let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
+                    if let Some(w) = weak.upgrade() {
+                        let current = w.get_page_id().to_string();
+                        w.set_tabs(ModelRc::from(Rc::new(VecModel::from(
+                            tabs.iter().map(|p| SharedString::from(p.as_str())).collect::<Vec<_>>(),
+                        ))));
+                        if !tabs.iter().any(|p| p == &current) {
+                            w.set_page_id(tabs[0].as_str().into());
+                        }
+                        w.set_hub_pages(pages.join(", ").into());
+                        w.set_pages_save_status("Halaman hub tersimpan dan langsung diperbarui.".into());
+                    }
+                }
+                Err(error) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_pages_save_status(format!("Gagal menyimpan: {error}").into());
+                    }
+                }
+            }
+        });
+    }
+
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
