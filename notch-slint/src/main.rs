@@ -1449,6 +1449,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
+        let last_output = convert_last_output.clone();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
                 .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt", "csv"])
@@ -1459,8 +1460,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 .collect::<Vec<_>>();
             if let (Some(first), Some(w)) = (selected.first(), weak.upgrade()) {
                 *selected_paths.borrow_mut() = selected.clone();
+                *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
-                w.set_convert_status(format!("Dipilih {} file · format tujuan berlaku untuk semua", selected.len()).into());
+                w.set_convert_progress_text("".into());
+                w.set_convert_status(format!("Dipilih {} file · target auto menyesuaikan tiap file", selected.len()).into());
             }
         });
     }
