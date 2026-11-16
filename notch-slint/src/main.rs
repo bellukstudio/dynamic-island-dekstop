@@ -725,6 +725,18 @@ fn main() -> Result<(), slint::PlatformError> {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
       win.on_media_control(|action| media::control(&action));
     win.on_adhan_stop(|| media::stop_adhan());
+    {
+      let enabled=ramadan.clone();
+      let idx=dhikr_idx.clone();
+      let set=set_dhikr.clone();
+      let weak=win.as_weak();
+      win.on_adhan_finished(move||{
+        if !enabled.get(){return;}
+        let i=1;
+        idx.set(i);
+        if let Some(w)=weak.upgrade(){set(&w,i);}
+      });
+    }
     win.on_media_seek(|position| media::seek(f64::from(position)));
       win.on_prayer_set_mode(move|v|{let mut p=prefs.borrow_mut();p.mode=v.to_string();if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_mode(p.mode.clone().into());}});
     }

@@ -127,7 +127,7 @@ mod platform {
     Ok(())=>format!("Adzan {prayer_name} selesai"),
     Err(e)=>format!("Adzan gagal diputar: {e}"),
    };
-   let _=weak.upgrade_in_event_loop(move|w|{w.set_adhan_active(false);w.set_prayer_status(message.into());});
+   let _=weak.upgrade_in_event_loop(move|w|{w.set_adhan_active(false);w.set_prayer_status(message.into());w.invoke_adhan_finished();});
    let _=paused;
   });
  }
