@@ -1443,40 +1443,70 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    let convert_selected_paths = Rc::new(RefCell::new(Vec::<String>::new()));
     {
         let weak = win.as_weak();
+        let selected_paths = convert_selected_paths.clone();
         win.on_convert_pick(move || {
             let selected = rfd::FileDialog::new()
                 .add_filter("Gambar, PDF & Office", &["jpg", "jpeg", "png", "webp", "bmp", "gif", "pdf", "docx", "xlsx", "pptx", "doc", "xls", "ppt", "odt", "ods", "odp", "rtf", "txt", "csv"])
-                .pick_file();
-            if let (Some(path), Some(w)) = (selected, weak.upgrade()) {
-                w.set_convert_selected_path(path.to_string_lossy().to_string().into());
-                w.set_convert_status(format!("Dipilih: {}", path.display()).into());
+                .pick_files()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect::<Vec<_>>();
+            if let (Some(first), Some(w)) = (selected.first(), weak.upgrade()) {
+                *selected_paths.borrow_mut() = selected.clone();
+                w.set_convert_selected_path(first.clone().into());
+                w.set_convert_status(format!("Dipilih {} file · format tujuan berlaku untuk semua", selected.len()).into());
             }
         });
     }
     {
         let weak = win.as_weak();
+        let selected_paths = convert_selected_paths.clone();
         win.on_convert_run(move |raw_path, raw_format, raw_quality, raw_dpi| {
             let path = raw_path.to_string();
             let format = raw_format.to_string();
             let quality = raw_quality.parse::<u8>().unwrap_or(85).clamp(40, 100);
             let dpi = raw_dpi.parse::<u32>().unwrap_or(150).clamp(36, 400);
+            let mut paths = selected_paths.borrow().clone();
+            if paths.first().map(String::as_str) != Some(path.as_str()) {
+                paths = vec![path];
+            }
             let weak = weak.clone();
             std::thread::spawn(move || {
-                let source = std::path::Path::new(&path);
-                let result = if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
-                    convert::convert_pdf_to_images(source, &format, dpi, quality)
-                        .map(|(output, pages, bytes)| (output, format!("{pages} halaman · {} KB", bytes / 1024)))
-                } else if format.eq_ignore_ascii_case("pdf") {
-                    convert::convert_to_pdf_with_quality(source, quality).map(|output| (output, "PDF".to_string()))
-                } else {
-                    convert::convert_image_with_quality(source, &format, quality).map(|output| (output, format.to_ascii_uppercase()))
-                };
-                let message = match result {
-                    Ok((output, detail)) => format!("Konversi selesai ({detail}): {}", output.display()),
-                    Err(error) => format!("Gagal: {error}"),
-                };
+                let total = paths.len();
+                let mut completed = 0usize;
+                let mut failures = Vec::new();
+                let mut outputs = Vec::new();
+                for path in paths {
+                    let source = std::path::Path::new(&path);
+                    let result = if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
+                        convert::convert_pdf_to_images(source, &format, dpi, quality)
+                            .map(|(output, pages, bytes)| (output, format!("{pages} halaman · {} KB", bytes / 1024)))
+                    } else if format.eq_ignore_ascii_case("pdf") {
+                        convert::convert_to_pdf_with_quality(source, quality).map(|output| (output, "PDF".to_string()))
+                    } else {
+                        convert::convert_image_with_quality(source, &format, quality).map(|output| (output, format.to_ascii_uppercase()))
+                    };
+                    match result {
+                        Ok((output, detail)) => {
+                            completed += 1;
+                            outputs.push(format!("{} ({detail})", output.display()));
+                        }
+                        Err(error) => failures.push(format!("{}: {error}", source.file_name().unwrap_or_default().to_string_lossy())),
+                    }
+                }
+                let mut message = format!("Batch selesai: {completed}/{total} file berhasil");
+                if !outputs.is_empty() {
+                    message.push_str(" · ");
+                    message.push_str(&outputs.join(" | "));
+                }
+                if !failures.is_empty() {
+                    message.push_str(" · Gagal: ");
+                    message.push_str(&failures.join(" | "));
+                }
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(w) = weak.upgrade() { w.set_convert_status(message.into()); }
                 });
