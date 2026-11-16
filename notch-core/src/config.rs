@@ -154,6 +154,7 @@ pub struct Nudge {
     pub mood: String,        // ekspresi mata: normal|happy|sleepy|surprised|angry|love|suspicious|sad
     pub show_ms: u32,        // lama pesan tampil (2000..30000)
     pub only_silent: bool,   // jangan muncul saat musik/video diputar
+    pub until_move: bool,    // tahan pesan sampai pointer bergerak, lalu tampilkan kartu kembali
 }
 impl Default for Nudge {
     fn default() -> Self {
@@ -165,6 +166,7 @@ impl Default for Nudge {
             mood: "sad".into(),
             show_ms: 6000,
             only_silent: true,
+            until_move: false,
         }
     }
 }

@@ -1164,9 +1164,10 @@ component SettingsPage inherits VerticalLayout {
     in property <string> nudge-mood: "sad";
     in property <string> nudge-show-ms: "6000";
     in property <bool> nudge-only-silent: true;
+    in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
     callback save-motion(bool, string, string);
-    callback save-nudge(bool, string, string, string, string, string, bool);
+    callback save-nudge(bool, string, string, string, string, string, bool, bool);
     callback test-nudge();
     in property <string> position-mode: "top";
     in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency";
@@ -1499,16 +1500,25 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: nudge-silent-input.text == "true" ? "Ya" : "Tidak"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
             }
             nudge-silent-input := TextInput { text: root.nudge-only-silent ? "true" : "false"; visible: false; }
+            nudge-until-move-input := TextInput { text: root.nudge-until-move ? "true" : "false"; visible: false; }
+            HorizontalLayout {
+                Text { text: "Tampilkan sampai pointer bergerak lagi"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                Chip {
+                    label: nudge-until-move-input.text == "true" ? "Aktif" : "Nonaktif";
+                    selected: nudge-until-move-input.text == "true";
+                    clicked => { nudge-until-move-input.text = nudge-until-move-input.text == "true" ? "false" : "true"; }
+                }
+            }
             HorizontalLayout {
                 Chip { label: "Reset default"; clicked => {
                     nudge-enabled-input.text = "true"; nudge-idle-input.text = "2";
                     nudge-message-input.text = "Kamu kemana, kok diam saja?"; nudge-emoji-input.text = "🥺";
-                    nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true";
-                    root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true);
+                    nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
+                    root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
                 } }
                 Chip { label: "Pratinjau"; clicked => { root.test-nudge(); } }
                 Chip { label: "Simpan notifikasi"; selected: true; clicked => {
-                    root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true");
+                    root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
                 } }
             }
             Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
@@ -2205,6 +2215,7 @@ export component NotchWindow inherits Window {
     in property <string> nudge-mood: "sad";
     in property <string> nudge-show-ms: "6000";
     in property <bool> nudge-only-silent: true;
+    in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
     in property <bool> nudge-visible: false;
     in property <string> nudge-detail: "";
@@ -2226,7 +2237,7 @@ export component NotchWindow inherits Window {
     callback settings-save-appearance(string, string, string, string, string, string, string, string, string);
     callback settings-save-behavior(string, string, string, string, bool);
     callback settings-save-motion(bool, string, string);
-    callback settings-save-nudge(bool, string, string, string, string, string, bool);
+    callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
     callback settings-test-nudge();
     callback settings-save-position(string);
     in property <string> prayer-province: "Jawa Barat";
@@ -2729,8 +2740,9 @@ export component NotchWindow inherits Window {
                         nudge-mood: root.nudge-mood;
                         nudge-show-ms: root.nudge-show-ms;
                         nudge-only-silent: root.nudge-only-silent;
+                        nudge-until-move: root.nudge-until-move;
                         nudge-save-status: root.nudge-save-status;
-                        save-nudge(enabled, idle, message, emoji, mood, show, silent) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent); }
+                        save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move); }
                         test-nudge => { root.settings-test-nudge(); }
                         position-mode: root.position-mode;
                         save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }

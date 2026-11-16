@@ -1158,6 +1158,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_nudge_mood(cfg.nudge.mood.clone().into());
     win.set_nudge_show_ms(cfg.nudge.show_ms.to_string().into());
     win.set_nudge_only_silent(cfg.nudge.only_silent);
+    win.set_nudge_until_move(cfg.nudge.until_move);
     win.set_hub_pages(cfg.pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
@@ -3092,7 +3093,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let runtime_config = nudge_runtime_config.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent| {
+        win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent, until_move| {
             let idle = idle.to_string().trim().parse::<u32>().ok().filter(|v| (1..=240).contains(v));
             let show = show.to_string().trim().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v));
             let message = message.to_string().trim().to_string();
@@ -3115,6 +3116,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.nudge.mood = mood;
             next.nudge.show_ms = show;
             next.nudge.only_silent = only_silent;
+            next.nudge.until_move = until_move;
             next.nudge.sanitize();
             match next.save(&config_path) {
                 Ok(()) => {
@@ -3128,6 +3130,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_nudge_mood(next.nudge.mood.clone().into());
                         w.set_nudge_show_ms(next.nudge.show_ms.to_string().into());
                         w.set_nudge_only_silent(next.nudge.only_silent);
+                        w.set_nudge_until_move(next.nudge.until_move);
                         w.set_nudge_save_status("Pengaturan sapaan otomatis tersimpan.".into());
                     }
                 }
@@ -3520,14 +3523,24 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
             let elapsed = started.elapsed().as_secs_f32();
             let last_move = eye.borrow().last_move;
+            let cfg = config.borrow();
             let mut state = state_tick.borrow_mut();
             if last_move > state.1 + 0.001 {
+                let was_visible = state.0 && w.get_nudge_visible();
                 state.0 = false;
                 state.1 = last_move;
                 state.2 = 0.0;
-                w.set_nudge_visible(false);
+                if was_visible && cfg.enabled && cfg.until_move {
+                    state.0 = true;
+                    state.2 = elapsed;
+                    w.set_nudge_message("Akhirnya kamu kembali!".into());
+                    w.set_nudge_detail("Senang melihatmu kembali".into());
+                    eye.borrow_mut().mood.flash(Mood::Happy, u64::from(cfg.show_ms) + 5_000, Instant::now());
+                    w.set_nudge_visible(true);
+                } else {
+                    w.set_nudge_visible(false);
+                }
             }
-            let cfg = config.borrow();
             if !cfg.enabled {
                 w.set_nudge_visible(false);
                 state.0 = false;
