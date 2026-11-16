@@ -3074,12 +3074,16 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config = nudge_runtime_config.clone();
+        let eye = appearance_eye.clone();
         let timer = Timer::default();
         win.on_settings_test_nudge(move || {
             let Some(w) = weak.upgrade() else { return };
             let cfg = config.borrow().clone();
             w.set_nudge_message(cfg.message.into());
             w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", cfg.emoji).into());
+            if let Some(eye) = eye.borrow().as_ref() {
+                eye.borrow_mut().mood.flash(Mood::parse(&cfg.mood).unwrap_or(Mood::Sad), u64::from(cfg.show_ms) + 5_000, Instant::now());
+            }
             w.set_nudge_visible(true);
             let weak = weak.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(cfg.show_ms as u64), move || {
@@ -3455,6 +3459,7 @@ fn main() -> Result<(), slint::PlatformError> {
             state.2 = elapsed;
             w.set_nudge_message(cfg.message.clone().into());
             w.set_nudge_detail(format!("{}  ·  Pointer diam {} menit", cfg.emoji, (idle_secs / 60.0).floor() as u32).into());
+            eye.borrow_mut().mood.flash(Mood::parse(&cfg.mood).unwrap_or(Mood::Sad), u64::from(cfg.show_ms) + 5_000, Instant::now());
             w.set_nudge_visible(true);
         });
     }
