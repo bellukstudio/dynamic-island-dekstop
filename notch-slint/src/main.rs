@@ -1048,6 +1048,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let started_at = Instant::now();
         let mut last_move = Instant::now();
         let mut moves = 0u32;
+        let mut was_blocked = false;
         let mut animation: Option<(PhysicalPosition, PhysicalPosition, Instant)> = None;
         const MOVE_DURATION: Duration = Duration::from_millis(2_800);
 
@@ -1068,14 +1069,32 @@ fn main() -> Result<(), slint::PlatformError> {
             let interval = runtime.1.get().clamp(60, 3_600);
             let max_moves = runtime.2.get().clamp(1, 10);
 
-            if w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
-                // Hentikan gerakan tanpa mengubah ukuran jendela yang sedang dipakai overlay.
+            let blocked = w.get_expanded()
+                || w.get_play_interaction_active()
+                || w.get_nudge_visible()
+                || w.get_reminder_alert_visible()
+                || !w.get_meeting_finished().is_empty()
+                || w.get_meeting_active()
+                || w.get_adhan_active();
+            if blocked {
+                // Jangan biarkan gerakan otomatis mengambil alih pointer atau menggeser
+                // notch ketika kartu/pengingat/rapat/adzan sedang tampil.
+                if !was_blocked {
+                    last_move = Instant::now();
+                    was_blocked = true;
+                }
                 if animation.take().is_some() {
                     let position = w.window().position();
                     let size = w.window().size();
                     shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
                 }
                 return;
+            }
+            if was_blocked {
+                // Mulai ulang hitungan interval setelah interaksi berakhir; jangan langsung
+                // memindahkan notch pada frame pertama setelah pointer keluar.
+                last_move = Instant::now();
+                was_blocked = false;
             }
 
             if let Some((from, to, began)) = animation {
