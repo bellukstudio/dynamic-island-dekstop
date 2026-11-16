@@ -34,12 +34,19 @@ pub fn month(provinsi: &str, kabkota: &str, year: i32, month: u32, refresh: bool
     let body = serde_json::json!({"provinsi":provinsi,"kabkota":kabkota,"bulan":month,"tahun":year});
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(15))).user_agent("Notch/0.1").build().into();
-    let mut response = agent.post("https://equran.id/api/v2/shalat")
-        .send_json(body).map_err(|e| e.to_string())?;
-    let raw = response.body_mut().read_to_string().map_err(|e| e.to_string())?;
-    let parsed: ApiResp = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-    let days = parsed.data.map(|d| d.jadwal).unwrap_or_default();
-    if days.is_empty() { return Err("Jadwal kosong; periksa nama provinsi/kabupaten/kota".into()); }
+    let fetched = (|| -> Result<Vec<Day>, String> {
+        let mut response = agent.post("https://equran.id/api/v2/shalat")
+            .send_json(body).map_err(|e| e.to_string())?;
+        let raw = response.body_mut().read_to_string().map_err(|e| e.to_string())?;
+        let parsed: ApiResp = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        let days = parsed.data.map(|d| d.jadwal).unwrap_or_default();
+        if days.is_empty() { return Err("Jadwal kosong; periksa nama provinsi/kabupaten/kota".into()); }
+        Ok(days)
+    })();
+    let days = match fetched {
+        Ok(days) => days,
+        Err(error) => return cache.get(&key).cloned().ok_or(error),
+    };
     cache.insert(key, days.clone());
     let prefix = format!("{provinsi}|{kabkota}|");
     if cache.len() > 12 { cache.retain(|k, _| k.starts_with(&prefix)); }
