@@ -1865,11 +1865,15 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                         if source.extension().and_then(|value| value.to_str()).map(|value| value.eq_ignore_ascii_case("pdf")).unwrap_or(false) {
                             let weak_page_progress = weak.clone();
+                            let queue_page_progress = queue.clone();
+                            let display_name_progress = display_name.clone();
                             convert::convert_pdf_to_images_with_progress(source, &target, dpi, file_quality, move |page, pages| {
                                 let fraction = page as f32 / pages.max(1) as f32;
-                                let overall = (((index as f32 + fraction) / total.max(1) as f32) * 100.0).clamp(0.0, 100.0);
-                                let progress_text = format!("{:.0}% · file {}/{} · halaman {}/{}", overall, index + 1, total, page, pages);
-                                let status_text = format!("Merender halaman PDF {page}/{pages}: {display_name}");
+                                let remaining = queue_page_progress.lock().unwrap_or_else(|error| error.into_inner()).len();
+                                let effective_total = (index + 1 + remaining).max(1);
+                                let overall = (((index as f32 + fraction) / effective_total as f32) * 100.0).clamp(0.0, 100.0);
+                                let progress_text = format!("{:.0}% · file {}/{} · halaman {}/{}", overall, index + 1, effective_total, page, pages);
+                                let status_text = format!("Merender halaman PDF {page}/{pages}: {display_name_progress}");
                                 let weak = weak_page_progress.clone();
                                 let _ = slint::invoke_from_event_loop(move || {
                                     if let Some(window) = weak.upgrade() {
