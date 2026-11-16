@@ -948,6 +948,24 @@ fn main() -> Result<(), slint::PlatformError> {
         memo: Cell::new((None, 0)),
     });
 
+    let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
+    let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
+    let win = NotchWindow::new()?;
+    win.set_convert_history_text(format_convert_history().into());
+    win.set_convert_source_preview(Image::default());
+    win.set_convert_result_preview(Image::default());
+    let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
+    let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
+    let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
+    win.set_convert_selected_path("".into());
+    win.set_compress_selected_path("".into());
+    win.set_compress_status("Pilih gambar JPG/PNG/BMP, PDF, atau dokumen DOCX/XLSX/PPTX untuk dikompres".into());
+    let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
+    privacy::start(win.as_weak());
+    apply_theme(&win, &palette);
+    win.set_ui_scale(cfg.scale as f32);
+    shell.place(&win, COLLAPSED);
+
     // Liquid movement: maksimal beberapa perpindahan acak saat notch idle.
     // Nonaktif secara default; preferensi tersimpan di [motion] pada config.
     let liquid_move_timer = Timer::default();
@@ -989,24 +1007,6 @@ fn main() -> Result<(), slint::PlatformError> {
             moves += 1;
         });
     }
-
-    let appearance_eye: Rc<RefCell<Option<Rc<RefCell<EyeCtx>>>>> = Rc::new(RefCell::new(None));
-    let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
-    let win = NotchWindow::new()?;
-    win.set_convert_history_text(format_convert_history().into());
-    win.set_convert_source_preview(Image::default());
-    win.set_convert_result_preview(Image::default());
-    let transfer_state = Arc::new(Mutex::new(transfer::TransferState::new(notch_core::paths::data_file("Notch"))));
-    let android_state = Arc::new(Mutex::new(android::AndroidState::new()));
-    let mirror_process = Arc::new(Mutex::new(android_mirror::MirrorProcess::new()));
-    win.set_convert_selected_path("".into());
-    win.set_compress_selected_path("".into());
-    win.set_compress_status("Pilih gambar JPG/PNG/BMP, PDF, atau dokumen DOCX/XLSX/PPTX untuk dikompres".into());
-    let (hotkey_rx, hotkey_config_tx, _hotkey_thread) = hotkeys::start(&cfg.shortcuts);
-    privacy::start(win.as_weak());
-    apply_theme(&win, &palette);
-    win.set_ui_scale(cfg.scale as f32);
-    shell.place(&win, COLLAPSED);
 
     // Tab mengikuti daftar dan urutan `pages` di config. Halaman yang belum ada di versi Slint
     // tampil sebagai placeholder, jadi urutan dan jumlah tab sama dengan versi Tauri.
