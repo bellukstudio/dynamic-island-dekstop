@@ -1155,6 +1155,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_behavior_hide_fullscreen(cfg.hide_fullscreen);
     win.set_autostart_enabled(autostart::is_enabled());
     win.set_motion_enabled(cfg.motion.enabled);
+    win.set_dock_play_enabled(cfg.motion.dock_play_enabled);
     win.set_motion_interval(cfg.motion.interval_secs.to_string().into());
     win.set_motion_max_moves(cfg.motion.max_moves.to_string().into());
     win.set_nudge_enabled(cfg.nudge.enabled);
@@ -3732,7 +3733,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_motion(move |enabled, interval, maximum| {
+        win.on_settings_save_motion(move |enabled, interval, maximum, dock_play_enabled| {
             let interval = interval.parse::<u32>().ok().filter(|v| (60..=3600).contains(v));
             let maximum = maximum.parse::<u32>().ok().filter(|v| (1..=10).contains(v));
             let (Some(interval), Some(maximum)) = (interval, maximum) else {
@@ -3745,11 +3746,13 @@ fn main() -> Result<(), slint::PlatformError> {
             next.motion.enabled = enabled;
             next.motion.interval_secs = interval;
             next.motion.max_moves = maximum;
+            next.motion.dock_play_enabled = dock_play_enabled;
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next;
                     if let Some(w) = weak.upgrade() {
                         w.set_motion_enabled(enabled);
+                        w.set_dock_play_enabled(dock_play_enabled);
                         w.set_motion_interval(interval.to_string().into());
                         w.set_motion_max_moves(maximum.to_string().into());
                         w.set_motion_save_status(if enabled {
@@ -4182,7 +4185,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
             let dock = w.get_dock();
             let supported = matches!(dock, 2 | 3 | 4);
-            if !supported || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
+            if !w.get_dock_play_enabled() || !supported || w.get_expanded() || w.get_meeting_active() || w.get_adhan_active() {
                 w.set_eyes_offset_x(0.0);
                 w.set_eyes_offset_y(0.0);
                 w.set_eyes_scale_x(1.0);
