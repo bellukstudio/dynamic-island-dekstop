@@ -16,6 +16,7 @@ pub enum Action {
     OpenConvert,
     OpenTransfer,
     OpenAndroid,
+    ShortcutRegistrationFailed,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -144,6 +145,9 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         let modifiers = HOT_KEY_MODIFIERS(binding.modifiers | 0x4000);
                         if RegisterHotKey(None, id, modifiers, binding.vk).is_ok() {
                             registered.push((id, action));
+                        } else {
+                            // Windows menolak shortcut yang sedang dipakai aplikasi lain atau OS.
+                            let _ = action_tx.send(Action::ShortcutRegistrationFailed);
                         }
                     }
                 }
