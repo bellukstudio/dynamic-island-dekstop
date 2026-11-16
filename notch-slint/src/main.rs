@@ -1530,7 +1530,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             format.trim().trim_start_matches('.').to_ascii_lowercase()
                         };
                         let available = convert::available_targets(source);
-                        if !available.iter().any(|candidate| *candidate == target) {
+                        if !available.iter().any(|candidate| *candidate == target.as_str()) {
                             let supported = if available.is_empty() {
                                 "tidak ada format tujuan yang tersedia (periksa Pdfium/LibreOffice)"
                                     .to_string()
