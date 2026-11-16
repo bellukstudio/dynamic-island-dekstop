@@ -4285,6 +4285,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let eye = eye.clone();
         let mut next_at = Instant::now() + Duration::from_secs(6);
         let mut active: Option<(u8, Instant, Duration, f32)> = None;
+        let mut last_choice: Option<u8> = None;
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
         // Setiap tiga menit jalankan tiga rangkaian Liquid, mengikuti jadwal Tauri.
         let mut next_liquid_at = Instant::now() + Duration::from_secs(180);
@@ -4371,19 +4372,28 @@ fn main() -> Result<(), slint::PlatformError> {
                         next_liquid_at = now + Duration::from_secs(180);
                     }
                     0
-                } else if sleepy {
-                    [4u8, 5, 4, 5, 7][(roll % 5) as usize]
-                } else if playing {
-                    match roll % 12 {
-                        0..=2 => 0, 3 => 1, 4 => 2, 5 => 3, 6 => 4, 7 => 5,
-                        _ => 6,
-                    }
                 } else {
-                    match roll % 16 {
-                        0..=3 => 0, 4..=5 => 1, 6..=7 => 2, 8 => 3,
-                        9..=10 => 4, 11..=12 => 5, 13 => 6, _ => 7,
+                    // Bobot sama dengan NORMAL/MUSIC/CALM di bottom-play.ts.
+                    // Pilihan terakhir dikeluarkan agar gerakan tidak berulang berturut-turut.
+                    let weights: [u32; 8] = if sleepy {
+                        [1, 0, 0, 0, 2, 3, 0, 3] // liquid, squish, sway, yawn
+                    } else if playing {
+                        [7, 3, 3, 2, 2, 0, 5, 0]
+                    } else {
+                        [6, 4, 3, 2, 2, 2, 1, 1]
+                    };
+                    let mut available = weights;
+                    if let Some(previous) = last_choice { available[previous as usize] = 0; }
+                    let total: u32 = available.iter().sum();
+                    let mut pick = roll % total.max(1);
+                    let mut selected = 0u8;
+                    for (index, weight) in available.iter().enumerate() {
+                        if pick < *weight { selected = index as u8; break; }
+                        pick -= *weight;
                     }
+                    selected
                 };
+                last_choice = Some(choice);
                 let duration_ms = match choice {
                     0 => 2_500, // liquid
                     1 => 2_900, // ghost
