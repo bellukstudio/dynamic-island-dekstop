@@ -78,6 +78,8 @@ struct EyeCtx {
     rng: Rng,
 }
 
+mod media;
+
 mod platform {
     use notch_core::layout::WorkArea;
 
@@ -546,6 +548,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
     let reminder_timer = Timer::default();
+    media::start(win.as_weak());
     let prayer_timer = Timer::default();
     let weather_timer = Rc::new(Timer::default());
     let monitor: Rc<RefCell<Option<StatsMonitor>>> = Rc::new(RefCell::new(None));
@@ -720,6 +723,8 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
+      win.on_media_control(|action| media::control(&action));
+    win.on_media_seek(|position| media::seek(f64::from(position)));
       win.on_prayer_set_mode(move|v|{let mut p=prefs.borrow_mut();p.mode=v.to_string();if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_mode(p.mode.clone().into());}});
     }
     {

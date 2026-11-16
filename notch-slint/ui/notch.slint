@@ -187,6 +187,8 @@ component RoundButton inherits Rectangle {
 }
 
 component MediaPlayer inherits HorizontalLayout {
+    in property <image> art;
+    in property <bool> has-art: false;
     in property <string> title: "Tidak ada media";
     in property <string> artist: "Putar musik untuk memulai";
     in property <string> pos-text: "0:00";
@@ -208,7 +210,8 @@ component MediaPlayer inherits HorizontalLayout {
         y: 0px;
         border-radius: 18px;
         background: Theme.chip;
-        Path {
+        if root.has-art: Image { source: root.art; width: 96px; height: 96px; image-fit: cover; }
+        if !root.has-art: Path {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             width: 40px;
@@ -306,11 +309,22 @@ component LyricsPanel inherits Rectangle {
 
 // Halaman Media: pemutar + panel lirik di dalamnya (tombol "Lirik" membuka, "Media" kembali).
 component MediaPage inherits Rectangle {
+    in property <image> art;
+    in property <bool> has-art: false;
+    in property <string> title: "Tidak ada media";
+    in property <string> artist: "Putar musik untuk memulai";
+    in property <string> pos-text: "0:00";
+    in property <string> dur-text: "0:00";
+    in property <float> progress: 0;
+    in property <bool> playing: false;
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
     in-out property <bool> lyrics-open: false;
     MediaPlayer {
         visible: !root.lyrics-open;
+        art: root.art; has-art: root.has-art; title: root.title; artist: root.artist;
+        pos-text: root.pos-text; dur-text: root.dur-text; progress: root.progress; playing: root.playing;
+        prev => { root.prev(); } toggle => { root.toggle(); } next => { root.next(); }
         open-lyrics => { root.lyrics-open = true; }
     }
     if root.lyrics-open: LyricsPanel {
@@ -997,6 +1011,17 @@ export component NotchWindow inherits Window {
     in-out property <string> page-id: "media";
     in property <[string]> tabs;
 
+    in property <string> media-title: "Tidak ada media";
+    in property <string> media-artist: "Putar musik untuk memulai";
+    in property <string> media-pos-text: "0:00";
+    in property <string> media-dur-text: "0:00";
+    in property <float> media-position: 0;
+    in property <float> media-length: 0;
+    in property <float> media-progress: 0;
+    in property <bool> media-active: false;
+    in property <bool> media-playing: false;
+    in property <image> media-art;
+    in property <bool> media-has-art: false;
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
     in property <string> pomo-text: "25:00";
@@ -1061,6 +1086,8 @@ export component NotchWindow inherits Window {
     in property <image> emoji-tomato;
     in property <image> emoji-moon;
 
+    callback media-control(string);
+    callback media-seek(float);
     callback hover-changed(bool);
     callback pill-clicked();
     callback pill-double-clicked();
@@ -1214,7 +1241,12 @@ export component NotchWindow inherits Window {
                 Rectangle {
                     y: 56px;
                     height: parent.height - 56px - 12px;
-                    if root.page-id == "media": MediaPage { lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active; }
+                    if root.page-id == "media": MediaPage {
+                        lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active;
+                        art: root.media-art; has-art: root.media-has-art; title: root.media-title; artist: root.media-artist;
+                        pos-text: root.media-pos-text; dur-text: root.media-dur-text; progress: root.media-progress; playing: root.media-playing;
+                        prev => { root.media-control("prev"); } toggle => { root.media-control("toggle"); } next => { root.media-control("next"); }
+                    }
                     if root.page-id == "clock" && !root.cal-open: ClockPage {
                         clock-text: root.clock-text;
                         date-text: root.date-text;
