@@ -1292,21 +1292,17 @@ component SettingsPage inherits VerticalLayout {
                 }
             }
             Text { text: "Tambahan"; color: Theme.text; font-size: 11px; font-weight: 700; }
-            VerticalLayout {
-                spacing: 5px;
-                PageToggle { label: "Link lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
-                PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
-            }
-            Text { text: "File & perangkat"; color: Theme.text; font-size: 11px; font-weight: 700; }
             HorizontalLayout {
                 spacing: 6px;
                 VerticalLayout {
                     spacing: 5px;
+                    PageToggle { label: "Link lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
+                    PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
                     PageToggle { label: "Convert"; checked: root.page-enabled("convert"); toggled(v) => { root.toggle-page("convert", v); } }
-                    PageToggle { label: "Compress"; checked: root.page-enabled("compress"); toggled(v) => { root.toggle-page("compress", v); } }
                 }
                 VerticalLayout {
                     spacing: 5px;
+                    PageToggle { label: "Compress"; checked: root.page-enabled("compress"); toggled(v) => { root.toggle-page("compress", v); } }
                     PageToggle { label: "Transfer file"; checked: root.page-enabled("transfer"); toggled(v) => { root.toggle-page("transfer", v); } }
                     PageToggle { label: "Android & mirroring"; checked: root.page-enabled("android"); toggled(v) => { root.toggle-page("android", v); } }
                 }
