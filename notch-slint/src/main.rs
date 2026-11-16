@@ -2246,6 +2246,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 pending.borrow_mut().take();
             }
             if let Some(w) = weak.upgrade() {
+                // Jangan memutar pesan fokus yang tertahan selama rapat atau Adzan.
+                if w.get_meeting_active() || w.get_adhan_active() {
+                    pending.borrow_mut().take();
+                }
                 let can_show = !w.get_expanded() && !w.get_nudge_visible()
                     && !w.get_reminder_alert_visible() && !w.get_meeting_active()
                     && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
@@ -2392,6 +2396,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 *was_charging = Some(value.charging);
             }
 
+            if w.get_meeting_active() {
+                // Sama seperti Tauri: momen yang tertahan selama rapat dibuang.
+                pending_event = None;
+            }
             if cfg.enabled {
                 if let Some((message, detail)) = event {
                     // Satu momen pending cukup agar pemicu tidak menimpa kartu yang sedang tampil.
