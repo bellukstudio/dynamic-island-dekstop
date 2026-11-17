@@ -314,7 +314,7 @@ impl<'a, 'b> R<'a, 'b> {
             containers.push(p);
         }
         let dc = style.and_then(|s| kid(s, "fontRef")).and_then(|f| self.clr(f, None)).unwrap_or_else(|| self.tx1());
-        self.draw_text(tx, rect, &containers, &bodies, dc);
+        self.draw_text(tx, (x, y, w, h), &containers, &bodies, dc);
     }
 
     fn pic(&mut self, c: N, xf: Xf, skip_ph: bool, rels: &HashMap<String, Rel>) {
