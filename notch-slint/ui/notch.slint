@@ -1072,7 +1072,7 @@ component SpeechBubble inherits Rectangle {
     in property <bool> bottom: false;
     in property <bool> side: false;
     in property <bool> side-right: false;
-    height: 76px;
+    height: 82px;
     width: 250px;
     border-radius: 23px;
     background: #08090df5;
@@ -1080,11 +1080,11 @@ component SpeechBubble inherits Rectangle {
     VerticalLayout {
         padding-left: 16px;
         padding-right: 16px;
-        padding-top: 13px;
-        padding-bottom: 13px;
-        spacing: 5px;
-        Text { text: root.message; color: #ffffff; font-size: 13px; font-weight: 700; overflow: elide; }
-        Text { text: root.detail; color: #c7c9d1; font-size: 11px; overflow: elide; }
+        padding-top: 10px;
+        padding-bottom: 10px;
+        spacing: 4px;
+        Text { width: parent.width; text: root.message; color: #ffffff; font-size: 13px; font-weight: 700; wrap: word-wrap; overflow: elide; }
+        Text { width: parent.width; text: root.detail; color: #c7c9d1; font-size: 11px; wrap: word-wrap; overflow: elide; }
     }
     Path {
         x: root.side ? (root.side-right ? parent.width - 1px : -7px) : (parent.width - 20px) / 2;
