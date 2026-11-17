@@ -200,14 +200,14 @@ component RoundButton inherits Rectangle {
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
-component MediaPlayer inherits VerticalLayout {
+component MediaPlayer inherits HorizontalLayout {
     in property <image> art;
     in property <bool> has-art: false;
     in property <string> title: "Tidak ada media";
     in property <string> artist: "Putar musik untuk memulai";
     in property <string> pos-text: "0:00";
     in property <string> dur-text: "0:00";
-    in property <float> progress: 0;     // 0..1
+    in property <float> progress: 0;
     in property <bool> playing: false;
     callback prev;
     callback toggle;
@@ -215,97 +215,90 @@ component MediaPlayer inherits VerticalLayout {
     callback seek(float);
     callback open-lyrics;
 
-    spacing: 7px;
     padding-left: 20px;
     padding-right: 20px;
-    alignment: start;
+    spacing: 16px;
+    alignment: center;
 
-    HorizontalLayout {
-        spacing: 16px;
+    Rectangle {
+        width: 108px;
         height: 92px;
-        Rectangle {
-            width: 108px;
-            height: 92px;
-            border-radius: 18px;
-            background: Theme.chip;
-            if root.has-art: Image { source: root.art; width: 96px; height: 92px; image-fit: cover; }
-            if !root.has-art: Path {
-                x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
-                width: 40px;
-                height: 40px;
-                viewbox-width: 24;
-                viewbox-height: 24;
-                commands: Icons.media;
-                fill: transparent;
-                stroke: Theme.text-faint;
-                stroke-width: 1.6px;
-                stroke-line-cap: round;
-                stroke-line-join: round;
-            }
-        }
-        VerticalLayout {
-            horizontal-stretch: 1;
-            alignment: center;
-            spacing: 4px;
-            Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
-            Text { text: root.artist; color: Theme.text-dim; font-size: 12px; overflow: elide; }
+        border-radius: 18px;
+        background: Theme.chip;
+        if root.has-art: Image { source: root.art; width: 108px; height: 92px; image-fit: cover; }
+        if !root.has-art: Path {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 40px;
+            height: 40px;
+            viewbox-width: 24;
+            viewbox-height: 24;
+            commands: Icons.media;
+            fill: transparent;
+            stroke: Theme.text-faint;
+            stroke-width: 1.6px;
+            stroke-line-cap: round;
+            stroke-line-join: round;
         }
     }
 
-    HorizontalLayout {
-        width: parent.width;
-        spacing: 8px;
-        Text { text: root.pos-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
-        Rectangle {
-            horizontal-stretch: 1;
-            height: 14px;
-            background: transparent;
-            // Track selalu selebar ruang tersisa; progress di-anchor ke x=0 (bukan center layout).
+    VerticalLayout {
+        horizontal-stretch: 1;
+        vertical-stretch: 1;
+        alignment: stretch;
+        spacing: 3px;
+        Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
+        Text { text: root.artist; color: Theme.text-dim; font-size: 12px; overflow: elide; }
+        Rectangle { vertical-stretch: 1; }
+        HorizontalLayout {
+            spacing: 8px;
+            Text { text: root.pos-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
             Rectangle {
-                x: 0px;
-                y: 5px;
-                width: parent.width;
-                height: 4px;
-                border-radius: 2px;
-                background: Theme.track;
+                horizontal-stretch: 1;
+                height: 14px;
+                background: transparent;
                 Rectangle {
                     x: 0px;
-                    width: parent.width * clamp(root.progress, 0, 1);
-                    height: parent.height;
+                    y: 5px;
+                    width: parent.width;
+                    height: 4px;
                     border-radius: 2px;
-                    background: Theme.text;
+                    background: Theme.track;
+                    Rectangle {
+                        x: 0px;
+                        width: parent.width * clamp(root.progress, 0, 1);
+                        height: parent.height;
+                        border-radius: 2px;
+                        background: Theme.text;
+                    }
+                }
+                seek-area := TouchArea {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    clicked => { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); }
+                    moved => { if self.pressed { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); } }
                 }
             }
-            seek-area := TouchArea {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: parent.height;
-                clicked => { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); }
-                moved => { if self.pressed { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); } }
+            Text { text: root.dur-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 14px;
+            RoundButton { commands: "M 19 20 L 9 12 L 19 4 Z M 5 19 V 5"; clicked => { root.prev(); } }
+            RoundButton {
+                primary: true;
+                size: 42px;
+                commands: root.playing ? "M 6 4 H 10 V 20 H 6 Z M 14 4 H 18 V 20 H 14 Z" : "M 7 4 L 20 12 L 7 20 Z";
+                clicked => { root.toggle(); }
             }
+            RoundButton { commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
+            Rectangle { width: 6px; }
+            Chip { label: "Lirik"; min-width: 56px; height: 30px; clicked => { root.open-lyrics(); } }
         }
-        Text { text: root.dur-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
-    }
-
-    HorizontalLayout {
-        width: parent.width;
-        alignment: center;
-        spacing: 14px;
-        RoundButton { commands: "M 19 20 L 9 12 L 19 4 Z M 5 19 V 5"; clicked => { root.prev(); } }
-        RoundButton {
-            primary: true;
-            size: 42px;
-            commands: root.playing ? "M 6 4 H 10 V 20 H 6 Z M 14 4 H 18 V 20 H 14 Z" : "M 7 4 L 20 12 L 7 20 Z";
-            clicked => { root.toggle(); }
-        }
-        RoundButton { commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
-        Rectangle { width: 6px; }
-        Chip { label: "Lirik"; min-width: 56px; height: 30px; clicked => { root.open-lyrics(); } }
     }
 }
-
 component LyricsPanel inherits Rectangle {
     in property <[string]> lines;
     in property <int> active: -1;
@@ -382,6 +375,8 @@ component MediaPage inherits Rectangle {
     callback next;
     callback seek(float);
     MediaPlayer {
+        width: parent.width;
+        height: parent.height;
         visible: !root.lyrics-open;
         art: root.art; has-art: root.has-art; title: root.title; artist: root.artist;
         pos-text: root.pos-text; dur-text: root.dur-text; progress: root.progress; playing: root.playing;
@@ -2726,6 +2721,7 @@ export component NotchWindow inherits Window {
 
     // Kursor di pil ATAU di tombol Pusatkan (termasuk celah di antaranya) dianggap masih di dalam notch.
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
+    out property <bool> drag-armed: hover.pressed;
     changed any-hover => { root.hover-changed(root.any-hover); }
 
     // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
