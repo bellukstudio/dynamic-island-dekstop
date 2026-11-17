@@ -1111,7 +1111,6 @@ fn main() -> Result<(), slint::PlatformError> {
                     let z = w.window().size();
                     if cx >= p.x && cx < p.x + z.width as i32
                         && cy >= p.y && cy < p.y + z.height as i32
-                        && !w.get_expanded()
                     {
                         drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
                         w.set_play_interaction_active(true);
