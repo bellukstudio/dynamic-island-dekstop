@@ -261,12 +261,16 @@ component MediaPlayer inherits VerticalLayout {
             horizontal-stretch: 1;
             height: 14px;
             background: transparent;
+            // Track selalu selebar ruang tersisa; progress di-anchor ke x=0 (bukan center layout).
             Rectangle {
+                x: 0px;
                 y: 5px;
+                width: parent.width;
                 height: 4px;
                 border-radius: 2px;
                 background: Theme.track;
                 Rectangle {
+                    x: 0px;
                     width: parent.width * clamp(root.progress, 0, 1);
                     height: parent.height;
                     border-radius: 2px;
@@ -274,6 +278,10 @@ component MediaPlayer inherits VerticalLayout {
                 }
             }
             seek-area := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
                 clicked => { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); }
                 moved => { if self.pressed { root.seek(clamp(self.mouse-x / max(self.width, 1px), 0, 1)); } }
             }
