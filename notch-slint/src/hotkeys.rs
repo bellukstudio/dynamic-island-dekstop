@@ -113,9 +113,14 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
         let initial = config.clone();
         let handle = thread::spawn(move || unsafe {
             use windows::Win32::UI::WindowsAndMessaging::{
-                PeekMessageW, RegisterHotKey, TranslateMessage, DispatchMessageW,
-                UnregisterHotKey, HOT_KEY_MODIFIERS, MSG, PM_REMOVE, WM_HOTKEY,
+                PeekMessageW, TranslateMessage, DispatchMessageW, MSG, PM_REMOVE, WM_HOTKEY,
             };
+            #[link(name = "user32")]
+            extern "system" {
+                fn RegisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32, modifiers: u32, vk: u32) -> windows::Win32::Foundation::BOOL;
+                fn UnregisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32) -> windows::Win32::Foundation::BOOL;
+            }
+            let null_hwnd = windows::Win32::Foundation::HWND::default();
             let mut registered: Vec<(i32, Action)> = Vec::new();
             let mut latest = initial;
             let mut needs_register = true;
@@ -128,7 +133,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                 }
                 if changed { needs_register = true; }
                 if needs_register {
-                    for (id, _) in registered.drain(..) { let _ = UnregisterHotKey(None, id); }
+                    for (id, _) in registered.drain(..) { let _ = UnregisterHotKey(null_hwnd, id); }
                     let entries = [
                         (1i32, latest.toggle_hub.clone(), Action::ToggleHub),
                         (2i32, latest.toggle_pomodoro.clone(), Action::TogglePomodoro),
@@ -144,8 +149,8 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                     for (id, combo, action) in entries {
                         let Some(binding) = parse_combo(&combo) else { continue };
                         if !used.insert(binding) { continue; }
-                        let modifiers = HOT_KEY_MODIFIERS(binding.modifiers | 0x4000);
-                        if RegisterHotKey(None, id, modifiers, binding.vk).is_ok() {
+                        let modifiers = binding.modifiers | 0x4000;
+                        if RegisterHotKey(null_hwnd, id, modifiers, binding.vk).as_bool() {
                             registered.push((id, action));
                         } else {
                             // Windows menolak shortcut yang sedang dipakai aplikasi lain atau OS.
