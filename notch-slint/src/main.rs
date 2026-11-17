@@ -1082,11 +1082,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     if is_moved {
                         w.set_play_interaction_active(true);
                         if !moved {
+                            // Klik baru boleh dipulihkan setelah tombol mouse dilepas.
+                            // Timer di sini terlalu dini: drag panjang (>350 ms) bisa memicu klik saat release.
                             w.set_suppress_next_pill_click(true);
-                            let clear_weak = weak.clone();
-                            click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
-                                if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
-                            });
                             let old_size = w.window().size();
                             let sf = w.window().scale_factor();
                             let orb_size = (64.0 * sf).round() as u32;
@@ -1101,6 +1099,12 @@ fn main() -> Result<(), slint::PlatformError> {
             } else if was_down {
                 if let Some((_, _, moved, _)) = drag.take() {
                     if moved {
+                        // Jaga proteksi klik selama seluruh drag, lalu beri jeda singkat
+                        // agar event release dari sistem window tidak lolos sebagai klik.
+                        let clear_weak = weak.clone();
+                        click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
+                            if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
+                        });
                         if let Some((cx, cy)) = cursor {
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
