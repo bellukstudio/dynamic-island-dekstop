@@ -577,18 +577,19 @@ mod platform {
                     // rcWork adalah sumber utama. Periksa juga HWND taskbar agar posisi bawah
                     // tetap aman pada konfigurasi Windows yang melaporkan rcWork penuh.
                     let class_name: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
-                    let tray = FindWindowW(PCWSTR(class_name.as_ptr()), PCWSTR::null());
                     let mut tray_rect = RECT::default();
-                    let work_bottom = if !tray.0.is_null()
-                        && GetWindowRect(tray, &mut tray_rect).is_ok()
-                        && tray_rect.left < m.right
-                        && tray_rect.right > m.left
-                        && tray_rect.top >= r.top
-                        && tray_rect.top < m.bottom
-                    {
-                        r.bottom.min(tray_rect.top)
-                    } else {
-                        r.bottom
+                    let work_bottom = match FindWindowW(PCWSTR(class_name.as_ptr()), PCWSTR::null()) {
+                        Ok(tray)
+                            if !tray.0.is_null()
+                                && GetWindowRect(tray, &mut tray_rect).is_ok()
+                                && tray_rect.left < m.right
+                                && tray_rect.right > m.left
+                                && tray_rect.top >= r.top
+                                && tray_rect.top < m.bottom =>
+                        {
+                            r.bottom.min(tray_rect.top)
+                        }
+                        _ => r.bottom,
                     };
                     if work_bottom > r.top {
                         return WorkArea {
