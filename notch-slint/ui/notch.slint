@@ -3063,8 +3063,8 @@ export component NotchWindow inherits Window {
                     if root.page-id == "settings": Flickable {
                         width: parent.width;
                         height: parent.height;
-                        viewport-width: self.width;
-                        viewport-height: self.height;
+                        content-width: self.width;
+                        content-height: self.height;
                         SettingsPage {
                             width: parent.width;
                         weather-city: root.weather-city;
