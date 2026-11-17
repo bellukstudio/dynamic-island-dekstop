@@ -1793,7 +1793,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let active_reminder = Rc::new(RefCell::new(None::<String>));
     let prayer_prefs=Rc::new(RefCell::new(prayer::preferences()));
     win.set_prayer_city(prayer_prefs.borrow().kabkota.clone().into());win.set_prayer_province(prayer_prefs.borrow().provinsi.clone().into());
-    win.set_prayer_mode(prayer_prefs.borrow().mode.clone().into());win.set_prayer_remind_before(prayer_prefs.borrow().remind_before);win.set_prayer_remind_min(prayer_prefs.borrow().remind_min.to_string().into());
+    win.set_prayer_mode(prayer_prefs.borrow().mode.clone().into());win.set_prayer_remind_before(if prayer_prefs.borrow().remind_before { "true" } else { "false" }.into());win.set_prayer_remind_min(prayer_prefs.borrow().remind_min.to_string().into());
     let ramadan=Rc::new(Cell::new(load_ramadan()));win.set_ramadan_enabled(ramadan.get());
     let dhikr_idx=Rc::new(Cell::new(0usize));
     let dhikr=[("أَسْتَغْفِرُ اللّٰهَ","Astaghfirullah","Aku memohon ampun kepada Allah. Dibaca 3x"),("اللّٰهُمَّ رَبَّ هٰذِهِ الدَّعْوَةَ التَّامَّةَ","Allahumma rabba hadzihid-da'watit-tammah","Doa setelah adzan"),("سُبْحَانَ اللّٰهِ وَبِحَمْدِهِ","Subhanallahi wa bihamdihi","Maha Suci Allah dan segala puji bagi-Nya. Dibaca 33x")];
@@ -2946,7 +2946,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_preview_page_text("Memuat preview…".into());
                 w.set_convert_preview_total(1);
                 w.set_convert_preview_status("".into());
-                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, convert_preview_dpi.get());
+                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, convert_convert_preview_dpi.get());
                 w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
