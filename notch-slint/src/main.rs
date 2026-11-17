@@ -1100,6 +1100,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let z = w.window().size();
                     if cx >= p.x && cx < p.x + z.width as i32
                         && cy >= p.y && cy < p.y + z.height as i32
+                        && w.get_drag_armed()
                     {
                         drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
                         w.set_play_interaction_active(true);
@@ -1168,16 +1169,30 @@ fn main() -> Result<(), slint::PlatformError> {
                         {
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
-                            // Batas snap memakai logical pixels agar terasa konsisten pada monitor DPI tinggi.
-                            let margin = (24.0 * w.window().scale_factor()).round() as i32;
-                            let (pos, mode) = if cx <= work.x + margin {
-                                ((layout::LEFT_TX, cy), "left")
-                            } else if cx >= work.x + work.w - margin {
-                                ((layout::RIGHT_TX, cy), "right")
-                            } else if cy >= work.y + work.h - margin {
+                            let sf = w.window().scale_factor();
+                            let previous_dock = w.get_dock();
+                            let was_left = previous_dock == 3;
+                            let was_right = previous_dock == 4;
+                            let was_bottom = previous_dock == 2;
+                            let was_top = previous_dock == 0;
+                            // Samakan prioritas dan hysteresis Tauri: bawah lebih dulu,
+                            // lalu atas, baru sisi. Semua ambang dikonversi ke piksel fisik.
+                            let near_bottom = work.y + work.h - cy
+                                <= ((if was_bottom { 90.0 } else { 48.0 }) * sf).round() as i32;
+                            let near_top = cy - work.y
+                                <= ((if was_top { 60.0 } else { 24.0 }) * sf).round() as i32;
+                            let near_left = cx - work.x
+                                <= ((if was_left { 110.0 } else { 70.0 }) * sf).round() as i32;
+                            let near_right = work.x + work.w - cx
+                                <= ((if was_right { 110.0 } else { 70.0 }) * sf).round() as i32;
+                            let (pos, mode) = if near_bottom {
                                 ((cx, layout::BOTTOM_TY), "bottom")
-                            } else if cy <= work.y + layout::TOP_SNAP + margin {
+                            } else if near_top {
                                 ((cx, work.y), "top")
+                            } else if near_left {
+                                ((layout::LEFT_TX, cy), "left")
+                            } else if near_right {
+                                ((layout::RIGHT_TX, cy), "right")
                             } else {
                                 ((cx, cy - (size.height as i32 / 2)), "floating")
                             };
