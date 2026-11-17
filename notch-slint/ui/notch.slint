@@ -1815,6 +1815,8 @@ component SettingsPage inherits VerticalLayout {
                 Chip {
                     label: "Reset default";
                     clicked => {
+                        prayer-province-input.text = "Jawa Barat";
+                        prayer-city-input.text = "Kota Bandung";
                         prayer-mode-input.text = "tone";
                         prayer-remind-input.text = "false";
                         prayer-min-input.text = "10";
@@ -1822,7 +1824,7 @@ component SettingsPage inherits VerticalLayout {
                         pomo-break-input.text = "5";
                         pomo-long-input.text = "15";
                         pomo-rounds-input.text = "4";
-                        root.save-routines("tone", "false", "10", "25", "5", "15", "4", prayer-province-input.text, prayer-city-input.text);
+                        root.save-routines("tone", "false", "10", "25", "5", "15", "4", "Jawa Barat", "Kota Bandung");
                     }
                 }
                 Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text); } }
