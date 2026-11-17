@@ -927,27 +927,19 @@ impl Shell {
         // tempat jendela sedang berada (posisi fisik sebelum ukuran/docking diterapkan).
         // Jika belum ada posisi jendela yang valid, fallback tetap ke monitor utama.
         let side_docked = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
-        let monitor_hint = if side_docked {
-            match self.monitor_hint.get() {
-                // Config lama belum menyimpan anchor: gunakan monitor utama.
-                Some((0, 0)) => None,
-                Some(anchor) => Some(anchor),
-                None => {
-                    // Saat dock dilakukan dalam sesi berjalan, gunakan monitor jendela saat ini.
-                    let current = win.window().position();
-                    let current_size = win.window().size();
-                    if current_size.width > 0 && current_size.height > 0 {
-                        Some((
-                            current.x + current_size.width as i32 / 2,
-                            current.y + current_size.height as i32 / 2,
-                        ))
-                    } else {
-                        None
-                    }
-                }
-            }
+        let monitor_hint = if let Some(anchor) = self.monitor_hint.get() {
+            Some(anchor)
+        } else if side_docked {
+            // Config lama belum menyimpan anchor: gunakan monitor tempat window berada.
+            let current = win.window().position();
+            let current_size = win.window().size();
+            (current_size.width > 0 && current_size.height > 0).then_some((
+                current.x + current_size.width as i32 / 2,
+                current.y + current_size.height as i32 / 2,
+            ))
         } else {
-            pos
+            // Sentinel BOTTOM_TY bukan koordinat desktop. Tanpa anchor lama, fallback ke monitor utama.
+            pos.filter(|(_, y)| *y < layout::BOTTOM_TY / 2)
         };
         let work = platform::work_area(monitor_hint);
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
@@ -1033,10 +1025,9 @@ fn main() -> Result<(), slint::PlatformError> {
         && (cfg.position.x == layout::LEFT_TX || cfg.position.x == layout::RIGHT_TX);
     let shell = Rc::new(Shell {
         pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
-        monitor_hint: Cell::new(saved_side_dock.then_some((
-            cfg.position.monitor_center_x,
-            cfg.position.monitor_center_y,
-        ))),
+        monitor_hint: Cell::new((cfg.position.custom
+            && (cfg.position.monitor_center_x != 0 || cfg.position.monitor_center_y != 0))
+            .then_some((cfg.position.monitor_center_x, cfg.position.monitor_center_y))),
         theme: RefCell::new(cfg.appearance.notch_theme.clone()),
         body: RefCell::new(palette.body),
         scale: RefCell::new(cfg.scale as f32),
@@ -1133,7 +1124,12 @@ fn main() -> Result<(), slint::PlatformError> {
                             let old_size = w.window().size();
                             let sf = w.window().scale_factor();
                             let orb_size = (64.0 * sf).round() as u32;
-                            orb_offset = ((old_size.width as i32 - orb_size as i32) / 2, (old_size.height as i32 - orb_size as i32) / 2);
+                            // Pusat ORB langsung mengikuti titik pointer yang memulai drag.
+                            // Offset tengah window lama membuat snap sisi gagal bila drag dimulai dari ujung hub.
+                            orb_offset = (
+                                cx - start_window.0 - orb_size as i32 / 2,
+                                cy - start_window.1 - orb_size as i32 / 2,
+                            );
                             w.window().set_size(PhysicalSize::new(orb_size, orb_size));
                             drag_scale = sf;
                             drag_orb_size = orb_size;
@@ -1191,20 +1187,16 @@ fn main() -> Result<(), slint::PlatformError> {
                             shell.pos.set(Some(pos));
                             let monitor_center = (work.x + work.w / 2, work.y + work.h / 2);
                             let is_side_dock = pos.0 == layout::LEFT_TX || pos.0 == layout::RIGHT_TX;
-                            shell.monitor_hint.set(is_side_dock.then_some(monitor_center));
+                            // Simpan anchor monitor untuk semua posisi, termasuk bottom sentinel.
+                            shell.monitor_hint.set(Some(monitor_center));
                             shell.memo.set((None, 0));
                             shell.place(&w, COLLAPSED);
                             let mut next = updated_config.clone();
                             next.position.custom = true;
                             next.position.x = pos.0;
                             next.position.y = pos.1;
-                            if is_side_dock {
-                                next.position.monitor_center_x = monitor_center.0;
-                                next.position.monitor_center_y = monitor_center.1;
-                            } else {
-                                next.position.monitor_center_x = 0;
-                                next.position.monitor_center_y = 0;
-                            }
+                            next.position.monitor_center_x = monitor_center.0;
+                            next.position.monitor_center_y = monitor_center.1;
                             if next.save(&config_path).is_ok() {
                                 updated_config = next;
                             }
@@ -3953,6 +3945,8 @@ fn main() -> Result<(), slint::PlatformError> {
             } else {
                 w.set_greeting_inline_visible(false);
                 w.set_nudge_visible(true);
+                // Balon greeting di dock samping memakai ruang COLLAPSED_SIDE, bukan ukuran inline lama.
+                shell.place(&w, COLLAPSED);
             }
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
@@ -5055,6 +5049,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 } else {
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(true);
+                    // Pastikan balon dock samping mendapat window portrait yang utuh.
+                    shell.place(&w, COLLAPSED);
                 }
                 let _ = speech::speak(message.clone(), voice.clone());
                 let weak_hide = weak.clone();
