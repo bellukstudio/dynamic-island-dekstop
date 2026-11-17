@@ -1,6 +1,5 @@
 //! LRCLIB lyrics lookup and LRC parsing shared by native frontends.
 use serde::Deserialize;
-use std::time::Duration;
 
 #[derive(Clone, Debug)]
 pub struct Line { pub at: f64, pub text: String }
@@ -55,7 +54,7 @@ pub fn parse_lrc(src:&str)->Vec<Line>{
  if times.is_empty(){continue;}let text=strip_word_tags(rest).trim().to_string();for at in times{out.push(Line{at,text:text.clone()});}}
  out.sort_by(|a,b|a.at.partial_cmp(&b.at).unwrap_or(std::cmp::Ordering::Equal));out
 }
-fn timestamp(s:&str)->Option<f64>{let(m,sec)=s.split_once(':')?;let m:u32=m.trim().parse().ok()?;let sec=sec.trim().replace(',','.');if sec.is_empty()||!sec.chars().all(|c|c.is_ascii_digit()||c=='.'){return None;}Some(m as f64*60.0+sec.parse::<f64>().ok()?)}
+fn timestamp(s:&str)->Option<f64>{let(m,sec)=s.split_once(':')?;let m:u32=m.trim().parse().ok()?;let sec=sec.trim().replace(',', ".");if sec.is_empty()||!sec.chars().all(|c|c.is_ascii_digit()||c=='.'){return None;}Some(m as f64*60.0+sec.parse::<f64>().ok()?)}
 fn strip_word_tags(s:&str)->String{
  let mut out=String::with_capacity(s.len());let mut chars=s.chars().peekable();
  while let Some(c)=chars.next(){if c=='<'{let mut tag=String::new();let mut closed=false;for n in chars.by_ref(){if n=='>'{closed=true;break;}tag.push(n);}if closed&&timestamp(&tag).is_some(){continue;}out.push('<');out.push_str(&tag);if closed{out.push('>');}}else{out.push(c);}}
