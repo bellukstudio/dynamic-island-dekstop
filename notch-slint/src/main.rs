@@ -262,22 +262,28 @@ fn format_convert_selection(paths: &[String]) -> String {
     lines.join("\n")
 }
 
-fn load_convert_document_preview(path: &std::path::Path, page: usize, dpi: u32) -> Result<(Image, usize), String> {
+fn load_convert_document_preview(
+    path: &std::path::Path,
+    page: usize,
+    dpi: u32,
+) -> Result<(Vec<u8>, u32, u32, usize), String> {
     let extension = path.extension().and_then(|value| value.to_str()).unwrap_or("").to_ascii_lowercase();
-    let bytes = if extension == "pdf" {
-        std::fs::read(path).map_err(|error| format!("PDF tidak dapat dibaca: {error}"))?
+    let rendered = if extension == "pdf" {
+        let bytes = std::fs::read(path).map_err(|error| format!("PDF tidak dapat dibaca: {error}"))?;
+        notch_tools::pdf::render_page(&bytes, page, dpi).map_err(|error| error.to_string())?
     } else if matches!(extension.as_str(), "docx" | "xlsx" | "pptx" | "doc" | "xls" | "ppt" | "odt" | "ods" | "odp" | "rtf" | "txt" | "csv") {
-        convert::convert_office_to_pdf_bytes(path)?
+        let bytes = convert::convert_office_to_pdf_bytes(path)?;
+        notch_tools::pdf::render_page(&bytes, page, dpi).map_err(|error| error.to_string())?
     } else {
-        let image = Image::load_from_path(path).map_err(|error| format!("Preview tidak tersedia: {error}"))?;
-        return Ok((image, 1));
+        let image = image::open(path).map_err(|error| format!("Preview tidak tersedia: {error}"))?;
+        let rgba = image.thumbnail(1600, 1600).to_rgba8();
+        let (width, height) = rgba.dimensions();
+        return Ok((rgba.into_raw(), width, height, 1));
     };
-    let (rendered, total) = notch_tools::pdf::render_page(&bytes, page, dpi)?;
+    let (rendered, total) = rendered;
     let rgba = rendered.to_rgba8();
-    let image = Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
-        rgba.as_raw(), rgba.width(), rgba.height(),
-    ));
-    Ok((image, total))
+    let (width, height) = rgba.dimensions();
+    Ok((rgba.into_raw(), width, height, total))
 }
 
 fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page: usize, dpi: u32) {
@@ -285,7 +291,8 @@ fn request_convert_document_preview(weak: Weak<NotchWindow>, path: String, page:
         let result = load_convert_document_preview(std::path::Path::new(&path), page, dpi);
         let _ = weak.upgrade_in_event_loop(move |window| {
             match result {
-                Ok((image, total)) => {
+                Ok((rgba, width, height, total)) => {
+                    let image = Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba, width, height));
                     window.set_convert_source_preview(image);
                     window.set_convert_preview_page_text(format!("Halaman {} / {}", page.min(total.saturating_sub(1)) + 1, total).into());
                     window.set_convert_preview_total(total as i32);
