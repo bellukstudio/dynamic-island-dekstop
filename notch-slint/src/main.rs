@@ -1489,7 +1489,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_behavior_save_status("Mode posisi tidak valid".into()); }
                 return;
             }
-            let work = platform::work_area(None);
+            // Terapkan preset pada monitor tempat notch sedang berada, bukan selalu monitor utama.
+            let current_monitor = weak.upgrade().and_then(|w| {
+                let position = w.window().position();
+                let size = w.window().size();
+                (size.width > 0 && size.height > 0).then_some((
+                    position.x + size.width as i32 / 2,
+                    position.y + size.height as i32 / 2,
+                ))
+            });
+            let work = platform::work_area(current_monitor);
             let center_x = work.x + work.w / 2;
             let center_y = work.y + work.h / 2;
             let next_pos = match mode.as_str() {
