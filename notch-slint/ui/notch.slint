@@ -2126,7 +2126,7 @@ component TransferPage inherits VerticalLayout {
     }
     HorizontalLayout {
         alignment: start;
-        Chip { label: "Mulai server"; clicked => { root.start(); } }
+        Chip { label: "Mulai server"; clicked => { root.start-server(); } }
         Chip { label: "Hentikan"; clicked => { root.stop(); } }
     }
     HorizontalLayout {
