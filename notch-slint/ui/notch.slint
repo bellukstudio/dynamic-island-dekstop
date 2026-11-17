@@ -39,6 +39,12 @@ global Icons {
     out property <string> stats: "M 12 14 L 16 10 M 3.34 19 A 10 10 0 1 1 20.66 19";
     out property <string> lyrics: "M 4 6 H 20 M 4 12 H 16 M 4 18 H 12";
     out property <string> privacy: "M 12 3 L 20 6 V 12 A 9 9 0 0 1 12 21 A 9 9 0 0 1 4 12 V 6 Z";
+    out property <string> android: "M 6 9 H 18 V 18 H 6 Z M 8 5 L 6 2 M 16 5 L 18 2 M 9 12 V 13 M 15 12 V 13 M 9 18 V 21 M 15 18 V 21";
+    out property <string> transfer: "M 4 7 H 20 M 16 3 L 20 7 L 16 11 M 20 17 H 4 M 8 13 L 4 17 L 8 21";
+    out property <string> convert: "M 5 7 H 19 L 16 4 M 19 7 L 16 10 M 19 17 H 5 L 8 14 M 5 17 L 8 20";
+    out property <string> compress: "M 4 4 L 10 10 M 4 4 V 9 M 4 4 H 9 M 20 4 L 14 10 M 20 4 V 9 M 20 4 H 15 M 4 20 L 10 14 M 4 20 V 15 M 4 20 H 9 M 20 20 L 14 14 M 20 20 V 15 M 20 20 H 15";
+    out property <string> currency: "M 12 2 A 10 10 0 1 0 12 22 A 10 10 0 1 0 12 2 M 16 8 C 15 6 9 6 8 9 C 7 12 17 11 16 15 C 15 18 9 18 8 16 M 12 5 V 19";
+    out property <string> settings: "M 12 8 A 4 4 0 1 0 12 16 A 4 4 0 1 0 12 8 M 12 2 V 5 M 12 19 V 22 M 2 12 H 5 M 19 12 H 22 M 5 5 L 7 7 M 17 17 L 19 19 M 19 5 L 17 7 M 7 17 L 5 19";
     out property <string> test: "M 12 3 V 21 M 4 7.5 L 20 16.5 M 20 7.5 L 4 16.5";
     out property <string> close: "M 6 6 L 18 18 M 18 6 L 6 18";
     out property <string> mic: "M 12 2 A 3 3 0 0 0 9 5 V 12 A 3 3 0 0 0 15 12 V 5 A 3 3 0 0 0 12 2 Z M 19 10 V 12 A 7 7 0 0 1 5 12 V 10 M 12 19 V 22";
@@ -67,6 +73,12 @@ global Icons {
         if id == "stats" { return Icons.stats; }
         if id == "lyrics" { return Icons.lyrics; }
         if id == "privacy" { return Icons.privacy; }
+        if id == "android" { return Icons.android; }
+        if id == "transfer" { return Icons.transfer; }
+        if id == "convert" { return Icons.convert; }
+        if id == "compress" { return Icons.compress; }
+        if id == "currency" { return Icons.currency; }
+        if id == "settings" { return Icons.settings; }
         return Icons.test;
     }
 }
