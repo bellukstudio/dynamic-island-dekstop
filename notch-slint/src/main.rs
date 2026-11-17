@@ -451,7 +451,9 @@ fn clear_convert_history() {
 const COLLAPSED: (u32, u32) = (262, 112);
 // Side dock: 34 px pill vertikal + balon notifikasi horizontal di area dalam layar.
 const COLLAPSED_SIDE: (u32, u32) = (300, 262);
-// 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px), sama dengan hub Tauri (242).
+// Greeting inline memerlukan ruang horizontal tambahan di sekitar badan Notch.
+const GREETING_INLINE: (u32, u32) = (420, 112);
+// 602 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
 const EXPANDED: (u32, u32) = (612, 240);
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
@@ -902,7 +904,7 @@ fn show_pomo(w: &NotchWindow, p: &Pomodoro) {
 }
 
 // Ukuran pil saat melebar (px logis); harus sama dengan `pill` di ui/notch.slint.
-const PILL_W: f32 = 580.0;
+const PILL_W: f32 = 602.0;
 const PILL_H: f32 = 202.0;
 
 /// Penempatan jendela + bentuk tepi + gambar hiasan tema. Hiasan dirender ulang hanya saat mode tepi
@@ -3917,6 +3919,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
+        let shell = shell.clone();
         let timer = Timer::default();
         win.on_settings_test_greeting(move |mode, custom_text, voice_preset| {
             let Some(w) = weak.upgrade() else { return };
@@ -3942,8 +3945,14 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = speech::speak(speech_message, speech_voice);
             w.set_nudge_message(message.into());
             w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-            w.set_nudge_visible(false);
-            w.set_greeting_inline_visible(true);
+            if w.get_dock() < 3 {
+                shell.place(&w, GREETING_INLINE);
+                w.set_nudge_visible(false);
+                w.set_greeting_inline_visible(true);
+            } else {
+                w.set_greeting_inline_visible(false);
+                w.set_nudge_visible(true);
+            }
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
             }
@@ -3952,6 +3961,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let weak = weak.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
                 if let Some(w) = weak.upgrade() {
+                    if w.get_greeting_inline_visible() {
+                        shell.place(&w, COLLAPSED);
+                    }
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(false);
                 }
@@ -5026,6 +5038,7 @@ fn main() -> Result<(), slint::PlatformError> {
     if cfg.greeting.enabled {
         let weak = win.as_weak();
         let hide_timer = startup_greeting_hide_timer.clone();
+        let shell = shell.clone();
         let message = speech::greeting_text(&cfg.greeting.mode, &cfg.greeting.custom_text, platform::local_time().0);
         let voice = cfg.greeting.voice.clone();
         startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
@@ -5034,12 +5047,21 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(message) = message.as_ref() {
                 w.set_nudge_message(message.clone().into());
                 w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-                w.set_nudge_visible(false);
-                w.set_greeting_inline_visible(true);
+                if w.get_dock() < 3 {
+                    shell.place(&w, GREETING_INLINE);
+                    w.set_nudge_visible(false);
+                    w.set_greeting_inline_visible(true);
+                } else {
+                    w.set_greeting_inline_visible(false);
+                    w.set_nudge_visible(true);
+                }
                 let _ = speech::speak(message.clone(), voice.clone());
                 let weak_hide = weak.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
                     if let Some(w) = weak_hide.upgrade() {
+                        if w.get_greeting_inline_visible() {
+                            shell.place(&w, COLLAPSED);
+                        }
                         w.set_greeting_inline_visible(false);
                         w.set_nudge_visible(false);
                     }
