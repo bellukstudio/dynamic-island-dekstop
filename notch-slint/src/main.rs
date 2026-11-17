@@ -587,7 +587,7 @@ mod platform {
                 return false;
             }
             let mut window_rect = RECT::default();
-            if !GetWindowRect(hwnd, &mut window_rect).as_bool() {
+            if !GetWindowRect(hwnd, &mut window_rect).is_ok() {
                 return false;
             }
             let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -1687,12 +1687,14 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_emoji_moon(load_png(include_bytes!("../assets/emoji/1f319.png")));
 
     // --- State halaman ---
+    let app_started_at = Instant::now();
     let stats_timer = Rc::new(Timer::default());
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
     let reminder_timer = Timer::default();
     media::start(win.as_weak());
     let prayer_timer = Timer::default();
+    let meeting_timer = Timer::default();
     // Indikator gelombang audio Adzan hanya bergerak selama playback aktif.
     let adhan_anim_timer = Timer::default();
     {
@@ -1773,7 +1775,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let clipboard_model = Rc::new(VecModel::<ClipboardItem>::default());
     win.set_clipboard_items(ModelRc::from(clipboard_model.clone()));
     win.set_clipboard_available(clipboard_monitor.is_some());
-    show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
+    show_clipboard(&clipboard_model, clipboard_monitor.as_ref().as_ref());
     let reminder_model = Rc::new(VecModel::<ReminderItem>::default());
     win.set_reminders(ModelRc::from(reminder_model.clone()));
     let timezone_offset = local_timezone_offset_minutes();
@@ -1788,7 +1790,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ramadan=Rc::new(Cell::new(load_ramadan()));win.set_ramadan_enabled(ramadan.get());
     let dhikr_idx=Rc::new(Cell::new(0usize));
     let dhikr=[("أَسْتَغْفِرُ اللّٰهَ","Astaghfirullah","Aku memohon ampun kepada Allah. Dibaca 3x"),("اللّٰهُمَّ رَبَّ هٰذِهِ الدَّعْوَةَ التَّامَّةَ","Allahumma rabba hadzihid-da'watit-tammah","Doa setelah adzan"),("سُبْحَانَ اللّٰهِ وَبِحَمْدِهِ","Subhanallahi wa bihamdihi","Maha Suci Allah dan segala puji bagi-Nya. Dibaca 33x")];
-    let set_dhikr:Rc<dyn Fn(&NotchWindow,usize)>=Rc::new(move|w,i|{let x=dhikr[i%3];w.set_dhikr_arabic(x.0.into());w.set_dhikr_latin(x.1.into());w.set_dhikr_meaning(x.2.into());w.set_dhikr_index((i%3)as i32);});set_dhikr(&win,0);
+    let set_dhikr:Rc<dyn Fn(&NotchWindow,usize)>=Rc::new(move|w,i|{let x=dhikr[i%3];w.set_dhikr_arabic(x.0.into());w.set_dhikr_latin(x.1.into());w.set_dhikr_meaning(x.2.into());});set_dhikr(&win,0);
     let prayer_busy=Arc::new(AtomicBool::new(false));let prayer_data=Arc::new(Mutex::new(PrayerSchedule::default()));
     let prayer_fired=Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
     let weather_busy = Arc::new(AtomicBool::new(false));
@@ -1885,11 +1887,11 @@ fn main() -> Result<(), slint::PlatformError> {
             // Clipboard: polling UI hanya berjalan saat halaman terlihat.
             if visible && page == "clipboard" {
                 if !clipboard_timer.running() {
-                    show_clipboard(&clipboard_model, clipboard_monitor.as_ref());
+                    show_clipboard(&clipboard_model, clipboard_monitor.as_ref().as_ref());
                     let model = clipboard_model.clone();
                     let monitor = clipboard_monitor.clone();
                     clipboard_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
-                        show_clipboard(&model, monitor.as_ref());
+                        show_clipboard(&model, monitor.as_ref().as_ref());
                     });
                 }
             } else {
@@ -1999,7 +2001,7 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
-      win.on_prayer_set_remind(move|v|{let mut p=prefs.borrow_mut();p.remind_before=v;if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_before(v);}});
+      win.on_prayer_set_remind(move|v|{let mut p=prefs.borrow_mut();p.remind_before=v;if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_before(if v { "true" } else { "false" }.into());}});
     }
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
@@ -2101,7 +2103,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(monitor) = monitor.as_ref() {
                 monitor.clear();
             }
-            show_clipboard(&model, monitor.as_ref());
+            show_clipboard(&model, monitor.as_ref().as_ref());
         });
     }
 
@@ -2254,7 +2256,7 @@ fn main() -> Result<(), slint::PlatformError> {
                           if preferences.mode == "tone" {
                               #[cfg(windows)]
                               unsafe {
-                                  let _ = windows::Win32::UI::WindowsAndMessaging::MessageBeep(0x00000040);
+                                  let _ = windows::Win32::System::Diagnostics::Debug::Beep(880, 250);
                               }
                           } else if preferences.mode == "adzan" {
                               window.set_prayer_status(
@@ -2635,7 +2637,7 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let settings = conversation_runtime.clone();
-        let eye = eye.clone();
+        let eye = appearance_eye.clone();
         let hide_timer = Rc::new(Timer::default());
         let battery = battery.clone();
         // Momen yang terjadi ketika hub/kartu/Adzan sedang aktif menunggu sebentar,
@@ -2645,7 +2647,7 @@ fn main() -> Result<(), slint::PlatformError> {
             false,
             String::new(),
             None::<Instant>,
-            eye.borrow().last_move,
+            eye.borrow().as_ref().map(|ctx| ctx.borrow().last_move).unwrap_or(0.0),
             None::<bool>,
             None::<bool>,
             String::new(),
@@ -2656,7 +2658,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let cfg = settings.borrow().clone();
             let playing = w.get_media_playing();
             let title = w.get_media_title().to_string();
-            let pointer_move = eye.borrow().last_move;
+            let pointer_move = eye.borrow().as_ref().map(|ctx| ctx.borrow().last_move).unwrap_or(0.0);
             let battery_reading = battery.read();
             let weather_condition = w.get_weather_condition().to_string();
             let weather_rain = w.get_weather_rain().to_string();
@@ -2675,7 +2677,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if pointer_move > *last_move + 0.001 {
                 // last_move adalah timestamp gerakan sebelumnya (detik sejak startup).
                 // Ukur sampai waktu sekarang, bukan selisih dua event pointer yang berdekatan.
-                let idle_secs = (started.elapsed().as_secs_f32() - *last_move).max(0.0);
+                let idle_secs = (app_started_at.elapsed().as_secs_f32() - *last_move).max(0.0);
                 if event.is_none() && cfg.on_return && idle_secs >= cfg.return_after_min as f32 * 60.0 {
                     event = Some(("Akhirnya kembali! Siap melanjutkan aktivitas? 👋", "Conversation Moments · kembali setelah lama tidak aktif"));
                 }
@@ -2937,7 +2939,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_preview_page_text("Memuat preview…".into());
                 w.set_convert_preview_total(1);
                 w.set_convert_preview_status("".into());
-                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, preview_dpi.get());
+                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, convert_preview_dpi.get());
                 w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
@@ -3105,7 +3107,7 @@ fn main() -> Result<(), slint::PlatformError> {
                                         window.set_convert_status(status_text.into());
                                     }
                                 });
-                            }).map(|(output, pages, bytes)| (output, format!("{target.to_ascii_uppercase()} · {pages} halaman · {} KB", bytes / 1024)))
+                            }).map(|(output, pages, bytes)| (output, format!("{} · {pages} halaman · {} KB", target.to_ascii_uppercase(), bytes / 1024)))
                         } else if target == "pdf" {
                             convert::convert_to_pdf_with_quality(source, file_quality)
                                 .map(|output| (output, "PDF".to_string()))
@@ -3596,7 +3598,7 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
-        let inbox = notch_core::paths::data_dir().join("Notch");
+        let inbox = notch_core::paths::config_path().parent().unwrap_or(std::path::Path::new(".")).join("Notch");
         let weak = win.as_weak();
         win.on_transfer_open_inbox(move || {
             let result = transfer::open_inbox(&inbox);
