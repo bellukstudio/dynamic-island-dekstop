@@ -2894,21 +2894,21 @@ export component NotchWindow inherits Window {
                         alignment: center;
                         Rectangle {
                             width: 3px;
-                            height: root.adhan-phase % 3 == 0 ? 13px : 5px;
+                            height: Math.mod(root.adhan-phase, 3) == 0 ? 13px : 5px;
                             background: Theme.accent;
                             border-radius: 2px;
                             animate height { duration: 110ms; }
                         }
                         Rectangle {
                             width: 3px;
-                            height: root.adhan-phase % 3 == 1 ? 15px : 6px;
+                            height: Math.mod(root.adhan-phase, 3) == 1 ? 15px : 6px;
                             background: Theme.accent;
                             border-radius: 2px;
                             animate height { duration: 110ms; }
                         }
                         Rectangle {
                             width: 3px;
-                            height: root.adhan-phase % 3 == 2 ? 12px : 4px;
+                            height: Math.mod(root.adhan-phase, 3) == 2 ? 12px : 4px;
                             background: Theme.accent;
                             border-radius: 2px;
                             animate height { duration: 110ms; }
