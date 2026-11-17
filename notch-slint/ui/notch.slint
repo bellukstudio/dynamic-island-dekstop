@@ -1384,7 +1384,22 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
                 Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
             }
-            Text { text: "Skin lain: kawaii, boba, galaxy, matcha, candy, synthwave, slime, cotton, pumpkin, frost"; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Kawaii"; selected: eye-theme-input.text == "kawaii"; clicked => { eye-theme-input.text = "kawaii"; } }
+                Chip { label: "Boba"; selected: eye-theme-input.text == "boba"; clicked => { eye-theme-input.text = "boba"; } }
+                Chip { label: "Galaxy"; selected: eye-theme-input.text == "galaxy"; clicked => { eye-theme-input.text = "galaxy"; } }
+                Chip { label: "Matcha"; selected: eye-theme-input.text == "matcha"; clicked => { eye-theme-input.text = "matcha"; } }
+                Chip { label: "Candy"; selected: eye-theme-input.text == "candy"; clicked => { eye-theme-input.text = "candy"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                Chip { label: "Synthwave"; selected: eye-theme-input.text == "synthwave"; clicked => { eye-theme-input.text = "synthwave"; } }
+                Chip { label: "Slime"; selected: eye-theme-input.text == "slime"; clicked => { eye-theme-input.text = "slime"; } }
+                Chip { label: "Cotton"; selected: eye-theme-input.text == "cotton"; clicked => { eye-theme-input.text = "cotton"; } }
+                Chip { label: "Pumpkin"; selected: eye-theme-input.text == "pumpkin"; clicked => { eye-theme-input.text = "pumpkin"; } }
+                Chip { label: "Frost"; selected: eye-theme-input.text == "frost"; clicked => { eye-theme-input.text = "frost"; } }
+            }
             Text { text: "Aksen / latar gelap / terang (HEX)"; color: Theme.text-faint; font-size: 9px; }
             accent-input := TextInput { text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
