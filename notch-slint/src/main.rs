@@ -1188,8 +1188,13 @@ fn main() -> Result<(), slint::PlatformError> {
                             next.position.custom = true;
                             next.position.x = pos.0;
                             next.position.y = pos.1;
-                            next.position.monitor_center_x = monitor_center.0;
-                            next.position.monitor_center_y = monitor_center.1;
+                            if is_side_dock {
+                                next.position.monitor_center_x = monitor_center.0;
+                                next.position.monitor_center_y = monitor_center.1;
+                            } else {
+                                next.position.monitor_center_x = 0;
+                                next.position.monitor_center_y = 0;
+                            }
                             if next.save(&config_path).is_ok() {
                                 updated_config = next;
                             }
@@ -1504,9 +1509,18 @@ fn main() -> Result<(), slint::PlatformError> {
                     if x == notch_core::layout::LEFT_TX || x == notch_core::layout::RIGHT_TX {
                         next.position.monitor_center_x = center_x;
                         next.position.monitor_center_y = center_y;
+                    } else {
+                        next.position.monitor_center_x = 0;
+                        next.position.monitor_center_y = 0;
                     }
                 }
-                None => { next.position.custom = false; next.position.x = 0; next.position.y = 0; }
+                None => {
+                    next.position.custom = false;
+                    next.position.x = 0;
+                    next.position.y = 0;
+                    next.position.monitor_center_x = 0;
+                    next.position.monitor_center_y = 0;
+                }
             }
             match next.save(&config_path) {
                 Ok(()) => {
