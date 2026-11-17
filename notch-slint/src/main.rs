@@ -558,10 +558,12 @@ mod platform {
     pub fn work_area(near: Option<(i32, i32)>) -> WorkArea {
         #[cfg(windows)]
         unsafe {
-            use windows::Win32::Foundation::POINT;
+            use windows::core::PCWSTR;
+            use windows::Win32::Foundation::{POINT, RECT};
             use windows::Win32::Graphics::Gdi::{
                 GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTOPRIMARY,
             };
+            use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetWindowRect};
             let (pt, flag) = match near {
                 // y bisa 100000 (menempel di dasar layar): jepit supaya titik tetap dekat monitor
                 Some((x, y)) => (POINT { x, y: y.min(50_000) }, MONITOR_DEFAULTTONEAREST),
@@ -572,7 +574,30 @@ mod platform {
             if GetMonitorInfoW(hmon, &mut mi).as_bool() {
                 let (m, r) = (mi.rcMonitor, mi.rcWork);
                 if r.bottom - r.top > 0 {
-                    return WorkArea { x: m.left, y: r.top, w: m.right - m.left, h: r.bottom - r.top };
+                    // rcWork adalah sumber utama. Periksa juga HWND taskbar agar posisi bawah
+                    // tetap aman pada konfigurasi Windows yang melaporkan rcWork penuh.
+                    let class_name: Vec<u16> = "Shell_TrayWnd\0".encode_utf16().collect();
+                    let tray = FindWindowW(PCWSTR(class_name.as_ptr()), PCWSTR::null());
+                    let mut tray_rect = RECT::default();
+                    let work_bottom = if !tray.0.is_null()
+                        && GetWindowRect(tray, &mut tray_rect).is_ok()
+                        && tray_rect.left < m.right
+                        && tray_rect.right > m.left
+                        && tray_rect.top >= r.top
+                        && tray_rect.top < m.bottom
+                    {
+                        r.bottom.min(tray_rect.top)
+                    } else {
+                        r.bottom
+                    };
+                    if work_bottom > r.top {
+                        return WorkArea {
+                            x: m.left,
+                            y: r.top,
+                            w: m.right - m.left,
+                            h: work_bottom - r.top,
+                        };
+                    }
                 }
             }
         }
