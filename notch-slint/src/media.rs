@@ -132,6 +132,8 @@ mod platform {
   });
  }
 
+}
+
 #[cfg(not(windows))]
 mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){}}
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
