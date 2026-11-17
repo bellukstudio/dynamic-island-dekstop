@@ -1328,6 +1328,14 @@ component SettingsPage inherits VerticalLayout {
                 }
             }
             Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            HorizontalLayout {
+                Chip {
+                    label: "Pulihkan halaman default";
+                    clicked => {
+                        root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency");
+                    }
+                }
+            }
             Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
