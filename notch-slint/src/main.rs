@@ -3941,7 +3941,9 @@ fn main() -> Result<(), slint::PlatformError> {
             let speech_voice = selected_voice.clone();
             let _ = speech::speak(speech_message, speech_voice);
             w.set_nudge_message(message.into());
-            w.set_nudge_detail("Pratinjau greeting · audio native Windows".into());
+            w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
+            w.set_nudge_visible(false);
+            w.set_greeting_inline_visible(true);
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
             }
@@ -3949,7 +3951,10 @@ fn main() -> Result<(), slint::PlatformError> {
             w.set_greeting_save_status("Pratinjau teks dan audio diputar. Pengaturan belum disimpan.".into());
             let weak = weak.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
-                if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
+                if let Some(w) = weak.upgrade() {
+                    w.set_greeting_inline_visible(false);
+                    w.set_nudge_visible(false);
+                }
             });
         });
     }
@@ -5029,11 +5034,15 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(message) = message.as_ref() {
                 w.set_nudge_message(message.clone().into());
                 w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-                w.set_nudge_visible(true);
+                w.set_nudge_visible(false);
+                w.set_greeting_inline_visible(true);
                 let _ = speech::speak(message.clone(), voice.clone());
                 let weak_hide = weak.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
-                    if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
+                    if let Some(w) = weak_hide.upgrade() {
+                        w.set_greeting_inline_visible(false);
+                        w.set_nudge_visible(false);
+                    }
                 });
             }
         });
