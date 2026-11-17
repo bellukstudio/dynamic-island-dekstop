@@ -1300,9 +1300,16 @@ fn main() -> Result<(), slint::PlatformError> {
             }
 
             let current = w.window().position();
-            let work = platform::work_area(Some((current.x, current.y)));
             let size = w.window().size();
-            let margin = 36i32;
+            // Gunakan pusat jendela agar monitor terdeteksi benar pada konfigurasi multi-monitor,
+            // termasuk monitor yang berada di sebelah kiri/atas dengan koordinat negatif.
+            let monitor_center = (
+                current.x + size.width as i32 / 2,
+                current.y + size.height as i32 / 2,
+            );
+            let work = platform::work_area(Some(monitor_center));
+            // Margin dalam logical pixels agar konsisten pada monitor dengan DPI berbeda.
+            let margin = (36.0 * w.window().scale_factor()).round() as i32;
             // Posisi kustom Shell memakai titik tengah horizontal dan sisi atas vertikal.
             let half_width = size.width as i32 / 2;
             let min_x = work.x + half_width + margin;
