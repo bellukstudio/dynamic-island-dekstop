@@ -1093,7 +1093,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let (Some((cx, cy)), Some((start_cursor, start_window, moved, mut orb_offset))) = (cursor, drag) {
                     let dx = cx - start_cursor.0;
                     let dy = cy - start_cursor.1;
-                    let is_moved = moved || dx.abs() + dy.abs() >= 3;
+                    // Ambang drag 3 logical px, dikonversi ke koordinat pointer fisik.
+                    let drag_threshold = (3.0 * w.window().scale_factor()).round() as i32;
+                    let is_moved = moved || dx.abs() + dy.abs() >= drag_threshold;
                     if is_moved {
                         w.set_play_interaction_active(true);
                         if !moved {
