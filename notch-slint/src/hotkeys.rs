@@ -117,8 +117,8 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
             };
             #[link(name = "user32")]
             extern "system" {
-                fn RegisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32, modifiers: u32, vk: u32) -> windows::Win32::Foundation::BOOL;
-                fn UnregisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32) -> windows::Win32::Foundation::BOOL;
+                fn RegisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32, modifiers: u32, vk: u32) -> i32;
+                fn UnregisterHotKey(hwnd: windows::Win32::Foundation::HWND, id: i32) -> i32;
             }
             let null_hwnd = windows::Win32::Foundation::HWND::default();
             let mut registered: Vec<(i32, Action)> = Vec::new();
@@ -150,7 +150,7 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         let Some(binding) = parse_combo(&combo) else { continue };
                         if !used.insert(binding) { continue; }
                         let modifiers = binding.modifiers | 0x4000;
-                        if RegisterHotKey(null_hwnd, id, modifiers, binding.vk).as_bool() {
+                        if RegisterHotKey(null_hwnd, id, modifiers, binding.vk) != 0 {
                             registered.push((id, action));
                         } else {
                             // Windows menolak shortcut yang sedang dipakai aplikasi lain atau OS.
@@ -172,7 +172,6 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                 }
                 thread::sleep(std::time::Duration::from_millis(10));
             }
-            for (id, _) in registered { let _ = UnregisterHotKey(None, id); }
         });
         return (action_rx, config_tx, Some(handle));
     }
