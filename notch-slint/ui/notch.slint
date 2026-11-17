@@ -1547,6 +1547,13 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
             motion-max-input := TextInput { text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    motion-enabled-input.text = "false";
+                    dock-play-input.text = "true";
+                    motion-interval-input.text = "180";
+                    motion-max-input.text = "3";
+                    root.save-motion(false, "180", "3", true);
+                } }
                 Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
                 Chip { label: "Tes animasi"; clicked => { root.test-dock-play(); } }
             }
