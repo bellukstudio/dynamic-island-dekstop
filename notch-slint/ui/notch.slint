@@ -2686,7 +2686,7 @@ export component NotchWindow inherits Window {
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
             clicked => { if (root.suppress-next-pill-click) { root.suppress-next-pill-click = false; } else { root.pill-clicked(); } }
-            double-clicked => { root.pill-double-clicked(); }
+            double-clicked => { if (!root.suppress-next-pill-click) { root.pill-double-clicked(); } }
 
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
             Image {
