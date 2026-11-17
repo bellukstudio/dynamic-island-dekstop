@@ -1,4 +1,4 @@
-use image::{codecs::jpeg::JpegEncoder, ImageReader};
+use image::codecs::jpeg::JpegEncoder;
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,7 @@ const LADDER: [Profile; 14] = [
     Profile { quality: 30, scale: 0.3 },
 ];
 
-fn decode_image(src: &[u8]) -> Result<image::DynamicImage, String> {
+pub(crate) fn decode_image(src: &[u8]) -> Result<image::DynamicImage, String> {
     use image::ImageDecoder;
     let reader = image::ImageReader::new(Cursor::new(src))
         .with_guessed_format()
@@ -47,7 +47,7 @@ fn scaled(image: &image::DynamicImage, scale: f32) -> image::DynamicImage {
     image.resize_exact(width, height, image::imageops::FilterType::Triangle)
 }
 
-fn encode_jpeg(image: &image::DynamicImage, quality: u8) -> Result<Vec<u8>, String> {
+pub(crate) fn encode_jpeg(image: &image::DynamicImage, quality: u8) -> Result<Vec<u8>, String> {
     use image::{ColorType, DynamicImage};
     let mut output = Vec::new();
     let encoder = JpegEncoder::new_with_quality(&mut output, quality);
