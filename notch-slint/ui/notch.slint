@@ -1135,6 +1135,7 @@ component SettingsPage inherits VerticalLayout {
     in property <string> appearance-custom-text: "";
     in property <string> appearance-dark-bg: "#000000";
     in property <string> appearance-light-bg: "#f5f5f7";
+    in property <string> appearance-save-status: "";
     in property <string> weather-city: "Bandung";
     in property <string> weather-lat: "-6.9175";
     in property <string> weather-lon: "107.6191";
@@ -2628,6 +2629,7 @@ export component NotchWindow inherits Window {
     callback weather-refresh();
     callback settings-save-weather(string, string, string);
     callback prayer-refresh();
+    callback prayer-data-ready();
     callback prayer-set-mode(string);
     callback prayer-set-remind(bool);
     callback prayer-set-remind-min(int);
