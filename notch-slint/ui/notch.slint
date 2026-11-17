@@ -1281,6 +1281,7 @@ component SettingsPage inherits VerticalLayout {
         }
     }
     Text { text: "Halaman"; color: Theme.text; font-size: 11px; font-weight: 700; }
+    Text { text: "Pilih tab utama yang ingin ditampilkan pada hub notch."; color: Theme.text-faint; font-size: 9px; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 6px;
             HorizontalLayout {
@@ -1306,7 +1307,9 @@ component SettingsPage inherits VerticalLayout {
                     PageToggle { label: "Currency · Kurs & saham"; checked: root.page-enabled("currency"); toggled(v) => { root.toggle-page("currency", v); } }
                 }
             }
+            Rectangle { height: 1px; background: Theme.chip; }
             Text { text: "Tambahan"; color: Theme.text; font-size: 11px; font-weight: 700; }
+            Text { text: "Fitur pendamping dan alat tambahan; tidak semuanya menjadi tab utama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             HorizontalLayout {
                 spacing: 6px;
                 VerticalLayout {
