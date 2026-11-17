@@ -919,20 +919,24 @@ impl Shell {
         // Jika belum ada posisi jendela yang valid, fallback tetap ke monitor utama.
         let side_docked = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
         let monitor_hint = if side_docked {
-            // (0, 0) menandakan config lama yang belum menyimpan monitor anchor.
-            // Biarkan None agar work_area memilih monitor utama, bukan monitor terdekat ke origin.
-            self.monitor_hint.get().filter(|(x, y)| *x != 0 || *y != 0).or_else(|| {
-                let current = win.window().position();
-                let current_size = win.window().size();
-                if current_size.width > 0 && current_size.height > 0 {
-                    Some((
-                        current.x + current_size.width as i32 / 2,
-                        current.y + current_size.height as i32 / 2,
-                    ))
-                } else {
-                    None
+            match self.monitor_hint.get() {
+                // Config lama belum menyimpan anchor: gunakan monitor utama.
+                Some((0, 0)) => None,
+                Some(anchor) => Some(anchor),
+                None => {
+                    // Saat dock dilakukan dalam sesi berjalan, gunakan monitor jendela saat ini.
+                    let current = win.window().position();
+                    let current_size = win.window().size();
+                    if current_size.width > 0 && current_size.height > 0 {
+                        Some((
+                            current.x + current_size.width as i32 / 2,
+                            current.y + current_size.height as i32 / 2,
+                        ))
+                    } else {
+                        None
+                    }
                 }
-            })
+            }
         } else {
             pos
         };
