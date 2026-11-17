@@ -2685,7 +2685,9 @@ export component NotchWindow inherits Window {
         // Konten dibungkus TouchArea sebagai induk: has-hover tetap true saat kursor berada di atas
         // tombol (anak), dan klik tetap diteruskan ke anak.
         hover := TouchArea {
-            clicked => { if (root.suppress-next-pill-click) { root.suppress-next-pill-click = false; } else { root.pill-clicked(); } }
+            // Jangan hapus flag di sini: event double-click dapat datang setelah clicked.
+            // Timer native yang melepas flag setelah jeda release drag.
+            clicked => { if (!root.suppress-next-pill-click) { root.pill-clicked(); } }
             double-clicked => { if (!root.suppress-next-pill-click) { root.pill-double-clicked(); } }
 
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
