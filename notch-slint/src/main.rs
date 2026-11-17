@@ -1183,7 +1183,6 @@ fn main() -> Result<(), slint::PlatformError> {
                             };
                             shell.pos.set(Some(pos));
                             let monitor_center = (work.x + work.w / 2, work.y + work.h / 2);
-                            let is_side_dock = pos.0 == layout::LEFT_TX || pos.0 == layout::RIGHT_TX;
                             // Simpan anchor monitor untuk semua posisi, termasuk bottom sentinel.
                             shell.monitor_hint.set(Some(monitor_center));
                             shell.memo.set((None, 0));
