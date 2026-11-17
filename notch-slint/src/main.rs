@@ -1021,8 +1021,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let palette = Palette::from_appearance(&cfg.appearance, platform::os_light());
     // Posisi notch: kustom dari config (pusat x, atas y; piksel fisik) atau None = tengah atas.
     // Tombol "Pusatkan" hanya mengembalikannya ke tengah selama sesi ini (config tidak ditulis dari sini).
-    let saved_side_dock = cfg.position.custom
-        && (cfg.position.x == layout::LEFT_TX || cfg.position.x == layout::RIGHT_TX);
     let shell = Rc::new(Shell {
         pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
         monitor_hint: Cell::new((cfg.position.custom
@@ -1121,7 +1119,6 @@ fn main() -> Result<(), slint::PlatformError> {
                             // Klik baru boleh dipulihkan setelah tombol mouse dilepas.
                             // Timer di sini terlalu dini: drag panjang (>350 ms) bisa memicu klik saat release.
                             w.set_suppress_next_pill_click(true);
-                            let old_size = w.window().size();
                             let sf = w.window().scale_factor();
                             let orb_size = (64.0 * sf).round() as u32;
                             // Pusat ORB langsung mengikuti titik pointer yang memulai drag.
