@@ -536,7 +536,7 @@ mod platform {
     pub fn left_mouse_down() -> bool {
         #[cfg(windows)]
         unsafe {
-            use windows::Win32::UI::WindowsAndMessaging::{GetAsyncKeyState, VK_LBUTTON};
+            use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
             return GetAsyncKeyState(VK_LBUTTON.0 as i32) < 0;
         }
         #[cfg(not(windows))]
