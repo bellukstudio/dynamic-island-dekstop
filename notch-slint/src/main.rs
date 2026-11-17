@@ -448,7 +448,7 @@ fn clear_convert_history() {
 }
 
 // Ruang saat menciut mencakup pil serta cloud percakapan 250 x 76 px.
-const COLLAPSED: (u32, u32) = (262, 140);
+const COLLAPSED: (u32, u32) = (300, 140);
 // Side dock: 34 px pill vertikal + balon notifikasi horizontal di area dalam layar.
 const COLLAPSED_SIDE: (u32, u32) = (300, 262);
 // Greeting inline memerlukan ruang horizontal tambahan di sekitar badan Notch.
