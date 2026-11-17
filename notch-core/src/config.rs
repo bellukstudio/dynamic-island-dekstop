@@ -580,6 +580,28 @@ mod tests {
     }
 
     #[test]
+    fn side_dock_monitor_anchor_is_backward_compatible() {
+        // Config versi lama belum memiliki koordinat monitor; nilainya harus memakai default.
+        let old: Config = toml::from_str(
+            "[position]\ncustom = true\nx = -100000\ny = 540\n",
+        ).unwrap();
+        assert_eq!(old.position.monitor_center_x, 0);
+        assert_eq!(old.position.monitor_center_y, 0);
+
+        // Config baru mempertahankan anchor monitor setelah serialisasi.
+        let mut current = Config::default();
+        current.position.custom = true;
+        current.position.x = -100000;
+        current.position.y = 540;
+        current.position.monitor_center_x = 1920;
+        current.position.monitor_center_y = 540;
+        let serialized = toml::to_string(&current).unwrap();
+        let restored: Config = toml::from_str(&serialized).unwrap();
+        assert_eq!(restored.position.monitor_center_x, 1920);
+        assert_eq!(restored.position.monitor_center_y, 540);
+    }
+
+    #[test]
     fn automation_preferences_have_defaults_and_sanitize_invalid_values() {
         let defaults = Config::default();
         assert_eq!(defaults.greeting.mode, "random");
