@@ -1070,6 +1070,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut updated_config = cfg.clone();
         let mut was_down = false;
         let mut drag: Option<((i32, i32), (i32, i32), bool, (i32, i32))> = None;
+        // Skala dan ukuran ORB fisik saat ini; diperbarui bila pointer berpindah monitor DPI berbeda.
+        let mut drag_scale = 1.0f32;
+        let mut drag_orb_size = 0u32;
         let click_suppress_timer = Timer::default();
         let drag_timer = Timer::default();
         drag_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
@@ -1107,7 +1110,20 @@ fn main() -> Result<(), slint::PlatformError> {
                             let orb_size = (64.0 * sf).round() as u32;
                             orb_offset = ((old_size.width as i32 - orb_size as i32) / 2, (old_size.height as i32 - orb_size as i32) / 2);
                             w.window().set_size(PhysicalSize::new(orb_size, orb_size));
+                            drag_scale = sf;
+                            drag_orb_size = orb_size;
                             w.set_dragging(true);
+                        }
+                        // Saat melintasi monitor dengan DPI berbeda, jaga ORB tetap 64 logical px.
+                        let current_scale = w.window().scale_factor();
+                        if (current_scale - drag_scale).abs() > f32::EPSILON {
+                            let next_orb_size = (64.0 * current_scale).round() as u32;
+                            let center_adjust = (drag_orb_size as i32 - next_orb_size as i32) / 2;
+                            orb_offset.0 += center_adjust;
+                            orb_offset.1 += center_adjust;
+                            w.window().set_size(PhysicalSize::new(next_orb_size, next_orb_size));
+                            drag_scale = current_scale;
+                            drag_orb_size = next_orb_size;
                         }
                         w.window().set_position(PhysicalPosition::new(start_window.0 + dx + orb_offset.0, start_window.1 + dy + orb_offset.1));
                         drag = Some((start_cursor, start_window, true, orb_offset));
