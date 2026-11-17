@@ -3215,6 +3215,8 @@ export component NotchWindow inherits Window {
                         }
                     }
                     if root.page-id == "media": MediaPage {
+                        width: parent.width;
+                        height: parent.height;
                         lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active;
                         art: root.media-art; has-art: root.media-has-art; title: root.media-title; artist: root.media-artist;
                         pos-text: root.media-pos-text; dur-text: root.media-dur-text; progress: root.media-progress; playing: root.media-playing;
