@@ -35,7 +35,9 @@ pub fn month(provinsi: &str, kabkota: &str, year: i32, month: u32, refresh: bool
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(15))).user_agent("Notch/0.1").build().into();
     let mut response = agent.post("https://equran.id/api/v2/shalat")
-        .send_json(body).map_err(|e| e.to_string())?;
+        .header("Content-Type", "application/json")
+        .send(serde_json::to_vec(&body).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
     let raw = response.body_mut().read_to_string().map_err(|e| e.to_string())?;
     let parsed: ApiResp = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
     let days = parsed.data.map(|d| d.jadwal).unwrap_or_default();
