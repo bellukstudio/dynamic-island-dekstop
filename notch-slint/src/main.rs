@@ -1137,6 +1137,8 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.window().set_size(PhysicalSize::new(orb_size, orb_size));
                             drag_scale = sf;
                             drag_orb_size = orb_size;
+                            // Saat drag dimulai dari hub yang terbuka, tutup konten sebelum window menjadi ORB.
+                            w.set_expanded(false);
                             w.set_dragging(true);
                         }
                         // Saat melintasi monitor dengan DPI berbeda, jaga ORB tetap 64 logical px.
