@@ -3,6 +3,7 @@ use windows::Win32::Media::Audio::{
     eCapture, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2,
     IMMDeviceEnumerator, MMDeviceEnumerator, DEVICE_STATE_ACTIVE,
 };
+use windows_core::Interface;
 use windows::Win32::System::Com::{
     CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED,
 };
