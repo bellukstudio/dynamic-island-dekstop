@@ -1661,6 +1661,13 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Teks kustom (maks. 120 karakter)"; color: Theme.text-faint; font-size: 9px; }
             greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    greeting-enabled-input.text = "true";
+                    greeting-mode-input.text = "random";
+                    greeting-voice-input.text = "cewek";
+                    greeting-custom-input.text = "Halo, semangat menjalani hari!";
+                    root.save-greeting(true, "random", "cewek", "Halo, semangat menjalani hari!");
+                } }
                 Chip { label: "Pratinjau sapaan (teks)"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text, greeting-voice-input.text); } }
                 Chip { label: "Simpan pengaturan greeting"; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
             }
@@ -1702,9 +1709,25 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Coba momen"; clicked => { root.test-conversation("Asyik, kita ketemu momen baru! ✨", "Uji Conversation Moments"); } }
                 Chip { label: "Coba momen cuaca"; clicked => { root.test-conversation("Cuaca berubah, jangan lupa sesuaikan aktivitasmu ☀️", "Uji momen cuaca"); } }
             }
-            Chip { label: "Simpan Conversation Moments"; clicked => {
-                root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
-            } }
+            HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    cm-enabled-input.text = "true";
+                    cm-play-input.text = "true";
+                    cm-track-input.text = "true";
+                    cm-pause-input.text = "false";
+                    cm-return-input.text = "true";
+                    cm-weather-input.text = "true";
+                    cm-rain-input.text = "true";
+                    cm-battery-input.text = "true";
+                    cm-charging-input.text = "false";
+                    cm-return-min-input.text = "10";
+                    cm-cooldown-input.text = "3";
+                    root.save-conversation(true, true, true, false, true, true, true, true, false, "10", "3");
+                } }
+                Chip { label: "Simpan Conversation Moments"; clicked => {
+                    root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
+                } }
+            }
             Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
@@ -1728,6 +1751,14 @@ component SettingsPage inherits VerticalLayout {
                 PageToggle { label: "Saat waktu istirahat selesai"; checked: fc-break-input.text == "true"; toggled(v) => { fc-break-input.text = v ? "true" : "false"; } }
             }
             HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    fc-enabled-input.text = "true";
+                    fc-start-input.text = "true";
+                    fc-halfway-input.text = "true";
+                    fc-complete-input.text = "true";
+                    fc-break-input.text = "true";
+                    root.save-focus-companion(true, true, true, true, true);
+                } }
                 Chip { label: "Coba Focus Companion"; clicked => { root.test-focus-companion("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯", "Uji Focus Companion"); } }
                 Chip { label: "Simpan Focus Companion"; clicked => {
                     root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
