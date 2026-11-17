@@ -7,7 +7,7 @@ pub const BOTTOM_TY: i32 = 100_000;
 /// Jarak ke tepi atas (px) di bawah ini masih dianggap menempel di atas.
 pub const TOP_SNAP: i32 = 8;
 /// Jarak aman antara Notch dock bawah dan batas atas taskbar Windows.
-pub const BOTTOM_GAP: i32 = 8;
+pub const BOTTOM_GAP: i32 = 0;
 /// Sentinel posisi kustom untuk docking vertikal. `x` menyimpan sisi, `y` menyimpan pusat vertikal.
 pub const LEFT_TX: i32 = -100_000;
 pub const RIGHT_TX: i32 = 100_000;
