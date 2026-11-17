@@ -6,6 +6,8 @@
 pub const BOTTOM_TY: i32 = 100_000;
 /// Jarak ke tepi atas (px) di bawah ini masih dianggap menempel di atas.
 pub const TOP_SNAP: i32 = 8;
+/// Jarak aman antara Notch dock bawah dan batas atas taskbar Windows.
+pub const BOTTOM_GAP: i32 = 8;
 /// Sentinel posisi kustom untuk docking vertikal. `x` menyimpan sisi, `y` menyimpan pusat vertikal.
 pub const LEFT_TX: i32 = -100_000;
 pub const RIGHT_TX: i32 = 100_000;
@@ -56,7 +58,8 @@ pub fn place(work: &WorkArea, width: i32, height: i32, pos: Option<(i32, i32)>) 
             let min_x = work.x + half_w;
             let max_x = (work.x + work.w - half_w).max(min_x);
             let min_y = work.y;
-            let max_y = (work.y + work.h - height).max(min_y);
+            let bottom_gap = if ty >= BOTTOM_TY / 2 { BOTTOM_GAP } else { 0 };
+            let max_y = (work.y + work.h - height - bottom_gap).max(min_y);
             let x = cx.clamp(min_x, max_x) - half_w;
             let y = ty.clamp(min_y, max_y);
             let dock = if ty >= BOTTOM_TY / 2 {
@@ -106,7 +109,7 @@ mod tests {
     fn bottom_sentinel_sticks_to_bottom_of_work_area() {
         let ((_, y), d) = place(&W, 600, 300, Some((960, BOTTOM_TY)));
         assert_eq!(d, Dock::Bottom);
-        assert_eq!(y, 1040 - 300);
+        assert_eq!(y, 1040 - 300 - BOTTOM_GAP);
     }
 
     #[test]
