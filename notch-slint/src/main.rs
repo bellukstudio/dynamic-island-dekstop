@@ -3930,14 +3930,15 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = speech::speak(speech_message, speech_voice);
             w.set_nudge_message(message.into());
             w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-            if w.get_dock() < 3 {
+            // Mengikuti Tauri: greeting di dock bawah/kiri/kanan memakai awan percakapan,
+            // bukan kartu inline lebar yang akan terpotong oleh jendela dock.
+            if w.get_dock() < 2 {
                 shell.place(&w, GREETING_INLINE);
                 w.set_nudge_visible(false);
                 w.set_greeting_inline_visible(true);
             } else {
                 w.set_greeting_inline_visible(false);
                 w.set_nudge_visible(true);
-                // Balon greeting di dock samping memakai ruang COLLAPSED_SIDE, bukan ukuran inline lama.
                 shell.place(&w, COLLAPSED);
             }
             if let Some(eye_state) = eye.borrow().clone() {
@@ -5034,14 +5035,14 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(message) = message.as_ref() {
                 w.set_nudge_message(message.clone().into());
                 w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-                if w.get_dock() < 3 {
+                // Sama dengan aturan Tauri: dock bawah/samping selalu memakai speech bubble.
+                if w.get_dock() < 2 {
                     shell.place(&w, GREETING_INLINE);
                     w.set_nudge_visible(false);
                     w.set_greeting_inline_visible(true);
                 } else {
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(true);
-                    // Pastikan balon dock samping mendapat window portrait yang utuh.
                     shell.place(&w, COLLAPSED);
                 }
                 let _ = speech::speak(message.clone(), voice.clone());
