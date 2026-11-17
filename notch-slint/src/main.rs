@@ -1521,13 +1521,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     next.position.custom = true;
                     next.position.x = x;
                     next.position.y = y;
-                    if x == notch_core::layout::LEFT_TX || x == notch_core::layout::RIGHT_TX {
-                        next.position.monitor_center_x = center_x;
-                        next.position.monitor_center_y = center_y;
-                    } else {
-                        next.position.monitor_center_x = 0;
-                        next.position.monitor_center_y = 0;
-                    }
+                    // Anchor monitor disimpan untuk semua preset agar bottom sentinel tidak
+                    // dipakai sebagai koordinat monitor saat aplikasi dibuka ulang.
+                    next.position.monitor_center_x = center_x;
+                    next.position.monitor_center_y = center_y;
                 }
                 None => {
                     next.position.custom = false;
@@ -1541,8 +1538,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 Ok(()) => {
                     updated_config = next;
                     shell.pos.set(next_pos);
-                    let side_dock = next_pos.is_some_and(|(x, _)| x == notch_core::layout::LEFT_TX || x == notch_core::layout::RIGHT_TX);
-                    shell.monitor_hint.set(side_dock.then_some((center_x, center_y)));
+                    shell.monitor_hint.set(next_pos.map(|_| (center_x, center_y)));
                     if let Some(w) = weak.upgrade() {
                         let from = w.window().position();
                         let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
