@@ -2759,7 +2759,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     w.set_nudge_message(message.into());
                     w.set_nudge_detail(detail.into());
                     w.set_nudge_visible(true);
-                    eye.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+                    if let Some(ctx) = eye.borrow().as_ref() {
+                        ctx.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+                    }
                     *last_message = Some(Instant::now());
                     let weak_hide = weak.clone();
                     hide_timer.start(TimerMode::SingleShot, Duration::from_secs(5), move || {
