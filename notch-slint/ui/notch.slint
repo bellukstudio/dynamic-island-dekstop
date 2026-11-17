@@ -2952,7 +2952,13 @@ export component NotchWindow inherits Window {
                         run(path) => { root.compress-run(path); }
                         pick-file => { root.compress-pick(); }
                     }
-                    if root.page-id == "settings": SettingsPage {
+                    if root.page-id == "settings": Flickable {
+                        width: parent.width;
+                        height: parent.height;
+                        viewport-width: self.width;
+                        viewport-height: self.height;
+                        SettingsPage {
+                            width: parent.width;
                         weather-city: root.weather-city;
                         weather-lat: root.weather-lat;
                         weather-lon: root.weather-lon;
@@ -3048,6 +3054,7 @@ export component NotchWindow inherits Window {
                         save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city) => { root.settings-save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city); }
                         save-status: root.settings-save-status;
                         save-shortcuts(hub, settings, pomo, prayer) => { root.settings-save-shortcuts(hub, settings, pomo, prayer); }
+                        }
                     }
                     if root.page-id == "media": MediaPage {
                         lyrics-open <=> root.lyrics-open; lyric-lines: root.lyric-lines; lyric-active: root.lyric-active;
