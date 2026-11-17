@@ -902,6 +902,8 @@ const PILL_H: f32 = 202.0;
 /// (atas/melayang/bawah) atau faktor DPI berubah.
 struct Shell {
     pos: Cell<Option<(i32, i32)>>, // posisi kustom (pusat x, atas y) atau None = tengah atas
+    // Anchor monitor untuk memulihkan dock kiri/kanan; sentinel posisi tidak menyimpan koordinat monitor.
+    monitor_hint: Cell<Option<(i32, i32)>>,
     theme: RefCell<String>,
     body: RefCell<Rgba>,
     scale: RefCell<f32>,
@@ -915,9 +917,9 @@ impl Shell {
         // Sentinel sisi bukan koordinat monitor. Saat drag ke sisi, pertahankan monitor
         // tempat jendela sedang berada (posisi fisik sebelum ukuran/docking diterapkan).
         // Jika belum ada posisi jendela yang valid, fallback tetap ke monitor utama.
-        let monitor_hint = pos
-            .filter(|(x, _)| *x != layout::LEFT_TX && *x != layout::RIGHT_TX)
-            .or_else(|| {
+        let side_docked = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
+        let monitor_hint = if side_docked {
+            self.monitor_hint.get().or_else(|| {
                 let current = win.window().position();
                 let current_size = win.window().size();
                 if current_size.width > 0 && current_size.height > 0 {
@@ -928,7 +930,10 @@ impl Shell {
                 } else {
                     None
                 }
-            });
+            })
+        } else {
+            pos
+        };
         let work = platform::work_area(monitor_hint);
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
@@ -1009,8 +1014,14 @@ fn main() -> Result<(), slint::PlatformError> {
     let palette = Palette::from_appearance(&cfg.appearance, platform::os_light());
     // Posisi notch: kustom dari config (pusat x, atas y; piksel fisik) atau None = tengah atas.
     // Tombol "Pusatkan" hanya mengembalikannya ke tengah selama sesi ini (config tidak ditulis dari sini).
+    let saved_side_dock = cfg.position.custom
+        && (cfg.position.x == layout::LEFT_TX || cfg.position.x == layout::RIGHT_TX);
     let shell = Rc::new(Shell {
         pos: Cell::new(cfg.position.custom.then_some((cfg.position.x, cfg.position.y))),
+        monitor_hint: Cell::new(saved_side_dock.then_some((
+            cfg.position.monitor_center_x,
+            cfg.position.monitor_center_y,
+        ))),
         theme: RefCell::new(cfg.appearance.notch_theme.clone()),
         body: RefCell::new(palette.body),
         scale: RefCell::new(cfg.scale as f32),
@@ -1162,12 +1173,17 @@ fn main() -> Result<(), slint::PlatformError> {
                                 ((cx, cy - (size.height as i32 / 2)), "floating")
                             };
                             shell.pos.set(Some(pos));
+                            let monitor_center = (work.x + work.w / 2, work.y + work.h / 2);
+                            let is_side_dock = pos.0 == layout::LEFT_TX || pos.0 == layout::RIGHT_TX;
+                            shell.monitor_hint.set(is_side_dock.then_some(monitor_center));
                             shell.memo.set((None, 0));
                             shell.place(&w, COLLAPSED);
                             let mut next = updated_config.clone();
                             next.position.custom = true;
                             next.position.x = pos.0;
                             next.position.y = pos.1;
+                            next.position.monitor_center_x = monitor_center.0;
+                            next.position.monitor_center_y = monitor_center.1;
                             if next.save(&config_path).is_ok() {
                                 updated_config = next;
                             }
@@ -1475,13 +1491,23 @@ fn main() -> Result<(), slint::PlatformError> {
             };
             let mut next = updated_config.clone();
             match next_pos {
-                Some((x, y)) => { next.position.custom = true; next.position.x = x; next.position.y = y; }
+                Some((x, y)) => {
+                    next.position.custom = true;
+                    next.position.x = x;
+                    next.position.y = y;
+                    if x == notch_core::layout::LEFT_TX || x == notch_core::layout::RIGHT_TX {
+                        next.position.monitor_center_x = center_x;
+                        next.position.monitor_center_y = center_y;
+                    }
+                }
                 None => { next.position.custom = false; next.position.x = 0; next.position.y = 0; }
             }
             match next.save(&config_path) {
                 Ok(()) => {
                     updated_config = next;
                     shell.pos.set(next_pos);
+                    let side_dock = next_pos.is_some_and(|(x, _)| x == notch_core::layout::LEFT_TX || x == notch_core::layout::RIGHT_TX);
+                    shell.monitor_hint.set(side_dock.then_some((center_x, center_y)));
                     if let Some(w) = weak.upgrade() {
                         let from = w.window().position();
                         let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
@@ -2230,6 +2256,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if kind.as_str() == "center" {
                 // Kembali ke tengah atas (hanya untuk sesi ini; config tidak ditulis dari Slint).
                 shell.pos.set(None);
+                shell.monitor_hint.set(None);
                 if let Some(w) = weak.upgrade() {
                     shell.place(&w, EXPANDED);
                 }
