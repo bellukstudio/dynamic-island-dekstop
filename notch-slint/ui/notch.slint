@@ -1571,10 +1571,17 @@ component SettingsPage inherits VerticalLayout {
             nudge-mood-input := TextInput { text: root.nudge-mood; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
                 spacing: 4px;
+                Chip { label: "Normal"; selected: nudge-mood-input.text == "normal"; clicked => { nudge-mood-input.text = "normal"; } }
                 Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
                 Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
                 Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
+            }
+            HorizontalLayout {
+                spacing: 4px;
                 Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
+                Chip { label: "Surprised"; selected: nudge-mood-input.text == "surprised"; clicked => { nudge-mood-input.text = "surprised"; } }
+                Chip { label: "Angry"; selected: nudge-mood-input.text == "angry"; clicked => { nudge-mood-input.text = "angry"; } }
+                Chip { label: "Suspicious"; selected: nudge-mood-input.text == "suspicious"; clicked => { nudge-mood-input.text = "suspicious"; } }
             }
             Text { text: "Lama pesan tampil (2000–30000 ms)"; color: Theme.text-faint; font-size: 9px; }
             nudge-show-input := TextInput { text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; }
