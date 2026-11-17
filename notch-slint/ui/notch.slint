@@ -1460,7 +1460,15 @@ component SettingsPage inherits VerticalLayout {
             weather-lat-input := TextInput { text: root.weather-lat; color: Theme.text; font-size: 11px; single-line: true; }
             Text { text: "Longitude"; color: Theme.text-faint; font-size: 9px; }
             weather-lon-input := TextInput { text: root.weather-lon; color: Theme.text; font-size: 11px; single-line: true; }
-            Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
+            HorizontalLayout {
+                Chip { label: "Reset default"; clicked => {
+                    weather-city-input.text = "Bandung";
+                    weather-lat-input.text = "-6.9175";
+                    weather-lon-input.text = "107.6191";
+                    root.save-weather("Bandung", "-6.9175", "107.6191");
+                } }
+                Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
+            }
             Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
