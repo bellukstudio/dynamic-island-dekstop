@@ -1096,8 +1096,10 @@ component PageToggle inherits Rectangle {
     height: 34px;
     border-radius: 9px;
     border-width: 1px;
-    border-color: #596a9b;
-    background: checked ? #252d49 : #20242e;
+    border-color: checked ? Theme.accent.with-alpha(0.55) : (ta.has-hover ? Theme.text-dim.with-alpha(0.45) : Theme.chip);
+    background: checked ? Theme.accent.with-alpha(0.16) : (ta.has-hover ? Theme.chip-hover : Theme.chip);
+    animate background { duration: 120ms; }
+    animate border-color { duration: 120ms; }
     HorizontalLayout {
         padding-left: 10px;
         padding-right: 8px;
@@ -1105,13 +1107,14 @@ component PageToggle inherits Rectangle {
         Rectangle {
             width: 16px;
             height: 16px;
-            border-radius: 3px;
+            border-radius: 4px;
             border-width: 1px;
-            border-color: checked ? #8798ff : #7b849c;
-            background: checked ? #8798ff : transparent;
-            Text { text: checked ? "✓" : ""; color: #151923; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            border-color: checked ? Theme.accent : Theme.text-faint;
+            background: checked ? Theme.accent : transparent;
+            animate background { duration: 120ms; }
+            Text { text: checked ? "✓" : ""; color: Theme.on-accent; font-size: 12px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
         }
-        Text { text: root.label; color: #f1f3fa; font-size: 11px; vertical-alignment: center; }
+        Text { text: root.label; color: Theme.text; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
     }
     ta := TouchArea { clicked => { root.toggled(!root.checked); } }
 }
