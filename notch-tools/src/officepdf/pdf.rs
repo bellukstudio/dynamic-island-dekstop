@@ -189,7 +189,7 @@ impl Pdf {
     }
 
     fn build_image(&mut self, bytes: &[u8]) -> Option<ImgInfo> {
-        let img = crate::compress::decode_image(bytes, true).ok()?;
+        let img = crate::compress::decode_image(bytes).ok()?;
         let mut rgba = img.to_rgba8();
         for px in rgba.pixels_mut() {
             let a = px[3] as u32;
