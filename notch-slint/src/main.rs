@@ -3956,13 +3956,13 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
             }
-            w.set_nudge_visible(true);
             w.set_greeting_save_status("Pratinjau teks dan audio diputar. Pengaturan belum disimpan.".into());
             let weak = weak.clone();
+            let shell_hide = shell.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
                 if let Some(w) = weak.upgrade() {
                     if w.get_greeting_inline_visible() {
-                        shell.place(&w, COLLAPSED);
+                        shell_hide.place(&w, COLLAPSED);
                     }
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(false);
@@ -5057,10 +5057,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 let _ = speech::speak(message.clone(), voice.clone());
                 let weak_hide = weak.clone();
+                let shell_hide = shell.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
                     if let Some(w) = weak_hide.upgrade() {
                         if w.get_greeting_inline_visible() {
-                            shell.place(&w, COLLAPSED);
+                            shell_hide.place(&w, COLLAPSED);
                         }
                         w.set_greeting_inline_visible(false);
                         w.set_nudge_visible(false);
