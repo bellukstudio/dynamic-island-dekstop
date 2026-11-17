@@ -414,6 +414,9 @@ pub struct Position {
     pub custom: bool, // true jika posisi kustom (pernah digeser), false jika default (tengah atas)
     pub x: i32,       // koordinat tengah horizontal (center_x)
     pub y: i32,       // koordinat atas (top_y)
+    /// Titik tengah monitor terakhir untuk memulihkan dock kiri/kanan setelah aplikasi dibuka ulang.
+    pub monitor_center_x: i32,
+    pub monitor_center_y: i32,
 }
 impl Default for Position {
     fn default() -> Self {
@@ -421,6 +424,8 @@ impl Default for Position {
             custom: false,
             x: 0,
             y: 0,
+            monitor_center_x: 0,
+            monitor_center_y: 0,
         }
     }
 }
