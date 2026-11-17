@@ -27,11 +27,11 @@ mod platform {
  fn is_self(s:&Session)->bool{let id=app_id(s);if id.contains("webview2"){return true;}std::env::current_exe().ok().and_then(|p|p.file_stem().map(|x|x.to_string_lossy().to_lowercase())).map(|n|n.len()>=3&&id.contains(&n)).unwrap_or(false)}
  fn session()->windows::core::Result<Session>{init();let m=Manager::RequestAsync()?.get()?;if let Ok(s)=m.GetCurrentSession(){if !is_self(&s){return Ok(s);}}for s in m.GetSessions()?{if !is_self(&s){return Ok(s);}}Err(windows::core::Error::from(windows::core::HRESULT(0x80004005u32 as i32)))}
  fn read(s:&Session)->windows::core::Result<State>{let p=s.TryGetMediaPropertiesAsync()?.get()?;let t=s.GetTimelineProperties()?;let playing=s.GetPlaybackInfo()?.PlaybackStatus()?==Status::Playing;let length=t.EndTime()?.Duration as f64/10_000_000.0;let mut position=t.Position()?.Duration as f64/10_000_000.0;if playing{let updated=t.LastUpdatedTime()?.UniversalTime as f64/10_000_000.0;let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d|d.as_secs_f64()).unwrap_or(0.0)+11_644_473_600.0;let elapsed=now-updated;if elapsed>0.0&&elapsed<21_600.0{position+=elapsed;}}if length>0.0{position=position.min(length);}Ok(State{active:true,title:p.Title()?.to_string(),artist:p.Artist()?.to_string(),playing,position,length})}
- fn artwork(s:&Session)->Option<Image>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let(w,h)=decoded.dimensions();Some(Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(decoded.as_raw(),w,h)))}
+ fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32)>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let(w,h)=decoded.dimensions();Some((decoded.into_raw(),w,h))}
  pub fn poll(weak:Weak<NotchWindow>){std::thread::spawn(move||{
  init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
  loop{
-  let mut state=State::default();let mut art:Option<Option<Image>>=None;
+  let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32)>>=None;
   if let Ok(s)=session(){if let Ok(v)=read(&s){
    let key=format!("{}|{}",v.title,v.artist);
    if key!=last{
@@ -52,7 +52,7 @@ mod platform {
    w.set_media_pos_text(time_text(snapshot.position).into());w.set_media_dur_text(time_text(snapshot.length).into());
    w.set_lyric_lines(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lyric_lines))));
    w.set_lyric_active(lyric_active);
-   if let Some(a)=art_update{if let Some(img)=a{w.set_media_art(img);w.set_media_has_art(true);}else{w.set_media_has_art(false);}}
+   if let Some(a)=art_update{if let Some((rgba,width,height))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);}else{w.set_media_has_art(false);}}
   });
   std::thread::sleep(Duration::from_millis(if state.active{1000}else{2000}));
  }
@@ -96,7 +96,7 @@ mod platform {
   use windows::core::PCWSTR;
   use windows::Win32::Media::Multimedia::mciSendStringW;
   let command:Vec<u16>="stop notch_adhan".encode_utf16().chain(std::iter::once(0)).collect();
-  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,0,windows::Win32::Foundation::HWND::default());}
+  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
  }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
   let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);}});
@@ -114,7 +114,7 @@ mod platform {
      use windows::core::PCWSTR;
      use windows::Win32::Media::Multimedia::mciSendStringW;
      let wide:Vec<u16>=command.encode_utf16().chain(std::iter::once(0)).collect();
-     let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,0,windows::Win32::Foundation::HWND::default())};
+     let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,None)};
      if code==0{Ok(())}else{Err(format!("MCI error {code} saat {command}"))}
     };
     run(&open)?;
