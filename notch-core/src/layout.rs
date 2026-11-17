@@ -117,6 +117,19 @@ mod tests {
     }
 
     #[test]
+    fn side_docking_respects_negative_monitor_origin() {
+        let left_monitor = WorkArea { x: -1600, y: 0, w: 1600, h: 900 };
+        assert_eq!(
+            place(&left_monitor, 300, 262, Some((LEFT_TX, 450))),
+            ((-1600, 319), Dock::Left)
+        );
+        assert_eq!(
+            place(&left_monitor, 300, 262, Some((RIGHT_TX, 450))),
+            ((-300, 319), Dock::Right)
+        );
+    }
+
+    #[test]
     fn clamps_inside_work_area() {
         // terlalu kiri/kanan
         assert_eq!(place(&W, 600, 300, Some((0, 50))).0 .0, 0);
