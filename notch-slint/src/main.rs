@@ -1120,7 +1120,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         click_suppress_timer.start(TimerMode::SingleShot, Duration::from_millis(350), move || {
                             if let Some(w) = clear_weak.upgrade() { w.set_suppress_next_pill_click(false); }
                         });
-                        if let Some((cx, cy)) = cursor {
+                        // Jika pembacaan pointer gagal tepat saat release, gunakan pusat ORB
+                        // yang terakhir diposisikan. Ini mencegah jendela tertinggal dalam ukuran 64px.
+                        let (cx, cy) = cursor.unwrap_or_else(|| {
+                            let p = w.window().position();
+                            let s = w.window().size();
+                            (p.x + s.width as i32 / 2, p.y + s.height as i32 / 2)
+                        });
+                        {
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
                             // Batas snap memakai logical pixels agar terasa konsisten pada monitor DPI tinggi.
@@ -1147,9 +1154,6 @@ fn main() -> Result<(), slint::PlatformError> {
                                 updated_config = next;
                             }
                             w.set_position_mode(mode.into());
-                            w.set_dragging(false);
-                            w.set_play_interaction_active(false);
-                        } else {
                             w.set_dragging(false);
                             w.set_play_interaction_active(false);
                         }
