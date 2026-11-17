@@ -321,9 +321,9 @@ component LyricsPanel inherits Rectangle {
         }
         Flickable {
             vertical-stretch: 1;
-            viewport-y: max(0px, root.active * 36px - self.height / 2 + 18px);
-            viewport-width: self.width;
-            viewport-height: max(self.height, root.lines.length * 36px);
+            content-y: max(0px, root.active * 36px - self.height / 2 + 18px);
+            content-width: self.width;
+            content-height: max(self.height, root.lines.length * 36px);
             VerticalLayout {
                 width: parent.width;
                 spacing: 0px;
@@ -1632,7 +1632,7 @@ component SettingsPage inherits VerticalLayout {
                     nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
                     root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
                 } }
-                Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text); } }
+                Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text == "true"); } }
                 Chip { label: "Simpan notifikasi"; selected: true; clicked => {
                     root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
                 } }
@@ -2089,7 +2089,7 @@ component ConvertPage inherits VerticalLayout {
             spacing: 5px;
             HorizontalLayout {
                 Text { text: "Riwayat konversi"; color: Theme.text; font-size: 11px; font-weight: 700; }
-                HorizontalSpacer {}
+                Rectangle { horizontal-stretch: 1; }
                 Chip { label: "Ekspor CSV"; clicked => { root.export-history(); } }
                 Chip { label: "Bersihkan"; clicked => { root.clear-history(); } }
             }
@@ -2101,7 +2101,7 @@ component TransferPage inherits VerticalLayout {
     in property <string> status: "Server belum aktif";
     in property <string> address: "";
     in property <string> shared-count-text: "0";
-    callback start();
+    callback start-server();
     callback stop();
     callback add-files();
     callback open-inbox();
@@ -2587,6 +2587,22 @@ export component NotchWindow inherits Window {
     in property <string> android-path: "/sdcard/Download";
     in property <string> android-serial: "";
     in property <string> transfer-shared-count-text: "0";
+    in property <[PrayerItem]> prayer-items: [];
+    in property <string> prayer-next-name: "";
+    in property <string> prayer-next-time: "";
+    in property <string> prayer-countdown: "";
+    in property <string> prayer-status: "";
+    in property <bool> ramadan-enabled: false;
+    in property <string> ramadan-date: "";
+    in property <string> ramadan-imsak-countdown: "";
+    in property <string> ramadan-buka-countdown: "";
+    in property <string> ramadan-imsak-time: "";
+    in property <string> ramadan-buka-time: "";
+    in property <string> dhikr-arabic: "";
+    in property <string> dhikr-latin: "";
+    in property <string> dhikr-meaning: "";
+    in property <[ShelfItem]> shelf-items: [];
+    in property <string> shelf-status: "";
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -2634,11 +2650,6 @@ export component NotchWindow inherits Window {
     callback shelf-reveal(string);
     callback shelf-remove(string);
     callback shelf-clear();
-    callback shelf-add();
-    callback shelf-open(string);
-    callback shelf-reveal(string);
-    callback shelf-remove(string);
-    callback shelf-clear();
     callback remove-note(string);
     callback clipboard-copy(string);
     callback clipboard-clear();
@@ -2659,7 +2670,6 @@ export component NotchWindow inherits Window {
     callback settings-save-shortcuts(string, string, string, string);
     callback compress-run(string);
     callback compress-pick();
-    callback compress-selected-path(string);
     callback convert-run(string, string, string, string, string);
     callback convert-pick();
     callback convert-preview-prev();
@@ -2681,7 +2691,6 @@ export component NotchWindow inherits Window {
     callback convert-history-export();
     callback convert-history-clear();
     callback convert-output-dir-pick();
-    callback convert-selected-path(string);
     callback transfer-start();
     callback transfer-stop();
     callback transfer-add-files();
@@ -2752,14 +2761,12 @@ export component NotchWindow inherits Window {
     pill := Rectangle {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale : 17px;
-        x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset : 0px));
-        y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset : 0px);
+        x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
+        y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
         // Saat dock samping, pil kecil berorientasi portrait; hub terbuka tetap horizontal ke dalam layar.
         // Skala badan mengikuti pegas Bottom/Side Play, sementara titik docking tetap menjadi jangkar.
         width: root.expanded ? 580px : (root.dragging ? 58px : (root.dock >= 3 ? 34px : 130px) * root.play-body-scale-x);
         height: root.expanded ? 202px : (root.dragging ? 58px : (root.dock >= 3 ? 130px : 34px) * root.play-body-scale-y);
-        animate width { duration: 160ms; }
-        animate height { duration: 160ms; }
         background: Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
@@ -2922,12 +2929,12 @@ export component NotchWindow inherits Window {
                         vertical-alignment: center;
                         overflow: elide;
                     }
-                    TouchArea {
+                    stop-touch := TouchArea {
                         width: 22px;
                         height: 22px;
                         mouse-cursor: pointer;
                         clicked => { root.adhan-stop(); }
-                        Rectangle { background: self.parent.has-hover ? #ffffff30 : #ffffff18; border-radius: 11px; }
+                        Rectangle { background: stop-touch.has-hover ? #ffffff30 : #ffffff18; border-radius: 11px; }
                         Text { text: "■"; color: #ff8b8b; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
                     }
                 }
@@ -3004,7 +3011,7 @@ export component NotchWindow inherits Window {
                         status: root.transfer-status;
                         address: root.transfer-address;
                         shared-count-text: root.transfer-shared-count-text;
-                        start => { root.transfer-start(); }
+                        start-server => { root.transfer-start(); }
                         stop => { root.transfer-stop(); }
                         add-files => { root.transfer-add-files(); }
                         open-inbox => { root.transfer-open-inbox(); }
