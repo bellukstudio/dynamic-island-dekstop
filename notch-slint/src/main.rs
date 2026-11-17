@@ -2457,19 +2457,21 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let (open_timer, close_timer) = (open_timer.clone(), close_timer.clone());
         let (open_ms, close_ms) = (open_ms.clone(), close_ms.clone());
+        let expand_on_hover = expand.clone();
+        let collapse_on_hover = collapse.clone();
         win.on_hover_changed(move |hovered| {
             let Some(w) = weak.upgrade() else { return };
             w.set_play_interaction_active(hovered);
             if hovered {
                 close_timer.stop();
                 if !w.get_expanded() {
-                    let e = expand.clone();
+                    let e = expand_on_hover.clone();
                     open_timer.start(TimerMode::SingleShot, Duration::from_millis(open_ms.get()), move || e());
                 }
             } else {
                 open_timer.stop();
                 if w.get_expanded() {
-                    let c = collapse.clone();
+                    let c = collapse_on_hover.clone();
                     close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms.get()), move || c());
                 }
             }
@@ -2948,7 +2950,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_convert_preview_page_text("Memuat preview…".into());
                 w.set_convert_preview_total(1);
                 w.set_convert_preview_status("".into());
-                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, convert_preview_dpi.get());
+                request_convert_document_preview(weak_preview.clone(), first.clone(), 0, preview_dpi.get());
                 w.set_convert_result_preview(Image::default());
                 *last_output.lock().unwrap_or_else(|error| error.into_inner()) = None;
                 w.set_convert_selected_path(first.clone().into());
@@ -5024,11 +5026,11 @@ fn main() -> Result<(), slint::PlatformError> {
         startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_meeting_active() || w.get_adhan_active() { return; }
-            if let Some(message) = message {
+            if let Some(message) = message.as_ref() {
                 w.set_nudge_message(message.clone().into());
                 w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
                 w.set_nudge_visible(true);
-                let _ = speech::speak(message, voice.clone());
+                let _ = speech::speak(message.clone(), voice.clone());
                 let weak_hide = weak.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
                     if let Some(w) = weak_hide.upgrade() { w.set_nudge_visible(false); }
