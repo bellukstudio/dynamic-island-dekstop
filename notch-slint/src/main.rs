@@ -1766,7 +1766,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let shelf_items = shelf_store.borrow().list();
     shelf_model.set_vec(shelf_items.into_iter().map(|item| ShelfItem {
         path: item.path.into(), name: item.name.into(), dir: item.dir,
-    }).collect());
+    }).collect::<Vec<_>>());
     win.set_shelf_items(ModelRc::from(shelf_model.clone()));
     let clipboard_monitor = Rc::new(if pages.iter().any(|page| page == "clipboard") {
         match ClipboardMonitor::start() {
@@ -1953,7 +1953,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let items = store.borrow_mut().add(paths);
             model.set_vec(items.into_iter().map(|item| ShelfItem {
                 path: item.path.into(), name: item.name.into(), dir: item.dir,
-            }).collect());
+            }).collect::<Vec<_>>());
             if let Some(w) = weak.upgrade() {
                 w.set_shelf_status(format!("{} item tersimpan. File asli tidak dipindahkan.", model.row_count()).into());
             }
@@ -1967,7 +1967,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let items = store.borrow_mut().remove(path.as_str());
             model.set_vec(items.into_iter().map(|item| ShelfItem {
                 path: item.path.into(), name: item.name.into(), dir: item.dir,
-            }).collect());
+            }).collect::<Vec<_>>());
             if let Some(w) = weak.upgrade() { w.set_shelf_status(format!("Item dihapus dari Shelf · {} tersisa", model.row_count()).into()); }
         });
     }
@@ -1979,7 +1979,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let items = store.borrow_mut().clear();
             model.set_vec(items.into_iter().map(|item| ShelfItem {
                 path: item.path.into(), name: item.name.into(), dir: item.dir,
-            }).collect());
+            }).collect::<Vec<_>>());
             if let Some(w) = weak.upgrade() { w.set_shelf_status("Shelf dikosongkan. File asli tetap aman.".into()); }
         });
     }
