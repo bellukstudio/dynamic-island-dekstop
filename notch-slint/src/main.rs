@@ -1108,7 +1108,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         if let Some((cx, cy)) = cursor {
                             let work = platform::work_area(Some((cx, cy)));
                             let size = w.window().size();
-                            let margin = 24;
+                            // Batas snap memakai logical pixels agar terasa konsisten pada monitor DPI tinggi.
+                            let margin = (24.0 * w.window().scale_factor()).round() as i32;
                             let (pos, mode) = if cx <= work.x + margin {
                                 ((layout::LEFT_TX, cy), "left")
                             } else if cx >= work.x + work.w - margin {
