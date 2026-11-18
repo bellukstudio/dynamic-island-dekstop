@@ -3800,72 +3800,68 @@ export component NotchWindow inherits Window {
                 background: Theme.body;
                 border-bottom-left-radius: 38px;
                 border-bottom-right-radius: 38px;
-                HorizontalLayout {
+                // Isi disusun dengan koordinat tetap di dalam pil 385 x 75 px.
+                // Hindari layout anak yang mengukur ulang parent.width ketika teks membungkus.
+                Rectangle {
                     x: 20px;
-                    width: parent.width - 40px;
-                    height: parent.height;
-                    spacing: 11px;
-                    alignment: center;
+                    y: 20px;
+                    width: 34px;
+                    height: 34px;
+                    border-radius: 17px;
+                    background: Theme.accent.with-alpha(0.14);
+                    border-width: 1px;
+                    border-color: Theme.accent.with-alpha(0.62);
                     Rectangle {
-                        width: 34px;
-                        height: 34px;
-                        border-radius: 17px;
-                        background: Theme.accent.with-alpha(0.14);
-                        border-width: 1px;
-                        border-color: Theme.accent.with-alpha(0.62);
-                        Rectangle {
-                            x: 8px;
-                            y: 8px;
-                            width: 4px;
-                            height: 4px;
-                            border-radius: 2px;
-                            background: Theme.accent.with-alpha(0.7);
-                        }
-                        Rectangle {
-                            x: 22px;
-                            y: 22px;
-                            width: 4px;
-                            height: 4px;
-                            border-radius: 2px;
-                            background: Theme.accent.with-alpha(0.7);
-                        }
-                        Rectangle {
-                            x: (parent.width - 10px) / 2;
-                            y: (parent.height - 10px) / 2;
-                            width: 10px;
-                            height: 10px;
-                            border-radius: 5px;
-                            background: Theme.accent;
-                        }
+                        x: 8px;
+                        y: 8px;
+                        width: 4px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: Theme.accent.with-alpha(0.7);
                     }
-                    VerticalLayout {
-                        horizontal-stretch: 1;
-                        alignment: center;
-                        spacing: 2px;
-                        Text {
-                            width: parent.width;
-                            height: 34px;
-                            text: root.greeting-message;
-                            color: Theme.text;
-                            font-size: 13px;
-                            font-weight: 700;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            wrap: word-wrap;
-                            overflow: clip;
-                        }
-                        Text {
-                            width: parent.width;
-                            height: 25px;
-                            text: root.greeting-detail;
-                            color: Theme.text-dim;
-                            font-size: 10px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            wrap: word-wrap;
-                            overflow: clip;
-                        }
+                    Rectangle {
+                        x: 22px;
+                        y: 22px;
+                        width: 4px;
+                        height: 4px;
+                        border-radius: 2px;
+                        background: Theme.accent.with-alpha(0.7);
                     }
+                    Rectangle {
+                        x: 12px;
+                        y: 12px;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 5px;
+                        background: Theme.accent;
+                    }
+                }
+                Text {
+                    x: 64px;
+                    y: 8px;
+                    width: 300px;
+                    height: 35px;
+                    text: root.greeting-message;
+                    color: Theme.text;
+                    font-size: 13px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                    overflow: clip;
+                }
+                Text {
+                    x: 64px;
+                    y: 43px;
+                    width: 300px;
+                    height: 24px;
+                    text: root.greeting-detail;
+                    color: Theme.text-dim;
+                    font-size: 10px;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    wrap: word-wrap;
+                    overflow: clip;
                 }
             }
 
