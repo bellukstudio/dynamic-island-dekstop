@@ -1140,7 +1140,7 @@ component CurrencyPage inherits VerticalLayout {
                 border-radius: 8px; background: Theme.accent;
                 Text { text: root.alerts.length > 9 ? "9+" : "" + root.alerts.length; color: #ffffff; font-size: 8px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
             }
-            at-ta := TouchArea { clicked => { root.alert-mode = !root.alert-mode; root.picker-open = false; } }
+            at-ta := TouchArea { clicked => { root.alert-mode = !root.alert-mode; if (root.alert-mode) { root.expanded = false; } root.picker-open = false; } }
         }
         Rectangle {
             width: 86px;
@@ -1155,7 +1155,7 @@ component CurrencyPage inherits VerticalLayout {
                 Text { text: root.expanded ? "↙" : "↗"; color: Theme.accent; font-size: 11px; font-weight: 700; }
                 Text { text: root.expanded ? "Ringkas" : "Perluas"; color: Theme.text; font-size: 9px; font-weight: 700; }
             }
-            ex-ta := TouchArea { clicked => { root.expanded = !root.expanded; root.picker-open = false; if (root.expanded) { root.request-chart(); } } }
+            ex-ta := TouchArea { clicked => { root.alert-mode = false; root.expanded = !root.expanded; root.picker-open = false; if (root.expanded) { root.request-chart(); } } }
         }
         Rectangle {
             width: 90px;
