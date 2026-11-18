@@ -3376,6 +3376,7 @@ export component NotchWindow inherits Window {
     in property <[StockRow]> stock-gainers;
     in property <[StockRow]> stock-losers;
     in property <[CurrencyAlertItem]> currency-alerts;
+    in property <[CurrencyItem]> currency-items;
     in property <string> pomo-text: "25:00";
     in property <string> pomo-label: "";
     in property <float> pomo-progress: 0;
@@ -3628,6 +3629,7 @@ export component NotchWindow inherits Window {
     callback notes-expand-toggled(bool);
     callback currency-refresh();
     callback currency-chart-request(string, int);
+    callback currency-select-target(string, int);
     in-out property <bool> currency-expanded: false;
     in property <string> fx-chart-line;
     in property <string> fx-chart-area;
@@ -4370,6 +4372,7 @@ export component NotchWindow inherits Window {
                         gainers: root.stock-gainers;
                         losers: root.stock-losers;
                         alerts: root.currency-alerts;
+                        currencies: root.currency-items;
                         refresh => { root.currency-refresh(); }
                         amount-edited(t) => { root.currency-amount-edited(t); }
                         quick(i) => { root.currency-quick(i); }
@@ -4377,6 +4380,7 @@ export component NotchWindow inherits Window {
                         add-alert(up, t) => { root.currency-add-alert(up, t); }
                         remove-alert(id) => { root.currency-remove-alert(id); }
                         chart-request(code, days) => { root.currency-chart-request(code, days); }
+                        select-currency(code, days) => { root.currency-select-target(code, days); }
                         expanded <=> root.currency-expanded;
                         chart-line: root.fx-chart-line;
                         chart-area: root.fx-chart-area;
