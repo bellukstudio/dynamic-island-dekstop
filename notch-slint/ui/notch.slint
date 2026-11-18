@@ -20,6 +20,7 @@ export struct CurrencyView {
 }
 export struct StockRow { name: string, price: string, change: string, positive: bool }
 export struct CurrencyAlertItem { id: string, text: string }
+export struct CurrencyItem { code: string, name: string, value: string, selected: bool }
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
 export global Theme {
@@ -1054,6 +1055,7 @@ component CurrencyPage inherits HorizontalLayout {
     in property <[StockRow]> gainers;
     in property <[StockRow]> losers;
     in property <[CurrencyAlertItem]> alerts;
+    in property <[CurrencyItem]> currencies;
     callback refresh();
     callback amount-edited(string);
     callback quick(int);
@@ -1061,6 +1063,7 @@ component CurrencyPage inherits HorizontalLayout {
     callback add-alert(bool, string);
     callback remove-alert(string);
     callback chart-request(string, int);
+    callback select-currency(string, int);
     in property <string> chart-line;
     in property <string> chart-area;
     in property <string> chart-status;
@@ -1081,7 +1084,7 @@ component CurrencyPage inherits HorizontalLayout {
     padding-bottom: 4px;
     spacing: 20px;
 
-    if !root.alert-mode: VerticalLayout {
+    if !root.alert-mode && !root.expanded: VerticalLayout {
         width: 270px;
         spacing: 4px;
         HorizontalLayout {
@@ -1096,13 +1099,22 @@ component CurrencyPage inherits HorizontalLayout {
                 Text { text: "Alert" + (root.alerts.length > 0 ? " " + root.alerts.length : ""); color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
                 al-ta := TouchArea { clicked => { root.alert-mode = true; } }
             }
-            RoundButton {
-                size: 22px;
-                icon-ratio: 0.6;
-                outline: !root.expanded;
-                primary: root.expanded;
-                commands: "M 3 17 L 9 11 L 13 15 L 21 6";
-                clicked => { root.expanded = !root.expanded; if (root.expanded) { root.request-chart(); } }
+            Rectangle {
+                width: 76px;
+                height: 22px;
+                border-radius: 11px;
+                border-width: 1px;
+                border-color: root.expanded ? Theme.accent.with-alpha(0.65) : Theme.text-faint.with-alpha(0.2);
+                background: root.expanded ? Theme.accent.with-alpha(0.2) : Theme.chip;
+                HorizontalLayout {
+                    x: 8px;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    spacing: 4px;
+                    Text { text: root.expanded ? "↙" : "↗"; color: Theme.accent; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+                    Text { text: root.expanded ? "Ringkas" : "Perluas"; color: Theme.text; font-size: 9px; font-weight: 650; vertical-alignment: center; }
+                }
+                expand-ta := TouchArea { clicked => { root.expanded = !root.expanded; if (root.expanded) { root.request-chart(); } } }
             }
             RoundButton { size: 22px; icon-ratio: 0.6; outline: true; commands: Icons.reset; clicked => { root.refresh(); if (root.expanded) { root.request-chart(); } } }
         }
@@ -1148,59 +1160,136 @@ component CurrencyPage inherits HorizontalLayout {
 
     if !root.alert-mode && root.expanded: VerticalLayout {
         horizontal-stretch: 1;
-        spacing: 4px;
+        spacing: 5px;
         HorizontalLayout {
-            height: 22px;
+            height: 38px;
+            spacing: 6px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                alignment: center;
+                spacing: 2px;
+                Text { text: root.d.code + " \u{00B7} " + root.d.name + " \u{2192} IDR"; color: Theme.text-dim; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; overflow: elide; }
+                Text { text: root.chart-last != "" ? "1 " + root.d.code + " = " + root.chart-last : root.chart-status; color: Theme.text; font-size: 13px; font-weight: 750; overflow: elide; }
+            }
+            Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 10px; font-weight: 700; vertical-alignment: center; }
+        }
+        HorizontalLayout {
+            height: 21px;
             spacing: 4px;
-            Text { text: root.d.code + " \u{00B7} " + root.d.name + " \u{2192} IDR"; color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-            for lbl[i] in ["30h", "3b", "6b", "1t"]: Rectangle {
-                width: 28px;
-                height: 20px;
+            Rectangle { horizontal-stretch: 1; }
+            for lbl[i] in ["1B", "3B", "6B", "1T"]: Rectangle {
+                width: 31px;
+                height: 21px;
                 border-radius: 10px;
                 background: root.range == i ? Theme.accent.with-alpha(0.32) : (rg-ta.has-hover ? Theme.chip-hover : Theme.chip);
-                Text { text: lbl; color: root.range == i ? Theme.text : Theme.text-dim; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                Text { text: lbl; color: root.range == i ? Theme.text : Theme.text-dim; font-size: 9px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
                 rg-ta := TouchArea { clicked => { root.range = i; root.request-chart(); } }
             }
         }
         Rectangle {
             vertical-stretch: 1;
-            border-radius: 10px;
-            background: Theme.chip;
+            border-radius: 11px;
+            background: Theme.chip.with-alpha(0.72);
+            clip: true;
             Path {
-                x: 0px;
+                x: 8px;
                 y: 0px;
-                width: parent.width;
+                width: parent.width - 16px;
+                height: parent.height;
+                viewbox-width: 240;
+                viewbox-height: 100;
+                commands: "M 0 25 L 240 25 M 0 50 L 240 50 M 0 75 L 240 75";
+                fill: transparent;
+                stroke: Theme.text-faint.with-alpha(0.22);
+                stroke-width: 0.7px;
+            }
+            Path {
+                x: 8px;
+                y: 0px;
+                width: parent.width - 16px;
                 height: parent.height;
                 viewbox-width: 240;
                 viewbox-height: 100;
                 commands: root.chart-area;
-                fill: (root.chart-up ? #7dffb0 : #ff8a8a).with-alpha(0.12);
+                fill: (root.chart-up ? #7dffb0 : #ff8a8a).with-alpha(0.14);
                 visible: root.chart-area != "";
             }
             Path {
-                x: 0px;
+                x: 8px;
                 y: 0px;
-                width: parent.width;
+                width: parent.width - 16px;
                 height: parent.height;
                 viewbox-width: 240;
                 viewbox-height: 100;
                 commands: root.chart-line;
                 fill: transparent;
                 stroke: root.chart-up ? #7dffb0 : #ff8a8a;
-                stroke-width: 1.6px;
+                stroke-width: 1.9px;
                 stroke-line-join: round;
                 stroke-line-cap: round;
                 visible: root.chart-line != "";
             }
-            if root.chart-line == "": Text { text: root.chart-status != "" ? root.chart-status : "Memuat grafik\u{2026}"; color: Theme.text-faint; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
-            if root.chart-line != "": Text { x: 6px; y: 3px; text: root.chart-max; color: Theme.text-faint; font-size: 9px; }
-            if root.chart-line != "": Text { x: 6px; y: parent.height - 14px; text: root.chart-min; color: Theme.text-faint; font-size: 9px; }
+            if root.chart-line == "": Text { text: root.chart-status != "" ? root.chart-status : "Memuat grafik\u{2026}"; color: Theme.text-faint; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+            if root.chart-line != "": Text { x: 8px; y: 3px; text: root.chart-max; color: Theme.text-faint; font-size: 8px; }
+            if root.chart-line != "": Text { x: 8px; y: parent.height - 12px; text: root.chart-min; color: Theme.text-faint; font-size: 8px; }
         }
         HorizontalLayout {
-            height: 16px;
+            height: 15px;
             spacing: 8px;
-            Text { text: root.chart-last; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: center; }
-            Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+            Text { text: root.chart-line != "" ? "Riwayat kurs harian" : root.chart-status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+            Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 9px; font-weight: 700; vertical-alignment: center; }
+        }
+    }
+
+    if !root.alert-mode && root.expanded: VerticalLayout {
+        width: 184px;
+        spacing: 5px;
+        Rectangle {
+            height: 30px;
+            border-radius: 9px;
+            background: Theme.chip;
+            VerticalLayout {
+                x: 9px;
+                y: 3px;
+                width: parent.width - 18px;
+                spacing: 1px;
+                Text { text: "KURS KE RUPIAH"; color: Theme.text; font-size: 9px; font-weight: 700; }
+                Text { text: "Pilih mata uang"; color: Theme.text-faint; font-size: 8px; }
+            }
+        }
+        Flickable {
+            vertical-stretch: 1;
+            clip: true;
+            content-width: self.width;
+            content-height: max(self.height, root.currencies.length * 31px);
+            VerticalLayout {
+                width: parent.width;
+                spacing: 3px;
+                for item[i] in root.currencies: Rectangle {
+                    height: 30px;
+                    border-radius: 9px;
+                    background: item.selected ? Theme.accent.with-alpha(0.22) : (currency-row-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.58));
+                    border-width: item.selected ? 1px : 0px;
+                    border-color: Theme.accent.with-alpha(0.65);
+                    HorizontalLayout {
+                        x: 8px;
+                        width: parent.width - 16px;
+                        height: parent.height;
+                        spacing: 4px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            preferred-width: 0px;
+                            alignment: center;
+                            spacing: 1px;
+                            Text { text: item.code; color: Theme.text; font-size: 10px; font-weight: 700; }
+                            Text { text: item.name; color: Theme.text-faint; font-size: 8px; overflow: elide; }
+                        }
+                        Text { text: item.value; color: item.value == "—" ? Theme.text-faint : Theme.text; font-size: 9px; font-weight: 650; vertical-alignment: center; horizontal-alignment: right; }
+                    }
+                    currency-row-ta := TouchArea { clicked => { root.select-currency(item.code, [30, 90, 180, 365][root.range]); } }
+                }
+            }
         }
     }
 
