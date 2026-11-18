@@ -882,6 +882,11 @@ fn fx_idr(value: f64) -> String {
     if value < 1000.0 { format!("Rp {}", format!("{value:.2}").replace('.', ",")) } else { format!("Rp {}", group_digits(&format!("{value:.0}"))) }
 }
 
+fn fx_axis_label(value: f64, span: f64) -> String {
+    let decimals = if span < 10.0 { 2 } else if span < 100.0 { 1 } else { 0 };
+    fmt_id_number(value, decimals)
+}
+
 const CURRENCY_QUICK: [u64; 6] = [10_000, 50_000, 100_000, 500_000, 1_000_000, 10_000_000];
 const SHORT_MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
@@ -956,7 +961,6 @@ fn paint_currency(
     let (result, rate) = match per_unit {
         Some(idr) => {
             let value = amount / idr;
-            let decimals = if value >= 1_000_000.0 { 0 } else if value >= 0.01 { 2 } else { 4 };
             (
                 fmt_currency_value(value, code),
                 format!("1 {code} = {}", rupiah(idr)),
@@ -2424,7 +2428,13 @@ fn main() -> Result<(), slint::PlatformError> {
             w.set_fx_chart_last("".into());
             w.set_fx_chart_change("".into());
             w.set_fx_chart_max("".into());
+            w.set_fx_chart_y1("".into());
+            w.set_fx_chart_y2("".into());
             w.set_fx_chart_min("".into());
+            w.set_fx_chart_date_start("".into());
+            w.set_fx_chart_date_mid("".into());
+            w.set_fx_chart_date_end("".into());
+            w.set_fx_chart_dot_y(50.0);
             w.set_fx_chart_status("Memuat grafik\u{2026}".into());
             let mine = token.fetch_add(1, Ordering::SeqCst) + 1;
             let (token, weak, code, days) = (token.clone(), w.as_weak(), code.to_string(), i64::from(days.clamp(7, 730)));
@@ -2432,21 +2442,48 @@ fn main() -> Result<(), slint::PlatformError> {
                 let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
                 let result = notch_core::currency::fetch_fx_history(&code, now - days * 86_400, now + 86_400)
                     .and_then(|pts| {
+                        if pts.len() < 2 { return Err("Riwayat kosong".to_string()); }
                         let count = pts.len();
-                        notch_core::currency::build_fx_chart(&pts)
-                            .map(|chart| (chart, count))
-                            .ok_or_else(|| "Riwayat kosong".to_string())
+                        let first_time = pts[0].0;
+                        let middle_time = pts[pts.len() / 2].0;
+                        let last_time = pts[pts.len() - 1].0;
+                        let chart = notch_core::currency::build_fx_chart(&pts)
+                            .ok_or_else(|| "Riwayat kosong".to_string())?;
+                        let span = chart.max - chart.min;
+                        let pad = if span.abs() <= f64::EPSILON { chart.max.abs() * 0.01 } else { span * 0.14 };
+                        let axis_min = chart.min - pad;
+                        let axis_max = chart.max + pad;
+                        let axis_span = axis_max - axis_min;
+                        let axis = [
+                            fx_axis_label(axis_max, axis_span),
+                            fx_axis_label(axis_min + axis_span * 2.0 / 3.0, axis_span),
+                            fx_axis_label(axis_min + axis_span / 3.0, axis_span),
+                            fx_axis_label(axis_min, axis_span),
+                        ];
+                        let dot_y = if span.abs() <= f64::EPSILON { 50.0 } else { 94.0 - (chart.last - chart.min) / span * 88.0 };
+                        let dates = [
+                            notch_core::currency::short_fx_date_from_unix(first_time),
+                            notch_core::currency::short_fx_date_from_unix(middle_time),
+                            notch_core::currency::short_fx_date_from_unix(last_time),
+                        ];
+                        Ok((chart, count, axis, dates, dot_y))
                     });
                 if token.load(Ordering::SeqCst) != mine { return; }
                 let _ = weak.upgrade_in_event_loop(move |w| match result {
-                    Ok((chart, count)) => {
+                    Ok((chart, count, axis, dates, dot_y)) => {
                         let pct = if chart.first > 0.0 { (chart.last - chart.first) / chart.first * 100.0 } else { 0.0 };
                         let period = match days { 30 => "30 hari", 90 => "3 bulan", 180 => "6 bulan", 365 => "1 tahun", _ => "periode dipilih" };
                         w.set_fx_chart_line(chart.line.into());
                         w.set_fx_chart_area(chart.area.into());
                         w.set_fx_chart_status(format!("Kurs penutupan harian · {count} titik data · sumber Yahoo Finance").into());
-                        w.set_fx_chart_max(fx_idr(chart.max).into());
-                        w.set_fx_chart_min(fx_idr(chart.min).into());
+                        w.set_fx_chart_max(axis[0].clone().into());
+                        w.set_fx_chart_y1(axis[1].clone().into());
+                        w.set_fx_chart_y2(axis[2].clone().into());
+                        w.set_fx_chart_min(axis[3].clone().into());
+                        w.set_fx_chart_date_start(dates[0].clone().into());
+                        w.set_fx_chart_date_mid(dates[1].clone().into());
+                        w.set_fx_chart_date_end(dates[2].clone().into());
+                        w.set_fx_chart_dot_y(dot_y as f32);
                         w.set_fx_chart_last(fx_idr(chart.last).into());
                         w.set_fx_chart_change(format!("{}{:.2}% · {period}", if pct >= 0.0 { "+" } else { "" }, pct).replace('.', ",").into());
                         w.set_fx_chart_up(pct >= 0.0);
@@ -2457,7 +2494,13 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_fx_chart_last("".into());
                         w.set_fx_chart_change("".into());
                         w.set_fx_chart_max("".into());
+                        w.set_fx_chart_y1("".into());
+                        w.set_fx_chart_y2("".into());
                         w.set_fx_chart_min("".into());
+                        w.set_fx_chart_date_start("".into());
+                        w.set_fx_chart_date_mid("".into());
+                        w.set_fx_chart_date_end("".into());
+                        w.set_fx_chart_dot_y(50.0);
                         w.set_fx_chart_status(format!("Grafik {code} belum tersedia ({error})").into());
                     }
                 });
