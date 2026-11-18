@@ -4703,8 +4703,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             let (hour, _, _, _, _) = platform::local_time();
-            let message = match speech::greeting_text(&mode, &custom_text, hour) {
-                Some(message) => message,
+            let greeting = match speech::greeting_content(&mode, &custom_text, hour) {
+                Some(greeting) => greeting,
                 None => {
                     w.set_greeting_save_status("Mode greeting tidak dikenal atau teks kustom kosong.".into());
                     return;
@@ -4712,11 +4712,10 @@ fn main() -> Result<(), slint::PlatformError> {
             };
             // Pratinjau memakai preset yang sedang dipilih di UI, meskipun belum disimpan.
             let selected_voice = voice_preset;
-            let speech_message = message.clone();
             let speech_voice = selected_voice.clone();
-            let _ = speech::speak(speech_message, speech_voice);
-            w.set_greeting_message(message.into());
-            w.set_greeting_detail("Sapaan otomatis · Notch siap menemani".into());
+            let _ = speech::speak(greeting.spoken.clone(), speech_voice);
+            w.set_greeting_message(greeting.message.into());
+            w.set_greeting_detail(greeting.detail.into());
             // Greeting memakai layer tersendiri agar tidak menimpa isi notifikasi Nudge.
             if w.get_dock() < 2 {
                 w.set_greeting_speech_visible(false);
@@ -5816,14 +5815,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let hide_timer = startup_greeting_hide_timer.clone();
         let shell = shell.clone();
-        let message = speech::greeting_text(&cfg.greeting.mode, &cfg.greeting.custom_text, platform::local_time().0);
+        let greeting = speech::greeting_content(&cfg.greeting.mode, &cfg.greeting.custom_text, platform::local_time().0);
         let voice = cfg.greeting.voice.clone();
         startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_meeting_active() || w.get_adhan_active() { return; }
-            if let Some(message) = message.as_ref() {
-                w.set_greeting_message(message.clone().into());
-                w.set_greeting_detail("Sapaan otomatis · Notch siap menemani".into());
+            if let Some(greeting) = greeting.as_ref() {
+                w.set_greeting_message(greeting.message.clone().into());
+                w.set_greeting_detail(greeting.detail.clone().into());
                 // Greeting memakai kartu inline di dock atas dan speech bubble di dock bawah/samping.
                 if w.get_dock() < 2 {
                     w.set_greeting_speech_visible(false);
@@ -5836,7 +5835,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     w.set_greeting_speech_visible(true);
                     shell.place(&w, COLLAPSED);
                 }
-                let _ = speech::speak(message.clone(), voice.clone());
+                let _ = speech::speak(greeting.spoken.clone(), voice.clone());
                 let weak_hide = weak.clone();
                 let shell_hide = shell.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
