@@ -137,6 +137,11 @@ pub fn greeting_text(mode: &str, custom_text: &str, hour: u32) -> Option<String>
     greeting_content(mode, custom_text, hour).map(|greeting| greeting.spoken)
 }
 
+pub fn estimated_duration_ms(text: &str) -> u64 {
+    let words = text.split_whitespace().count() as u64;
+    (1_800 + words * 470).clamp(3_500, 11_000)
+}
+
 fn normalized(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
