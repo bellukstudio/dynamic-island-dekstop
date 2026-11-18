@@ -1,7 +1,7 @@
 // Notch (Slint). Hub dengan tab dinamis (mengikuti `pages` di config.toml), bahu melengkung,
 // dan tema dari `[appearance]`. Semua warna berasal dari `Theme`, yang diisi Rust saat start.
 
-export struct NoteItem { id: string, text: string }
+export struct NoteItem { id: string, text: string, preview: string, meta: string }
 export struct ShelfItem { path: string, name: string, dir: bool }
 export struct ClipboardItem { preview: string, text: string }
 export struct ReminderItem { id: string, text: string, due: string, done: bool }
@@ -14,6 +14,12 @@ export struct StatsView {
     cpu-meta: string, ram-meta: string, swap-meta: string, disk-meta: string,
     down: string, up: string, processes: string, uptime: string, os: string, kernel: string,
 }
+export struct CurrencyView {
+    amount: string, code: string, name: string, result: string, rate: string,
+    updated: string, stock-period: string, stock-status: string, error: string, loading: bool,
+}
+export struct StockRow { name: string, price: string, change: string, positive: bool }
+export struct CurrencyAlertItem { id: string, text: string }
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
 export global Theme {
@@ -668,6 +674,37 @@ component StatMetric inherits VerticalLayout {
     Text { text: root.meta; color: Theme.text-faint; font-size: 9px; overflow: elide; preferred-width: 0px; min-width: 0px; }
 }
 
+component StatMetric inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> meta;
+    in property <float> value;        // 0..100
+    in property <float> hot-at: 90;   // di atas ini bar merah (`.hot`)
+    horizontal-stretch: 1;
+    preferred-width: 0px;
+    min-width: 0px;
+    spacing: 2px;
+    HorizontalLayout {
+        spacing: 6px;
+        Text { text: root.label; color: Theme.text-dim; font-size: 11px; font-weight: 700; horizontal-stretch: 1; overflow: elide; }
+        Text { text: root.value-text; color: Theme.text; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+    }
+    Rectangle {
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.track;
+        Rectangle {
+            x: 0px;
+            width: parent.width * clamp(root.value, 0, 100) / 100;
+            height: parent.height;
+            border-radius: 2px;
+            background: root.value >= root.hot-at ? #ff626b : Theme.accent;
+            animate width { duration: 550ms; easing: ease-out; }
+        }
+    }
+    Text { text: root.meta; color: Theme.text-faint; font-size: 9px; overflow: elide; preferred-width: 0px; min-width: 0px; }
+}
+
 component StatsPage inherits VerticalLayout {
     in property <StatsView> d;
     // `.p-stats`: padding 3 26 8, jarak 4; kepala, grid 2x2 (CPU/RAM/SWAP/PENYIMPANAN), footer 3 baris.
@@ -860,52 +897,293 @@ component NotesPage inherits VerticalLayout {
     in property <string> shelf-status: "File yang disimpan di sini tidak disalin";
     callback add(string);
     callback remove(string);
+    callback save(string, string);
+    // Mode detail (setara jendela note-detail di Tauri): daftar -> klik kartu -> edit -> Simpan / Hapus.
+    property <string> detail-id: "";
+    property <string> detail-meta: "";
+    property <string> edit-text: "";
     padding-left: 24px;
     padding-right: 24px;
+    padding-top: 2px;
+    padding-bottom: 8px;
     spacing: 8px;
 
-    HorizontalLayout {
+    if root.detail-id == "": VerticalLayout {
+        vertical-stretch: 1;
         spacing: 8px;
-        height: 30px;
-        Rectangle {
-            horizontal-stretch: 1;
-            border-radius: 15px;
-            background: Theme.chip;
-            input := TextInput {
-                x: 12px;
-                width: parent.width - 24px;
-                color: Theme.text;
-                font-size: 13px;
-                vertical-alignment: center;
-                single-line: true;
-                accepted => {
-                    root.add(self.text);
-                    self.text = "";
+        HorizontalLayout {
+            spacing: 8px;
+            height: 30px;
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 15px;
+                background: Theme.chip;
+                input := TextInput {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    color: Theme.text;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    accepted => {
+                        root.add(self.text);
+                        self.text = "";
+                    }
+                }
+                if input.text == "": Text {
+                    x: 12px;
+                    text: "Tulis catatan lalu Enter...";
+                    color: Theme.text-faint;
+                    font-size: 13px;
+                    vertical-alignment: center;
                 }
             }
-            if input.text == "": Text {
-                x: 12px;
-                text: "Tulis catatan lalu Enter...";
-                color: Theme.text-faint;
-                font-size: 13px;
-                vertical-alignment: center;
+            Chip { label: "Tambah"; clicked => { root.add(input.text); input.text = ""; } }
+        }
+        if root.notes.length == 0: Text {
+            text: "Belum ada catatan";
+            color: Theme.text-faint;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            vertical-stretch: 1;
+        }
+        if root.notes.length > 0: Flickable {
+            vertical-stretch: 1;
+            viewport-height: root.notes.length * 46px;
+            VerticalLayout {
+                width: parent.width;
+                spacing: 6px;
+                for n in root.notes: Rectangle {
+                    height: 40px;
+                    border-radius: 12px;
+                    background: card-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                    VerticalLayout {
+                        alignment: center;
+                        padding-left: 12px;
+                        padding-right: 38px;
+                        spacing: 1px;
+                        Text { text: n.preview; color: Theme.text; font-size: 12px; overflow: elide; }
+                        Text { text: n.meta; color: Theme.text-faint; font-size: 10px; overflow: elide; }
+                    }
+                    card-ta := TouchArea {
+                        clicked => {
+                            root.edit-text = n.text;
+                            root.detail-meta = n.meta;
+                            root.detail-id = n.id;
+                        }
+                    }
+                    RoundButton {
+                        x: parent.width - 30px;
+                        y: (parent.height - self.height) / 2;
+                        size: 24px;
+                        commands: Icons.close;
+                        outline: true;
+                        clicked => { root.remove(n.id); }
+                    }
+                }
             }
         }
-        Chip { label: "Tambah"; clicked => { root.add(input.text); input.text = ""; } }
     }
 
-    if root.notes.length == 0: Text {
-        text: "Belum ada catatan";
-        color: Theme.text-faint;
-        font-size: 12px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    if root.detail-id != "": VerticalLayout {
+        vertical-stretch: 1;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            height: 28px;
+            Chip { label: "\u{2039} Catatan"; min-width: 80px; clicked => { root.detail-id = ""; } }
+            Text { text: root.detail-meta; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; horizontal-alignment: right; overflow: elide; }
+            Chip { label: "Hapus"; min-width: 56px; clicked => { root.remove(root.detail-id); root.detail-id = ""; } }
+            Chip { label: "Simpan"; min-width: 64px; selected: true; clicked => { root.save(root.detail-id, root.edit-text); root.detail-id = ""; } }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: 12px;
+            background: Theme.chip;
+            clip: true;
+            TextInput {
+                x: 12px;
+                y: 8px;
+                width: parent.width - 24px;
+                height: parent.height - 16px;
+                text <=> root.edit-text;
+                color: Theme.text;
+                font-size: 13px;
+                wrap: word-wrap;
+                single-line: false;
+                init => { self.focus(); }
+            }
+        }
     }
-    for n in root.notes: HorizontalLayout {
-        height: 24px;
+}
+
+component CurrencyPage inherits HorizontalLayout {
+    in property <CurrencyView> d;
+    in-out property <string> amount;
+    in property <[StockRow]> gainers;
+    in property <[StockRow]> losers;
+    in property <[CurrencyAlertItem]> alerts;
+    callback refresh();
+    callback amount-edited(string);
+    callback quick(int);
+    callback step-target(int);
+    callback add-alert(bool, string);
+    callback remove-alert(string);
+    property <bool> alert-mode: false;
+    property <bool> above: true;
+    // Halaman kurs (`.p-currency` di Tauri): kiri konversi Rupiah, kanan saham IDX; alert kurs di panel tersendiri.
+    padding-left: 22px;
+    padding-right: 26px;
+    padding-bottom: 4px;
+    spacing: 20px;
+
+    if !root.alert-mode: VerticalLayout {
+        width: 270px;
+        spacing: 4px;
+        HorizontalLayout {
+            height: 22px;
+            spacing: 6px;
+            Text { text: "KONVERSI RUPIAH"; color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; vertical-alignment: center; horizontal-stretch: 1; }
+            Rectangle {
+                width: 52px;
+                height: 22px;
+                border-radius: 11px;
+                background: al-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                Text { text: "Alert" + (root.alerts.length > 0 ? " " + root.alerts.length : ""); color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                al-ta := TouchArea { clicked => { root.alert-mode = true; } }
+            }
+            RoundButton { size: 22px; icon-ratio: 0.6; outline: true; commands: Icons.reset; clicked => { root.refresh(); } }
+        }
+        Rectangle {
+            height: 28px;
+            border-radius: 14px;
+            background: Theme.chip;
+            Text { x: 12px; text: "Rp"; color: Theme.text-dim; font-size: 12px; font-weight: 700; vertical-alignment: center; }
+            TextInput {
+                x: 34px;
+                width: parent.width - 46px;
+                text <=> root.amount;
+                color: Theme.text;
+                font-size: 13px;
+                font-weight: 600;
+                vertical-alignment: center;
+                single-line: true;
+                input-type: text;
+                edited => { root.amount-edited(self.text); }
+            }
+        }
+        HorizontalLayout {
+            height: 20px;
+            spacing: 4px;
+            for q[i] in ["10 rb", "50 rb", "100 rb", "500 rb", "1 jt"]: Rectangle {
+                horizontal-stretch: 1;
+                border-radius: 10px;
+                background: q-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                Text { text: q; color: Theme.text-dim; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
+                q-ta := TouchArea { clicked => { root.quick(i); } }
+            }
+        }
+        HorizontalLayout {
+            height: 20px;
+            spacing: 6px;
+            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.step-target(-1); } }
+            Text { text: root.d.code + " \u{00B7} " + root.d.name; color: Theme.text; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.step-target(1); } }
+        }
+        Text { text: root.d.error != "" ? root.d.error : (root.d.loading && root.d.result == "" ? "Memuat kurs..." : "\u{2248} " + root.d.result); color: root.d.error != "" ? #ff9b8f : Theme.text; font-size: root.d.error != "" ? 11px : 20px; font-weight: 700; overflow: elide; wrap: no-wrap; }
+        Text { text: root.d.rate != "" ? root.d.rate + (root.d.updated != "" ? "  \u{00B7}  " + root.d.updated : "") : root.d.updated; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+    }
+
+    if !root.alert-mode: VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 4px;
+        HorizontalLayout {
+            height: 22px;
+            Text { text: "SAHAM IDX \u{00B7} " + root.d.stock-period; color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; vertical-alignment: center; overflow: elide; }
+        }
+        HorizontalLayout {
+            spacing: 14px;
+            vertical-stretch: 1;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                spacing: 3px;
+                Text { text: "Terbaik"; color: #7dffb0; font-size: 9px; font-weight: 700; }
+                if root.gainers.length == 0: Text { text: root.d.loading ? "Memuat..." : "Belum ada data"; color: Theme.text-faint; font-size: 10px; }
+                for g in root.gainers: HorizontalLayout {
+                    spacing: 4px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        Text { text: g.name; color: Theme.text; font-size: 11px; font-weight: 700; }
+                        Text { text: g.price; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+                    }
+                    Text { text: g.change; color: #7dffb0; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                spacing: 3px;
+                Text { text: "Terendah"; color: #ff8a8a; font-size: 9px; font-weight: 700; }
+                if root.losers.length == 0: Text { text: root.d.loading ? "Memuat..." : "Belum ada data"; color: Theme.text-faint; font-size: 10px; }
+                for l in root.losers: HorizontalLayout {
+                    spacing: 4px;
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        Text { text: l.name; color: Theme.text; font-size: 11px; font-weight: 700; }
+                        Text { text: l.price; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+                    }
+                    Text { text: l.change; color: #ff8a8a; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+                }
+            }
+        }
+        Text { text: root.d.stock-status; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+    }
+
+    if root.alert-mode: VerticalLayout {
+        horizontal-stretch: 1;
         spacing: 6px;
-        Text { text: n.text; color: Theme.text; font-size: 13px; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
-        RoundButton { size: 24px; commands: Icons.close; outline: true; clicked => { root.remove(n.id); } }
+        HorizontalLayout {
+            height: 26px;
+            spacing: 8px;
+            Chip { label: "\u{2039} Kurs"; min-width: 64px; height: 26px; clicked => { root.alert-mode = false; } }
+            Text { text: "Pengingat kurs"; color: Theme.text; font-size: 12px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; }
+        }
+        HorizontalLayout {
+            height: 28px;
+            spacing: 6px;
+            Text { text: "Beri tahu bila 1"; color: Theme.text-dim; font-size: 11px; vertical-alignment: center; }
+            RoundButton { size: 22px; icon-ratio: 0.55; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.step-target(-1); } }
+            Text { text: root.d.code; color: Theme.text; font-size: 12px; font-weight: 700; vertical-alignment: center; min-width: 30px; horizontal-alignment: center; }
+            RoundButton { size: 22px; icon-ratio: 0.55; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.step-target(1); } }
+            Chip { label: root.above ? "naik \u{2265}" : "turun \u{2264}"; min-width: 70px; height: 26px; clicked => { root.above = !root.above; } }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 26px;
+                border-radius: 13px;
+                background: Theme.chip;
+                Text { x: 10px; text: "Rp"; color: Theme.text-dim; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+                target-input := TextInput {
+                    x: 30px;
+                    width: parent.width - 38px;
+                    color: Theme.text;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                    single-line: true;
+                    accepted => { root.add-alert(root.above, self.text); self.text = ""; }
+                }
+            }
+            Chip { label: "Pasang"; selected: true; min-width: 64px; height: 26px; clicked => { root.add-alert(root.above, target-input.text); target-input.text = ""; } }
+        }
+        Text { text: "Kurs saat ini: " + (root.d.rate != "" ? root.d.rate : "belum dimuat") + ". Pengingat berbunyi sekali lalu dihapus."; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+        if root.alerts.length == 0: Text { text: "Belum ada pengingat kurs"; color: Theme.text-faint; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; vertical-stretch: 1; }
+        for a in root.alerts: HorizontalLayout {
+            height: 22px;
+            spacing: 6px;
+            Text { text: a.text; color: Theme.text; font-size: 12px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+            RoundButton { size: 22px; commands: Icons.close; outline: true; clicked => { root.remove-alert(a.id); } }
+        }
     }
 }
 
@@ -2577,8 +2855,16 @@ export component NotchWindow inherits Window {
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
     in property <string> sec-text: "00";
+    in property <string> date-short: "";
+    // Wajah idle berupa jam + tanggal (menggantikan mata) saat hub terakhir ditutup di halaman Jam.
+    in property <bool> idle-clock: false;
     in property <string> day-text: "";
     in property <StatsView> stats;
+    in property <CurrencyView> currency;
+    in-out property <string> currency-amount;
+    in property <[StockRow]> stock-gainers;
+    in property <[StockRow]> stock-losers;
+    in property <[CurrencyAlertItem]> currency-alerts;
     in property <string> pomo-text: "25:00";
     in property <string> pomo-label: "";
     in property <float> pomo-progress: 0;
@@ -2815,6 +3101,14 @@ export component NotchWindow inherits Window {
     callback shelf-remove(string);
     callback shelf-clear();
     callback remove-note(string);
+    callback save-note(string, string);
+    callback currency-refresh();
+    callback currency-amount-edited(string);
+    callback currency-quick(int);
+    callback currency-step-target(int);
+    callback currency-add-alert(bool, string);
+    callback currency-remove-alert(string);
+    callback currency-data-ready();
     callback clipboard-copy(string);
     callback clipboard-clear();
     callback reminder-add(string, string, string, int);
@@ -2931,7 +3225,7 @@ export component NotchWindow inherits Window {
             : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px)) * root.ui-scale;
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : 130px)) * root.play-body-scale-x));
+        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : (root.idle-clock ? 220px : 130px))) * root.play-body-scale-x));
         height: root.expanded ? 202px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px)) * root.play-body-scale-y));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
@@ -2991,7 +3285,20 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
-                visible: !root.dragging && !root.greeting-inline-visible;
+                visible: !root.dragging && !root.greeting-inline-visible && !(root.idle-clock && root.dock < 2);
+            }
+
+            // Wajah jam: jam + detik di kiri, tanggal pendek di kanan; tengah dikosongkan untuk titik privasi.
+            if root.idle-clock && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible: HorizontalLayout {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                padding-left: 16px;
+                padding-right: 16px;
+                Text { text: root.clock-text + ":" + root.sec-text; color: Theme.text; font-size: 12.5px; font-weight: 700; vertical-alignment: center; }
+                Rectangle { horizontal-stretch: 1; }
+                Text { text: root.date-short; color: Theme.text-dim; font-size: 11.5px; vertical-alignment: center; }
             }
 
             // Greeting tampil sebagai companion inline di badan notch, bukan speech bubble terpisah.
@@ -3430,10 +3737,24 @@ export component NotchWindow inherits Window {
                         remove(path) => { root.shelf-remove(path); }
                         clear => { root.shelf-clear(); }
                     }
+                    if root.page-id == "currency": CurrencyPage {
+                        d: root.currency;
+                        amount <=> root.currency-amount;
+                        gainers: root.stock-gainers;
+                        losers: root.stock-losers;
+                        alerts: root.currency-alerts;
+                        refresh => { root.currency-refresh(); }
+                        amount-edited(t) => { root.currency-amount-edited(t); }
+                        quick(i) => { root.currency-quick(i); }
+                        step-target(n) => { root.currency-step-target(n); }
+                        add-alert(up, t) => { root.currency-add-alert(up, t); }
+                        remove-alert(id) => { root.currency-remove-alert(id); }
+                    }
                     if root.page-id == "notes": NotesPage {
                         notes: root.notes;
                         add(t) => { root.add-note(t); }
                         remove(id) => { root.remove-note(id); }
+                        save(id, t) => { root.save-note(id, t); }
                     }
                     if root.page-id == "weather": WeatherPage {
                         refresh => { root.weather-refresh(); }
@@ -3482,7 +3803,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "uji": RenderTestPage { coffee: root.emoji-coffee; tomato: root.emoji-tomato; moon: root.emoji-moon; }
                     if root.page-id != "settings" && root.page-id != "media" && root.page-id != "clock" && root.page-id != "timer"
                         && root.page-id != "stats" && root.page-id != "battery" && root.page-id != "notes"
-                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "shelf" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "privacy" && root.page-id != "prayer" && root.page-id != "uji":
+                        && root.page-id != "weather" && root.page-id != "reminder" && root.page-id != "clipboard" && root.page-id != "shelf" && root.page-id != "quick" && root.page-id != "tools" && root.page-id != "privacy" && root.page-id != "prayer" && root.page-id != "currency" && root.page-id != "uji":
                         PlaceholderPage { name: root.page-id; }
                 }
             }

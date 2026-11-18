@@ -133,6 +133,27 @@ fn main() {
     win.set_weather_humidity("Kelembapan 78%".into());
     win.set_weather_rain("Hujan 40%".into());
     win.set_weather_icon("M 12 2 V 4 M 12 20 V 22 M 4 12 H 2 M 22 12 H 20 M 12 8 A 4 4 0 1 0 12 16 A 4 4 0 1 0 12 8 Z".into());
+    win.set_notes(ModelRc::from(Rc::new(VecModel::from(vec![
+        NoteItem { id: "1".into(), text: "API DOC RAMCES".into(), preview: "API DOC RAMCES contoh catatan yang cukup panjang".into(), meta: "Baru saja · 62 kar".into() },
+        NoteItem { id: "2".into(), text: "Belanja".into(), preview: "Belanja mingguan".into(), meta: "3 jam lalu · 16 kar".into() },
+        NoteItem { id: "3".into(), text: "Ide".into(), preview: "Ide fitur baru".into(), meta: "2 hari lalu · 14 kar".into() },
+    ]))));
+    win.set_currency(CurrencyView {
+        amount: "100.000".into(), code: "USD".into(), name: "Dolar AS".into(), result: "6,06 USD".into(),
+        rate: "1 USD = Rp 16.500".into(), updated: "Diperbarui 14:28".into(), stock_period: "MTD · 1 Nov".into(),
+        stock_status: "Pilihan saham IDX · data Yahoo Finance, bukan seluruh bursa".into(), error: "".into(), loading: false,
+    });
+    win.set_currency_amount("100.000".into());
+    win.set_stock_gainers(ModelRc::from(Rc::new(VecModel::from(vec![
+        StockRow { name: "ANTM".into(), price: "Rp 3.120".into(), change: "+8,4%".into(), positive: true },
+        StockRow { name: "BBCA".into(), price: "Rp 9.125".into(), change: "+3,1%".into(), positive: true },
+        StockRow { name: "TLKM".into(), price: "Rp 3.540".into(), change: "+1,2%".into(), positive: true },
+    ]))));
+    win.set_stock_losers(ModelRc::from(Rc::new(VecModel::from(vec![
+        StockRow { name: "GOTO".into(), price: "Rp 62".into(), change: "-6,0%".into(), positive: false },
+        StockRow { name: "MDKA".into(), price: "Rp 2.050".into(), change: "-3,3%".into(), positive: false },
+        StockRow { name: "BRPT".into(), price: "Rp 1.020".into(), change: "-0,9%".into(), positive: false },
+    ]))));
     win.set_stats(StatsView {
         host: "DESKTOP-NOTCH".into(), cpu: 34.0, ram: 54.0, swap: 12.0, disk: 91.0,
         cpu_v: "34%".into(), ram_v: "54%".into(), swap_v: "12%".into(), disk_v: "91%".into(),
@@ -146,12 +167,19 @@ fn main() {
     let a = Appearance::default();
     let pal = Palette::from_appearance(&a, false);
     apply_theme(&win, &pal);
+    win.set_date_short("17 Nov".into());
+    win.set_idle_clock(true);
+    win.set_dock(0);
+    set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+    win.set_expanded(false);
+    snap(&window, (300, 140), &format!("{out}/idle_clock.png"));
+    win.set_idle_clock(false);
     // Semua halaman hub utama (dock atas) untuk dibandingkan dengan Tauri
     {
         win.set_dock(0);
         set_decor(&win, "default", pal.body, Dock::Top, 1.0);
         win.set_expanded(true);
-        for page in ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats"] {
+        for page in ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "notes", "currency"] {
             win.set_page_id(page.into());
             snap(&window, (612, 240), &format!("{out}/page_{page}.png"));
         }

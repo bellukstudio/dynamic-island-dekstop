@@ -137,8 +137,8 @@ fn main() {
     win.set_q_awake(0);
     win.set_q_dark(1);
     win.set_notes(ModelRc::from(Rc::new(VecModel::from(vec![
-        NoteItem { id: "1".into(), text: "q*UYmN2!Di-KoB2C".into() },
-        NoteItem { id: "2".into(), text: "API DOC RAMCES contoh catatan yang cukup panjang untuk dipotong".into() },
+        NoteItem { id: "1".into(), text: "q*UYmN2!Di-KoB2C".into(), preview: "q*UYmN2!Di-KoB2C".into(), meta: "Baru saja · 16 kar".into() },
+        NoteItem { id: "2".into(), text: "API DOC RAMCES contoh catatan yang cukup panjang untuk dipotong".into(), preview: "API DOC RAMCES contoh catatan yang cukup panjang untuk dipotong".into(), meta: "3 jam lalu · 62 kar".into() },
     ]))));
 
     let themes = ["default", "neon", "aurora", "obsidian", "sakura", "matcha"];
