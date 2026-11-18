@@ -521,6 +521,8 @@ struct EyeCtx {
     cur_since: f32,
     morph: Morph,
     look: (f32, f32),
+    look_target: (f32, f32),
+    last_frame_ts: f32,
     last_cursor: (i32, i32),
     last_move: f32,
     next_random_look: f32,
@@ -5218,6 +5220,8 @@ fn main() -> Result<(), slint::PlatformError> {
         cur_since: 0.0,
         morph: Morph::new(Face::for_mood(default_mood, skin)),
         look: (0.0, 0.0),
+        look_target: (0.0, 0.0),
+        last_frame_ts: 0.0,
         last_cursor: (i32::MIN, i32::MIN),
         last_move: 0.0,
         next_random_look: 0.0,
@@ -5342,12 +5346,12 @@ fn main() -> Result<(), slint::PlatformError> {
         mood_battery_timer.start(TimerMode::Repeated, Duration::from_secs(30), tick);
     }
 
-    // Tick mata ~15 fps. Gambar baru dibuat hanya saat notch menciut DAN frame benar-benar berubah.
+    // Tick mata ~60 fps agar tatapan dapat mengikuti pointer dengan interpolasi halus.
     let eye_timer = Timer::default();
     {
         let weak = win.as_weak();
         let eye = eye.clone();
-        eye_timer.start(TimerMode::Repeated, Duration::from_millis(66), move || {
+        eye_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
             let now = Instant::now();
             let ts = started.elapsed().as_secs_f32();
@@ -5370,12 +5374,30 @@ fn main() -> Result<(), slint::PlatformError> {
                     // relatif terhadap notch (bukan tengah layar), supaya benar juga untuk posisi kustom
                     let (wp, ws) = (w.window().position(), w.window().size());
                     let mid_x = wp.x + ws.width as i32 / 2;
-                    e.look = eyes::look_offset((cx - mid_x) as f32, (cy - wp.y) as f32);
+                    e.look_target = eyes::look_offset((cx - mid_x) as f32, (cy - wp.y) as f32);
                 }
             }
             if ts - e.last_move > 5.0 && ts >= e.next_random_look {
                 e.next_random_look = ts + 2.5;
-                e.look = eyes::look_offset((e.rng.next() - 0.5) * 300.0, (e.rng.next() - 0.5) * 60.0);
+                e.look_target = eyes::look_offset((e.rng.next() - 0.5) * 300.0, (e.rng.next() - 0.5) * 60.0);
+            }
+
+            // Smooth-follow: filter eksponensial yang stabil terhadap variasi frame time.
+            // Tau 85 ms menjaga respons terasa cepat, tetapi menghilangkan gerak patah saat pointer berubah.
+            let frame_dt = if e.last_frame_ts > 0.0 {
+                (ts - e.last_frame_ts).clamp(0.0, 0.1)
+            } else {
+                1.0 / 60.0
+            };
+            e.last_frame_ts = ts;
+            let follow = 1.0 - (-frame_dt / 0.085).exp();
+            e.look.0 += (e.look_target.0 - e.look.0) * follow;
+            e.look.1 += (e.look_target.1 - e.look.1) * follow;
+            if (e.look_target.0 - e.look.0).abs() < 0.015 {
+                e.look.0 = e.look_target.0;
+            }
+            if (e.look_target.1 - e.look.1).abs() < 0.015 {
+                e.look.1 = e.look_target.1;
             }
 
             // Mood: transisi 250 ms ke mood baru
@@ -5420,8 +5442,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let sf = w.window().scale_factor();
             let anim = Anim { mood: e.cur, t: ts, t_mood: ts - e.cur_since, look: e.look, blink };
             let key = (
-                (e.look.0 * 4.0) as i32,
-                (e.look.1 * 4.0) as i32,
+                (e.look.0 * 8.0) as i32,
+                (e.look.1 * 8.0) as i32,
                 blink,
                 e.cur as usize,
                 eyes::frame_key(&anim, e.renderer.skin_name(), !e.morph.settled(ts)),
