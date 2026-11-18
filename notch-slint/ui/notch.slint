@@ -2181,6 +2181,9 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
                 Chip { label: "Siang"; selected: greeting-mode-input.text == "noon"; clicked => { greeting-mode-input.text = "noon"; } }
                 Chip { label: "Sore"; selected: greeting-mode-input.text == "afternoon"; clicked => { greeting-mode-input.text = "afternoon"; } }
+            }
+            HorizontalLayout {
+                spacing: 5px;
                 Chip { label: "Malam"; selected: greeting-mode-input.text == "evening"; clicked => { greeting-mode-input.text = "evening"; } }
                 Chip { label: "Custom"; selected: greeting-mode-input.text == "custom"; clicked => { greeting-mode-input.text = "custom"; } }
             }
@@ -3465,10 +3468,10 @@ export component NotchWindow inherits Window {
                         width: 38px;
                         height: 38px;
                         border-radius: 19px;
-                        background: #202945;
+                        background: Theme.accent.with-alpha(0.16);
                         border-width: 1px;
-                        border-color: #7187ff;
-                        Text { text: "●"; color: #91a5ff; font-size: 19px; horizontal-alignment: center; vertical-alignment: center; }
+                        border-color: Theme.accent.with-alpha(0.7);
+                        Text { text: "●"; color: Theme.accent; font-size: 19px; horizontal-alignment: center; vertical-alignment: center; }
                     }
                     VerticalLayout {
                         horizontal-stretch: 1;
