@@ -321,10 +321,13 @@ pub fn build_fx_chart(points: &[(i64, f64)]) -> Option<FxChart> {
     let (t0, t1) = (points[0].0 as f64, points[points.len() - 1].0 as f64);
     let span_t = (t1 - t0).max(1.0);
     let span_v = max - min;
+    // Sama seperti Tauri: sediakan padding 14% pada skala Y agar garis tidak menempel di batas plot.
+    let value_pad = if span_v.abs() <= f64::EPSILON { max.abs() * 0.01 } else { span_v * 0.14 };
+    let axis_min = min - value_pad;
+    let axis_span = (max + value_pad - axis_min).max(f64::EPSILON);
     let xy = |p: &(i64, f64)| {
         let x = (p.0 as f64 - t0) / span_t * FX_CHART_W;
-        // Sisakan 6% di atas dan bawah supaya garis tidak menempel pada tepi.
-        let y = if span_v <= f64::EPSILON { 50.0 } else { 94.0 - (p.1 - min) / span_v * 88.0 };
+        let y = if span_v <= f64::EPSILON { 50.0 } else { 94.0 - (p.1 - axis_min) / axis_span * 88.0 };
         (x, y)
     };
     let mut line = String::new();
