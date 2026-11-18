@@ -2460,7 +2460,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             fx_axis_label(axis_min + axis_span / 3.0, axis_span),
                             fx_axis_label(axis_min, axis_span),
                         ];
-                        let dot_y = if span.abs() <= f64::EPSILON { 50.0 } else { 94.0 - (chart.last - chart.min) / span * 88.0 };
+                        let dot_y = if span.abs() <= f64::EPSILON { 50.0 } else { 94.0 - (chart.last - axis_min) / axis_span * 88.0 };
                         let dates = [
                             notch_core::currency::short_fx_date_from_unix(first_time),
                             notch_core::currency::short_fx_date_from_unix(middle_time),
