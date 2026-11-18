@@ -337,11 +337,20 @@ pub fn build_fx_chart(points: &[(i64, f64)]) -> Option<FxChart> {
     Some(FxChart { line: line.trim_end().to_string(), area, min, max, first: points[0].1, last: points[points.len() - 1].1 })
 }
 
-fn iso_date_from_unix(timestamp: i64) -> String {
+pub fn iso_date_from_unix(timestamp: i64) -> String {
     let days = timestamp.div_euclid(86_400);
     let (year, month) = civil_from_days(days);
     let day = days - days_from_civil(year, month, 1) + 1;
     format!("{year:04}-{month:02}-{day:02}")
+}
+
+/// Label tanggal pendek untuk sumbu grafik Currency, mengikuti format lokal Indonesia.
+pub fn short_fx_date_from_unix(timestamp: i64) -> String {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    let days = timestamp.div_euclid(86_400);
+    let (year, month) = civil_from_days(days);
+    let day = days - days_from_civil(year, month, 1) + 1;
+    format!("{day} {}", MONTHS[(month.clamp(1, 12) - 1) as usize])
 }
 
 fn unix_from_iso_date(value: &str) -> Option<i64> {
