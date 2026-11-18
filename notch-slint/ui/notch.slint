@@ -1699,6 +1699,9 @@ component SettingsPage inherits VerticalLayout {
     in property <bool> nudge-only-silent: true;
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
+    in property <bool> greeting-speech-visible: false;
+    in property <string> greeting-message: "Halo!";
+    in property <string> greeting-detail: "Sapaan dari Notch";
     in property <bool> greeting-enabled: true;
     in property <string> greeting-mode: "random";
     in property <string> greeting-voice: "cewek";
@@ -2155,44 +2158,48 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Greeting suara saat Notch dimulai"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Text { text: "Greeting & sapaan otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
-        VerticalLayout { padding: 9px; spacing: 6px;
+        VerticalLayout { padding: 11px; spacing: 8px;
+            Text { text: "Sapaan ditampilkan di Notch dan dibacakan saat aplikasi mulai berjalan."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             greeting-enabled-input := TextInput { text: root.greeting-enabled ? "true" : "false"; visible: false; }
             HorizontalLayout {
-                Text { text: "Aktifkan greeting suara"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                Text { text: "Aktifkan greeting suara"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
                 Chip { label: greeting-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: greeting-enabled-input.text == "true"; clicked => { greeting-enabled-input.text = greeting-enabled-input.text == "true" ? "false" : "true"; } }
             }
+            Rectangle { height: 1px; background: #ffffff18; }
             greeting-mode-input := TextInput { text: root.greeting-mode; visible: false; }
-            Text { text: "Mode sapaan"; color: Theme.text-faint; font-size: 9px; }
+            Text { text: "PILIH SAPAAN"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
             HorizontalLayout {
-                spacing: 4px;
+                spacing: 5px;
                 Chip { label: "Acak lucu"; selected: greeting-mode-input.text == "random"; clicked => { greeting-mode-input.text = "random"; } }
                 Chip { label: "Otomatis"; selected: greeting-mode-input.text == "auto"; clicked => { greeting-mode-input.text = "auto"; } }
                 Chip { label: "Halo"; selected: greeting-mode-input.text == "halo"; clicked => { greeting-mode-input.text = "halo"; } }
-                Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
             }
             HorizontalLayout {
-                spacing: 4px;
+                spacing: 5px;
+                Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
                 Chip { label: "Siang"; selected: greeting-mode-input.text == "noon"; clicked => { greeting-mode-input.text = "noon"; } }
                 Chip { label: "Sore"; selected: greeting-mode-input.text == "afternoon"; clicked => { greeting-mode-input.text = "afternoon"; } }
                 Chip { label: "Malam"; selected: greeting-mode-input.text == "evening"; clicked => { greeting-mode-input.text = "evening"; } }
                 Chip { label: "Custom"; selected: greeting-mode-input.text == "custom"; clicked => { greeting-mode-input.text = "custom"; } }
             }
             greeting-voice-input := TextInput { text: root.greeting-voice; visible: false; }
-            Text { text: "Mode suara"; color: Theme.text-faint; font-size: 9px; }
+            Rectangle { height: 1px; background: #ffffff18; }
+            Text { text: "PILIH SUARA"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
             HorizontalLayout {
-                spacing: 4px;
-                Chip { label: "Cewek"; selected: greeting-voice-input.text == "cewek"; clicked => { greeting-voice-input.text = "cewek"; } }
-                Chip { label: "Cowok"; selected: greeting-voice-input.text == "cowok"; clicked => { greeting-voice-input.text = "cowok"; } }
-                Chip { label: "Anime cewek"; selected: greeting-voice-input.text == "anime-cewek"; clicked => { greeting-voice-input.text = "anime-cewek"; } }
+                spacing: 5px;
+                Chip { label: "Cewek natural"; selected: greeting-voice-input.text == "cewek"; clicked => { greeting-voice-input.text = "cewek"; } }
+                Chip { label: "Cowok natural"; selected: greeting-voice-input.text == "cowok"; clicked => { greeting-voice-input.text = "cowok"; } }
             }
             HorizontalLayout {
-                spacing: 4px;
+                spacing: 5px;
+                Chip { label: "Anime cewek"; selected: greeting-voice-input.text == "anime-cewek"; clicked => { greeting-voice-input.text = "anime-cewek"; } }
                 Chip { label: "Anime cowok"; selected: greeting-voice-input.text == "anime-cowok"; clicked => { greeting-voice-input.text = "anime-cowok"; } }
                 Chip { label: "Suara sistem"; selected: greeting-voice-input.text == "system"; clicked => { greeting-voice-input.text = "system"; } }
             }
-            Text { text: "Teks kustom (maks. 120 karakter)"; color: Theme.text-faint; font-size: 9px; }
+            Rectangle { height: 1px; background: #ffffff18; }
+            Text { text: "TEKS SAPAAN KUSTOM · MAKS. 120 KARAKTER"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
             greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
             HorizontalLayout {
                 Chip { label: "Reset default"; clicked => {
@@ -2202,8 +2209,10 @@ component SettingsPage inherits VerticalLayout {
                     greeting-custom-input.text = "Halo, semangat menjalani hari!";
                     root.save-greeting(true, "random", "cewek", "Halo, semangat menjalani hari!");
                 } }
-                Chip { label: "Pratinjau sapaan (teks)"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text, greeting-voice-input.text); } }
-                Chip { label: "Simpan pengaturan greeting"; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
+                Chip { label: "Pratinjau"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text, greeting-voice-input.text); } }
+            }
+            HorizontalLayout {
+                Chip { label: "Simpan pengaturan greeting"; selected: true; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
             }
             Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
@@ -3465,8 +3474,8 @@ export component NotchWindow inherits Window {
                         horizontal-stretch: 1;
                         alignment: center;
                         spacing: 4px;
-                        Text { text: root.nudge-message; color: #ffffff; font-size: 13px; font-weight: 700; overflow: elide; }
-                        Text { text: root.nudge-detail; color: #a7a9b3; font-size: 10px; overflow: elide; }
+                        Text { text: root.greeting-message; color: Theme.text; font-size: 13px; font-weight: 700; overflow: elide; }
+                        Text { text: root.greeting-detail; color: Theme.text-dim; font-size: 10px; overflow: elide; }
                     }
                 }
             }
@@ -3959,15 +3968,15 @@ export component NotchWindow inherits Window {
     }
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
-    if !root.expanded && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != "" || root.nudge-visible): SpeechBubble {
+    if !root.expanded && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
         width: root.dock >= 3 ? 230px : 280px;
         x: root.dock == 3 ? 64px : (root.dock == 4 ? 6px : (root.width - self.width) / 2);
         y: root.dock >= 3 ? (root.height - self.height) / 2 : (root.dock == 2 ? 0px : 42px);
         bottom: root.dock != 2;
         side: root.dock >= 3;
         side-right: root.dock == 4;
-        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
-        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
+        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-active ? "Rapat berlangsung" : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text))));
+        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub))));
     }
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
