@@ -968,7 +968,8 @@ fn paint_currency(
         }
         None => (String::new(), String::new()),
     };
-    let (_, month) = notch_core::currency::month_start();
+    const FULL_MONTHS: [&str; 12] = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    let (year, month) = notch_core::currency::month_start();
     w.set_currency(CurrencyView {
         amount: group_digits(&s.amount).into(),
         code: code.into(),
@@ -979,7 +980,7 @@ fn paint_currency(
         updated: s.updated.clone().into(),
         stock_period: format!("MTD \u{00B7} 1 {}", SHORT_MONTHS[(month.clamp(1, 12) - 1) as usize]).into(),
         stock_status: if s.stock_error.is_empty() {
-            "Pilihan saham IDX \u{00B7} data Yahoo Finance, bukan seluruh bursa".into()
+            format!("Pilihan saham IDX \u{00B7} {} {} \u{00B7} data Yahoo Finance, bukan seluruh bursa", FULL_MONTHS[(month.clamp(1, 12) - 1) as usize], year).into()
         } else {
             s.stock_error.clone().into()
         },
