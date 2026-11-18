@@ -891,128 +891,158 @@ component ShelfPage inherits VerticalLayout {
         }
     }
 }
+component NoteIconButton inherits Rectangle {
+    in property <string> commands;
+    in property <string> badge: "";
+    in property <bool> danger: false;
+    in property <angle> turn: 0deg;
+    callback clicked;
+    border-radius: 9px;
+    background: root.danger ? #ef4444 : (ta.has-hover ? Theme.chip-hover : Theme.chip);
+    animate background { duration: 120ms; }
+    Path {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 17px;
+        height: 17px;
+        viewbox-width: 24;
+        viewbox-height: 24;
+        commands: root.commands;
+        fill: transparent;
+        stroke: Theme.text;
+        stroke-width: 1.7px;
+        stroke-line-cap: round;
+        stroke-line-join: round;
+        transform-rotation: root.turn;
+        opacity: ta.has-hover ? 1 : 0.82;
+    }
+    if root.badge != "": Rectangle {
+        x: parent.width - self.width + 5px;
+        y: -5px;
+        width: max(13px, badge-text.preferred-width + 6px);
+        height: 13px;
+        border-radius: 7px;
+        background: Theme.accent;
+        badge-text := Text { text: root.badge; color: #000000; font-size: 9px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
 component NotesPage inherits VerticalLayout {
     in property <[NoteItem]> notes;
     in property <[ShelfItem]> shelf-items;
     in property <string> shelf-status: "File yang disimpan di sini tidak disalin";
+    // Daftar catatan hanya tampil saat diperluas (hub ikut menjadi 300 px, seperti `notes-expanded` di Tauri).
+    in-out property <bool> expanded: false;
     callback add(string);
     callback remove(string);
-    callback save(string, string);
-    // Mode detail (setara jendela note-detail di Tauri): daftar -> klik kartu -> edit -> Simpan / Hapus.
-    property <string> detail-id: "";
-    property <string> detail-meta: "";
-    property <string> edit-text: "";
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 2px;
-    padding-bottom: 8px;
+    callback open(string);
+    callback clear();
+    callback expand-toggled(bool);
+    property <bool> confirm-clear: false;
+    padding-left: 26px;
+    padding-right: 26px;
+    padding-top: 12px;
+    padding-bottom: 14px;
     spacing: 8px;
 
-    if root.detail-id == "": VerticalLayout {
-        vertical-stretch: 1;
-        spacing: 8px;
-        HorizontalLayout {
-            spacing: 8px;
-            height: 30px;
-            Rectangle {
-                horizontal-stretch: 1;
-                border-radius: 15px;
-                background: Theme.chip;
-                input := TextInput {
-                    x: 12px;
-                    width: parent.width - 24px;
-                    color: Theme.text;
-                    font-size: 13px;
-                    vertical-alignment: center;
-                    single-line: true;
-                    accepted => {
-                        root.add(self.text);
-                        self.text = "";
+    Timer { interval: 3s; running: root.confirm-clear; triggered => { root.confirm-clear = false; } }
+
+    HorizontalLayout {
+        height: 86px;
+        spacing: 6px;
+        Rectangle {
+            horizontal-stretch: 1;
+            border-radius: 12px;
+            background: input.has-focus ? Theme.chip-hover : Theme.chip;
+            border-width: input.has-focus ? 1.5px : 0px;
+            border-color: Theme.accent.with-alpha(0.55);
+            FocusScope {
+                // Enter menambah catatan, Shift+Enter baris baru (sama dengan #nt-input di Tauri).
+                capture-key-pressed(event) => {
+                    if (event.text == Key.Return && !event.modifiers.shift) {
+                        root.add(input.text);
+                        input.text = "";
+                        return accept;
                     }
+                    return reject;
                 }
-                if input.text == "": Text {
-                    x: 12px;
-                    text: "Tulis catatan lalu Enter...";
-                    color: Theme.text-faint;
-                    font-size: 13px;
-                    vertical-alignment: center;
+                input := TextInput {
+                    x: 14px;
+                    y: 10px;
+                    width: parent.width - 28px;
+                    height: parent.height - 20px;
+                    color: Theme.text;
+                    font-size: 14px;
+                    wrap: word-wrap;
+                    single-line: false;
                 }
             }
-            Chip { label: "Tambah"; clicked => { root.add(input.text); input.text = ""; } }
+            if input.text == "": Text {
+                x: 14px;
+                y: 10px;
+                text: "Tulis catatan baru\u{2026}";
+                color: Theme.text-faint;
+                font-size: 14px;
+            }
         }
-        if root.notes.length == 0: Text {
-            text: "Belum ada catatan";
-            color: Theme.text-faint;
-            font-size: 12px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            vertical-stretch: 1;
-        }
-        if root.notes.length > 0: Flickable {
-            vertical-stretch: 1;
-            viewport-height: root.notes.length * 46px;
-            VerticalLayout {
-                width: parent.width;
-                spacing: 6px;
-                for n in root.notes: Rectangle {
-                    height: 40px;
-                    border-radius: 12px;
-                    background: card-ta.has-hover ? Theme.chip-hover : Theme.chip;
-                    VerticalLayout {
-                        alignment: center;
-                        padding-left: 12px;
-                        padding-right: 38px;
-                        spacing: 1px;
-                        Text { text: n.preview; color: Theme.text; font-size: 12px; overflow: elide; }
-                        Text { text: n.meta; color: Theme.text-faint; font-size: 10px; overflow: elide; }
-                    }
-                    card-ta := TouchArea {
-                        clicked => {
-                            root.edit-text = n.text;
-                            root.detail-meta = n.meta;
-                            root.detail-id = n.id;
-                        }
-                    }
-                    RoundButton {
-                        x: parent.width - 30px;
-                        y: (parent.height - self.height) / 2;
-                        size: 24px;
-                        commands: Icons.close;
-                        outline: true;
-                        clicked => { root.remove(n.id); }
-                    }
+        VerticalLayout {
+            width: 36px;
+            spacing: 4px;
+            NoteIconButton { commands: "M 12 5 V 19 M 5 12 H 19"; clicked => { root.add(input.text); input.text = ""; } }
+            NoteIconButton {
+                commands: root.expanded ? "M 6 15 L 12 9 L 18 15" : "M 6 9 L 12 15 L 18 9";
+                clicked => { root.expanded = !root.expanded; root.expand-toggled(root.expanded); }
+            }
+            NoteIconButton {
+                commands: "M 4 7 H 20 M 9 7 V 4 H 15 V 7 M 6 7 L 7 20 H 17 L 18 7 M 10 11 V 16 M 14 11 V 16";
+                badge: root.notes.length > 0 ? root.notes.length : "";
+                danger: root.confirm-clear;
+                clicked => {
+                    if (root.notes.length == 0) { return; }
+                    if (root.confirm-clear) { root.confirm-clear = false; root.clear(); } else { root.confirm-clear = true; }
                 }
             }
         }
     }
 
-    if root.detail-id != "": VerticalLayout {
+    if root.expanded && root.notes.length == 0: Text {
+        text: "Belum ada catatan";
+        color: Theme.text-faint;
+        font-size: 12px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
         vertical-stretch: 1;
-        spacing: 8px;
-        HorizontalLayout {
-            spacing: 8px;
-            height: 28px;
-            Chip { label: "\u{2039} Catatan"; min-width: 80px; clicked => { root.detail-id = ""; } }
-            Text { text: root.detail-meta; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; horizontal-alignment: right; overflow: elide; }
-            Chip { label: "Hapus"; min-width: 56px; clicked => { root.remove(root.detail-id); root.detail-id = ""; } }
-            Chip { label: "Simpan"; min-width: 64px; selected: true; clicked => { root.save(root.detail-id, root.edit-text); root.detail-id = ""; } }
-        }
-        Rectangle {
-            vertical-stretch: 1;
-            border-radius: 12px;
-            background: Theme.chip;
-            clip: true;
-            TextInput {
-                x: 12px;
-                y: 8px;
-                width: parent.width - 24px;
-                height: parent.height - 16px;
-                text <=> root.edit-text;
-                color: Theme.text;
-                font-size: 13px;
-                wrap: word-wrap;
-                single-line: false;
-                init => { self.focus(); }
+    }
+    if root.expanded && root.notes.length > 0: Flickable {
+        vertical-stretch: 1;
+        content-height: root.notes.length * 62px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 6px;
+            for n in root.notes: Rectangle {
+                height: 56px;
+                border-radius: 12px;
+                background: card-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                // Klik kartu membuka jendela detail catatan (note-detail di Tauri).
+                card-ta := TouchArea { clicked => { root.open(n.id); } }
+                VerticalLayout {
+                    padding-left: 12px;
+                    padding-right: 30px;
+                    padding-top: 7px;
+                    padding-bottom: 6px;
+                    spacing: 3px;
+                    Text { text: n.text; color: Theme.text; font-size: 12.5px; wrap: word-wrap; overflow: elide; height: 34px; vertical-alignment: top; }
+                    Text { text: n.meta; color: Theme.text-faint; font-size: 10px; overflow: elide; }
+                }
+                RoundButton {
+                    x: parent.width - 28px;
+                    y: 6px;
+                    size: 20px;
+                    commands: Icons.close;
+                    outline: true;
+                    clicked => { root.remove(n.id); }
+                }
             }
         }
     }
@@ -2763,11 +2793,35 @@ component PrivacyPage inherits VerticalLayout {
         color: Theme.text-faint; font-size: 8px; wrap: word-wrap;
     }
 }
+component PrayerSeg inherits Rectangle {
+    in property <string> label;
+    in property <bool> on: false;
+    callback clicked;
+    preferred-width: seg-text.preferred-width + 14px;
+    min-width: seg-text.preferred-width + 14px;
+    height: 22px;
+    border-radius: 11px;
+    background: root.on ? Theme.text.with-alpha(0.2) : transparent;
+    seg-text := Text {
+        text: root.label;
+        color: root.on || ta.has-hover ? Theme.text : Theme.text-dim;
+        font-size: 11px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
 component PrayerPage inherits VerticalLayout {
     in property <[PrayerItem]> items;
+    in property <[PrayerItem]> imsakiyah;
     in property <string> next-name: "Memuat jadwal...";
     in property <string> next-time: "--:--";
+    in property <string> next-when: "";
     in property <string> countdown: "--:--:--";
+    in property <string> meta: "Imsak --:-- \u{00B7} Terbit --:--";
+    in property <string> city: "";
     in property <string> status: "";
     in property <bool> ramadan: false;
     in property <string> ramadan-date: "";
@@ -2781,84 +2835,361 @@ component PrayerPage inherits VerticalLayout {
     in property <string> dhikr-arabic: "";
     in property <string> dhikr-latin: "";
     in property <string> dhikr-meaning: "";
+    in property <int> dhikr-idx: 0;
     callback refresh();
     callback set-mode(string);
     callback set-remind(bool);
     callback set-remind-min(int);
     callback toggle-ramadan();
     callback dhikr-next();
-    spacing: 8px;
-    padding: 12px;
-    Text { text: "Jadwal shalat"; color: Theme.text; font-size: 16px; font-weight: 700; }
-    Rectangle {
-        height: 78px; border-radius: 12px; background: Theme.chip;
+    callback dhikr-prev();
+    // `.p-prayer`: padding 2 26 12 24, jarak 18; kiri 176 px (hitung mundur + kota), kanan (busur + kontrol).
+    // Tombol Ramadan memperluas hub (780 x 540) dan menampilkan panel sahur/buka, imsakiyah, dzikir.
+    padding-left: 24px;
+    padding-right: 26px;
+    padding-top: 2px;
+    padding-bottom: 12px;
+    spacing: 10px;
+
+    HorizontalLayout {
+        spacing: 14px;
+        vertical-stretch: root.ramadan ? 0 : 1;
+        min-height: 104px;
         VerticalLayout {
-            padding: 10px; spacing: 2px;
-            Text { text: "WAKTU BERIKUTNYA · " + root.next-name; color: Theme.text-faint; font-size: 9px; font-weight: 700; }
+            width: 160px;
+            alignment: space-between;
+            padding-top: 2px;
+            VerticalLayout {
+                spacing: 2px;
+                Text { text: root.next-name; color: Theme.accent; font-size: 14px; font-weight: 700; overflow: elide; }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Text { text: root.countdown; color: Theme.text; font-size: 27px; font-weight: 700; vertical-alignment: bottom; }
+                    VerticalLayout {
+                        alignment: end;
+                        Text { text: root.next-time; color: Theme.text; font-size: 13px; font-weight: 700; }
+                        Text { text: root.next-when; color: Theme.text-faint; font-size: 10.5px; }
+                    }
+                }
+            }
             HorizontalLayout {
-                Text { text: root.next-time; color: Theme.text; font-size: 17px; font-weight: 700; }
-                Rectangle { horizontal-stretch: 1; }
-                Text { text: root.countdown; color: Theme.accent; font-size: 19px; font-weight: 700; }
+                spacing: 6px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    alignment: end;
+                    Text { text: root.city; color: Theme.text; font-size: 12.5px; font-weight: 700; overflow: elide; }
+                    Text { text: root.status != "" ? root.status : "Dari config"; color: root.status != "" ? #ff8282 : Theme.text-faint; font-size: 10.5px; overflow: elide; }
+                }
+                Rectangle {
+                    width: 24px;
+                    height: 24px;
+                    y: 0px;
+                    border-radius: 8px;
+                    background: rf-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                    Path {
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: 13px;
+                        height: 13px;
+                        viewbox-width: 24;
+                        viewbox-height: 24;
+                        commands: Icons.reset;
+                        fill: transparent;
+                        stroke: Theme.text;
+                        stroke-width: 1.5px;
+                        stroke-line-cap: round;
+                        stroke-line-join: round;
+                    }
+                    rf-ta := TouchArea { clicked => { root.refresh(); } }
+                }
             }
         }
-    }
-    Rectangle {
-        height: 128px; border-radius: 10px; background: Theme.chip;
+
         VerticalLayout {
-            padding: 8px; spacing: 3px;
-            for item in root.items: HorizontalLayout {
-                height: 19px; spacing: 6px;
-                Text { text: item.name; color: item.state == 1 ? Theme.accent : Theme.text; font-size: 11px; horizontal-stretch: 1; }
-                Text { text: item.time; color: item.state == 2 ? Theme.text-faint : Theme.text; font-size: 11px; }
-                Text { text: item.state == 2 ? "✓" : (item.state == 1 ? "BERIKUTNYA" : ""); color: Theme.accent; font-size: 8px; }
+            horizontal-stretch: 1;
+            alignment: space-between;
+            Text { text: root.meta; color: Theme.text-dim; font-size: 11px; horizontal-alignment: right; }
+            HorizontalLayout {
+                alignment: center;
+                Rectangle {
+                    width: 300px;
+                    height: 70px;
+                    // Busur titik-titik (dasar `.pr-path`), titik 5 waktu shalat, dan label di bawahnya.
+                    for k in 29: Rectangle {
+                        x: k / 28 * 300px - 1px;
+                        y: 31px - 22px * Math.sin(k / 28 * 180deg) - 1px;
+                        width: 2px;
+                        height: 2px;
+                        border-radius: 1px;
+                        background: Theme.text.with-alpha(0.35);
+                    }
+                    for item[i] in root.items: Rectangle {
+                        x: (i + 0.5) / 5 * 300px - self.width / 2;
+                        y: 31px - 22px * Math.sin((i + 0.5) / 5 * 180deg) - self.height / 2;
+                        width: item.state == 1 ? 14px : 8px;
+                        height: self.width;
+                        border-radius: self.width / 2;
+                        background: item.state == 1 ? Theme.accent.with-alpha(0.25) : (item.state == 2 ? Theme.text.with-alpha(0.25) : Theme.text.with-alpha(0.55));
+                        border-width: item.state == 1 ? 1.5px : 0px;
+                        border-color: Theme.accent;
+                        if item.state == 1: Rectangle {
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            width: 8px;
+                            height: 8px;
+                            border-radius: 4px;
+                            background: Theme.accent;
+                        }
+                    }
+                    for item[i] in root.items: VerticalLayout {
+                        x: i * 60px;
+                        y: 36px;
+                        width: 60px;
+                        height: 32px;
+                        alignment: start;
+                        opacity: item.state == 2 ? 0.35 : (item.state == 1 ? 1.0 : 0.65);
+                        Text { text: item.name; color: item.state == 1 ? Theme.accent : Theme.text; font-size: 10.5px; horizontal-alignment: center; }
+                        Text { text: item.time; color: Theme.text; font-size: 11px; font-weight: 700; horizontal-alignment: center; }
+                    }
+                }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                height: 28px;
+                Rectangle {
+                    preferred-width: segs.preferred-width + 4px;
+                    min-width: segs.min-width + 4px;
+                    height: 26px;
+                    border-radius: 13px;
+                    background: Theme.chip;
+                    segs := HorizontalLayout {
+                        padding: 2px;
+                        PrayerSeg { label: "Adzan"; on: root.mode == "adzan"; clicked => { root.set-mode("adzan"); } }
+                        PrayerSeg { label: "Nada"; on: root.mode == "tone"; clicked => { root.set-mode("tone"); } }
+                        PrayerSeg { label: "Senyap"; on: root.mode == "silent"; clicked => { root.set-mode("silent"); } }
+                    }
+                }
+                Rectangle { horizontal-stretch: 1; }
+                HorizontalLayout {
+                    spacing: 6px;
+                    Text {
+                        text: root.remind-min + " mnt sebelum";
+                        color: Theme.text-dim;
+                        font-size: 10px;
+                        vertical-alignment: center;
+                        TouchArea { clicked => { root.set-remind-min(5); } }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Rectangle {
+                            width: 26px;
+                            height: 15px;
+                            border-radius: 8px;
+                            background: root.remind-before ? Theme.accent : Theme.chip;
+                            Rectangle {
+                                x: root.remind-before ? parent.width - self.width - 2px : 2px;
+                                y: 2px;
+                                width: 11px;
+                                height: 11px;
+                                border-radius: 6px;
+                                background: root.remind-before ? #000000 : Theme.text-dim;
+                                animate x { duration: 120ms; }
+                            }
+                            TouchArea { clicked => { root.set-remind(!root.remind-before); } }
+                        }
+                    }
+                }
+                Rectangle {
+                    preferred-width: rm-row.preferred-width;
+                    min-width: rm-row.min-width;
+                    max-width: rm-row.preferred-width;
+                    horizontal-stretch: 0;
+                    height: 28px;
+                    border-radius: 14px;
+                    background: root.ramadan ? Theme.accent.with-alpha(0.3) : (rm-ta.has-hover ? Theme.chip-hover : Theme.chip);
+                    rm-row := HorizontalLayout {
+                        alignment: center;
+                        spacing: 5px;
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        VerticalLayout {
+                            alignment: center;
+                            Path {
+                                width: 13px;
+                                height: 13px;
+                                viewbox-width: 24;
+                                viewbox-height: 24;
+                                commands: "M 12 3 a 6 6 0 0 0 9 9 a 9 9 0 1 1 -9 -9 Z";
+                                fill: root.ramadan ? Theme.accent : transparent;
+                                stroke: root.ramadan ? Theme.accent : Theme.text;
+                                stroke-width: 1.8px;
+                                stroke-line-join: round;
+                            }
+                        }
+                        Text { text: "Ramadan"; color: root.ramadan ? Theme.accent : Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+                    }
+                    rm-ta := TouchArea { clicked => { root.toggle-ramadan(); } }
+                }
             }
         }
     }
-    HorizontalLayout {
-        spacing: 6px;
-        Chip { label: "Perbarui jadwal"; clicked => { root.refresh(); } }
-        Chip { label: root.ramadan ? "Matikan Ramadan" : "Mode Ramadan"; selected: root.ramadan; clicked => { root.toggle-ramadan(); } }
-    }
-    if root.ramadan: Rectangle {
-        height: 70px; border-radius: 10px; background: #d9770620;
+
+    if root.ramadan: VerticalLayout {
+        vertical-stretch: 1;
+        spacing: 10px;
         HorizontalLayout {
-            padding: 8px; spacing: 8px;
-            VerticalLayout {
-                Text { text: "IMSAK · " + root.imsak-time; color: Theme.text; font-size: 9px; }
-                Text { text: root.imsak-countdown; color: Theme.accent; font-size: 16px; font-weight: 700; }
+            height: 40px;
+            spacing: 10px;
+            Path {
+                width: 20px;
+                height: 20px;
+                y: 10px;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                commands: "M 12 3 a 6 6 0 0 0 9 9 a 9 9 0 1 1 -9 -9 Z";
+                fill: Theme.accent;
             }
-            Rectangle { width: 1px; background: Theme.text-faint; }
             VerticalLayout {
-                Text { text: "BUKA · " + root.buka-time; color: Theme.text; font-size: 9px; }
-                Text { text: root.buka-countdown; color: Theme.accent; font-size: 16px; font-weight: 700; }
+                horizontal-stretch: 1;
+                alignment: center;
+                Text { text: "Mode Ramadan"; color: Theme.text; font-size: 14px; font-weight: 700; }
+                Text { text: "Hitung mundur sahur dan buka puasa, imsakiyah, serta dzikir setelah adzan."; color: Theme.text-faint; font-size: 11px; overflow: elide; }
+            }
+            HorizontalLayout {
+                spacing: 8px;
+                alignment: end;
+                VerticalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 30px;
+                        height: 17px;
+                        border-radius: 9px;
+                        background: Theme.accent;
+                        Rectangle { x: parent.width - self.width - 2px; y: 2px; width: 13px; height: 13px; border-radius: 7px; background: #000000; }
+                        TouchArea { clicked => { root.toggle-ramadan(); } }
+                    }
+                }
+                Text { text: "Aktif"; color: Theme.text-dim; font-size: 11px; vertical-alignment: center; }
             }
         }
-    }
-    HorizontalLayout {
-        spacing: 5px;
-        Text { text: "Mode"; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
-        Chip { label: "Nada"; selected: root.mode == "tone"; clicked => { root.set-mode("tone"); } }
-        Chip { label: "Adzan"; selected: root.mode == "adzan"; clicked => { root.set-mode("adzan"); } }
-        Chip { label: "Senyap"; selected: root.mode == "silent"; clicked => { root.set-mode("silent"); } }
-    }
-    HorizontalLayout {
-        spacing: 6px;
-        Chip { label: root.remind-before ? "Pengingat: aktif" : "Pengingat: mati"; selected: root.remind-before; clicked => { root.set-remind(!root.remind-before); } }
-        Chip { label: "−"; clicked => { root.set-remind-min(-1); } }
-        Text { text: root.remind-min + " menit"; color: Theme.text; font-size: 10px; vertical-alignment: center; }
-        Chip { label: "+"; clicked => { root.set-remind-min(1); } }
-    }
-    Rectangle {
-        height: 1px; background: Theme.text-faint;
-    }
-    Text { text: "DZIKIR"; color: Theme.text-faint; font-size: 9px; font-weight: 700; }
-    Text { text: root.dhikr-arabic; color: Theme.accent; font-size: 19px; horizontal-alignment: center; }
-    Text { text: root.dhikr-latin; color: Theme.text; font-size: 10px; horizontal-alignment: center; }
-    Text { text: root.dhikr-meaning; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; wrap: word-wrap; }
-    HorizontalLayout {
-        Chip { label: "Dzikir berikutnya"; clicked => { root.dhikr-next(); } }
-        Rectangle { horizontal-stretch: 1; }
-        Text { text: root.status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; }
+        HorizontalLayout {
+            height: 74px;
+            spacing: 12px;
+            for c[i] in [0, 1]: Rectangle {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                border-radius: 14px;
+                border-width: 1px;
+                border-color: #50dcaa59;
+                background: @linear-gradient(120deg, #14785a47 0%, #14785a0f 100%);
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 12px;
+                    VerticalLayout {
+                        width: 28px;
+                        alignment: center;
+                        Path {
+                            width: 26px;
+                            height: 26px;
+                            viewbox-width: 24;
+                            viewbox-height: 24;
+                            commands: i == 0 ? "M 12 3 a 6 6 0 0 0 9 9 a 9 9 0 1 1 -9 -9 Z" : "M 3 18 H 21 M 6.5 18 A 5.5 5.5 0 0 1 17.5 18 M 12 5 V 8 M 4.5 10.5 L 6.5 12.5 M 19.5 10.5 L 17.5 12.5";
+                            fill: transparent;
+                            stroke: #7dffc8;
+                            stroke-width: 1.6px;
+                            stroke-line-cap: round;
+                            stroke-line-join: round;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 1px;
+                        Text { text: i == 0 ? "Menuju Imsak (Sahur)" : "Menuju Maghrib (Buka Puasa)"; color: Theme.text-dim; font-size: 11px; overflow: elide; }
+                        Text { text: i == 0 ? root.imsak-countdown : root.buka-countdown; color: Theme.text; font-size: 22px; font-weight: 700; }
+                        Text { text: i == 0 ? "Imsak " + root.imsak-time : "Maghrib " + root.buka-time; color: Theme.text-faint; font-size: 10.5px; }
+                    }
+                }
+            }
+        }
+        HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 12px;
+            Rectangle {
+                horizontal-stretch: 1.1;
+                preferred-width: 0px;
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.10);
+                background: Theme.text.with-alpha(0.035);
+                VerticalLayout {
+                    padding: 10px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 8px;
+                    HorizontalLayout {
+                        Text { text: "Imsakiyah Hari Ini"; color: Theme.text; font-size: 13px; font-weight: 700; horizontal-stretch: 1; }
+                        Text { text: root.ramadan-date; color: Theme.text-faint; font-size: 11px; horizontal-alignment: right; overflow: elide; }
+                    }
+                    GridLayout {
+                        spacing: 6px;
+                        for item[i] in root.imsakiyah: Rectangle {
+                            row: Math.floor(i / 4);
+                            col: Math.mod(i, 4);
+                            height: 40px;
+                            border-radius: 10px;
+                            background: i == 0 ? Theme.accent.with-alpha(0.22) : Theme.chip;
+                            VerticalLayout {
+                                alignment: center;
+                                Text { text: item.name; color: i == 0 ? Theme.accent : Theme.text-dim; font-size: 10.5px; horizontal-alignment: center; }
+                                Text { text: item.time; color: Theme.text; font-size: 13px; font-weight: 700; horizontal-alignment: center; }
+                            }
+                        }
+                    }
+                    Text { text: "Jadwal mengikuti lokasi dan data salat yang sudah tersimpan di Notch. Countdown sahur berakhir pada waktu imsak."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                preferred-width: 0px;
+                border-radius: 16px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.10);
+                background: Theme.text.with-alpha(0.035);
+                VerticalLayout {
+                    padding: 10px;
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 6px;
+                    HorizontalLayout {
+                        spacing: 6px;
+                        Text { text: "Dzikir Setelah Adzan"; color: Theme.text; font-size: 13px; font-weight: 700; horizontal-stretch: 1; }
+                        Text { text: "\u{2039}"; color: Theme.text-dim; font-size: 16px; TouchArea { clicked => { root.dhikr-prev(); } } }
+                        Text { text: (root.dhikr-idx + 1) + "/3"; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; }
+                        Text { text: "\u{203A}"; color: Theme.text-dim; font-size: 16px; TouchArea { clicked => { root.dhikr-next(); } } }
+                    }
+                    Rectangle {
+                        vertical-stretch: 1;
+                        border-radius: 12px;
+                        background: Theme.chip;
+                        VerticalLayout {
+                            padding: 10px;
+                            spacing: 5px;
+                            alignment: center;
+                            Text { text: root.dhikr-arabic; color: Theme.text; font-size: 22px; horizontal-alignment: center; wrap: word-wrap; }
+                            Text { text: root.dhikr-latin; color: Theme.accent; font-size: 12px; horizontal-alignment: center; wrap: word-wrap; }
+                            Text { text: root.dhikr-meaning; color: Theme.text-faint; font-size: 10.5px; horizontal-alignment: center; wrap: word-wrap; }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 6px;
+                        for d[i] in 3: Rectangle { width: 6px; height: 6px; border-radius: 3px; background: i == root.dhikr-idx ? Theme.accent : Theme.text.with-alpha(0.25); }
+                    }
+                }
+            }
+        }
     }
 }
 component PlaceholderPage inherits VerticalLayout {
@@ -2943,6 +3274,7 @@ export component NotchWindow inherits Window {
     in property <StatsView> stats;
     in property <CurrencyView> currency;
     in-out property <string> currency-amount;
+    in-out property <bool> notes-expanded: false;
     in property <[StockRow]> stock-gainers;
     in property <[StockRow]> stock-losers;
     in property <[CurrencyAlertItem]> currency-alerts;
@@ -3122,6 +3454,13 @@ export component NotchWindow inherits Window {
     in property <string> prayer-next-time: "";
     in property <string> prayer-countdown: "";
     in property <string> prayer-status: "";
+    in property <string> prayer-meta: "Imsak --:-- \u{00B7} Terbit --:--";
+    in property <string> prayer-when: "";
+    in property <[PrayerItem]> prayer-imsakiyah;
+    in property <int> dhikr-idx: 0;
+    callback prayer-dhikr-prev();
+    // Hub melebar (780 x 540) saat Mode Ramadan aktif di halaman shalat, seperti `ramadan-expanded` di Tauri.
+    property <bool> prayer-wide: root.expanded && root.page-id == "prayer" && root.ramadan-enabled;
     in property <bool> ramadan-enabled: false;
     in property <string> ramadan-date: "";
     in property <string> ramadan-imsak-countdown: "";
@@ -3183,6 +3522,9 @@ export component NotchWindow inherits Window {
     callback shelf-clear();
     callback remove-note(string);
     callback save-note(string, string);
+    callback open-note(string);
+    callback clear-notes();
+    callback notes-expand-toggled(bool);
     callback currency-refresh();
     callback currency-chart-request(string, int);
     in-out property <bool> currency-expanded: false;
@@ -3316,8 +3658,8 @@ export component NotchWindow inherits Window {
             : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px)) * root.ui-scale;
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x));
-        height: root.expanded ? 202px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px)) * root.play-body-scale-y));
+        width: root.expanded ? (root.prayer-wide ? 780px : 580px) : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x));
+        height: root.expanded ? (root.prayer-wide ? 540px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px)) * root.play-body-scale-y));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
@@ -3630,6 +3972,12 @@ export component NotchWindow inherits Window {
                     }
                     if root.page-id == "prayer": PrayerPage {
                         items: root.prayer-items;
+                        imsakiyah: root.prayer-imsakiyah;
+                        meta: root.prayer-meta;
+                        next-when: root.prayer-when;
+                        city: root.prayer-city;
+                        dhikr-idx: root.dhikr-idx;
+                        dhikr-prev => { root.prayer-dhikr-prev(); }
                         next-name: root.prayer-next-name;
                         next-time: root.prayer-next-time;
                         countdown: root.prayer-countdown;
@@ -3902,7 +4250,10 @@ export component NotchWindow inherits Window {
                         notes: root.notes;
                         add(t) => { root.add-note(t); }
                         remove(id) => { root.remove-note(id); }
-                        save(id, t) => { root.save-note(id, t); }
+                        open(id) => { root.open-note(id); }
+                        clear => { root.clear-notes(); }
+                        expand-toggled(v) => { root.notes-expand-toggled(v); }
+                        expanded <=> root.notes-expanded;
                     }
                     if root.page-id == "weather": WeatherPage {
                         refresh => { root.weather-refresh(); }
@@ -3975,4 +4326,117 @@ export component NotchWindow inherits Window {
     Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
     Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
     Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
+}
+
+// Jendela detail catatan (setara note-detail.html di Tauri): toolbar, editor, status bar, toast.
+export component NoteDetailWindow inherits Window {
+    title: "Catatan";
+    preferred-width: 680px;
+    preferred-height: 520px;
+    min-width: 400px;
+    min-height: 300px;
+    background: root.bg;
+    in property <color> bg: #0f0f11;
+    in property <color> fg: #f0f0f2;
+    in property <color> accent: #3b82f6;
+    in property <string> meta;
+    in-out property <string> text;
+    in property <string> chars: "0 karakter";
+    in property <string> lines: "0 baris";
+    in property <bool> dirty: false;
+    in property <bool> can-save: false;
+    in property <bool> confirm-delete: false;
+    in property <string> toast;
+    callback edited(string);
+    callback save();
+    callback delete();
+    callback esc();
+
+    FocusScope {
+        capture-key-pressed(event) => {
+            if (event.modifiers.control && (event.text == "s" || event.text == "S")) { root.save(); return accept; }
+            if (event.text == Key.Escape) { root.esc(); return accept; }
+            return reject;
+        }
+        VerticalLayout {
+            Rectangle {
+                height: 53px;
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    padding-top: 12px;
+                    padding-bottom: 10px;
+                    spacing: 8px;
+                    Text { text: "CATATAN"; color: root.fg.with-alpha(0.5); font-size: 13px; font-weight: 600; letter-spacing: 0.3px; vertical-alignment: center; }
+                    Text { text: root.meta; color: root.fg.with-alpha(0.35); font-size: 11px; vertical-alignment: center; horizontal-stretch: 1; horizontal-alignment: right; }
+                    Rectangle {
+                        width: 74px;
+                        height: 30px;
+                        border-radius: 8px;
+                        background: root.confirm-delete ? #ef4444 : (del-ta.has-hover ? #ef444447 : #ef444426);
+                        Text { text: root.confirm-delete ? "Yakin?" : "Hapus"; color: root.confirm-delete ? #ffffff : #ef4444; font-size: 12.5px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                        del-ta := TouchArea { clicked => { root.delete(); } }
+                    }
+                    Rectangle {
+                        width: 78px;
+                        height: 30px;
+                        border-radius: 8px;
+                        background: root.accent.with-alpha(save-ta.has-hover && root.can-save ? 1.0 : 0.85);
+                        opacity: root.can-save ? 1.0 : 0.35;
+                        Text { text: "Simpan"; color: #ffffff; font-size: 12.5px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                        save-ta := TouchArea { enabled: root.can-save; clicked => { root.save(); } }
+                    }
+                }
+                Rectangle { y: parent.height - 1px; height: 1px; background: root.fg.with-alpha(0.10); }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+                flick := Flickable {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    content-height: max(self.height, editor.preferred-height + 36px);
+                    editor := TextInput {
+                        x: 18px;
+                        y: 16px;
+                        width: parent.width - 36px;
+                        height: max(flick.height - 32px, self.preferred-height);
+                        text <=> root.text;
+                        color: root.fg;
+                        font-size: 15px;
+                        wrap: word-wrap;
+                        single-line: false;
+                        edited => { root.edited(self.text); }
+                        init => { self.focus(); }
+                        cursor-position-changed(p) => {
+                            if (p.y + flick.viewport-y < 0px) { flick.viewport-y = -p.y; }
+                            else if (p.y + 26px + flick.viewport-y > flick.height) { flick.viewport-y = flick.height - p.y - 26px; }
+                        }
+                    }
+                }
+                if root.text == "": Text { x: 18px; y: 16px; text: "Tulis catatan di sini\u{2026}"; color: root.fg.with-alpha(0.3); font-size: 15px; }
+                if root.toast != "": Rectangle {
+                    x: (parent.width - self.width) / 2;
+                    y: parent.height - self.height - 14px;
+                    width: toast-text.preferred-width + 28px;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: root.fg.with-alpha(0.92);
+                    toast-text := Text { text: root.toast; color: root.bg; font-size: 12.5px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            Rectangle {
+                height: 28px;
+                Rectangle { y: 0px; height: 1px; background: root.fg.with-alpha(0.10); }
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+                    Text { text: root.chars; color: root.fg.with-alpha(0.5); font-size: 11px; vertical-alignment: center; }
+                    Text { text: root.dirty ? "\u{25CF} Belum disimpan" : ""; color: root.accent; font-size: 11px; vertical-alignment: center; horizontal-alignment: center; horizontal-stretch: 1; }
+                    Text { text: root.lines; color: root.fg.with-alpha(0.5); font-size: 11px; vertical-alignment: center; horizontal-alignment: right; }
+                }
+            }
+        }
+    }
 }

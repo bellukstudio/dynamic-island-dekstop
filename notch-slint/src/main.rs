@@ -455,6 +455,21 @@ const COLLAPSED_SIDE: (u32, u32) = (300, 262);
 const GREETING_INLINE: (u32, u32) = (420, 112);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
 const EXPANDED: (u32, u32) = (612, 240);
+/// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
+const EXPANDED_TALL: (u32, u32) = (612, 338);
+
+/// Hub Ramadan (780 x 540) + jalur Pusatkan dan telinga.
+const EXPANDED_RAMADAN: (u32, u32) = (812, 578);
+
+fn expanded_size(w: &NotchWindow) -> (u32, u32) {
+    if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
+        EXPANDED_RAMADAN
+    } else if w.get_page_id() == "notes" && w.get_notes_expanded() {
+        EXPANDED_TALL
+    } else {
+        EXPANDED
+    }
+}
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
 const EYES_W: f32 = 130.0;
@@ -970,6 +985,165 @@ fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::p
     notch_core::currency::save_alerts(path, &s.alerts);
 }
 
+fn note_meta(ms: i64) -> String {
+    let (y, m, d, h, mi) = reminder::local_parts(ms, local_timezone_offset_minutes());
+    format!("{d} {} {y}, {h:02}.{mi:02}", SHORT_MONTHS[(m.clamp(1, 12) - 1) as usize])
+}
+
+fn note_counts(text: &str) -> (String, String) {
+    (
+        format!("{} karakter", group_digits(&text.chars().count().to_string())),
+        format!("{} baris", if text.is_empty() { 0 } else { text.split('\n').count() }),
+    )
+}
+
+/// Buka (atau fokuskan) jendela detail untuk satu catatan: edit, simpan (Ctrl+S), hapus dua langkah, Esc.
+fn open_note_detail(
+    id: &str,
+    store: &Rc<RefCell<Option<NotesStore>>>,
+    path: &std::path::Path,
+    model: &Rc<VecModel<NoteItem>>,
+    details: &Rc<RefCell<std::collections::HashMap<String, NoteDetailWindow>>>,
+    accent: slint::Color,
+) {
+    if let Some(existing) = details.borrow().get(id) {
+        let _ = existing.show();
+        return;
+    }
+    let note = {
+        let mut guard = store.borrow_mut();
+        let s = guard.get_or_insert_with(|| NotesStore::open(path));
+        s.list().into_iter().find(|n| n.id == id)
+    };
+    let Some(note) = note else { return };
+    let Ok(win) = NoteDetailWindow::new() else { return };
+    win.set_accent(accent);
+    win.set_text(note.text.clone().into());
+    win.set_meta(note_meta(note.updated_at).into());
+    let (chars, lines) = note_counts(&note.text);
+    win.set_chars(chars.into());
+    win.set_lines(lines.into());
+    let original = Rc::new(RefCell::new(note.text.clone()));
+    let warned = Rc::new(Cell::new(false));
+    let note_id = id.to_string();
+
+    let toast = {
+        let weak = win.as_weak();
+        Rc::new(move |msg: &str| {
+            if let Some(w) = weak.upgrade() {
+                w.set_toast(msg.into());
+                let weak = w.as_weak();
+                Timer::single_shot(Duration::from_secs(2), move || {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_toast("".into());
+                    }
+                });
+            }
+        })
+    };
+    let close: Rc<dyn Fn()> = {
+        let (weak, details, note_id) = (win.as_weak(), details.clone(), note_id.clone());
+        Rc::new(move || {
+            if let Some(w) = weak.upgrade() {
+                let _ = w.hide();
+            }
+            // Lepas jendela setelah callback selesai agar tidak membebaskan dirinya sendiri.
+            let (details, note_id) = (details.clone(), note_id.clone());
+            Timer::single_shot(Duration::from_millis(50), move || {
+                details.borrow_mut().remove(&note_id);
+            });
+        })
+    };
+    {
+        let (weak, original, warned) = (win.as_weak(), original.clone(), warned.clone());
+        win.on_edited(move |text| {
+            let Some(w) = weak.upgrade() else { return };
+            let dirty = text.trim() != original.borrow().trim();
+            w.set_dirty(dirty);
+            w.set_can_save(dirty && !text.trim().is_empty());
+            let (chars, lines) = note_counts(text.as_str());
+            w.set_chars(chars.into());
+            w.set_lines(lines.into());
+            if !dirty {
+                warned.set(false);
+            }
+        });
+    }
+    {
+        let (weak, store, path, model, original, toast, note_id) =
+            (win.as_weak(), store.clone(), path.to_path_buf(), model.clone(), original.clone(), toast.clone(), note_id.clone());
+        win.on_save(move || {
+            let Some(w) = weak.upgrade() else { return };
+            let text = w.get_text().trim().to_string();
+            if text.is_empty() || !w.get_can_save() {
+                return;
+            }
+            let list = {
+                let mut guard = store.borrow_mut();
+                let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+                s.update(&note_id, &text)
+            };
+            if let Some(n) = list.iter().find(|n| n.id == note_id) {
+                w.set_meta(note_meta(n.updated_at).into());
+            }
+            show_notes(&model, list);
+            *original.borrow_mut() = text.clone();
+            w.set_text(text.clone().into());
+            let (chars, lines) = note_counts(&text);
+            w.set_chars(chars.into());
+            w.set_lines(lines.into());
+            w.set_dirty(false);
+            w.set_can_save(false);
+            toast("\u{2713} Disimpan");
+        });
+    }
+    {
+        let (weak, store, path, model, close, note_id) =
+            (win.as_weak(), store.clone(), path.to_path_buf(), model.clone(), close.clone(), note_id.clone());
+        win.on_delete(move || {
+            let Some(w) = weak.upgrade() else { return };
+            if !w.get_confirm_delete() {
+                w.set_confirm_delete(true);
+                let weak = w.as_weak();
+                Timer::single_shot(Duration::from_secs(3), move || {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_confirm_delete(false);
+                    }
+                });
+                return;
+            }
+            let list = {
+                let mut guard = store.borrow_mut();
+                let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+                s.remove(&note_id)
+            };
+            show_notes(&model, list);
+            close();
+        });
+    }
+    {
+        let (weak, close, warned, toast) = (win.as_weak(), close.clone(), warned.clone(), toast.clone());
+        win.on_esc(move || {
+            let Some(w) = weak.upgrade() else { return };
+            if w.get_dirty() && !warned.get() {
+                warned.set(true);
+                toast("Belum disimpan \u{2014} tekan Esc lagi untuk tutup");
+            } else {
+                close();
+            }
+        });
+    }
+    {
+        let close = close.clone();
+        win.window().on_close_requested(move || {
+            close();
+            slint::CloseRequestResponse::HideWindow
+        });
+    }
+    let _ = win.show();
+    details.borrow_mut().insert(id.to_string(), win);
+}
+
 fn show_clipboard(model: &VecModel<ClipboardItem>, monitor: Option<&ClipboardMonitor>) {
     let items = monitor.map(ClipboardMonitor::list).unwrap_or_default();
     model.set_vec(
@@ -1054,7 +1228,14 @@ fn render_prayer(w:&NotchWindow,s:&PrayerSchedule,offset:i32,ramadan:bool){
  if let Some((name,time,at))=next{w.set_prayer_next_name(name.into());w.set_prayer_next_time(time.into());w.set_prayer_countdown(prayer_countdown(Some(at),now).into());}else{w.set_prayer_next_name("Jadwal belum tersedia".into());w.set_prayer_next_time("--:--".into());w.set_prayer_countdown("--:--:--".into());}
  let rows=entries.into_iter().map(|(name,time)|{let at=prayer_at((y,m,d),time,offset);let state=if next.map(|x|x.0)==Some(name){1}else if at.map(|t|t<=now).unwrap_or(false){2}else{0};PrayerItem{name:name.into(),time:if time.is_empty(){"--:--".into()}else{time.into()},state}}).collect::<Vec<_>>();
  w.set_prayer_items(ModelRc::from(Rc::new(VecModel::from(rows))));w.set_prayer_status(s.error.clone().into());
- if ramadan{let im=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.imsak,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.imsak,offset)));let bu=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.maghrib,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.maghrib,offset)));w.set_ramadan_date(format!("{d:02}/{m:02}/{y}").into());w.set_ramadan_imsak_countdown(prayer_countdown(im,now).into());w.set_ramadan_buka_countdown(prayer_countdown(bu,now).into());w.set_ramadan_imsak_time(format!("Imsak {}",today.as_ref().map(|x|x.imsak.as_str()).unwrap_or("--:--")).into());w.set_ramadan_buka_time(format!("Maghrib {}",today.as_ref().map(|x|x.maghrib.as_str()).unwrap_or("--:--")).into());}
+ {let tm=|t:&str|if t.is_empty(){"--:--".to_string()}else{t.to_string()};
+  let (im,te)=today.as_ref().map(|x|(tm(&x.imsak),tm(&x.terbit))).unwrap_or(("--:--".into(),"--:--".into()));
+  w.set_prayer_meta(format!("Imsak {im} \u{00B7} Terbit {te}").into());
+  let tomorrow_next=next.map(|x|reminder::local_parts(x.2,offset).2!=d).unwrap_or(false);
+  w.set_prayer_when(if next.is_none(){""}else if tomorrow_next{"Besok"}else{"Hari ini"}.into());
+  let sheet:Vec<(&str,String)>=match today.as_ref(){Some(x)=>vec![("Imsak",tm(&x.imsak)),("Subuh",tm(&x.subuh)),("Terbit",tm(&x.terbit)),("Dzuhur",tm(&x.dzuhur)),("Ashar",tm(&x.ashar)),("Maghrib",tm(&x.maghrib)),("Isya",tm(&x.isya))],None=>["Imsak","Subuh","Terbit","Dzuhur","Ashar","Maghrib","Isya"].into_iter().map(|n|(n,"--:--".to_string())).collect()};
+  w.set_prayer_imsakiyah(ModelRc::from(Rc::new(VecModel::from(sheet.into_iter().map(|(n,t)|PrayerItem{name:n.into(),time:t.into(),state:0}).collect::<Vec<_>>()))));}
+ if ramadan{let im=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.imsak,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.imsak,offset)));let bu=today.as_ref().and_then(|x|prayer_at((y,m,d),&x.maghrib,offset)).filter(|t|*t>now).or_else(||tomorrow.as_ref().and_then(|x|prayer_at((ny,nm,nd),&x.maghrib,offset)));{let (_,wd)=platform::local_sec_wday();w.set_ramadan_date(format!("{}, {d} {} {y}",ID_DAYS[(wd%7) as usize],ID_MONTHS[(m.clamp(1,12)-1) as usize]).into());}w.set_ramadan_imsak_countdown(prayer_countdown(im,now).into());w.set_ramadan_buka_countdown(prayer_countdown(bu,now).into());w.set_ramadan_imsak_time(format!("Imsak {}",today.as_ref().map(|x|x.imsak.as_str()).unwrap_or("--:--")).into());w.set_ramadan_buka_time(format!("Maghrib {}",today.as_ref().map(|x|x.maghrib.as_str()).unwrap_or("--:--")).into());}
 }
 fn load_ramadan()->bool{std::fs::read_to_string(notch_core::paths::data_file("ramadan.json")).ok().map(|s|s.trim()=="true").unwrap_or(false)}
 
@@ -1826,7 +2007,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     shell.monitor_hint.set(next_pos.map(|_| (center_x, center_y)));
                     if let Some(w) = weak.upgrade() {
                         let from = w.window().position();
-                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                         shell.place(&w, size);
                         let target = w.window().position();
                         if (from.x, from.y) != (target.x, target.y) {
@@ -2297,7 +2478,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let ramadan=Rc::new(Cell::new(load_ramadan()));win.set_ramadan_enabled(ramadan.get());
     let dhikr_idx=Rc::new(Cell::new(0usize));
     let dhikr=[("أَسْتَغْفِرُ اللّٰهَ","Astaghfirullah","Aku memohon ampun kepada Allah. Dibaca 3x"),("اللّٰهُمَّ رَبَّ هٰذِهِ الدَّعْوَةَ التَّامَّةَ","Allahumma rabba hadzihid-da'watit-tammah","Doa setelah adzan"),("سُبْحَانَ اللّٰهِ وَبِحَمْدِهِ","Subhanallahi wa bihamdihi","Maha Suci Allah dan segala puji bagi-Nya. Dibaca 33x")];
-    let set_dhikr:Rc<dyn Fn(&NotchWindow,usize)>=Rc::new(move|w,i|{let x=dhikr[i%3];w.set_dhikr_arabic(x.0.into());w.set_dhikr_latin(x.1.into());w.set_dhikr_meaning(x.2.into());});set_dhikr(&win,0);
+    let set_dhikr:Rc<dyn Fn(&NotchWindow,usize)>=Rc::new(move|w,i|{let x=dhikr[i%3];w.set_dhikr_arabic(x.0.into());w.set_dhikr_latin(x.1.into());w.set_dhikr_meaning(x.2.into());w.set_dhikr_idx((i%3) as i32);});set_dhikr(&win,0);
     let prayer_busy=Arc::new(AtomicBool::new(false));let prayer_data=Arc::new(Mutex::new(PrayerSchedule::default()));
     let prayer_fired=Rc::new(RefCell::new(std::collections::HashSet::<String>::new()));
     let weather_busy = Arc::new(AtomicBool::new(false));
@@ -2452,7 +2633,23 @@ fn main() -> Result<(), slint::PlatformError> {
 
     {
         let sync = sync_pages.clone();
-        win.on_page_changed(move |_| sync());
+        let (weak_pc, shell_pc) = (win.as_weak(), shell.clone());
+        win.on_page_changed(move |_| {
+            sync();
+            if let Some(w) = weak_pc.upgrade() {
+                if w.get_expanded() {
+                    shell_pc.place(&w, expanded_size(&w));
+                }
+            }
+        });
+        let (weak_nx, shell_nx) = (win.as_weak(), shell.clone());
+        win.on_notes_expand_toggled(move |_| {
+            if let Some(w) = weak_nx.upgrade() {
+                if w.get_expanded() {
+                    shell_nx.place(&w, expanded_size(&w));
+                }
+            }
+        });
     }
     {
         let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
@@ -2460,6 +2657,23 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut guard = store.borrow_mut();
             let s = guard.get_or_insert_with(|| NotesStore::open(&path));
             show_notes(&model, s.add(text.as_str()));
+        });
+    }
+    let note_details: Rc<RefCell<std::collections::HashMap<String, NoteDetailWindow>>> = Rc::default();
+    {
+        let (weak, store, model, path, details) =
+            (win.as_weak(), notes_store.clone(), notes_model.clone(), notes_path.clone(), note_details.clone());
+        win.on_open_note(move |id| {
+            let accent = weak.upgrade().map(|w| Theme::get(&w).get_accent()).unwrap_or(slint::Color::from_rgb_u8(59, 130, 246));
+            open_note_detail(id.as_str(), &store, &path, &model, &details, accent);
+        });
+    }
+    {
+        let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        win.on_clear_notes(move || {
+            let mut guard = store.borrow_mut();
+            let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+            show_notes(&model, s.clear());
         });
     }
     {
@@ -2548,14 +2762,16 @@ fn main() -> Result<(), slint::PlatformError> {
     }
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
-      win.on_prayer_set_remind_min(move|v|{let mut p=prefs.borrow_mut();p.remind_min=(p.remind_min as i32+v).clamp(1,60)as u32;if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_min(p.remind_min.to_string().into());}});
+      win.on_prayer_set_remind_min(move|v|{let mut p=prefs.borrow_mut();p.remind_min=if v>=5&&p.remind_min as i32+v>60{5}else{(p.remind_min as i32+v).clamp(1,60)as u32};if let Err(e)=prayer::save_preferences(&p.mode,p.remind_before,p.remind_min){eprintln!("[Prayer] {e}");}if let Some(w)=weak.upgrade(){w.set_prayer_remind_min(p.remind_min.to_string().into());}});
     }
     {
-      let weak=win.as_weak();let enabled=ramadan.clone();
-      win.on_prayer_toggle_ramadan(move||{let v=!enabled.get();enabled.set(v);let path=notch_core::paths::data_file("ramadan.json");if let Some(d)=path.parent(){let _=std::fs::create_dir_all(d);}let _=std::fs::write(path,if v{"true"}else{"false"});if let Some(w)=weak.upgrade(){w.set_ramadan_enabled(v);}});
+      let weak=win.as_weak();let enabled=ramadan.clone();let shell_r=shell.clone();
+      win.on_prayer_toggle_ramadan(move||{let v=!enabled.get();enabled.set(v);let path=notch_core::paths::data_file("ramadan.json");if let Some(d)=path.parent(){let _=std::fs::create_dir_all(d);}let _=std::fs::write(path,if v{"true"}else{"false"});if let Some(w)=weak.upgrade(){w.set_ramadan_enabled(v);if w.get_expanded(){shell_r.place(&w,expanded_size(&w));}}});
     }
     {
       let weak=win.as_weak();let idx=dhikr_idx.clone();let set=set_dhikr.clone();
+      let (weak_p,idx_p,set_p)=(weak.clone(),idx.clone(),set.clone());
+      win.on_prayer_dhikr_prev(move||{let i=(idx_p.get()+2)%3;idx_p.set(i);if let Some(w)=weak_p.upgrade(){set_p(&w,i);}});
       win.on_prayer_dhikr_next(move||{let i=(idx.get()+1)%3;idx.set(i);if let Some(w)=weak.upgrade(){set(&w,i);}});
     }
 
@@ -2961,7 +3177,7 @@ fn main() -> Result<(), slint::PlatformError> {
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             shrink.stop();
-            shell.place(&w, EXPANDED);
+            shell.place(&w, if w.get_page_id() == "clock" || !w.get_idle_clock() { expanded_size(&w) } else { EXPANDED });
             // Dengan wajah jam, hub dibuka di halaman Jam (homePage di Tauri).
             if w.get_idle_clock() {
                 w.set_page_id("clock".into());
@@ -2986,6 +3202,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     let _ = std::fs::write(notch_core::paths::data_file("idle_face.txt"), if clock { "clock" } else { "eyes" });
                 }
             }
+            w.set_notes_expanded(false);
             w.set_expanded(false);
             w.set_cal_open(false); // kalender dan lirik ikut menutup saat notch menciut
             w.set_lyrics_open(false);
@@ -4686,7 +4903,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     shell.memo.set((None, 0));
                     if let Some(w) = weak.upgrade() {
                         apply_theme(&w, &palette);
-                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                         shell.place(&w, size);
                         if let Some(eye) = eye_runtime.borrow().as_ref() {
                             let mut eye = eye.borrow_mut();
@@ -4830,7 +5047,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     if let Some(w) = weak.upgrade() {
                         w.set_ui_scale(scale as f32);
-                        let size = if w.get_expanded() { EXPANDED } else { COLLAPSED };
+                        let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                         shell.place(&w, size);
                         w.set_behavior_scale(format!("{scale:.2}").into());
                         w.set_behavior_hover_open(hover_open.to_string().into());

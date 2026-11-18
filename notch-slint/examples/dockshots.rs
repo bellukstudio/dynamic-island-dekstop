@@ -174,6 +174,46 @@ fn main() {
     win.set_expanded(false);
     snap(&window, (300, 140), &format!("{out}/idle_clock.png"));
     win.set_idle_clock(false);
+    win.set_dock(0);
+    set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+    win.set_expanded(true);
+    win.set_page_id("notes".into());
+    win.set_notes_expanded(true);
+    snap(&window, (612, 338), &format!("{out}/notes_expanded.png"));
+    win.set_notes_expanded(false);
+    win.set_expanded(false);
+    {
+        let it=|n:&str,t:&str,st:i32| PrayerItem{name:n.into(),time:t.into(),state:st};
+        win.set_prayer_items(ModelRc::from(Rc::new(VecModel::from(vec![it("Subuh","04:34",2),it("Dzuhur","11:56",2),it("Ashar","15:12",1),it("Maghrib","17:58",0),it("Isya","19:08",0)]))));
+        win.set_prayer_imsakiyah(ModelRc::from(Rc::new(VecModel::from(vec![it("Imsak","04:24",0),it("Subuh","04:34",0),it("Terbit","05:50",0),it("Dzuhur","11:56",0),it("Ashar","15:12",0),it("Maghrib","17:58",0),it("Isya","19:08",0)]))));
+        win.set_prayer_next_name("Ashar".into());
+        win.set_prayer_next_time("15:12".into());
+        win.set_prayer_when("Hari ini".into());
+        win.set_prayer_countdown("00:42:17".into());
+        win.set_prayer_meta("Imsak 04:24 · Terbit 05:50".into());
+        win.set_prayer_city("Kota Bandung".into());
+        win.set_prayer_mode("adzan".into());
+        win.set_prayer_remind_before("true".into());
+        win.set_prayer_remind_min("10".into());
+        win.set_dhikr_arabic("أَسْتَغْفِرُ اللّٰهَ".into());
+        win.set_dhikr_latin("Astaghfirullah".into());
+        win.set_dhikr_meaning("Aku memohon ampun kepada Allah. Dibaca 3x".into());
+        win.set_ramadan_date("Selasa, 17 November 2026".into());
+        win.set_ramadan_imsak_countdown("08:21:09".into());
+        win.set_ramadan_buka_countdown("03:12:40".into());
+        win.set_ramadan_imsak_time("04:24".into());
+        win.set_ramadan_buka_time("17:58".into());
+        win.set_dock(0);
+        set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+        win.set_expanded(true);
+        win.set_page_id("prayer".into());
+        win.set_ramadan_enabled(false);
+        snap(&window, (612, 240), &format!("{out}/prayer_normal.png"));
+        win.set_ramadan_enabled(true);
+        snap(&window, (812, 578), &format!("{out}/prayer_ramadan.png"));
+        win.set_ramadan_enabled(false);
+        win.set_expanded(false);
+    }
     // Semua halaman hub utama (dock atas) untuk dibandingkan dengan Tauri
     {
         win.set_dock(0);
