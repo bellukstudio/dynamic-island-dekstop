@@ -959,6 +959,16 @@ fn paint_currency(
         error: s.rates_error.clone().into(),
         loading: s.loading,
     });
+    let currency_rows = CURRENCIES.iter().map(|(item_code, item_name)| {
+        let value = s.rates.as_ref().and_then(|rates| rates.idr_for(item_code));
+        CurrencyItem {
+            code: (*item_code).into(),
+            name: (*item_name).into(),
+            value: value.map(fx_idr).unwrap_or_else(|| "—".into()).into(),
+            selected: *item_code == code,
+        }
+    }).collect::<Vec<_>>();
+    w.set_currency_items(ModelRc::from(Rc::new(VecModel::from(currency_rows))));
     if w.get_currency_amount().as_str() != group_digits(&s.amount) {
         w.set_currency_amount(group_digits(&s.amount).into());
     }
@@ -2363,6 +2373,24 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
+        let (weak, state) = (win.as_weak(), currency.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_select_target(move |code, days| {
+            let Some(w) = weak.upgrade() else { return };
+            let selected_code = code.to_string();
+            {
+                let mut s = state.borrow_mut();
+                if let Some(index) = notch_core::currency::CURRENCIES.iter().position(|(candidate, _)| *candidate == selected_code.as_str()) {
+                    s.target = index;
+                    paint_currency(&w, &s, &gm, &lm, &am);
+                }
+            }
+            if w.get_currency_expanded() {
+                w.invoke_currency_chart_request(code, days);
+            }
+        });
+    }
+    {
         // Grafik riwayat kurs (mode diperluas). Token mencegah respons lama menimpa pilihan yang sudah berganti.
         let token = Arc::new(std::sync::atomic::AtomicU64::new(0));
         let weak = win.as_weak();
@@ -2370,24 +2398,27 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
             w.set_fx_chart_line("".into());
             w.set_fx_chart_area("".into());
+            w.set_fx_chart_last("".into());
+            w.set_fx_chart_change("".into());
+            w.set_fx_chart_max("".into());
+            w.set_fx_chart_min("".into());
             w.set_fx_chart_status("Memuat grafik\u{2026}".into());
             let mine = token.fetch_add(1, Ordering::SeqCst) + 1;
             let (token, weak, code, days) = (token.clone(), w.as_weak(), code.to_string(), i64::from(days.clamp(7, 730)));
             std::thread::spawn(move || {
                 let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-                let result = notch_core::currency::fetch_yahoo_chart(&format!("{code}IDR=X"), now - days * 86_400, now + 86_400)
-                    .map(|v| notch_core::currency::parse_fx_points(&v))
+                let result = notch_core::currency::fetch_fx_history(&code, now - days * 86_400, now + 86_400)
                     .and_then(|pts| notch_core::currency::build_fx_chart(&pts).ok_or_else(|| "Riwayat kosong".to_string()));
                 if token.load(Ordering::SeqCst) != mine { return; }
                 let _ = weak.upgrade_in_event_loop(move |w| match result {
-                    Ok(c) => {
-                        let pct = if c.first > 0.0 { (c.last - c.first) / c.first * 100.0 } else { 0.0 };
-                        w.set_fx_chart_line(c.line.into());
-                        w.set_fx_chart_area(c.area.into());
-                        w.set_fx_chart_status("".into());
-                        w.set_fx_chart_max(fx_idr(c.max).into());
-                        w.set_fx_chart_min(fx_idr(c.min).into());
-                        w.set_fx_chart_last(fx_idr(c.last).into());
+                    Ok(chart) => {
+                        let pct = if chart.first > 0.0 { (chart.last - chart.first) / chart.first * 100.0 } else { 0.0 };
+                        w.set_fx_chart_line(chart.line.into());
+                        w.set_fx_chart_area(chart.area.into());
+                        w.set_fx_chart_status("Riwayat kurs harian".into());
+                        w.set_fx_chart_max(fx_idr(chart.max).into());
+                        w.set_fx_chart_min(fx_idr(chart.min).into());
+                        w.set_fx_chart_last(fx_idr(chart.last).into());
                         w.set_fx_chart_change(format!("{}{:.2}%", if pct >= 0.0 { "+" } else { "" }, pct).into());
                         w.set_fx_chart_up(pct >= 0.0);
                     }
@@ -2396,6 +2427,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_fx_chart_area("".into());
                         w.set_fx_chart_last("".into());
                         w.set_fx_chart_change("".into());
+                        w.set_fx_chart_max("".into());
+                        w.set_fx_chart_min("".into());
                         w.set_fx_chart_status(format!("Grafik {code} belum tersedia ({error})").into());
                     }
                 });
