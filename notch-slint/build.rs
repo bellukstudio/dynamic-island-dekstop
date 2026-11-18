@@ -15,13 +15,14 @@ fn copy_greeting_resources() {
         panic!("Greeting resources not found: {}", source_dir.display());
     }
 
-    // OUT_DIR = target/<profile>/build/<crate-hash>/out.
-    // Place the copied folder beside the executable so it is bundled with cargo run/build.
+    // Find target/<profile> by its name instead of relying on a fixed number of
+    // parent directories: Cargo may add crate/hash directory levels to OUT_DIR.
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").expect("OUT_DIR not set"));
+    let profile = env::var("PROFILE").expect("PROFILE not set");
     let profile_dir = out_dir
         .ancestors()
-        .nth(3)
-        .expect("could not resolve Cargo profile output directory");
+        .find(|path| path.file_name().and_then(|name| name.to_str()) == Some(profile.as_str()))
+        .unwrap_or_else(|| panic!("could not find Cargo {profile} directory from OUT_DIR={}", out_dir.display()));
     let destination_dir = profile_dir.join("greeting");
 
     if destination_dir.exists() {
