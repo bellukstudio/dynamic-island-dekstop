@@ -1304,9 +1304,7 @@ component CurrencyPage inherits HorizontalLayout {
         }
         HorizontalLayout {
             height: 15px;
-            spacing: 8px;
-            Text { text: root.chart-line != "" ? "Riwayat kurs harian" : root.chart-status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-            Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 9px; font-weight: 700; vertical-alignment: center; }
+            Text { text: root.chart-status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
         }
     }
 
