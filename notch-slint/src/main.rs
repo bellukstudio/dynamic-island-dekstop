@@ -456,7 +456,7 @@ const GREETING_INLINE: (u32, u32) = (420, 112);
 // 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
 const EXPANDED: (u32, u32) = (612, 240);
 /// Dashboard Currency membutuhkan ruang vertikal untuk konverter dan ringkasan pasar.
-const EXPANDED_CURRENCY: (u32, u32) = (612, 456);
+const EXPANDED_CURRENCY: (u32, u32) = (812, 558);
 /// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
 const EXPANDED_TALL: (u32, u32) = (612, 338);
 
@@ -920,6 +920,24 @@ fn rupiah(value: f64) -> String {
     format!("Rp {}", fmt_id_number(value, if value >= 1000.0 { 0 } else { 2 }))
 }
 
+fn fmt_currency_value(value: f64, code: &str) -> String {
+    let decimals = if matches!(code, "JPY" | "KRW") { 0 } else { 2 };
+    let mut number = fmt_id_number(value, decimals);
+    if decimals > 0 {
+        while number.ends_with('0') { number.pop(); }
+        if number.ends_with(',') { number.pop(); }
+    }
+    let (symbol, spaced) = match code {
+        "USD" => ("US$", false), "SGD" => ("SGD", true), "EUR" => ("€", false),
+        "JPY" => ("JP¥", false), "MYR" => ("MYR", true), "CNY" => ("CN¥", false),
+        "GBP" => ("GBP", true), "AUD" => ("A$", false), "SAR" => ("SAR", true),
+        "KRW" => ("₩", false), "THB" => ("฿", false), "INR" => ("₹", false),
+        "CHF" => ("CHF", true), "HKD" => ("HK$", false), "CAD" => ("CA$", false),
+        _ => (code, true),
+    };
+    if spaced { format!("{symbol} {number}") } else { format!("{symbol}{number}") }
+}
+
 fn alert_text(a: &notch_core::currency::Alert) -> String {
     format!("{} {} {}", a.code, if a.above { "\u{2265}" } else { "\u{2264}" }, rupiah(a.target))
 }
@@ -940,7 +958,7 @@ fn paint_currency(
             let value = amount / idr;
             let decimals = if value >= 1_000_000.0 { 0 } else if value >= 0.01 { 2 } else { 4 };
             (
-                format!("{} {code}", fmt_id_number(value, decimals)),
+                fmt_currency_value(value, code),
                 format!("1 {code} = {}", rupiah(idr)),
             )
         }
@@ -953,6 +971,7 @@ fn paint_currency(
         name: name.into(),
         result: result.into(),
         rate: rate.into(),
+        alert_rate: per_unit.map(rupiah).unwrap_or_else(|| "—".to_string()).into(),
         updated: s.updated.clone().into(),
         stock_period: format!("MTD \u{00B7} 1 {}", SHORT_MONTHS[(month.clamp(1, 12) - 1) as usize]).into(),
         stock_status: if s.stock_error.is_empty() {
@@ -979,7 +998,7 @@ fn paint_currency(
     let row = |p: &notch_core::currency::StockPoint, positive: bool| StockRow {
         name: p.label.clone().into(),
         price: rupiah(p.last).into(),
-        change: format!("{:+.1}%", p.change).replace('.', ",").into(),
+        change: format!("{:+.2}%", p.change).replace('.', ",").into(),
         positive,
     };
     gainers.set_vec(s.stocks.iter().filter(|p| p.change > 0.0).take(3).map(|p| row(p, true)).collect::<Vec<_>>());
@@ -2412,18 +2431,24 @@ fn main() -> Result<(), slint::PlatformError> {
             std::thread::spawn(move || {
                 let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
                 let result = notch_core::currency::fetch_fx_history(&code, now - days * 86_400, now + 86_400)
-                    .and_then(|pts| notch_core::currency::build_fx_chart(&pts).ok_or_else(|| "Riwayat kosong".to_string()));
+                    .and_then(|pts| {
+                        let count = pts.len();
+                        notch_core::currency::build_fx_chart(&pts)
+                            .map(|chart| (chart, count))
+                            .ok_or_else(|| "Riwayat kosong".to_string())
+                    });
                 if token.load(Ordering::SeqCst) != mine { return; }
                 let _ = weak.upgrade_in_event_loop(move |w| match result {
-                    Ok(chart) => {
+                    Ok((chart, count)) => {
                         let pct = if chart.first > 0.0 { (chart.last - chart.first) / chart.first * 100.0 } else { 0.0 };
+                        let period = match days { 30 => "30 hari", 90 => "3 bulan", 180 => "6 bulan", 365 => "1 tahun", _ => "periode dipilih" };
                         w.set_fx_chart_line(chart.line.into());
                         w.set_fx_chart_area(chart.area.into());
-                        w.set_fx_chart_status("Riwayat kurs harian".into());
+                        w.set_fx_chart_status(format!("Kurs penutupan harian · {count} titik data · sumber Yahoo Finance").into());
                         w.set_fx_chart_max(fx_idr(chart.max).into());
                         w.set_fx_chart_min(fx_idr(chart.min).into());
                         w.set_fx_chart_last(fx_idr(chart.last).into());
-                        w.set_fx_chart_change(format!("{}{:.2}%", if pct >= 0.0 { "+" } else { "" }, pct).into());
+                        w.set_fx_chart_change(format!("{}{:.2}% · {period}", if pct >= 0.0 { "+" } else { "" }, pct).replace('.', ",").into());
                         w.set_fx_chart_up(pct >= 0.0);
                     }
                     Err(error) => {
