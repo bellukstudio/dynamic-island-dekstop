@@ -350,7 +350,11 @@ fn unix_from_iso_date(value: &str) -> Option<i64> {
     if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
         return None;
     }
-    Some(days_from_civil(year, month, day) * 86_400)
+    let days = days_from_civil(year, month, day);
+    if civil_from_days(days) != (year, month, day) {
+        return None;
+    }
+    Some(days * 86_400)
 }
 
 /// Riwayat kurs untuk panel Currency yang diperluas.
@@ -412,6 +416,20 @@ mod fx_chart_tests {
         assert!(c.line.starts_with("M 0.00 94.00 "));
         assert!(c.line.ends_with("L 240.00 6.00"));
         assert!(build_fx_chart(&pts[..1]).is_none());
+    }
+
+    #[test]
+    fn frankfurter_dates_round_trip_across_leap_day() {
+        let timestamp = unix_from_iso_date("2024-02-29").unwrap();
+        assert_eq!(iso_date_from_unix(timestamp), "2024-02-29");
+        assert_eq!(unix_from_iso_date("1970-01-01"), Some(0));
+    }
+
+    #[test]
+    fn frankfurter_rejects_invalid_calendar_dates() {
+        assert_eq!(unix_from_iso_date("2023-02-29"), None);
+        assert_eq!(unix_from_iso_date("2024-13-01"), None);
+        assert_eq!(unix_from_iso_date("not-a-date"), None);
     }
 
     #[test]
