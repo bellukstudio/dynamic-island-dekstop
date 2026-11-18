@@ -338,7 +338,9 @@ pub fn build_fx_chart(points: &[(i64, f64)]) -> Option<FxChart> {
 }
 
 fn iso_date_from_unix(timestamp: i64) -> String {
-    let (year, month, day) = civil_from_days(timestamp.div_euclid(86_400));
+    let days = timestamp.div_euclid(86_400);
+    let (year, month) = civil_from_days(days);
+    let day = days - days_from_civil(year, month, 1) + 1;
     format!("{year:04}-{month:02}-{day:02}")
 }
 
@@ -351,7 +353,9 @@ fn unix_from_iso_date(value: &str) -> Option<i64> {
         return None;
     }
     let days = days_from_civil(year, month, day);
-    if civil_from_days(days) != (year, month, day) {
+    // civil_from_days hanya mengembalikan tahun dan bulan. Cocokkan keduanya
+    // agar tanggal yang dinormalisasi (mis. 31 Februari) ditolak.
+    if civil_from_days(days) != (year, month) {
         return None;
     }
     Some(days * 86_400)
