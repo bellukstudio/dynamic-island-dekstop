@@ -280,3 +280,83 @@ mod tests {
         assert_eq!(CURRENCIES.len(), 15);
     }
 }
+
+// ---------- Grafik riwayat kurs (halaman Currency yang diperluas) ----------
+
+/// Ambil pasangan (waktu detik, penutupan) dari respons Yahoo chart. Nilai tidak valid dibuang.
+pub fn parse_fx_points(data: &Value) -> Vec<(i64, f64)> {
+    let ts = data.pointer("/chart/result/0/timestamp").and_then(Value::as_array);
+    let closes = data.pointer("/chart/result/0/indicators/quote/0/close").and_then(Value::as_array);
+    let (Some(ts), Some(closes)) = (ts, closes) else { return Vec::new() };
+    let mut out: Vec<(i64, f64)> = ts
+        .iter()
+        .zip(closes.iter())
+        .filter_map(|(t, c)| {
+            let (t, c) = (t.as_i64()?, c.as_f64()?);
+            (t > 0 && c.is_finite() && c > 0.0).then_some((t, c))
+        })
+        .collect();
+    out.sort_by_key(|p| p.0);
+    out
+}
+
+/// Lebar ruang grafik. Tinggi 100. Rasionya (2,4:1) mendekati panel grafik di Slint, karena `Path` Slint mempertahankan rasio viewbox.
+pub const FX_CHART_W: f64 = 240.0;
+
+/// Garis dan area grafik dalam ruang `FX_CHART_W` x 100 (untuk `Path` Slint dengan viewbox 240 x 100).
+#[derive(Clone, Debug, PartialEq)]
+pub struct FxChart {
+    pub line: String,
+    pub area: String,
+    pub min: f64,
+    pub max: f64,
+    pub first: f64,
+    pub last: f64,
+}
+
+pub fn build_fx_chart(points: &[(i64, f64)]) -> Option<FxChart> {
+    if points.len() < 2 { return None; }
+    let min = points.iter().map(|p| p.1).fold(f64::INFINITY, f64::min);
+    let max = points.iter().map(|p| p.1).fold(f64::NEG_INFINITY, f64::max);
+    let (t0, t1) = (points[0].0 as f64, points[points.len() - 1].0 as f64);
+    let span_t = (t1 - t0).max(1.0);
+    let span_v = max - min;
+    let xy = |p: &(i64, f64)| {
+        let x = (p.0 as f64 - t0) / span_t * FX_CHART_W;
+        // Sisakan 6% di atas dan bawah supaya garis tidak menempel pada tepi.
+        let y = if span_v <= f64::EPSILON { 50.0 } else { 94.0 - (p.1 - min) / span_v * 88.0 };
+        (x, y)
+    };
+    let mut line = String::new();
+    for (i, p) in points.iter().enumerate() {
+        let (x, y) = xy(p);
+        line.push_str(&format!("{} {:.2} {:.2} ", if i == 0 { "M" } else { "L" }, x, y));
+    }
+    let (lx, _) = xy(&points[points.len() - 1]);
+    let area = format!("{}L {:.2} 100 L 0 100 Z", line, lx);
+    Some(FxChart { line: line.trim_end().to_string(), area, min, max, first: points[0].1, last: points[points.len() - 1].1 })
+}
+
+#[cfg(test)]
+mod fx_chart_tests {
+    use super::*;
+
+    #[test]
+    fn parses_and_builds_chart() {
+        let json: Value = serde_json::from_str(r#"{"chart":{"result":[{"timestamp":[300,100,200,400],
+            "indicators":{"quote":[{"close":[16000.0,15000.0,null,17000.0]}]}}]}}"#).unwrap();
+        let pts = parse_fx_points(&json);
+        assert_eq!(pts, vec![(100, 15000.0), (300, 16000.0), (400, 17000.0)]);
+        let c = build_fx_chart(&pts).unwrap();
+        assert_eq!((c.min, c.max, c.first, c.last), (15000.0, 17000.0, 15000.0, 17000.0));
+        assert!(c.line.starts_with("M 0.00 94.00 "));
+        assert!(c.line.ends_with("L 240.00 6.00"));
+        assert!(build_fx_chart(&pts[..1]).is_none());
+    }
+
+    #[test]
+    fn flat_series_sits_in_the_middle() {
+        let c = build_fx_chart(&[(1, 5.0), (2, 5.0)]).unwrap();
+        assert!(c.line.contains("50.00"));
+    }
+}

@@ -1030,8 +1030,21 @@ component CurrencyPage inherits HorizontalLayout {
     callback step-target(int);
     callback add-alert(bool, string);
     callback remove-alert(string);
+    callback chart-request(string, int);
+    in property <string> chart-line;
+    in property <string> chart-area;
+    in property <string> chart-status;
+    in property <string> chart-max;
+    in property <string> chart-min;
+    in property <string> chart-last;
+    in property <string> chart-change;
+    in property <bool> chart-up: true;
     property <bool> alert-mode: false;
     property <bool> above: true;
+    // Mode diperluas (tombol grafik): panel saham diganti grafik riwayat kurs mata uang terpilih, seperti `.cu-expanded` di Tauri.
+    in-out property <bool> expanded: false;
+    property <int> range: 0;
+    function request-chart() { root.chart-request(root.d.code, [30, 90, 180, 365][root.range]); }
     // Halaman kurs (`.p-currency` di Tauri): kiri konversi Rupiah, kanan saham IDX; alert kurs di panel tersendiri.
     padding-left: 22px;
     padding-right: 26px;
@@ -1053,7 +1066,15 @@ component CurrencyPage inherits HorizontalLayout {
                 Text { text: "Alert" + (root.alerts.length > 0 ? " " + root.alerts.length : ""); color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
                 al-ta := TouchArea { clicked => { root.alert-mode = true; } }
             }
-            RoundButton { size: 22px; icon-ratio: 0.6; outline: true; commands: Icons.reset; clicked => { root.refresh(); } }
+            RoundButton {
+                size: 22px;
+                icon-ratio: 0.6;
+                outline: !root.expanded;
+                primary: root.expanded;
+                commands: "M 3 17 L 9 11 L 13 15 L 21 6";
+                clicked => { root.expanded = !root.expanded; if (root.expanded) { root.request-chart(); } }
+            }
+            RoundButton { size: 22px; icon-ratio: 0.6; outline: true; commands: Icons.reset; clicked => { root.refresh(); if (root.expanded) { root.request-chart(); } } }
         }
         Rectangle {
             height: 28px;
@@ -1087,15 +1108,73 @@ component CurrencyPage inherits HorizontalLayout {
         HorizontalLayout {
             height: 20px;
             spacing: 6px;
-            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.step-target(-1); } }
+            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.step-target(-1); if (root.expanded) { root.request-chart(); } } }
             Text { text: root.d.code + " \u{00B7} " + root.d.name; color: Theme.text; font-size: 11px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
-            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.step-target(1); } }
+            RoundButton { size: 20px; icon-ratio: 0.55; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.step-target(1); if (root.expanded) { root.request-chart(); } } }
         }
         Text { text: root.d.error != "" ? root.d.error : (root.d.loading && root.d.result == "" ? "Memuat kurs..." : "\u{2248} " + root.d.result); color: root.d.error != "" ? #ff9b8f : Theme.text; font-size: root.d.error != "" ? 11px : 20px; font-weight: 700; overflow: elide; wrap: no-wrap; }
         Text { text: root.d.rate != "" ? root.d.rate + (root.d.updated != "" ? "  \u{00B7}  " + root.d.updated : "") : root.d.updated; color: Theme.text-faint; font-size: 9px; overflow: elide; }
     }
 
-    if !root.alert-mode: VerticalLayout {
+    if !root.alert-mode && root.expanded: VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 4px;
+        HorizontalLayout {
+            height: 22px;
+            spacing: 4px;
+            Text { text: root.d.code + " \u{00B7} " + root.d.name + " \u{2192} IDR"; color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+            for lbl[i] in ["30h", "3b", "6b", "1t"]: Rectangle {
+                width: 28px;
+                height: 20px;
+                border-radius: 10px;
+                background: root.range == i ? Theme.accent.with-alpha(0.32) : (rg-ta.has-hover ? Theme.chip-hover : Theme.chip);
+                Text { text: lbl; color: root.range == i ? Theme.text : Theme.text-dim; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+                rg-ta := TouchArea { clicked => { root.range = i; root.request-chart(); } }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            border-radius: 10px;
+            background: Theme.chip;
+            Path {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                viewbox-width: 240;
+                viewbox-height: 100;
+                commands: root.chart-area;
+                fill: (root.chart-up ? #7dffb0 : #ff8a8a).with-alpha(0.12);
+                visible: root.chart-area != "";
+            }
+            Path {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                viewbox-width: 240;
+                viewbox-height: 100;
+                commands: root.chart-line;
+                fill: transparent;
+                stroke: root.chart-up ? #7dffb0 : #ff8a8a;
+                stroke-width: 1.6px;
+                stroke-line-join: round;
+                stroke-line-cap: round;
+                visible: root.chart-line != "";
+            }
+            if root.chart-line == "": Text { text: root.chart-status != "" ? root.chart-status : "Memuat grafik\u{2026}"; color: Theme.text-faint; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; width: parent.width; height: parent.height; }
+            if root.chart-line != "": Text { x: 6px; y: 3px; text: root.chart-max; color: Theme.text-faint; font-size: 9px; }
+            if root.chart-line != "": Text { x: 6px; y: parent.height - 14px; text: root.chart-min; color: Theme.text-faint; font-size: 9px; }
+        }
+        HorizontalLayout {
+            height: 16px;
+            spacing: 8px;
+            Text { text: root.chart-last; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+            Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 11px; font-weight: 700; vertical-alignment: center; }
+        }
+    }
+
+    if !root.alert-mode && !root.expanded: VerticalLayout {
         horizontal-stretch: 1;
         spacing: 4px;
         HorizontalLayout {
@@ -2858,6 +2937,8 @@ export component NotchWindow inherits Window {
     in property <string> date-short: "";
     // Wajah idle berupa jam + tanggal (menggantikan mata) saat hub terakhir ditutup di halaman Jam.
     in property <bool> idle-clock: false;
+    // Notch menciut saat musik diputar: pil lebar (dock atas/melayang) atau kubah berisi cover bulat (bawah/samping).
+    property <bool> media-mini: root.media-playing && !root.expanded && !root.dragging && !root.greeting-inline-visible;
     in property <string> day-text: "";
     in property <StatsView> stats;
     in property <CurrencyView> currency;
@@ -3103,6 +3184,16 @@ export component NotchWindow inherits Window {
     callback remove-note(string);
     callback save-note(string, string);
     callback currency-refresh();
+    callback currency-chart-request(string, int);
+    in-out property <bool> currency-expanded: false;
+    in property <string> fx-chart-line;
+    in property <string> fx-chart-area;
+    in property <string> fx-chart-status;
+    in property <string> fx-chart-max;
+    in property <string> fx-chart-min;
+    in property <string> fx-chart-last;
+    in property <string> fx-chart-change;
+    in property <bool> fx-chart-up: true;
     callback currency-amount-edited(string);
     callback currency-quick(int);
     callback currency-step-target(int);
@@ -3225,7 +3316,7 @@ export component NotchWindow inherits Window {
             : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px)) * root.ui-scale;
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : (root.idle-clock ? 220px : 130px))) * root.play-body-scale-x));
+        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x));
         height: root.expanded ? 202px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px)) * root.play-body-scale-y));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
@@ -3285,11 +3376,11 @@ export component NotchWindow inherits Window {
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 animate opacity { duration: 120ms; }
-                visible: !root.dragging && !root.greeting-inline-visible && !(root.idle-clock && root.dock < 2);
+                visible: !root.dragging && !root.greeting-inline-visible && !root.media-mini && !(root.idle-clock && root.dock < 2);
             }
 
             // Wajah jam: jam + detik di kiri, tanggal pendek di kanan; tengah dikosongkan untuk titik privasi.
-            if root.idle-clock && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible: HorizontalLayout {
+            if root.idle-clock && !root.media-mini && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible: HorizontalLayout {
                 x: 0px;
                 y: 0px;
                 width: parent.width;
@@ -3299,6 +3390,53 @@ export component NotchWindow inherits Window {
                 Text { text: root.clock-text + ":" + root.sec-text; color: Theme.text; font-size: 12.5px; font-weight: 700; vertical-alignment: center; }
                 Rectangle { horizontal-stretch: 1; }
                 Text { text: root.date-short; color: Theme.text-dim; font-size: 11.5px; vertical-alignment: center; }
+            }
+
+            // Media mini, dock atas/melayang (gambar 2): cover kecil di kiri, equalizer di kanan; tengah kosong untuk titik privasi.
+            if root.media-mini && root.dock < 2: Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                Rectangle {
+                    x: 14px;
+                    y: 6px;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 6px;
+                    background: Theme.chip;
+                    clip: true;
+                    if root.media-has-art: Image { source: root.media-art; width: 22px; height: 22px; image-fit: cover; }
+                }
+                EqBars { x: parent.width - 16px - 18px; y: 10px; width: 18px; height: 14px; playing: true; }
+            }
+
+            // Media mini, dock bawah/samping (gambar 1): cover bulat bercincin aksen di tengah kubah.
+            if root.media-mini && root.dock >= 2: Rectangle {
+                property <length> d: root.dock == 2 ? 30px : 38px;
+                x: root.dock == 2 ? (parent.width - self.width) / 2 : (root.dock == 3 ? 8px : parent.width - self.width - 8px);
+                y: root.dock == 2 ? 9px : (parent.height - self.height) / 2;
+                width: self.d;
+                height: self.d;
+                border-radius: self.d / 2;
+                background: Theme.chip;
+                border-width: 2px;
+                border-color: Theme.accent;
+                clip: true;
+                if root.media-has-art: Image { source: root.media-art; width: parent.width; height: parent.height; image-fit: cover; }
+                // Renderer software tidak memotong gambar mengikuti radius: sudut ditutup warna badan lewat Path even-odd (persegi dikurangi lingkaran).
+                if root.media-has-art: Path {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    viewbox-width: 100;
+                    viewbox-height: 100;
+                    fill-rule: evenodd;
+                    fill: Theme.body;
+                    commands: "M 0 0 H 100 V 100 H 0 Z M 0 50 A 50 50 0 1 0 100 50 A 50 50 0 1 0 0 50 Z";
+                }
+                if !root.media-has-art: EqBars { x: (parent.width - 18px) / 2; y: (parent.height - 14px) / 2; width: 18px; height: 14px; playing: true; }
             }
 
             // Greeting tampil sebagai companion inline di badan notch, bukan speech bubble terpisah.
@@ -3335,7 +3473,7 @@ export component NotchWindow inherits Window {
 
             // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
             Rectangle {
-                visible: !root.dragging && !root.expanded && !root.greeting-inline-visible && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
+                visible: !root.dragging && !root.expanded && !root.greeting-inline-visible && !root.media-mini && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
                 x: (root.dock >= 3 ? 23px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
                 y: (root.dock >= 3 ? 105px : (root.dock == 2 ? 27px : 27px)) + root.eyes-offset-y * 1px;
                 width: (root.eyes-mood == "happy" ? 14px
@@ -3749,6 +3887,16 @@ export component NotchWindow inherits Window {
                         step-target(n) => { root.currency-step-target(n); }
                         add-alert(up, t) => { root.currency-add-alert(up, t); }
                         remove-alert(id) => { root.currency-remove-alert(id); }
+                        chart-request(code, days) => { root.currency-chart-request(code, days); }
+                        expanded <=> root.currency-expanded;
+                        chart-line: root.fx-chart-line;
+                        chart-area: root.fx-chart-area;
+                        chart-status: root.fx-chart-status;
+                        chart-max: root.fx-chart-max;
+                        chart-min: root.fx-chart-min;
+                        chart-last: root.fx-chart-last;
+                        chart-change: root.fx-chart-change;
+                        chart-up: root.fx-chart-up;
                     }
                     if root.page-id == "notes": NotesPage {
                         notes: root.notes;

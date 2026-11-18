@@ -244,5 +244,50 @@ fn main() {
         win.set_cal_open(false);
         snap(&window, expanded, &format!("{out}/clock_with_hint.png"));
     }
+    // Notch menciut saat musik diputar: atas (bar), bawah dan samping (kubah bercover bulat).
+    {
+        let pal = Palette::from_appearance(&Appearance::default(), false);
+        apply_theme(&win, &pal);
+        win.set_expanded(false);
+        let mut buf = SharedPixelBuffer::<Rgba8Pixel>::new(64, 64);
+        for (i, px) in buf.make_mut_slice().iter_mut().enumerate() {
+            let (x, y) = ((i % 64) as u8, (i / 64) as u8);
+            *px = Rgba8Pixel { r: x.saturating_mul(4), g: 90, b: y.saturating_mul(4), a: 255 };
+        }
+        win.set_media_art(Image::from_rgba8(buf));
+        win.set_media_has_art(true);
+        win.set_media_playing(true);
+        for (name, dock, d, size) in [("top", 0, Dock::Top, (240, 38)), ("bottom", 2, Dock::Bottom, (100, 60)), ("left", 3, Dock::Left, (80, 140)), ("right", 4, Dock::Right, (80, 140))] {
+            win.set_dock(dock);
+            set_decor(&win, "default", pal.body, d, 1.0);
+            snap(&window, size, &format!("{out}/media_mini_{name}.png"));
+        }
+        win.set_media_playing(false);
+        win.set_dock(0);
+    }
+    // Currency diperluas: grafik riwayat kurs dengan data contoh (HANYA untuk memeriksa tata letak).
+    {
+        use notch_core::currency::build_fx_chart;
+        let pal = Palette::from_appearance(&Appearance::default(), false);
+        apply_theme(&win, &pal);
+        win.set_dock(0);
+        set_decor(&win, "default", pal.body, Dock::Top, 1.0);
+        win.set_expanded(true);
+        win.set_page_id("currency".into());
+        let pts: Vec<(i64, f64)> = (0..30).map(|i| (1_700_000_000 + i * 86_400, 16_200.0 + (i as f64 * 0.45).sin() * 180.0 + i as f64 * 9.0)).collect();
+        let c = build_fx_chart(&pts).unwrap();
+        win.set_fx_chart_line(c.line.into());
+        win.set_fx_chart_area(c.area.into());
+        win.set_fx_chart_max("Rp 16.642".into());
+        win.set_fx_chart_min("Rp 16.020".into());
+        win.set_fx_chart_last("Rp 16.461".into());
+        win.set_fx_chart_change("+1,84%".into());
+        win.set_fx_chart_up(true);
+        win.set_currency_expanded(false);
+        snap(&window, expanded, &format!("{out}/currency_collapsed_view.png"));
+        win.set_currency_expanded(true);
+        snap(&window, expanded, &format!("{out}/currency_chart.png"));
+        win.set_currency_expanded(false);
+    }
     println!("selesai: {out}");
 }
