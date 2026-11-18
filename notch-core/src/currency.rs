@@ -373,7 +373,8 @@ pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i
     }
 
     let start = iso_date_from_unix(period1);
-    let end = iso_date_from_unix(period2.saturating_sub(1));
+    // Frankfurter memakai tanggal kalender hingga hari ini; period2 untuk Yahoo bersifat eksklusif.
+    let end = iso_date_from_unix(now_secs());
     let url = format!("https://api.frankfurter.dev/v1/{start}..{end}?base={code}&symbols=IDR");
     let body = crate::http::get_text(&url, 12)
         .map_err(|error| format!("Yahoo Finance dan Frankfurter tidak tersedia: {error}"))?;
