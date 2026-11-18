@@ -4834,6 +4834,8 @@ export component NotchWindow inherits Window {
                         clear => { root.shelf-clear(); }
                     }
                     if root.page-id == "currency": CurrencyPage {
+                        width: parent.width;
+                        height: parent.height;
                         d: root.currency;
                         amount <=> root.currency-amount;
                         gainers: root.stock-gainers;
