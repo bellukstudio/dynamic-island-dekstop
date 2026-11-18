@@ -337,6 +337,65 @@ pub fn build_fx_chart(points: &[(i64, f64)]) -> Option<FxChart> {
     Some(FxChart { line: line.trim_end().to_string(), area, min, max, first: points[0].1, last: points[points.len() - 1].1 })
 }
 
+fn iso_date_from_unix(timestamp: i64) -> String {
+    let (year, month, day) = civil_from_days(timestamp.div_euclid(86_400));
+    format!("{year:04}-{month:02}-{day:02}")
+}
+
+fn unix_from_iso_date(value: &str) -> Option<i64> {
+    let mut parts = value.split('-');
+    let year = parts.next()?.parse::<i64>().ok()?;
+    let month = parts.next()?.parse::<i64>().ok()?;
+    let day = parts.next()?.parse::<i64>().ok()?;
+    if parts.next().is_some() || !(1..=12).contains(&month) || !(1..=31).contains(&day) {
+        return None;
+    }
+    Some(days_from_civil(year, month, day) * 86_400)
+}
+
+/// Riwayat kurs untuk panel Currency yang diperluas.
+/// Coba Yahoo Finance terlebih dahulu, lalu Frankfurter (ECB) sebagai fallback seperti Tauri.
+/// Hanya kode yang tercantum di CURRENCIES yang dapat dipakai.
+pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i64, f64)>, String> {
+    if !CURRENCIES.iter().any(|(allowed, _)| *allowed == code) {
+        return Err(format!("Mata uang tidak diizinkan: {code}"));
+    }
+    if period1 <= 0 || period2 <= period1 {
+        return Err("Rentang tanggal tidak valid".into());
+    }
+
+    let symbol = format!("{code}IDR=X");
+    if let Ok(data) = fetch_yahoo_chart(&symbol, period1, period2) {
+        let points = parse_fx_points(&data);
+        if points.len() >= 2 {
+            return Ok(points);
+        }
+    }
+
+    let start = iso_date_from_unix(period1);
+    let end = iso_date_from_unix(period2.saturating_sub(1));
+    let url = format!("https://api.frankfurter.dev/v1/{start}..{end}?base={code}&symbols=IDR");
+    let body = crate::http::get_text(&url, 12)
+        .map_err(|error| format!("Yahoo Finance dan Frankfurter tidak tersedia: {error}"))?;
+    let json: Value = serde_json::from_str(&body)
+        .map_err(|error| format!("Respons Frankfurter tidak valid: {error}"))?;
+    let mut points = json.get("rates")
+        .and_then(Value::as_object)
+        .map(|rates| {
+            rates.iter().filter_map(|(day, values)| {
+                let time = unix_from_iso_date(day)?;
+                let rate = values.get("IDR")?.as_f64()?;
+                (rate.is_finite() && rate > 0.0).then_some((time, rate))
+            }).collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    points.sort_by_key(|point| point.0);
+    if points.len() < 2 {
+        return Err(format!("Riwayat {code} belum tersedia dari Yahoo Finance maupun Frankfurter"));
+    }
+    Ok(points)
+}
+
 #[cfg(test)]
 mod fx_chart_tests {
     use super::*;
