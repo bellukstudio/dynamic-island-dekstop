@@ -1729,9 +1729,6 @@ component SettingsPage inherits VerticalLayout {
     in property <bool> nudge-only-silent: true;
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
-    in property <bool> greeting-speech-visible: false;
-    in property <string> greeting-message: "Halo!";
-    in property <string> greeting-detail: "Sapaan dari Notch";
     in property <bool> greeting-enabled: true;
     in property <string> greeting-mode: "random";
     in property <string> greeting-voice: "cewek";
@@ -3369,6 +3366,9 @@ export component NotchWindow inherits Window {
     in property <bool> nudge-only-silent: true;
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
+    in property <bool> greeting-speech-visible: false;
+    in property <string> greeting-message: "Halo!";
+    in property <string> greeting-detail: "Sapaan dari Notch";
     in property <bool> greeting-enabled: true;
     in property <string> greeting-mode: "random";
     in property <string> greeting-voice: "cewek";
