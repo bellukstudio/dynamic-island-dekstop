@@ -1159,6 +1159,57 @@ component CurrencyPage inherits HorizontalLayout {
     }
 
     if !root.alert-mode && root.expanded: VerticalLayout {
+        width: 184px;
+        spacing: 5px;
+        Rectangle {
+            height: 30px;
+            border-radius: 9px;
+            background: Theme.chip;
+            VerticalLayout {
+                x: 9px;
+                y: 3px;
+                width: parent.width - 18px;
+                spacing: 1px;
+                Text { text: "KURS KE RUPIAH"; color: Theme.text; font-size: 9px; font-weight: 700; }
+                Text { text: "Pilih mata uang"; color: Theme.text-faint; font-size: 8px; }
+            }
+        }
+        Flickable {
+            vertical-stretch: 1;
+            clip: true;
+            content-width: self.width;
+            content-height: max(self.height, root.currencies.length * 31px);
+            VerticalLayout {
+                width: parent.width;
+                spacing: 3px;
+                for item[i] in root.currencies: Rectangle {
+                    height: 30px;
+                    border-radius: 9px;
+                    background: item.selected ? Theme.accent.with-alpha(0.22) : (currency-row-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.58));
+                    border-width: item.selected ? 1px : 0px;
+                    border-color: Theme.accent.with-alpha(0.65);
+                    HorizontalLayout {
+                        x: 8px;
+                        width: parent.width - 16px;
+                        height: parent.height;
+                        spacing: 4px;
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            preferred-width: 0px;
+                            alignment: center;
+                            spacing: 1px;
+                            Text { text: item.code; color: Theme.text; font-size: 10px; font-weight: 700; }
+                            Text { text: item.name; color: Theme.text-faint; font-size: 8px; overflow: elide; }
+                        }
+                        Text { text: item.value; color: item.value == "—" ? Theme.text-faint : Theme.text; font-size: 9px; font-weight: 650; vertical-alignment: center; horizontal-alignment: right; }
+                    }
+                    currency-row-ta := TouchArea { clicked => { root.select-currency(item.code, [30, 90, 180, 365][root.range]); } }
+                }
+            }
+        }
+    }
+
+    if !root.alert-mode && root.expanded: VerticalLayout {
         horizontal-stretch: 1;
         spacing: 5px;
         HorizontalLayout {
@@ -1173,6 +1224,16 @@ component CurrencyPage inherits HorizontalLayout {
                 Text { text: root.chart-last != "" ? "1 " + root.d.code + " = " + root.chart-last : root.chart-status; color: Theme.text; font-size: 13px; font-weight: 750; overflow: elide; }
             }
             Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 10px; font-weight: 700; vertical-alignment: center; }
+            Rectangle {
+                width: 64px;
+                height: 22px;
+                border-radius: 11px;
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.55);
+                background: Theme.accent.with-alpha(0.18);
+                Text { text: "↙ Ringkas"; color: Theme.text; font-size: 9px; font-weight: 650; horizontal-alignment: center; vertical-alignment: center; }
+                collapse-ta := TouchArea { clicked => { root.expanded = false; } }
+            }
         }
         HorizontalLayout {
             height: 21px;
@@ -1239,57 +1300,6 @@ component CurrencyPage inherits HorizontalLayout {
             spacing: 8px;
             Text { text: root.chart-line != "" ? "Riwayat kurs harian" : root.chart-status; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
             Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 9px; font-weight: 700; vertical-alignment: center; }
-        }
-    }
-
-    if !root.alert-mode && root.expanded: VerticalLayout {
-        width: 184px;
-        spacing: 5px;
-        Rectangle {
-            height: 30px;
-            border-radius: 9px;
-            background: Theme.chip;
-            VerticalLayout {
-                x: 9px;
-                y: 3px;
-                width: parent.width - 18px;
-                spacing: 1px;
-                Text { text: "KURS KE RUPIAH"; color: Theme.text; font-size: 9px; font-weight: 700; }
-                Text { text: "Pilih mata uang"; color: Theme.text-faint; font-size: 8px; }
-            }
-        }
-        Flickable {
-            vertical-stretch: 1;
-            clip: true;
-            content-width: self.width;
-            content-height: max(self.height, root.currencies.length * 31px);
-            VerticalLayout {
-                width: parent.width;
-                spacing: 3px;
-                for item[i] in root.currencies: Rectangle {
-                    height: 30px;
-                    border-radius: 9px;
-                    background: item.selected ? Theme.accent.with-alpha(0.22) : (currency-row-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.58));
-                    border-width: item.selected ? 1px : 0px;
-                    border-color: Theme.accent.with-alpha(0.65);
-                    HorizontalLayout {
-                        x: 8px;
-                        width: parent.width - 16px;
-                        height: parent.height;
-                        spacing: 4px;
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            preferred-width: 0px;
-                            alignment: center;
-                            spacing: 1px;
-                            Text { text: item.code; color: Theme.text; font-size: 10px; font-weight: 700; }
-                            Text { text: item.name; color: Theme.text-faint; font-size: 8px; overflow: elide; }
-                        }
-                        Text { text: item.value; color: item.value == "—" ? Theme.text-faint : Theme.text; font-size: 9px; font-weight: 650; vertical-alignment: center; horizontal-alignment: right; }
-                    }
-                    currency-row-ta := TouchArea { clicked => { root.select-currency(item.code, [30, 90, 180, 365][root.range]); } }
-                }
-            }
         }
     }
 
