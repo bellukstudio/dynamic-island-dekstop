@@ -2202,8 +2202,8 @@ component SettingsPage inherits VerticalLayout {
                 Chip { label: "Suara sistem"; selected: greeting-voice-input.text == "system"; clicked => { greeting-voice-input.text = "system"; } }
             }
             Rectangle { height: 1px; background: #ffffff18; }
-            Text { text: "TEKS SAPAAN KUSTOM · MAKS. 120 KARAKTER"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
-            greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; }
+            Text { text: "TEKS SAPAAN KUSTOM · MAKS. 120 KARAKTER"; color: Theme.text-faint; font-size: 8px; font-weight: 700; visible: greeting-mode-input.text == "custom"; }
+            greeting-custom-input := TextInput { text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; visible: greeting-mode-input.text == "custom"; }
             HorizontalLayout {
                 Chip { label: "Reset default"; clicked => {
                     greeting-enabled-input.text = "true";
