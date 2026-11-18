@@ -1140,12 +1140,26 @@ component CurrencyPage inherits VerticalLayout {
             }
             ex-ta := TouchArea { clicked => { root.expanded = !root.expanded; root.picker-open = false; if (root.expanded) { root.request-chart(); } } }
         }
-        RoundButton {
-            size: 30px;
-            icon-ratio: 0.58;
-            outline: true;
-            commands: Icons.reset;
-            clicked => { root.refresh(); if (root.expanded) { root.request-chart(); } }
+        Rectangle {
+            width: 82px;
+            height: 30px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Theme.text-faint.with-alpha(0.16);
+            background: refresh-ta.has-hover ? Theme.chip-hover : Theme.chip;
+            HorizontalLayout {
+                spacing: 6px;
+                alignment: center;
+                Path {
+                    width: 13px; height: 13px;
+                    viewbox-width: 24; viewbox-height: 24;
+                    commands: Icons.reset;
+                    fill: transparent; stroke: Theme.text;
+                    stroke-width: 1.8px; stroke-linecap: round; stroke-linejoin: round;
+                }
+                Text { text: "Perbarui"; color: Theme.text; font-size: 9px; font-weight: 650; }
+            }
+            refresh-ta := TouchArea { clicked => { root.refresh(); if (root.expanded) { root.request-chart(); } } }
         }
     }
 
@@ -1420,7 +1434,12 @@ component CurrencyPage inherits VerticalLayout {
                                         Text { text: g.name; color: Theme.text; font-size: 10px; font-weight: 750; overflow: elide; }
                                         Text { text: g.price; color: Theme.text-faint; font-size: 8px; overflow: elide; }
                                     }
-                                    Text { text: g.change; color: #68dfb1; font-size: 9px; font-weight: 750; vertical-alignment: center; }
+                                    Rectangle {
+                                        width: 52px; height: 20px;
+                                        border-radius: 10px;
+                                        background: #43d9a020;
+                                        Text { text: g.change; color: #68dfb1; font-size: 8px; font-weight: 750; horizontal-alignment: center; vertical-alignment: center; }
+                                    }
                                 }
                             }
                         }
@@ -1455,7 +1474,12 @@ component CurrencyPage inherits VerticalLayout {
                                         Text { text: l.name; color: Theme.text; font-size: 10px; font-weight: 750; overflow: elide; }
                                         Text { text: l.price; color: Theme.text-faint; font-size: 8px; overflow: elide; }
                                     }
-                                    Text { text: l.change; color: #ff8e98; font-size: 9px; font-weight: 750; vertical-alignment: center; }
+                                    Rectangle {
+                                        width: 52px; height: 20px;
+                                        border-radius: 10px;
+                                        background: #ff8e9820;
+                                        Text { text: l.change; color: #ff8e98; font-size: 8px; font-weight: 750; horizontal-alignment: center; vertical-alignment: center; }
+                                    }
                                 }
                             }
                         }
