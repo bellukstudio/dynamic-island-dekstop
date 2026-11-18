@@ -7,6 +7,13 @@ export struct ClipboardItem { preview: string, text: string }
 export struct ReminderItem { id: string, text: string, due: string, done: bool }
 export struct PrayerItem { name: string, time: string, state: int }
 // Satu sel kalender. kind: 0 = biasa, 1 = libur, 2 = cuti bersama, 3 = hari peringatan.
+export struct StatsView {
+    host: string,
+    cpu: float, ram: float, swap: float, disk: float,
+    cpu-v: string, ram-v: string, swap-v: string, disk-v: string,
+    cpu-meta: string, ram-meta: string, swap-meta: string, disk-meta: string,
+    down: string, up: string, processes: string, uptime: string, os: string, kernel: string,
+}
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
 export global Theme {
@@ -111,22 +118,22 @@ component TabIcon inherits Rectangle {
     min-width: 20px;
     max-width: 30px;
     height: 30px;
-    border-radius: 9px;
+    border-radius: 10px;
     background: active ? Theme.accent.with-alpha(0.22) : (ta.has-hover ? Theme.chip : transparent);
     border-width: active ? 1px : 0px;
-    border-color: Theme.accent.with-alpha(0.45);
+    border-color: Theme.accent.with-alpha(0.34);
     animate background { duration: 120ms; }
     Path {
         x: (parent.width - self.width) / 2;
-        y: 6px;
-        width: 18px;
-        height: 18px;
+        y: 7px;
+        width: 16px;
+        height: 16px;
         viewbox-width: 24;
         viewbox-height: 24;
         commands: root.commands;
         fill: transparent;
         stroke: root.active ? Theme.text : Theme.text-dim;
-        stroke-width: 1.8px;
+        stroke-width: 1.5px;
         stroke-line-cap: round;
         stroke-line-join: round;
     }
@@ -136,16 +143,24 @@ component TabIcon inherits Rectangle {
 // "Telinga" cekung di sisi pil (radius 10 px seperti `--e` di position.css). Menyatukan notch dengan
 // tepi layar: di atas saat menempel ke atas, di bawah (dibalik) saat menempel ke dasar layar.
 component Ear inherits Path {
-    in property <bool> right: false;
-    in property <bool> bottom: false;
+    // Telinga cekung 10 px x skala. `kind`: 0 = atas-kiri, 1 = atas-kanan, 2 = bawah-kiri, 3 = bawah-kanan
+    // (dock atas / bawah), 4 = sisi-kiri atas, 5 = sisi-kiri bawah, 6 = sisi-kanan atas, 7 = sisi-kanan bawah.
+    // Sudut terisi selalu yang menyentuh tepi layar dan badan notch; busur memakai pusat di sudut diagonalnya.
+    in property <int> kind: 0;
     in property <float> s: 1.0;      // skala dari config (telinga 10 px x scale)
     width: 10px * s;
     height: 10px * s;
     viewbox-width: 10;
     viewbox-height: 10;
     fill: Theme.body;
-    commands: bottom ? (right ? "M 10 10 L 0 10 L 0 0 A 10 10 0 0 0 10 10 Z" : "M 0 10 L 10 10 L 10 0 A 10 10 0 0 1 0 10 Z")
-                     : (right ? "M 10 0 L 0 0 L 0 10 A 10 10 0 0 1 10 0 Z" : "M 0 0 L 10 0 L 10 10 A 10 10 0 0 0 0 0 Z");
+    commands: kind == 0 ? "M 0 0 L 10 0 L 10 10 A 10 10 0 0 0 0 0 Z"
+            : kind == 1 ? "M 10 0 L 0 0 L 0 10 A 10 10 0 0 1 10 0 Z"
+            : kind == 2 ? "M 0 10 L 10 10 L 10 0 A 10 10 0 0 1 0 10 Z"
+            : kind == 3 ? "M 10 10 L 0 10 L 0 0 A 10 10 0 0 0 10 10 Z"
+            : kind == 4 ? "M 0 0 L 0 10 L 10 10 A 10 10 0 0 1 0 0 Z"
+            : kind == 5 ? "M 0 0 L 10 0 A 10 10 0 0 0 0 10 Z"
+            : kind == 6 ? "M 10 0 L 10 10 L 0 10 A 10 10 0 0 0 10 0 Z"
+            : "M 10 0 L 0 0 A 10 10 0 0 1 10 10 Z";
 }
 
 component StatBar inherits VerticalLayout {
@@ -177,6 +192,7 @@ component RoundButton inherits Rectangle {
     in property <length> size: 36px;
     in property <bool> primary: false;
     in property <bool> outline: false;   // ikon garis (tanpa isian)
+    in property <float> icon-ratio: 0.42; // ukuran ikon relatif terhadap tombol
     callback clicked;
     width: size;
     height: size;
@@ -186,18 +202,32 @@ component RoundButton inherits Rectangle {
     Path {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        width: root.size * 0.42;
-        height: root.size * 0.42;
+        width: root.size * root.icon-ratio;
+        height: root.size * root.icon-ratio;
         viewbox-width: 24;
         viewbox-height: 24;
         commands: root.commands;
         fill: root.outline ? transparent : (root.primary ? Theme.body : Theme.text);
         stroke: root.primary ? Theme.body : Theme.text;
-        stroke-width: root.outline ? 2px : 1px;
+        stroke-width: root.outline ? 1.6px : 1px;
         stroke-line-cap: round;
         stroke-line-join: round;
     }
     ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component EqBars inherits HorizontalLayout {
+    // Equalizer 4 batang (`.bars` di media.css): hanya bergerak saat media diputar.
+    in property <bool> playing: false;
+    spacing: 3px;
+    alignment: end;
+    for i in 4: Rectangle {
+        width: 3px;
+        y: parent.height - self.height;
+        height: root.playing ? 4px + 10px * Math.abs(Math.sin((animation-tick() / 520ms * 360 + i * 70) * 1deg)) : 4px;
+        border-radius: 1.5px;
+        background: Theme.accent;
+    }
 }
 
 component MediaPlayer inherits HorizontalLayout {
@@ -215,42 +245,54 @@ component MediaPlayer inherits HorizontalLayout {
     callback seek(float);
     callback open-lyrics;
 
+    // Tata letak `.p-media` di Tauri: padding 4 26 14 20, jarak 14, cover 80x80 radius 16.
     padding-left: 20px;
-    padding-right: 20px;
-    spacing: 16px;
-    alignment: center;
+    padding-right: 26px;
+    padding-top: 4px;
+    padding-bottom: 14px;
+    spacing: 14px;
 
-    Rectangle {
-        width: 108px;
-        height: 92px;
-        border-radius: 18px;
-        background: Theme.chip;
-        clip: true;
-        if root.has-art: Image { source: root.art; width: 108px; height: 92px; image-fit: cover; }
-        if !root.has-art: Path {
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
-            width: 40px;
-            height: 40px;
-            viewbox-width: 24;
-            viewbox-height: 24;
-            commands: Icons.media;
-            fill: transparent;
-            stroke: Theme.text-faint;
-            stroke-width: 1.6px;
-            stroke-line-cap: round;
-            stroke-line-join: round;
+    VerticalLayout {
+        width: 80px;
+        alignment: center;
+        Rectangle {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: Theme.chip;
+            clip: true;
+            if root.has-art: Image { source: root.art; width: 80px; height: 80px; image-fit: cover; }
+            if !root.has-art: Path {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 32px;
+                height: 32px;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                commands: Icons.media;
+                fill: transparent;
+                stroke: Theme.text-faint;
+                stroke-width: 1.4px;
+                stroke-line-cap: round;
+                stroke-line-join: round;
+            }
         }
     }
 
     VerticalLayout {
         horizontal-stretch: 1;
         vertical-stretch: 1;
-        alignment: stretch;
-        spacing: 3px;
-        Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; overflow: elide; }
-        Text { text: root.artist; color: Theme.text-dim; font-size: 12px; overflow: elide; }
-        Rectangle { vertical-stretch: 1; }
+        alignment: space-between;
+        HorizontalLayout {
+            spacing: 10px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text { text: root.title; color: Theme.text; font-size: 15px; font-weight: 700; overflow: elide; }
+                Text { text: root.artist; color: Theme.text-dim; font-size: 12px; overflow: elide; }
+            }
+            EqBars { width: 24px; height: 14px; playing: root.playing; visible: root.playing; }
+        }
         HorizontalLayout {
             spacing: 8px;
             Text { text: root.pos-text; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
@@ -270,7 +312,17 @@ component MediaPlayer inherits HorizontalLayout {
                         width: parent.width * clamp(root.progress, 0, 1);
                         height: parent.height;
                         border-radius: 2px;
+                        background: @linear-gradient(90deg, Theme.accent.with-alpha(0.55), Theme.accent);
+                    }
+                    // Knob muncul saat hover (seperti #m-progress::after)
+                    Rectangle {
+                        x: parent.width * clamp(root.progress, 0, 1) - 4px;
+                        y: -2px;
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 4px;
                         background: Theme.text;
+                        visible: seek-area.has-hover || seek-area.pressed;
                     }
                 }
                 seek-area := TouchArea {
@@ -287,19 +339,21 @@ component MediaPlayer inherits HorizontalLayout {
         HorizontalLayout {
             alignment: center;
             spacing: 14px;
-            RoundButton { commands: "M 19 20 L 9 12 L 19 4 Z M 5 19 V 5"; clicked => { root.prev(); } }
+            RoundButton { size: 28px; icon-ratio: 0.62; commands: "M 19 20 L 9 12 L 19 4 Z M 5 19 V 5"; clicked => { root.prev(); } }
             RoundButton {
                 primary: true;
-                size: 42px;
+                size: 34px;
+                icon-ratio: 0.5;
                 commands: root.playing ? "M 6 4 H 10 V 20 H 6 Z M 14 4 H 18 V 20 H 14 Z" : "M 7 4 L 20 12 L 7 20 Z";
                 clicked => { root.toggle(); }
             }
-            RoundButton { commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
-            Rectangle { width: 6px; }
-            Chip { label: "Lirik"; min-width: 56px; height: 30px; clicked => { root.open-lyrics(); } }
+            RoundButton { size: 28px; icon-ratio: 0.62; commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.next(); } }
+            // Tombol lirik berupa ikon garis (#m-lyrics), bukan chip bertuliskan "Lirik"
+            RoundButton { size: 28px; icon-ratio: 0.6; outline: true; opacity: 0.6; commands: "M 4 6 H 20 M 4 12 H 14 M 4 18 H 17"; clicked => { root.open-lyrics(); } }
         }
     }
 }
+
 component LyricsPanel inherits Rectangle {
     in property <[string]> lines;
     in property <int> active: -1;
@@ -393,22 +447,35 @@ component MediaPage inherits Rectangle {
 }
 
 component ClockPage inherits HorizontalLayout {
-    in property <string> clock-text;
-    in property <string> date-text;
+    in property <string> clock-text;   // HH:MM
+    in property <string> sec-text;     // detik (`#ck-sec`)
+    in property <string> day-text;     // nama hari
+    in property <string> date-text;    // tanggal lengkap
     callback open-calendar;
-    padding-left: 28px;
-    padding-right: 28px;
+    // `.p-clock`: padding 0 34 0 26, jam 46px di kiri (detik 16px redup), hari + tanggal di kanan.
+    padding-left: 26px;
+    padding-right: 34px;
+    spacing: 16px;
     alignment: stretch;
-    Text { text: root.clock-text; color: Theme.text; font-size: 52px; font-weight: 700; vertical-alignment: center; }
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: start;
+        Text { text: root.clock-text; color: Theme.text; font-size: 46px; font-weight: 700; letter-spacing: -1px; vertical-alignment: center; }
+        VerticalLayout {
+            alignment: center;
+            padding-top: 14px;
+            Text { text: root.sec-text; color: Theme.text-faint; font-size: 16px; }
+        }
+    }
     Rectangle { horizontal-stretch: 1; }
     // Klik tanggal membuka kalender bulanan (seperti di Tauri)
     Rectangle {
-        width: 170px;
+        width: 190px;
         VerticalLayout {
             alignment: center;
-            spacing: 4px;
-            Text { text: root.date-text; color: da.has-hover ? Theme.text : Theme.text-dim; font-size: 14px; horizontal-alignment: right; }
-            Text { text: "Kalender \u{203A}"; color: Theme.text-faint; font-size: 10px; horizontal-alignment: right; }
+            spacing: 3px;
+            Text { text: root.day-text; color: Theme.text; font-size: 18px; font-weight: 700; horizontal-alignment: right; }
+            Text { text: root.date-text; color: da.has-hover ? Theme.text : Theme.text-dim; font-size: 12px; horizontal-alignment: right; }
         }
         da := TouchArea { clicked => { root.open-calendar(); } }
     }
@@ -529,18 +596,20 @@ component TimerPage inherits VerticalLayout {
     callback toggle;
     callback reset;
     callback skip;
+    // `.p-timer`: padding 0 34 20 26, jarak 8, tengah vertikal; waktu 38px, bar 5px, tombol 30/36.
     alignment: center;
-    spacing: 10px;
-    padding-left: 28px;
-    padding-right: 28px;
+    spacing: 8px;
+    padding-left: 26px;
+    padding-right: 34px;
+    padding-bottom: 20px;
 
     HorizontalLayout {
-        Text { text: root.pomo-text; color: Theme.text; font-size: 44px; font-weight: 700; vertical-alignment: center; }
+        Text { text: root.pomo-text; color: Theme.text; font-size: 38px; font-weight: 700; vertical-alignment: center; }
         Rectangle { horizontal-stretch: 1; }
         Text { text: root.pomo-label; color: Theme.text-dim; font-size: 12px; vertical-alignment: bottom; horizontal-alignment: right; }
     }
     Rectangle {
-        height: 6px;
+        height: 5px;
         border-radius: 3px;
         background: Theme.track;
         Rectangle {
@@ -554,37 +623,92 @@ component TimerPage inherits VerticalLayout {
     }
     HorizontalLayout {
         alignment: center;
-        spacing: 18px;
-        RoundButton { outline: true; size: 38px; commands: Icons.reset; clicked => { root.reset(); } }
+        spacing: 14px;
+        padding-top: 4px;
+        RoundButton { outline: true; size: 30px; icon-ratio: 0.55; commands: Icons.reset; clicked => { root.reset(); } }
         RoundButton {
             primary: true;
-            size: 44px;
+            size: 36px;
+            icon-ratio: 0.5;
             commands: root.pomo-running ? "M 6 4 H 10 V 20 H 6 Z M 14 4 H 18 V 20 H 14 Z" : "M 7 4 L 20 12 L 7 20 Z";
             clicked => { root.toggle(); }
         }
-        RoundButton { size: 38px; commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.skip(); } }
+        RoundButton { size: 30px; icon-ratio: 0.55; commands: "M 5 4 L 15 12 L 5 20 Z M 19 5 V 19"; clicked => { root.skip(); } }
     }
 }
 
-component StatsPage inherits VerticalLayout {
-    in property <float> cpu;
-    in property <float> ram;
-    in property <float> disk;
-    in property <string> cpu-text;
-    in property <string> ram-text;
-    in property <string> disk-text;
-    in property <string> net-text;
-    in property <string> sys-text;
-    alignment: center;
-    spacing: 7px;
-    padding-left: 28px;
-    padding-right: 28px;
-    StatBar { label: "CPU"; value: root.cpu; text: root.cpu-text; }
-    StatBar { label: "RAM"; value: root.ram; text: root.ram-text; }
-    StatBar { label: "Penyimpanan"; value: root.disk; text: root.disk-text; }
+component StatMetric inherits VerticalLayout {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> meta;
+    in property <float> value;        // 0..100
+    in property <float> hot-at: 90;   // di atas ini bar merah (`.hot`)
+    horizontal-stretch: 1;
+    preferred-width: 0px;
+    min-width: 0px;
+    spacing: 2px;
     HorizontalLayout {
-        Text { text: root.net-text; color: Theme.text-dim; font-size: 11px; horizontal-stretch: 1; }
-        Text { text: root.sys-text; color: Theme.text-faint; font-size: 11px; horizontal-alignment: right; }
+        spacing: 6px;
+        Text { text: root.label; color: Theme.text-dim; font-size: 11px; font-weight: 700; horizontal-stretch: 1; overflow: elide; }
+        Text { text: root.value-text; color: Theme.text; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
+    }
+    Rectangle {
+        height: 4px;
+        border-radius: 2px;
+        background: Theme.track;
+        Rectangle {
+            x: 0px;
+            width: parent.width * clamp(root.value, 0, 100) / 100;
+            height: parent.height;
+            border-radius: 2px;
+            background: root.value >= root.hot-at ? #ff626b : Theme.accent;
+            animate width { duration: 550ms; easing: ease-out; }
+        }
+    }
+    Text { text: root.meta; color: Theme.text-faint; font-size: 9px; overflow: elide; preferred-width: 0px; min-width: 0px; }
+}
+
+component StatsPage inherits VerticalLayout {
+    in property <StatsView> d;
+    // `.p-stats`: padding 3 26 8, jarak 4; kepala, grid 2x2 (CPU/RAM/SWAP/PENYIMPANAN), footer 3 baris.
+    spacing: 4px;
+    padding-left: 26px;
+    padding-right: 26px;
+    padding-top: 3px;
+    padding-bottom: 8px;
+    HorizontalLayout {
+        spacing: 10px;
+        Text { text: "STATUS SISTEM"; color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; }
+        Text { text: root.d.host; color: Theme.text-faint; font-size: 10px; horizontal-alignment: right; horizontal-stretch: 1; overflow: elide; }
+    }
+    GridLayout {
+        spacing-horizontal: 18px;
+        spacing-vertical: 4px;
+        Row {
+            StatMetric { label: "CPU"; value: root.d.cpu; value-text: root.d.cpu-v; meta: root.d.cpu-meta; hot-at: 85; }
+            StatMetric { label: "RAM"; value: root.d.ram; value-text: root.d.ram-v; meta: root.d.ram-meta; }
+        }
+        Row {
+            StatMetric { label: "SWAP"; value: root.d.swap; value-text: root.d.swap-v; meta: root.d.swap-meta; }
+            StatMetric { label: "PENYIMPANAN"; value: root.d.disk; value-text: root.d.disk-v; meta: root.d.disk-meta; }
+        }
+    }
+    Rectangle { vertical-stretch: 1; }
+    VerticalLayout {
+        spacing: 3px;
+        HorizontalLayout {
+            Text { text: root.d.down; color: Theme.text-dim; font-size: 10px; horizontal-stretch: 1; }
+            Text { text: root.d.up; color: Theme.text-dim; font-size: 10px; horizontal-alignment: right; }
+        }
+        HorizontalLayout {
+            Text { text: root.d.processes; color: Theme.text-faint; font-size: 10px; horizontal-stretch: 1; }
+            Text { text: root.d.uptime; color: Theme.text-faint; font-size: 10px; horizontal-alignment: right; }
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            Text { text: root.d.os; color: Theme.text-faint; font-size: 10px; horizontal-stretch: 1; overflow: elide; }
+            Text { text: root.d.kernel; color: Theme.text-faint; font-size: 10px; horizontal-alignment: right; overflow: elide; }
+        }
     }
 }
 
@@ -592,10 +716,11 @@ component BatteryPage inherits VerticalLayout {
     in property <bool> present: true;
     in property <int> percent: 0;
     in property <bool> charging: false;
-    alignment: start;
-    spacing: 8px;
-    padding-left: 28px;
-    padding-right: 28px;
+    // `.p-battery`: padding 0 34 0 26, jarak 14, tengah vertikal; persen 34px, bar 8px.
+    alignment: center;
+    spacing: 14px;
+    padding-left: 26px;
+    padding-right: 34px;
     if !root.present: Text {
         text: "Tidak ada baterai (PC desktop)";
         color: Theme.text-dim;
@@ -605,8 +730,8 @@ component BatteryPage inherits VerticalLayout {
     if root.present: HorizontalLayout {
         Text {
             text: root.percent + "%";
-            color: root.percent <= 20 && !root.charging ? #ff6b6b : Theme.text;
-            font-size: 44px;
+            color: root.percent <= 20 && !root.charging ? #ff8a8a : Theme.text;
+            font-size: 34px;
             font-weight: 700;
             vertical-alignment: center;
         }
@@ -620,15 +745,14 @@ component BatteryPage inherits VerticalLayout {
         }
     }
     if root.present: Rectangle {
-        width: parent.width;
-        height: 10px;
-        border-radius: 5px;
+        height: 8px;
+        border-radius: 4px;
         background: Theme.track;
         Rectangle {
             width: parent.width * clamp(root.percent, 0, 100) / 100;
             height: parent.height;
-            border-radius: 5px;
-            background: root.charging ? #ffd23f : (root.percent <= 20 ? #ff6b6b : Theme.ok);
+            border-radius: 4px;
+            background: root.charging ? #ffd60a : (root.percent <= 20 ? #ff8a8a : #7dffb0);
             animate width { duration: 300ms; easing: ease-out; }
         }
     }
@@ -645,55 +769,57 @@ component WeatherPage inherits HorizontalLayout {
     in property <string> status;
     callback refresh();
 
+    // `.p-weather`: ikon bulat 58px (klik = perbarui), suhu 34px + kondisi 12px, meta rata kanan.
     padding-left: 26px;
-    padding-right: 26px;
-    padding-top: 12px;
-    padding-bottom: 10px;
-    spacing: 18px;
+    padding-right: 34px;
+    spacing: 16px;
 
     VerticalLayout {
-        width: 176px;
+        width: 58px;
         alignment: center;
-        spacing: 3px;
-        Text { text: root.city; color: Theme.text-dim; font-size: 12px; horizontal-alignment: center; }
-        Text { text: root.temperature; color: Theme.text; font-size: 42px; font-weight: 700; horizontal-alignment: center; }
-        Text { text: root.condition; color: Theme.text; font-size: 13px; font-weight: 600; horizontal-alignment: center; }
-    }
-
-    Rectangle {
-        width: 1px;
-        background: Theme.track;
+        Rectangle {
+            width: 58px;
+            height: 58px;
+            border-radius: 29px;
+            background: Theme.accent.with-alpha(0.16);
+            border-width: 1px;
+            border-color: Theme.accent.with-alpha(0.34);
+            Path {
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 30px;
+                height: 30px;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                commands: root.icon;
+                fill: transparent;
+                stroke: Theme.text;
+                stroke-width: 1.4px;
+                stroke-line-cap: round;
+                stroke-line-join: round;
+                visible: root.icon != "";
+            }
+            TouchArea { clicked => { root.refresh(); } }
+        }
     }
 
     VerticalLayout {
         horizontal-stretch: 1;
         alignment: center;
-        spacing: 7px;
-        Text { text: root.feels; color: Theme.text; font-size: 13px; }
-        Text { text: root.humidity; color: Theme.text-dim; font-size: 12px; }
-        Text { text: root.rain; color: Theme.accent; font-size: 12px; font-weight: 600; }
-        Chip { label: "Perbarui cuaca"; clicked => { root.refresh(); } }
-        Text {
-            text: root.status;
-            color: #ff9b8f;
-            font-size: 10px;
-            wrap: word-wrap;
-            visible: root.status != "";
-        }
+        spacing: 2px;
+        Text { text: root.temperature; color: Theme.text; font-size: 34px; font-weight: 700; }
+        Text { text: root.condition; color: Theme.text-dim; font-size: 12px; overflow: elide; }
+        Text { text: root.status; color: #ff9b8f; font-size: 10px; wrap: word-wrap; visible: root.status != ""; }
     }
 
-    Path {
-        width: 42px;
-        height: 42px;
-        viewbox-width: 24;
-        viewbox-height: 24;
-        commands: root.icon;
-        fill: transparent;
-        stroke: Theme.text;
-        stroke-width: 1.7px;
-        stroke-line-cap: round;
-        stroke-line-join: round;
-        visible: root.icon != "";
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+        min-width: 110px;
+        Text { text: root.city; color: Theme.text; font-size: 12px; font-weight: 700; horizontal-alignment: right; overflow: elide; }
+        Text { text: root.feels; color: Theme.text-dim; font-size: 11px; horizontal-alignment: right; }
+        Text { text: root.humidity; color: Theme.text-dim; font-size: 11px; horizontal-alignment: right; }
+        Text { text: root.rain; color: Theme.accent; font-size: 11px; font-weight: 600; horizontal-alignment: right; }
     }
 }
 
@@ -1022,8 +1148,8 @@ component QuickButton inherits Rectangle {
         Text {
             text: root.label;
             color: root.on ? Theme.on-accent : (root.soft ? Theme.accent : Theme.text);
-            font-size: 12px;
-            font-weight: 700;
+            font-size: 11px;
+            font-weight: 600;
             horizontal-alignment: center;
         }
     }
@@ -1042,11 +1168,11 @@ component QuickPage inherits HorizontalLayout {
     in property <int> wifi: -1;
     in property <int> bt: -1;
     callback toggle(string);
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 14px;
-    padding-bottom: 6px;
-    spacing: 14px;
+    padding-left: 22px;
+    padding-right: 34px;
+    padding-top: 32px;
+    padding-bottom: 32px;
+    spacing: 10px;
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.mic; label: QuickText.label(root.mic, "Mic", "Mic mati", "Mic aktif"); on: root.mic == 1; na: root.mic < 0; clicked => { root.toggle("mic"); } }
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.wifi; label: QuickText.label(root.wifi, "Wi-Fi", "Wi-Fi on", "Wi-Fi off"); on: root.wifi == 1; na: root.wifi < 0; clicked => { root.toggle("wifi"); } }
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.bluetooth; label: QuickText.label(root.bt, "Bluetooth", "Bluetooth on", "Bluetooth off"); on: root.bt == 1; na: root.bt < 0; clicked => { root.toggle("bt"); } }
@@ -1056,11 +1182,11 @@ component ToolsPage inherits HorizontalLayout {
     in property <int> awake: -1;
     in property <int> dark: -1;
     callback toggle(string);
-    padding-left: 24px;
-    padding-right: 24px;
-    padding-top: 14px;
-    padding-bottom: 6px;
-    spacing: 12px;
+    padding-left: 22px;
+    padding-right: 34px;
+    padding-top: 32px;
+    padding-bottom: 32px;
+    spacing: 10px;
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.awake; label: QuickText.label(root.awake, "Keep awake", "Awake: ON", "Awake: OFF"); on: root.awake == 1; na: root.awake < 0; clicked => { root.toggle("awake"); } }
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.moon; label: QuickText.label(root.dark, "Tema", "Gelap", "Terang"); on: root.dark == 1; na: root.dark < 0; clicked => { root.toggle("dark"); } }
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.lock; label: "Kunci"; clicked => { root.toggle("lock"); } }
@@ -2450,6 +2576,9 @@ export component NotchWindow inherits Window {
     in property <bool> media-has-art: false;
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
+    in property <string> sec-text: "00";
+    in property <string> day-text: "";
+    in property <StatsView> stats;
     in property <string> pomo-text: "25:00";
     in property <string> pomo-label: "";
     in property <float> pomo-progress: 0;
@@ -2802,9 +2931,12 @@ export component NotchWindow inherits Window {
             : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px)) * root.ui-scale;
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.expanded ? 602px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : 130px)) * root.play-body-scale-x));
+        width: root.expanded ? 580px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : 130px)) * root.play-body-scale-x));
         height: root.expanded ? 202px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px)) * root.play-body-scale-y));
-        background: Theme.body;
+        // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
+        // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
+        property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
+        background: self.half ? transparent : Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
         border-top-right-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 4) ? 0px : self.r);
@@ -2814,6 +2946,20 @@ export component NotchWindow inherits Window {
         clip: true;
         animate width { duration: 220ms; easing: ease-out-quart; }
         animate height { duration: 220ms; easing: ease-out-quart; }
+
+        // Badan setengah lingkaran menghadap ke dalam layar: bawah 80x44 (radius 40), kiri/kanan 60x120 (radius 60).
+        half-body := Path {
+            visible: pill.half;
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            viewbox-width: root.dock == 2 ? 80 : 60;
+            viewbox-height: root.dock == 2 ? 44 : 120;
+            fill: Theme.body;
+            commands: root.dock == 2 ? "M 0 44 L 0 40 A 40 40 0 0 1 80 40 L 80 44 Z"
+                : (root.dock == 3 ? "M 0 0 A 60 60 0 0 1 0 120 Z" : "M 60 0 A 60 60 0 0 0 60 120 Z");
+        }
 
         // Hiasan tema (cahaya, scan, rim). Digambar sebagai gambar karena clip UI tidak mengikuti radius
         // sudut di renderer software; gambar ini sudah ber-mask sudut bulat dan sisi bebas yang benar.
@@ -3016,9 +3162,9 @@ export component NotchWindow inherits Window {
                 animate opacity { duration: 180ms; delay: 80ms; }
 
                 HorizontalLayout {
-                    x: 20px;
-                    y: 14px;
-                    width: parent.width - 40px;
+                    x: 15px;
+                    y: 19px;
+                    width: parent.width - 30px;
                     height: 30px;
                     spacing: 4px;
                     alignment: start;
@@ -3030,8 +3176,8 @@ export component NotchWindow inherits Window {
                 }
 
                 Rectangle {
-                    y: 56px;
-                    height: parent.height - 56px - 12px;
+                    y: 54px;
+                    height: parent.height - 54px;
                     if root.page-id == "privacy": PrivacyPage {
                         active: root.meeting-active;
                         source: root.meeting-source;
@@ -3245,6 +3391,8 @@ export component NotchWindow inherits Window {
                     }
                     if root.page-id == "clock" && !root.cal-open: ClockPage {
                         clock-text: root.clock-text;
+                        sec-text: root.sec-text;
+                        day-text: root.day-text;
                         date-text: root.date-text;
                         open-calendar => { root.cal-open = true; root.cal-opened(); }
                     }
@@ -3271,11 +3419,7 @@ export component NotchWindow inherits Window {
                         reset => { root.reset-pomo(); }
                         skip => { root.skip-pomo(); }
                     }
-                    if root.page-id == "stats": StatsPage {
-                        cpu: root.cpu; ram: root.ram; disk: root.disk;
-                        cpu-text: root.cpu-text; ram-text: root.ram-text; disk-text: root.disk-text;
-                        net-text: root.net-text; sys-text: root.sys-text;
-                    }
+                    if root.page-id == "stats": StatsPage { d: root.stats; }
                     if root.page-id == "battery": BatteryPage { present: root.battery-present; percent: root.battery-percent; charging: root.battery-charging; }
                     if root.page-id == "shelf": ShelfPage {
                         items: root.shelf-items;
@@ -3357,6 +3501,9 @@ export component NotchWindow inherits Window {
         detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-active ? root.meeting-elapsed + " · " + root.meeting-source : (root.meeting-finished != "" ? root.meeting-finished : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
     }
 
-    Ear { s: root.ui-scale; visible: root.dock < 3 && root.dock != 1; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; bottom: root.dock == 2; }
-    Ear { s: root.ui-scale; visible: root.dock < 3 && root.dock != 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; right: true; bottom: root.dock == 2; }
+    // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
+    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
+    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
 }

@@ -453,7 +453,7 @@ const COLLAPSED: (u32, u32) = (300, 140);
 const COLLAPSED_SIDE: (u32, u32) = (300, 262);
 // Greeting inline memerlukan ruang horizontal tambahan di sekitar badan Notch.
 const GREETING_INLINE: (u32, u32) = (420, 112);
-// 602 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
+// 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
 const EXPANDED: (u32, u32) = (612, 240);
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
@@ -668,6 +668,24 @@ mod platform {
         }
     }
 
+    /// (detik, hari dalam pekan: 0 = Minggu).
+    pub fn local_sec_wday() -> (u32, u32) {
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::System::SystemInformation::GetLocalTime;
+            let t = GetLocalTime();
+            (t.wSecond as u32, t.wDayOfWeek as u32)
+        }
+        #[cfg(not(windows))]
+        {
+            let s = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            ((s % 60) as u32, (((s / 86_400) + 4) % 7) as u32)
+        }
+    }
+
     /// Hari sejak 1970-01-01 -> (tahun, bulan, tanggal), algoritma Howard Hinnant.
     #[cfg(not(windows))]
     fn civil_from_days(z: i64) -> (u32, u32, u32) {
@@ -700,6 +718,18 @@ fn load_png(bytes: &'static [u8]) -> Image {
         info.width,
         info.height,
     ))
+}
+
+const ID_DAYS: [&str; 7] = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const ID_MONTHS: [&str; 12] = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+/// "3h 4j" / "5j 12m" / "9m" (sama dengan fmtUptime di Tauri).
+fn fmt_uptime(secs: u64) -> String {
+    let (d, h, m) = (secs / 86_400, (secs / 3600) % 24, (secs / 60) % 60);
+    if d > 0 { format!("{d}h {h}j") } else if h > 0 { format!("{h}j {m}m") } else { format!("{m}m") }
 }
 
 fn gib(bytes: f64) -> f64 {
@@ -930,7 +960,7 @@ fn show_pomo(w: &NotchWindow, p: &Pomodoro) {
 }
 
 // Ukuran pil saat melebar (px logis); harus sama dengan `pill` di ui/notch.slint.
-const PILL_W: f32 = 602.0;
+const PILL_W: f32 = 580.0;
 const PILL_H: f32 = 202.0;
 
 /// Penempatan jendela + bentuk tepi + gambar hiasan tema. Hiasan dirender ulang hanya saat mode tepi
@@ -1111,6 +1141,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut updated_config = cfg.clone();
         let mut was_down = false;
         let mut drag: Option<((i32, i32), (i32, i32), bool, (i32, i32))> = None;
+        // Tekan di dalam jendela yang belum "armed": event press Slint bisa tiba beberapa milidetik
+        // setelah GetAsyncKeyState melaporkan tombol turun, jadi pemeriksaan diulang selama tombol ditahan.
+        let mut candidate: Option<((i32, i32), (i32, i32))> = None;
         // Skala dan ukuran ORB fisik saat ini; diperbarui bila pointer berpindah monitor DPI berbeda.
         let mut drag_scale = 1.0f32;
         let mut drag_orb_size = 0u32;
@@ -1124,11 +1157,21 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some((cx, cy)) = cursor {
                     let p = w.window().position();
                     let z = w.window().size();
-                    if cx >= p.x && cx < p.x + z.width as i32
-                        && cy >= p.y && cy < p.y + z.height as i32
-                        && w.get_drag_armed()
-                    {
-                        drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
+                    if cx >= p.x && cx < p.x + z.width as i32 && cy >= p.y && cy < p.y + z.height as i32 {
+                        if w.get_drag_armed() {
+                            drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
+                            w.set_play_interaction_active(true);
+                        } else {
+                            candidate = Some(((cx, cy), (p.x, p.y)));
+                        }
+                    }
+                }
+            }
+            if down && drag.is_none() {
+                if let Some((start_cursor, start_window)) = candidate {
+                    if w.get_drag_armed() {
+                        drag = Some((start_cursor, start_window, false, (0, 0)));
+                        candidate = None;
                         w.set_play_interaction_active(true);
                     }
                 }
@@ -1177,6 +1220,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 }
             } else if was_down {
+                candidate = None;
                 if let Some((_, _, moved, _)) = drag.take() {
                     if moved {
                         // Jaga proteksi klik selama seluruh drag, lalu beri jeda singkat
@@ -1884,6 +1928,28 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.set_disk_text(format!("{:.0} / {:.0} GiB", gib(s.disk_used), gib(s.disk_total)).into());
                             w.set_net_text(format!("\u{2193} {}   \u{2191} {}", fmt_rate(s.down), fmt_rate(s.up)).into());
                             w.set_sys_text(format!("{} threads \u{00B7} {} proses", s.cpu_cores, s.processes).into());
+                            // Tampilan halaman Stats (sama dengan quick-stats.ts di Tauri)
+                            let freq = if s.cpu_freq_mhz > 0 { format!(" \u{00B7} {:.1} GHz", s.cpu_freq_mhz as f64 / 1000.0) } else { String::new() };
+                            w.set_stats(StatsView {
+                                host: s.host_name.into(),
+                                cpu: s.cpu, ram: s.ram, swap: s.swap, disk: s.disk,
+                                cpu_v: format!("{:.0}%", s.cpu).into(),
+                                ram_v: format!("{:.0}%", s.ram).into(),
+                                swap_v: format!("{:.0}%", s.swap).into(),
+                                disk_v: format!("{:.0}%", s.disk).into(),
+                                cpu_meta: format!("{} \u{00B7} {} thread{}", s.cpu_name, s.cpu_cores, freq).into(),
+                                ram_meta: format!("{:.1} / {:.1} GiB digunakan", gib(s.ram_used), gib(s.ram_total)).into(),
+                                swap_meta: format!("{:.1} / {:.1} GiB digunakan", gib(s.swap_used), gib(s.swap_total)).into(),
+                                disk_meta: if s.disk_total > 0.0 {
+                                    format!("{:.0} / {:.0} GiB \u{00B7} {}", gib(s.disk_used), gib(s.disk_total), s.disk_label).into()
+                                } else { "Penyimpanan N/A".into() },
+                                down: format!("\u{2193} {}", fmt_rate(s.down)).into(),
+                                up: format!("\u{2191} {}", fmt_rate(s.up)).into(),
+                                processes: format!("{} proses", s.processes).into(),
+                                uptime: format!("Aktif {}", fmt_uptime(s.uptime_secs)).into(),
+                                os: format!("{} {}", s.os_name, s.os_version).trim().to_string().into(),
+                                kernel: s.kernel_version.into(),
+                            });
                         }
                     });
                 }
@@ -2511,13 +2577,20 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let last = Rc::new(Cell::new((99u32, 99u32)));
+        let last_sec = Rc::new(Cell::new(99u32));
         let tick = move || {
             let Some(w) = weak.upgrade() else { return };
             let (h, m, d, mo, y) = platform::local_time();
+            let (sec, wday) = platform::local_sec_wday();
+            if last_sec.get() != sec {
+                last_sec.set(sec);
+                w.set_sec_text(format!("{sec:02}").into());
+            }
             if last.get() != (h, m) {
                 last.set((h, m));
                 w.set_clock_text(format!("{h:02}:{m:02}").into());
-                w.set_date_text(format!("{d:02}/{mo:02}/{y}").into());
+                w.set_day_text(ID_DAYS[(wday % 7) as usize].into());
+                w.set_date_text(format!("{d} {} {y}", ID_MONTHS[(mo.clamp(1, 12) - 1) as usize]).into());
             }
         };
         tick();
