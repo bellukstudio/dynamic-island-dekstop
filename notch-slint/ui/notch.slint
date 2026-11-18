@@ -1224,6 +1224,13 @@ component CurrencyPage inherits HorizontalLayout {
                 Text { text: root.chart-last != "" ? "1 " + root.d.code + " = " + root.chart-last : root.chart-status; color: Theme.text; font-size: 13px; font-weight: 750; overflow: elide; }
             }
             Text { text: root.chart-change; color: root.chart-up ? #7dffb0 : #ff8a8a; font-size: 10px; font-weight: 700; vertical-alignment: center; }
+            RoundButton {
+                size: 22px;
+                icon-ratio: 0.58;
+                outline: true;
+                commands: Icons.reset;
+                clicked => { root.refresh(); root.request-chart(); }
+            }
             Rectangle {
                 width: 64px;
                 height: 22px;
