@@ -4713,6 +4713,7 @@ fn main() -> Result<(), slint::PlatformError> {
             // Pratinjau memakai preset yang sedang dipilih di UI, meskipun belum disimpan.
             let selected_voice = voice_preset;
             let speech_voice = selected_voice.clone();
+            let greeting_duration_ms = speech::estimated_duration_ms(&greeting.spoken);
             let _ = speech::speak(greeting.spoken.clone(), speech_voice);
             w.set_greeting_message(greeting.message.into());
             w.set_greeting_detail(greeting.detail.into());
@@ -4729,12 +4730,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 shell.place(&w, COLLAPSED);
             }
             if let Some(eye_state) = eye.borrow().clone() {
-                eye_state.borrow_mut().mood.flash(Mood::Happy, 5_500, Instant::now());
+                eye_state.borrow_mut().mood.flash(Mood::Happy, greeting_duration_ms, Instant::now());
             }
             w.set_greeting_save_status("Pratinjau teks dan audio diputar. Pengaturan belum disimpan.".into());
             let weak = weak.clone();
             let shell_hide = shell.clone();
-            timer.start(TimerMode::SingleShot, Duration::from_millis(5_000), move || {
+            timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                 if let Some(w) = weak.upgrade() {
                     if w.get_greeting_inline_visible() {
                         shell_hide.place(&w, COLLAPSED);
@@ -5835,10 +5836,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     w.set_greeting_speech_visible(true);
                     shell.place(&w, COLLAPSED);
                 }
+                let greeting_duration_ms = speech::estimated_duration_ms(&greeting.spoken);
                 let _ = speech::speak(greeting.spoken.clone(), voice.clone());
                 let weak_hide = weak.clone();
                 let shell_hide = shell.clone();
-                hide_timer.start(TimerMode::SingleShot, Duration::from_millis(6_500), move || {
+                hide_timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                     if let Some(w) = weak_hide.upgrade() {
                         if w.get_greeting_inline_visible() {
                             shell_hide.place(&w, COLLAPSED);
