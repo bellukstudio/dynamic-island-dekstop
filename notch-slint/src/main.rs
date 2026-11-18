@@ -878,7 +878,7 @@ fn fx_idr(value: f64) -> String {
     if value < 1000.0 { format!("Rp {}", format!("{value:.2}").replace('.', ",")) } else { format!("Rp {}", group_digits(&format!("{value:.0}"))) }
 }
 
-const CURRENCY_QUICK: [u64; 5] = [10_000, 50_000, 100_000, 500_000, 1_000_000];
+const CURRENCY_QUICK: [u64; 6] = [10_000, 50_000, 100_000, 500_000, 1_000_000, 10_000_000];
 const SHORT_MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 /// "1234567" -> "1.234.567".
