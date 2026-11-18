@@ -4498,17 +4498,18 @@ fn main() -> Result<(), slint::PlatformError> {
             let speech_message = message.clone();
             let speech_voice = selected_voice.clone();
             let _ = speech::speak(speech_message, speech_voice);
-            w.set_nudge_message(message.into());
-            w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-            // Mengikuti Tauri: greeting di dock bawah/kiri/kanan memakai awan percakapan,
-            // bukan kartu inline lebar yang akan terpotong oleh jendela dock.
+            w.set_greeting_message(message.into());
+            w.set_greeting_detail("Sapaan otomatis · Notch siap menemani".into());
+            // Greeting memakai layer tersendiri agar tidak menimpa isi notifikasi Nudge.
             if w.get_dock() < 2 {
-                shell.place(&w, GREETING_INLINE);
+                w.set_greeting_speech_visible(false);
                 w.set_nudge_visible(false);
+                shell.place(&w, GREETING_INLINE);
                 w.set_greeting_inline_visible(true);
             } else {
                 w.set_greeting_inline_visible(false);
-                w.set_nudge_visible(true);
+                w.set_nudge_visible(false);
+                w.set_greeting_speech_visible(true);
                 shell.place(&w, COLLAPSED);
             }
             if let Some(eye_state) = eye.borrow().clone() {
@@ -4523,6 +4524,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         shell_hide.place(&w, COLLAPSED);
                     }
                     w.set_greeting_inline_visible(false);
+                    w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
                 }
             });
@@ -5603,16 +5605,18 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
             if w.get_meeting_active() || w.get_adhan_active() { return; }
             if let Some(message) = message.as_ref() {
-                w.set_nudge_message(message.clone().into());
-                w.set_nudge_detail("Greeting otomatis · Notch siap menemani".into());
-                // Sama dengan aturan Tauri: dock bawah/samping selalu memakai speech bubble.
+                w.set_greeting_message(message.clone().into());
+                w.set_greeting_detail("Sapaan otomatis · Notch siap menemani".into());
+                // Greeting memakai kartu inline di dock atas dan speech bubble di dock bawah/samping.
                 if w.get_dock() < 2 {
-                    shell.place(&w, GREETING_INLINE);
+                    w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
+                    shell.place(&w, GREETING_INLINE);
                     w.set_greeting_inline_visible(true);
                 } else {
                     w.set_greeting_inline_visible(false);
-                    w.set_nudge_visible(true);
+                    w.set_nudge_visible(false);
+                    w.set_greeting_speech_visible(true);
                     shell.place(&w, COLLAPSED);
                 }
                 let _ = speech::speak(message.clone(), voice.clone());
@@ -5624,6 +5628,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             shell_hide.place(&w, COLLAPSED);
                         }
                         w.set_greeting_inline_visible(false);
+                        w.set_greeting_speech_visible(false);
                         w.set_nudge_visible(false);
                     }
                 });
