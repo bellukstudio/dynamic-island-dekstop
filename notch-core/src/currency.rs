@@ -101,6 +101,140 @@ pub fn fetch_yahoo_chart(symbol: &str, period1: i64, period2: i64) -> Result<Val
     Err(last_error)
 }
 
+impl Rates {
+    /// Rupiah untuk satu unit `code`. API sumber mengembalikan "unit asing per 1 IDR" (jauh di bawah 1),
+    /// sehingga nilainya dibalik; nilai di atas 1 dianggap sudah berupa IDR per unit.
+    pub fn idr_for(&self, code: &str) -> Option<f64> {
+        let v = *self.idr_per_unit.get(code)?;
+        if !v.is_finite() || v <= 0.0 { return None; }
+        Some(if v > 1.0 { v } else { 1.0 / v })
+    }
+}
+
+/// Performa satu saham IDX sejak awal periode.
+#[derive(Clone, Debug)]
+pub struct StockPoint {
+    pub label: String,
+    pub last: f64,
+    /// Persen perubahan dari penutupan pertama periode ke penutupan terakhir.
+    pub change: f64,
+}
+
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+fn civil_from_days(z: i64) -> (i64, i64) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (if m <= 2 { y + 1 } else { y }, m)
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Epoch detik awal bulan berjalan (UTC) dan label "1 Nov" untuk periode MTD.
+pub fn month_start() -> (i64, i64) {
+    let now = now_secs();
+    let (y, m) = civil_from_days(now.div_euclid(86_400));
+    (days_from_civil(y, m, 1) * 86_400, m)
+}
+
+fn stock_point(symbol: &str, period1: i64, period2: i64) -> Option<StockPoint> {
+    let data = fetch_yahoo_chart(symbol, period1, period2).ok()?;
+    let result = data.pointer("/chart/result/0")?;
+    let times = result.get("timestamp")?.as_array()?;
+    let closes = result.pointer("/indicators/quote/0/close")?.as_array()?;
+    let mut points: Vec<(i64, f64)> = closes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| Some((times.get(i)?.as_i64()?, c.as_f64()?)))
+        .filter(|(t, c)| *t > 0 && c.is_finite() && *c > 0.0)
+        .collect();
+    points.sort_by_key(|(t, _)| *t);
+    if points.len() < 2 { return None; }
+    let first = points[0].1;
+    let last = points[points.len() - 1].1;
+    Some(StockPoint { label: symbol.trim_end_matches(".JK").to_string(), last, change: (last - first) / first * 100.0 })
+}
+
+fn collect_stocks(period1: i64, period2: i64) -> Vec<StockPoint> {
+    let mut out = Vec::new();
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = STOCKS.iter().map(|symbol| scope.spawn(move || stock_point(symbol, period1, period2))).collect();
+        for handle in handles {
+            if let Ok(Some(point)) = handle.join() { out.push(point); }
+        }
+    });
+    out
+}
+
+/// Performa saham IDX pilihan bulan berjalan (MTD), terurut dari yang terbaik. Blocking.
+/// Di awal bulan data belum cukup, sehingga rentang diperluas ke 30 hari terakhir.
+pub fn fetch_stocks() -> Result<Vec<StockPoint>, String> {
+    let (start, _) = month_start();
+    let end = now_secs() + 86_400;
+    let mut points = collect_stocks(start, end);
+    if points.len() < 2 { points = collect_stocks(end - 31 * 86_400, end); }
+    if points.len() < 2 {
+        return Err("Data saham belum tersedia. Periksa koneksi atau akses sumber data.".into());
+    }
+    points.sort_by(|a, b| b.change.partial_cmp(&a.change).unwrap_or(std::cmp::Ordering::Equal));
+    Ok(points)
+}
+
+/// Pengingat kurs: beri tahu sekali ketika 1 `code` mencapai `target` rupiah.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Alert {
+    pub id: String,
+    pub code: String,
+    /// true = saat kurs >= target, false = saat kurs <= target.
+    pub above: bool,
+    pub target: f64,
+}
+
+pub fn load_alerts(path: &std::path::Path) -> Vec<Alert> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<Vec<Alert>>(&text).ok())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|a| a.target.is_finite() && a.target > 0.0 && CURRENCIES.iter().any(|(c, _)| *c == a.code))
+        .collect()
+}
+
+pub fn save_alerts(path: &std::path::Path, alerts: &[Alert]) {
+    if let Some(dir) = path.parent() { let _ = std::fs::create_dir_all(dir); }
+    if let Ok(text) = serde_json::to_string_pretty(alerts) { let _ = std::fs::write(path, text); }
+}
+
+/// Alert yang sudah tercapai oleh `rates`, beserta kurs saat ini (rupiah per unit).
+pub fn due_alerts(alerts: &[Alert], rates: &Rates) -> Vec<(Alert, f64)> {
+    alerts
+        .iter()
+        .filter_map(|a| {
+            let now = rates.idr_for(&a.code)?;
+            let hit = if a.above { now >= a.target } else { now <= a.target };
+            hit.then(|| (a.clone(), now))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,6 +245,34 @@ mod tests {
         assert!(allowed_symbol("USDIDR=X"));
         assert!(!allowed_symbol("AAPL"));
         assert!(!allowed_symbol("FAKEIDR=X"));
+    }
+
+    #[test]
+    fn rates_are_inverted_when_given_per_idr() {
+        let mut r = Rates { idr_per_unit: BTreeMap::new(), date: String::new(), source: String::new() };
+        r.idr_per_unit.insert("USD".into(), 1.0 / 16_000.0);
+        r.idr_per_unit.insert("EUR".into(), 17_500.0);
+        assert!((r.idr_for("USD").unwrap() - 16_000.0).abs() < 1e-6);
+        assert_eq!(r.idr_for("EUR"), Some(17_500.0));
+        assert_eq!(r.idr_for("JPY"), None);
+    }
+
+    #[test]
+    fn alerts_fire_on_threshold() {
+        let mut r = Rates { idr_per_unit: BTreeMap::new(), date: String::new(), source: String::new() };
+        r.idr_per_unit.insert("USD".into(), 1.0 / 16_500.0);
+        let up = Alert { id: "1".into(), code: "USD".into(), above: true, target: 16_400.0 };
+        let down = Alert { id: "2".into(), code: "USD".into(), above: false, target: 16_400.0 };
+        let due = due_alerts(&[up, down], &r);
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].0.id, "1");
+    }
+
+    #[test]
+    fn month_start_is_first_day() {
+        let (start, month) = month_start();
+        assert!((1..=12).contains(&month));
+        assert_eq!(start % 86_400, 0);
     }
 
     #[test]

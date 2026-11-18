@@ -453,7 +453,7 @@ const COLLAPSED: (u32, u32) = (300, 140);
 const COLLAPSED_SIDE: (u32, u32) = (300, 262);
 // Greeting inline memerlukan ruang horizontal tambahan di sekitar badan Notch.
 const GREETING_INLINE: (u32, u32) = (420, 112);
-// 602 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
+// 580 x 202 untuk pil + jalur di bawahnya (celah 8 px + tombol Pusatkan 22 px).
 const EXPANDED: (u32, u32) = (612, 240);
 
 // Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
@@ -668,9 +668,27 @@ mod platform {
         }
     }
 
+    /// (detik, hari dalam pekan: 0 = Minggu).
+    pub fn local_sec_wday() -> (u32, u32) {
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::System::SystemInformation::GetLocalTime;
+            let t = GetLocalTime();
+            (t.wSecond as u32, t.wDayOfWeek as u32)
+        }
+        #[cfg(not(windows))]
+        {
+            let s = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            ((s % 60) as u32, (((s / 86_400) + 4) % 7) as u32)
+        }
+    }
+
     /// Hari sejak 1970-01-01 -> (tahun, bulan, tanggal), algoritma Howard Hinnant.
-    #[cfg(not(windows))]
-    fn civil_from_days(z: i64) -> (u32, u32, u32) {
+    #[allow(dead_code)]
+    pub fn civil_from_days(z: i64) -> (u32, u32, u32) {
         let z = z + 719_468;
         let era = z.div_euclid(146_097);
         let doe = z.rem_euclid(146_097);
@@ -702,6 +720,18 @@ fn load_png(bytes: &'static [u8]) -> Image {
     ))
 }
 
+const ID_DAYS: [&str; 7] = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+const ID_MONTHS: [&str; 12] = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+/// "3h 4j" / "5j 12m" / "9m" (sama dengan fmtUptime di Tauri).
+fn fmt_uptime(secs: u64) -> String {
+    let (d, h, m) = (secs / 86_400, (secs / 3600) % 24, (secs / 60) % 60);
+    if d > 0 { format!("{d}h {h}j") } else if h > 0 { format!("{h}j {m}m") } else { format!("{m}m") }
+}
+
 fn gib(bytes: f64) -> f64 {
     bytes / (1024.0 * 1024.0 * 1024.0)
 }
@@ -728,17 +758,213 @@ fn apply_battery(w: &NotchWindow, reading: Reading) {
 }
 
 /// Isi daftar catatan di UI (maksimal 3 terbaru; halaman ini belum bisa menggulir).
+/// "Baru saja" / "5 mnt lalu" / "3 jam lalu" / "2 hari lalu" / "17 Nov" (sama dengan fmtNoteDate di Tauri).
+fn fmt_note_date(updated_ms: i64) -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(updated_ms);
+    let min = ((now - updated_ms) / 60_000).max(0);
+    if min < 1 {
+        return "Baru saja".into();
+    }
+    if min < 60 {
+        return format!("{min} mnt lalu");
+    }
+    let h = min / 60;
+    if h < 24 {
+        return format!("{h} jam lalu");
+    }
+    let d = h / 24;
+    if d < 7 {
+        return format!("{d} hari lalu");
+    }
+    let (_, mo, day) = platform::civil_from_days(updated_ms.div_euclid(86_400_000));
+    const SHORT: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    format!("{day} {}", SHORT[(mo.clamp(1, 12) - 1) as usize])
+}
+
 fn show_notes(model: &VecModel<NoteItem>, notes: Vec<Note>) {
     model.set_vec(
         notes
             .into_iter()
-            .take(3)
-            .map(|n| NoteItem { id: n.id.into(), text: n.text.replace('\n', " ").into() })
+            .map(|n| {
+                let first_lines = n.text.split('\n').take(2).collect::<Vec<_>>().join(" ");
+                let mut preview: String = first_lines.chars().take(120).collect();
+                if n.text.chars().count() > 120 {
+                    preview.push('\u{2026}');
+                }
+                let meta = format!("{} \u{00B7} {} kar", fmt_note_date(n.updated_at), n.text.chars().count());
+                NoteItem { id: n.id.into(), text: n.text.into(), preview: preview.into(), meta: meta.into() }
+            })
             .collect::<Vec<_>>(),
     );
 }
- 
+
 /// Perbarui tiga item terbaru pada halaman Clipboard. Riwayat internal tetap menyimpan 10 item.
+// ---------- Currency: kurs Rupiah, saham IDX, pengingat kurs ----------
+
+#[derive(Default)]
+struct CurrencyFetch {
+    rates: Option<Result<notch_core::currency::Rates, String>>,
+    stocks: Option<Result<Vec<notch_core::currency::StockPoint>, String>>,
+}
+
+struct CurrencyState {
+    rates: Option<notch_core::currency::Rates>,
+    stocks: Vec<notch_core::currency::StockPoint>,
+    rates_error: String,
+    stock_error: String,
+    amount: String, // hanya digit
+    target: usize,
+    alerts: Vec<notch_core::currency::Alert>,
+    updated: String,
+    loaded_at: Option<Instant>,
+    loading: bool,
+}
+
+impl CurrencyState {
+    fn new(alerts: Vec<notch_core::currency::Alert>) -> Self {
+        Self {
+            rates: None,
+            stocks: Vec::new(),
+            rates_error: String::new(),
+            stock_error: String::new(),
+            amount: "100000".into(),
+            target: 0,
+            alerts,
+            updated: String::new(),
+            loaded_at: None,
+            loading: false,
+        }
+    }
+}
+
+const CURRENCY_QUICK: [u64; 5] = [10_000, 50_000, 100_000, 500_000, 1_000_000];
+const SHORT_MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+/// "1234567" -> "1.234.567".
+fn group_digits(digits: &str) -> String {
+    let n = digits.chars().count();
+    let mut out = String::with_capacity(n + n / 3);
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (n - i) % 3 == 0 {
+            out.push('.');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// Format angka gaya Indonesia: titik ribuan, koma desimal.
+fn fmt_id_number(value: f64, decimals: usize) -> String {
+    let text = format!("{:.*}", decimals, value.abs());
+    let (int, frac) = match text.split_once('.') {
+        Some((a, b)) => (a.to_string(), Some(b.to_string())),
+        None => (text.clone(), None),
+    };
+    let mut out = group_digits(&int);
+    if let Some(f) = frac {
+        out.push(',');
+        out.push_str(&f);
+    }
+    if value < 0.0 {
+        out.insert(0, '-');
+    }
+    out
+}
+
+fn rupiah(value: f64) -> String {
+    format!("Rp {}", fmt_id_number(value, if value >= 1000.0 { 0 } else { 2 }))
+}
+
+fn alert_text(a: &notch_core::currency::Alert) -> String {
+    format!("{} {} {}", a.code, if a.above { "\u{2265}" } else { "\u{2264}" }, rupiah(a.target))
+}
+
+fn paint_currency(
+    w: &NotchWindow,
+    s: &CurrencyState,
+    gainers: &VecModel<StockRow>,
+    losers: &VecModel<StockRow>,
+    alerts: &VecModel<CurrencyAlertItem>,
+) {
+    use notch_core::currency::CURRENCIES;
+    let (code, name) = CURRENCIES[s.target % CURRENCIES.len()];
+    let amount: f64 = s.amount.parse().unwrap_or(0.0);
+    let per_unit = s.rates.as_ref().and_then(|r| r.idr_for(code));
+    let (result, rate) = match per_unit {
+        Some(idr) => {
+            let value = amount / idr;
+            let decimals = if value >= 1_000_000.0 { 0 } else if value >= 0.01 { 2 } else { 4 };
+            (
+                format!("{} {code}", fmt_id_number(value, decimals)),
+                format!("1 {code} = {}", rupiah(idr)),
+            )
+        }
+        None => (String::new(), String::new()),
+    };
+    let (_, month) = notch_core::currency::month_start();
+    w.set_currency(CurrencyView {
+        amount: group_digits(&s.amount).into(),
+        code: code.into(),
+        name: name.into(),
+        result: result.into(),
+        rate: rate.into(),
+        updated: s.updated.clone().into(),
+        stock_period: format!("MTD \u{00B7} 1 {}", SHORT_MONTHS[(month.clamp(1, 12) - 1) as usize]).into(),
+        stock_status: if s.stock_error.is_empty() {
+            "Pilihan saham IDX \u{00B7} data Yahoo Finance, bukan seluruh bursa".into()
+        } else {
+            s.stock_error.clone().into()
+        },
+        error: s.rates_error.clone().into(),
+        loading: s.loading,
+    });
+    if w.get_currency_amount().as_str() != group_digits(&s.amount) {
+        w.set_currency_amount(group_digits(&s.amount).into());
+    }
+    let row = |p: &notch_core::currency::StockPoint, positive: bool| StockRow {
+        name: p.label.clone().into(),
+        price: rupiah(p.last).into(),
+        change: format!("{:+.1}%", p.change).replace('.', ",").into(),
+        positive,
+    };
+    gainers.set_vec(s.stocks.iter().filter(|p| p.change > 0.0).take(3).map(|p| row(p, true)).collect::<Vec<_>>());
+    let mut down: Vec<_> = s.stocks.iter().filter(|p| p.change < 0.0).collect();
+    down.sort_by(|a, b| a.change.partial_cmp(&b.change).unwrap_or(std::cmp::Ordering::Equal));
+    losers.set_vec(down.into_iter().take(3).map(|p| row(p, false)).collect::<Vec<_>>());
+    alerts.set_vec(
+        s.alerts
+            .iter()
+            .map(|a| CurrencyAlertItem { id: a.id.clone().into(), text: alert_text(a).into() })
+            .collect::<Vec<_>>(),
+    );
+}
+
+/// Tampilkan satu pengingat kurs yang tercapai lewat gelembung notch, lalu hapus (sekali pakai).
+/// Hanya berjalan saat notch menciut dan tidak ada gelembung lain, supaya tidak tertimpa.
+fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::path::Path) {
+    let can_show = !w.get_expanded() && !w.get_nudge_visible() && !w.get_reminder_alert_visible()
+        && !w.get_meeting_active() && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
+    let Some(rates) = s.rates.as_ref() else { return };
+    if !can_show {
+        return;
+    }
+    let Some((alert, now)) = notch_core::currency::due_alerts(&s.alerts, rates).into_iter().next() else { return };
+    w.set_nudge_message(format!("{} {} ke {}", alert.code, if alert.above { "naik" } else { "turun" }, rupiah(now)).into());
+    w.set_nudge_detail(format!("Pengingat kurs \u{00B7} target {}", alert_text(&alert)).into());
+    w.set_nudge_visible(true);
+    let weak = w.as_weak();
+    Timer::single_shot(Duration::from_secs(8), move || {
+        if let Some(w) = weak.upgrade() {
+            w.set_nudge_visible(false);
+        }
+    });
+    s.alerts.retain(|a| a.id != alert.id);
+    notch_core::currency::save_alerts(path, &s.alerts);
+}
+
 fn show_clipboard(model: &VecModel<ClipboardItem>, monitor: Option<&ClipboardMonitor>) {
     let items = monitor.map(ClipboardMonitor::list).unwrap_or_default();
     model.set_vec(
@@ -930,7 +1156,7 @@ fn show_pomo(w: &NotchWindow, p: &Pomodoro) {
 }
 
 // Ukuran pil saat melebar (px logis); harus sama dengan `pill` di ui/notch.slint.
-const PILL_W: f32 = 602.0;
+const PILL_W: f32 = 580.0;
 const PILL_H: f32 = 202.0;
 
 /// Penempatan jendela + bentuk tepi + gambar hiasan tema. Hiasan dirender ulang hanya saat mode tepi
@@ -1111,6 +1337,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut updated_config = cfg.clone();
         let mut was_down = false;
         let mut drag: Option<((i32, i32), (i32, i32), bool, (i32, i32))> = None;
+        // Tekan di dalam jendela yang belum "armed": event press Slint bisa tiba beberapa milidetik
+        // setelah GetAsyncKeyState melaporkan tombol turun, jadi pemeriksaan diulang selama tombol ditahan.
+        let mut candidate: Option<((i32, i32), (i32, i32))> = None;
         // Skala dan ukuran ORB fisik saat ini; diperbarui bila pointer berpindah monitor DPI berbeda.
         let mut drag_scale = 1.0f32;
         let mut drag_orb_size = 0u32;
@@ -1124,11 +1353,21 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some((cx, cy)) = cursor {
                     let p = w.window().position();
                     let z = w.window().size();
-                    if cx >= p.x && cx < p.x + z.width as i32
-                        && cy >= p.y && cy < p.y + z.height as i32
-                        && w.get_drag_armed()
-                    {
-                        drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
+                    if cx >= p.x && cx < p.x + z.width as i32 && cy >= p.y && cy < p.y + z.height as i32 {
+                        if w.get_drag_armed() {
+                            drag = Some(((cx, cy), (p.x, p.y), false, (0, 0)));
+                            w.set_play_interaction_active(true);
+                        } else {
+                            candidate = Some(((cx, cy), (p.x, p.y)));
+                        }
+                    }
+                }
+            }
+            if down && drag.is_none() {
+                if let Some((start_cursor, start_window)) = candidate {
+                    if w.get_drag_armed() {
+                        drag = Some((start_cursor, start_window, false, (0, 0)));
+                        candidate = None;
                         w.set_play_interaction_active(true);
                     }
                 }
@@ -1177,6 +1416,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 }
             } else if was_down {
+                candidate = None;
                 if let Some((_, _, moved, _)) = drag.take() {
                     if moved {
                         // Jaga proteksi klik selama seluruh drag, lalu beri jeda singkat
@@ -1789,6 +2029,193 @@ fn main() -> Result<(), slint::PlatformError> {
     let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
+
+    // Wajah idle terakhir (mata / jam) diingat antar sesi.
+    if std::fs::read_to_string(notch_core::paths::data_file("idle_face.txt")).map(|t| t.trim() == "clock").unwrap_or(false) {
+        win.set_idle_clock(true);
+    }
+
+    // ----- Currency -----
+    let currency_path = notch_core::paths::data_file("currency_alerts.json");
+    let currency = Rc::new(RefCell::new(CurrencyState::new(notch_core::currency::load_alerts(&currency_path))));
+    let currency_fetch = Arc::new(Mutex::new(CurrencyFetch::default()));
+    let currency_busy = Arc::new(AtomicBool::new(false));
+    let stock_gainers = Rc::new(VecModel::<StockRow>::default());
+    let stock_losers = Rc::new(VecModel::<StockRow>::default());
+    let currency_alert_model = Rc::new(VecModel::<CurrencyAlertItem>::default());
+    win.set_stock_gainers(ModelRc::from(stock_gainers.clone()));
+    win.set_stock_losers(ModelRc::from(stock_losers.clone()));
+    win.set_currency_alerts(ModelRc::from(currency_alert_model.clone()));
+    paint_currency(&win, &currency.borrow(), &stock_gainers, &stock_losers, &currency_alert_model);
+    // Minta data baru di thread latar. `stocks` = ikut ambil saham; `force` = abaikan cache 10 menit.
+    let currency_request: Rc<dyn Fn(bool, bool)> = {
+        let (weak, state, fetch, busy) = (win.as_weak(), currency.clone(), currency_fetch.clone(), currency_busy.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        Rc::new(move |force: bool, stocks: bool| {
+            {
+                let s = state.borrow();
+                let fresh = s.loaded_at.map(|t| t.elapsed() < Duration::from_secs(600)).unwrap_or(false) && !s.stocks.is_empty();
+                if stocks && !force && fresh {
+                    return;
+                }
+            }
+            if busy.swap(true, Ordering::SeqCst) {
+                return;
+            }
+            state.borrow_mut().loading = true;
+            if let Some(w) = weak.upgrade() {
+                paint_currency(&w, &state.borrow(), &gm, &lm, &am);
+            }
+            let (weak, fetch, busy) = (weak.clone(), fetch.clone(), busy.clone());
+            std::thread::spawn(move || {
+                let rates = notch_core::currency::fetch_rates();
+                let stock_result = if stocks { Some(notch_core::currency::fetch_stocks()) } else { None };
+                if let Ok(mut guard) = fetch.lock() {
+                    guard.rates = Some(rates);
+                    guard.stocks = stock_result;
+                }
+                busy.store(false, Ordering::SeqCst);
+                let _ = weak.upgrade_in_event_loop(|w| w.invoke_currency_data_ready());
+            });
+        })
+    };
+    {
+        let (weak, state, fetch) = (win.as_weak(), currency.clone(), currency_fetch.clone());
+        let (gm, lm, am, path) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone(), currency_path.clone());
+        win.on_currency_data_ready(move || {
+            let Some(w) = weak.upgrade() else { return };
+            let (rates, stocks) = match fetch.lock() {
+                Ok(mut g) => (g.rates.take(), g.stocks.take()),
+                Err(_) => (None, None),
+            };
+            let mut s = state.borrow_mut();
+            s.loading = false;
+            match rates {
+                Some(Ok(r)) => {
+                    let (h, mi, _, _, _) = platform::local_time();
+                    s.rates = Some(r);
+                    s.rates_error.clear();
+                    s.updated = format!("Diperbarui {h:02}:{mi:02}");
+                }
+                Some(Err(e)) => {
+                    if s.rates.is_none() {
+                        s.rates_error = format!("Kurs belum tersedia: {e}");
+                    }
+                }
+                None => {}
+            }
+            match stocks {
+                Some(Ok(v)) => {
+                    s.stocks = v;
+                    s.stock_error.clear();
+                    s.loaded_at = Some(Instant::now());
+                }
+                Some(Err(e)) => {
+                    if s.stocks.is_empty() {
+                        s.stock_error = e;
+                    }
+                }
+                None => {}
+            }
+            fire_due_currency_alert(&w, &mut s, &path);
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    {
+        let req = currency_request.clone();
+        win.on_currency_refresh(move || req(true, true));
+    }
+    {
+        let (weak, state) = (win.as_weak(), currency.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_amount_edited(move |text| {
+            let Some(w) = weak.upgrade() else { return };
+            let digits: String = text.chars().filter(char::is_ascii_digit).collect();
+            let digits = digits.trim_start_matches('0');
+            let mut s = state.borrow_mut();
+            s.amount = digits.chars().take(15).collect();
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    {
+        let (weak, state) = (win.as_weak(), currency.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_quick(move |i| {
+            let Some(w) = weak.upgrade() else { return };
+            let mut s = state.borrow_mut();
+            s.amount = CURRENCY_QUICK.get(i.max(0) as usize).copied().unwrap_or(100_000).to_string();
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    {
+        let (weak, state) = (win.as_weak(), currency.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_step_target(move |n| {
+            let Some(w) = weak.upgrade() else { return };
+            let mut s = state.borrow_mut();
+            let len = notch_core::currency::CURRENCIES.len() as i32;
+            s.target = ((s.target as i32 + n).rem_euclid(len)) as usize;
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    {
+        let (weak, state, path) = (win.as_weak(), currency.clone(), currency_path.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_add_alert(move |above, text| {
+            let Some(w) = weak.upgrade() else { return };
+            let digits: String = text.chars().filter(char::is_ascii_digit).collect();
+            let Ok(target) = digits.parse::<f64>() else { return };
+            if target <= 0.0 {
+                return;
+            }
+            let mut s = state.borrow_mut();
+            let code = notch_core::currency::CURRENCIES[s.target % notch_core::currency::CURRENCIES.len()].0;
+            let id = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis().to_string())
+                .unwrap_or_default();
+            s.alerts.push(notch_core::currency::Alert { id, code: code.into(), above, target });
+            s.alerts.truncate(20);
+            notch_core::currency::save_alerts(&path, &s.alerts);
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    {
+        let (weak, state, path) = (win.as_weak(), currency.clone(), currency_path.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        win.on_currency_remove_alert(move |id| {
+            let Some(w) = weak.upgrade() else { return };
+            let mut s = state.borrow_mut();
+            s.alerts.retain(|a| a.id != id.as_str());
+            notch_core::currency::save_alerts(&path, &s.alerts);
+            paint_currency(&w, &s, &gm, &lm, &am);
+        });
+    }
+    // Pengingat kurs berjalan walau halaman tidak dibuka: cek cache tiap 30 dtk, ambil kurs baru tiap 10 menit.
+    let currency_alert_timer = Timer::default();
+    {
+        let (weak, state, req, path) = (win.as_weak(), currency.clone(), currency_request.clone(), currency_path.clone());
+        let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
+        let ticks = Cell::new(0u32);
+        currency_alert_timer.start(TimerMode::Repeated, Duration::from_secs(30), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let mut s = state.borrow_mut();
+            if s.alerts.is_empty() {
+                return;
+            }
+            ticks.set(ticks.get() + 1);
+            if s.rates.is_none() || ticks.get() % 20 == 0 {
+                drop(s);
+                req(true, false);
+                return;
+            }
+            let before = s.alerts.len();
+            fire_due_currency_alert(&w, &mut s, &path);
+            if s.alerts.len() != before {
+                paint_currency(&w, &s, &gm, &lm, &am);
+            }
+        });
+    }
     let shelf_store = Rc::new(RefCell::new(shelf::Store::open(notch_core::paths::data_file("shelf.json"))));
     let shelf_model = Rc::new(VecModel::<ShelfItem>::default());
     let shelf_items = shelf_store.borrow().list();
@@ -1856,6 +2283,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let (notes_store, notes_model, notes_path) =
             (notes_store.clone(), notes_model.clone(), notes_path.clone());
         let (clipboard_model, clipboard_monitor) = (clipboard_model.clone(), clipboard_monitor.clone());
+        let currency_request = currency_request.clone();
         let weather_busy = weather_busy.clone();
         let weather_location = weather_location.clone();
         let quick_busy = quick_busy.clone();
@@ -1884,6 +2312,28 @@ fn main() -> Result<(), slint::PlatformError> {
                             w.set_disk_text(format!("{:.0} / {:.0} GiB", gib(s.disk_used), gib(s.disk_total)).into());
                             w.set_net_text(format!("\u{2193} {}   \u{2191} {}", fmt_rate(s.down), fmt_rate(s.up)).into());
                             w.set_sys_text(format!("{} threads \u{00B7} {} proses", s.cpu_cores, s.processes).into());
+                            // Tampilan halaman Stats (sama dengan quick-stats.ts di Tauri)
+                            let freq = if s.cpu_freq_mhz > 0 { format!(" \u{00B7} {:.1} GHz", s.cpu_freq_mhz as f64 / 1000.0) } else { String::new() };
+                            w.set_stats(StatsView {
+                                host: s.host_name.into(),
+                                cpu: s.cpu, ram: s.ram, swap: s.swap, disk: s.disk,
+                                cpu_v: format!("{:.0}%", s.cpu).into(),
+                                ram_v: format!("{:.0}%", s.ram).into(),
+                                swap_v: format!("{:.0}%", s.swap).into(),
+                                disk_v: format!("{:.0}%", s.disk).into(),
+                                cpu_meta: format!("{} \u{00B7} {} thread{}", s.cpu_name, s.cpu_cores, freq).into(),
+                                ram_meta: format!("{:.1} / {:.1} GiB digunakan", gib(s.ram_used), gib(s.ram_total)).into(),
+                                swap_meta: format!("{:.1} / {:.1} GiB digunakan", gib(s.swap_used), gib(s.swap_total)).into(),
+                                disk_meta: if s.disk_total > 0.0 {
+                                    format!("{:.0} / {:.0} GiB \u{00B7} {}", gib(s.disk_used), gib(s.disk_total), s.disk_label).into()
+                                } else { "Penyimpanan N/A".into() },
+                                down: format!("\u{2193} {}", fmt_rate(s.down)).into(),
+                                up: format!("\u{2191} {}", fmt_rate(s.up)).into(),
+                                processes: format!("{} proses", s.processes).into(),
+                                uptime: format!("Aktif {}", fmt_uptime(s.uptime_secs)).into(),
+                                os: format!("{} {}", s.os_name, s.os_version).trim().to_string().into(),
+                                kernel: s.kernel_version.into(),
+                            });
                         }
                     });
                 }
@@ -1933,6 +2383,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 clipboard_timer.stop();
             }
 
+            // Currency: muat kurs + saham saat halaman dibuka (cache 10 menit).
+            if visible && page == "currency" {
+                currency_request(false, true);
+            }
+
             // Cuaca: ambil data saat halaman terlihat, lalu perbarui tiap lima menit.
             if visible && page == "weather" {
                 if !weather_timer.running() {
@@ -1960,6 +2415,14 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut guard = store.borrow_mut();
             let s = guard.get_or_insert_with(|| NotesStore::open(&path));
             show_notes(&model, s.add(text.as_str()));
+        });
+    }
+    {
+        let (store, model, path) = (notes_store.clone(), notes_model.clone(), notes_path.clone());
+        win.on_save_note(move |id, text| {
+            let mut guard = store.borrow_mut();
+            let s = guard.get_or_insert_with(|| NotesStore::open(&path));
+            show_notes(&model, s.update(id.as_str(), text.as_str()));
         });
     }
     {
@@ -2454,6 +2917,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let Some(w) = weak.upgrade() else { return };
             shrink.stop();
             shell.place(&w, EXPANDED);
+            // Dengan wajah jam, hub dibuka di halaman Jam (homePage di Tauri).
+            if w.get_idle_clock() {
+                w.set_page_id("clock".into());
+            }
             w.set_expanded(true);
             sync();
         })
@@ -2465,6 +2932,15 @@ fn main() -> Result<(), slint::PlatformError> {
         let shell = shell.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
+            // Hub yang ditutup pengguna: bila halaman terakhir adalah Jam, notch berganti dari mata ke jam + tanggal;
+            // di halaman lain kembali ke mata (sama dengan collapse() di view-controller.ts Tauri).
+            if w.get_expanded() && w.get_active_pages().iter().any(|p| p == "clock") {
+                let clock = w.get_page_id() == "clock";
+                if w.get_idle_clock() != clock {
+                    w.set_idle_clock(clock);
+                    let _ = std::fs::write(notch_core::paths::data_file("idle_face.txt"), if clock { "clock" } else { "eyes" });
+                }
+            }
             w.set_expanded(false);
             w.set_cal_open(false); // kalender dan lirik ikut menutup saat notch menciut
             w.set_lyrics_open(false);
@@ -2511,13 +2987,21 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let last = Rc::new(Cell::new((99u32, 99u32)));
+        let last_sec = Rc::new(Cell::new(99u32));
         let tick = move || {
             let Some(w) = weak.upgrade() else { return };
             let (h, m, d, mo, y) = platform::local_time();
+            let (sec, wday) = platform::local_sec_wday();
+            if last_sec.get() != sec {
+                last_sec.set(sec);
+                w.set_sec_text(format!("{sec:02}").into());
+            }
             if last.get() != (h, m) {
                 last.set((h, m));
                 w.set_clock_text(format!("{h:02}:{m:02}").into());
-                w.set_date_text(format!("{d:02}/{mo:02}/{y}").into());
+                w.set_day_text(ID_DAYS[(wday % 7) as usize].into());
+                w.set_date_short(format!("{d} {}", SHORT_MONTHS[(mo.clamp(1, 12) - 1) as usize]).into());
+                w.set_date_text(format!("{d} {} {y}", ID_MONTHS[(mo.clamp(1, 12) - 1) as usize]).into());
             }
         };
         tick();
