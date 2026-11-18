@@ -471,9 +471,24 @@ fn expanded_size(w: &NotchWindow) -> (u32, u32) {
     }
 }
 
-// Gambar mata = seukuran pil kecil (px logis); harus sama dengan `Image` mata di ui/notch.slint.
+// Canvas mata mengikuti ukuran notch sesuai orientasi dock.
 const EYES_W: f32 = 130.0;
 const EYES_H: f32 = 34.0;
+const EYES_TOP_H: f32 = 26.0;
+
+fn eye_renderer_for_dock(skin: &str, dock: i32) -> (EyeRenderer, (f32, f32)) {
+    let size = match dock {
+        0 => (EYES_W, EYES_TOP_H),
+        3 | 4 => (EYES_H, EYES_W),
+        _ => (EYES_W, EYES_H),
+    };
+    let renderer = if matches!(dock, 3 | 4) {
+        EyeRenderer::new_vertical(skin, size.0, size.1)
+    } else {
+        EyeRenderer::new(skin, size.0, size.1)
+    };
+    (renderer, size)
+}
 
 /// Pengacak ringan untuk kedip dan tatapan acak (tanpa dependensi `rand`).
 struct Rng(Cell<u64>);
@@ -499,6 +514,7 @@ impl Rng {
 /// Seluruh keadaan mata: mood, transisi, tatapan, kedip, dan frame terakhir yang digambar.
 struct EyeCtx {
     renderer: EyeRenderer,
+    canvas_size: (f32, f32),
     skin: usize,
     mood: MoodState,
     cur: Mood,
@@ -4910,11 +4926,9 @@ fn main() -> Result<(), slint::PlatformError> {
                         if let Some(eye) = eye_runtime.borrow().as_ref() {
                             let mut eye = eye.borrow_mut();
                             let skin = eyes::skin_index(&next.appearance.eye_theme);
-                            eye.renderer = if matches!(w.get_dock(), 3 | 4) {
-                                EyeRenderer::new_vertical(&next.appearance.eye_theme, EYES_H, EYES_W)
-                            } else {
-                                EyeRenderer::new(&next.appearance.eye_theme, EYES_W, EYES_H)
-                            };
+                            let (renderer, canvas_size) = eye_renderer_for_dock(&next.appearance.eye_theme, w.get_dock());
+                            eye.renderer = renderer;
+                            eye.canvas_size = canvas_size;
                             eye.skin = skin;
                             let mood = Mood::parse(&next.appearance.default_mood).unwrap_or(Mood::Normal);
                             eye.mood = MoodState::new(mood, next.timing.sleep_after_s, Instant::now());
@@ -5194,8 +5208,10 @@ fn main() -> Result<(), slint::PlatformError> {
     let started = Instant::now();
     let skin = eyes::skin_index(&cfg.appearance.eye_theme);
     let default_mood = Mood::parse(&cfg.appearance.default_mood).unwrap_or(Mood::Normal);
+    let (initial_eye_renderer, initial_eye_size) = eye_renderer_for_dock(&cfg.appearance.eye_theme, win.get_dock());
     let eye = Rc::new(RefCell::new(EyeCtx {
-        renderer: EyeRenderer::new(&cfg.appearance.eye_theme, EYES_W, EYES_H),
+        renderer: initial_eye_renderer,
+        canvas_size: initial_eye_size,
         skin,
         mood: MoodState::new(default_mood, cfg.timing.sleep_after_s, started),
         cur: default_mood,
@@ -5386,14 +5402,19 @@ fn main() -> Result<(), slint::PlatformError> {
                 return; // mata tersembunyi saat hub terbuka: tidak perlu menggambar
             }
 
-            let vertical = matches!(w.get_dock(), 3 | 4);
-            if e.renderer.is_vertical() != vertical {
+            let (canvas_w, canvas_h) = match w.get_dock() {
+                0 => (EYES_W, EYES_TOP_H),
+                3 | 4 => (EYES_H, EYES_W),
+                _ => (EYES_W, EYES_H),
+            };
+            if e.canvas_size != (canvas_w, canvas_h) {
                 let skin_name = e.renderer.skin_name();
-                e.renderer = if vertical {
-                    EyeRenderer::new_vertical(skin_name, EYES_H, EYES_W)
+                e.renderer = if matches!(w.get_dock(), 3 | 4) {
+                    EyeRenderer::new_vertical(skin_name, canvas_w, canvas_h)
                 } else {
-                    EyeRenderer::new(skin_name, EYES_W, EYES_H)
+                    EyeRenderer::new(skin_name, canvas_w, canvas_h)
                 };
+                e.canvas_size = (canvas_w, canvas_h);
                 e.last_key = None;
             }
             let sf = w.window().scale_factor();
