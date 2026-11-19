@@ -259,13 +259,25 @@ pub fn save_alerts(path: &std::path::Path, alerts: &[Alert]) {
 }
 
 /// Alert yang sudah tercapai oleh `rates`, beserta kurs saat ini (rupiah per unit).
+/// True saat harga terkini memenuhi ambang alert, dengan arah naik/turun yang dipilih.
+pub fn alert_target_reached(alert: &Alert, price: f64) -> bool {
+    if !price.is_finite() || price <= 0.0 { return false; }
+    if alert.above { price >= alert.target } else { price <= alert.target }
+}
+
+/// True saat harga sudah kembali ke sisi sebaliknya, sehingga alert berulang dapat dipersenjatai lagi.
+pub fn alert_returned_to_opposite_side(alert: &Alert, price: f64) -> bool {
+    if !price.is_finite() || price <= 0.0 { return false; }
+    if alert.above { price < alert.target } else { price > alert.target }
+}
+
 pub fn due_alerts(alerts: &[Alert], rates: &Rates) -> Vec<(Alert, f64)> {
     alerts
         .iter()
+        .filter(|a| a.kind == AlertKind::Currency)
         .filter_map(|a| {
             let now = rates.idr_for(&a.code)?;
-            let hit = if a.above { now >= a.target } else { now <= a.target };
-            hit.then(|| (a.clone(), now))
+            alert_target_reached(a, now).then(|| (a.clone(), now))
         })
         .collect()
 }
@@ -327,6 +339,18 @@ mod tests {
         assert!(!decoded.armed);
         assert!(is_allowed_stock_code("BBCA"));
         assert!(!is_allowed_stock_code("AAPL"));
+    }
+
+    #[test]
+    fn recurring_alert_rearms_only_after_price_returns_across_threshold() {
+        let alert = Alert {
+            id: "repeat-1".into(), code: "BBCA".into(), kind: AlertKind::Stock,
+            above: true, target: 10_000.0, repeat: true, armed: false,
+        };
+        assert!(!alert_returned_to_opposite_side(&alert, 10_250.0));
+        assert!(alert_returned_to_opposite_side(&alert, 9_990.0));
+        assert!(alert_target_reached(&alert, 10_000.0));
+        assert!(!alert_target_reached(&alert, f64::NAN));
     }
 
     #[test]
