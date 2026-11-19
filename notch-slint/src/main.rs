@@ -1370,7 +1370,7 @@ fn weekday_selection(mask: u8) -> Vec<bool> {
 }
 
 fn show_reminders(model: &VecModel<ReminderItem>, reminders: Vec<Reminder>, offset: i32) {
-    let items = reminders.into_iter().take(3).map(|r| {
+    let items = reminders.into_iter().map(|r| {
         let due = if r.due_at <= 0 {
             "Tanpa waktu".to_string()
         } else {
