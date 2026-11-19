@@ -2222,10 +2222,9 @@ component ReminderPage inherits VerticalLayout {
                     vertical-stretch: 1;
                     content-width: self.width;
                     content-height: root.items.length * 64px;
-                    VerticalLayout {
-                        width: parent.width;
-                        spacing: 8px;
-                        for item[i] in root.items: Rectangle {
+                    for item[i] in root.items: Rectangle {
+                        x: 0px;
+                        y: i * 64px;
                         width: parent.width - 8px;
                         height: 56px;
                         border-radius: 12px;
@@ -2261,7 +2260,6 @@ component ReminderPage inherits VerticalLayout {
                             }
                             RoundButton { size: 28px; commands: item.done ? Icons.reset : "M 4 12 L 9 17 L 20 6"; outline: true; clicked => { root.toggle(item.id); } }
                             RoundButton { size: 28px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
-                        }
                         }
                     }
                 }
