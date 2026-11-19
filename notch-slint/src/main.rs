@@ -3068,10 +3068,15 @@ fn main() -> Result<(), slint::PlatformError> {
         let store = shelf_store.clone();
         let model = shelf_model.clone();
         let weak = win.as_weak();
+        let shelf_enabled = pages.iter().any(|page| page == "shelf");
         win.window().on_winit_window_event(move |_window, event| {
             match event {
                 winit::event::WindowEvent::HoveredFile(_) => {
                     if let Some(w) = weak.upgrade() {
+                        if shelf_enabled {
+                            w.set_page_id("shelf".into());
+                            w.set_expanded(true);
+                        }
                         w.set_shelf_status("Lepaskan file atau folder untuk menyimpannya ke Shelf".into());
                     }
                 }
@@ -3087,6 +3092,10 @@ fn main() -> Result<(), slint::PlatformError> {
                         path: item.path.into(), name: item.name.into(), dir: item.dir,
                     }).collect::<Vec<_>>());
                     if let Some(w) = weak.upgrade() {
+                        if shelf_enabled {
+                            w.set_page_id("shelf".into());
+                            w.set_expanded(true);
+                        }
                         w.set_shelf_status(format!("File ditambahkan · {} item tersimpan · file asli tetap di lokasi semula", model.row_count()).into());
                     }
                 }
