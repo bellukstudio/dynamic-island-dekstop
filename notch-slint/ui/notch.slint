@@ -2285,56 +2285,60 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
+// Awan percakapan untuk dock bawah/samping: kecil, sudut membulat, tinggi mengikuti isi,
+// dan ekor membulat yang menunjuk ke notch. `tail-pos` = posisi ujung ekor di sepanjang sisi
+// (relatif terhadap awan); nilai negatif berarti di tengah.
 component SpeechBubble inherits Rectangle {
     in property <string> message;
     in property <string> detail;
-    in property <bool> bottom: false;
     in property <bool> side: false;
     in property <bool> side-right: false;
-    height: 96px;
-    width: 280px;
-    border-radius: 23px;
+    in property <length> tail-pos: -1px;
+    property <length> along: root.side ? root.height : root.width;
+    property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
+    width: 224px;
+    height: 11px + msg.height + (root.detail != "" ? 3px + det.height : 0px) + 11px;
+    border-radius: 20px;
     clip: false;
     background: #08090df5;
-    border-width: 0px;
-    VerticalLayout {
-        padding-left: 16px;
-        padding-right: 16px;
-        padding-top: 10px;
-        padding-bottom: 10px;
-        spacing: 4px;
-        Text {
-            width: parent.width;
-            height: 36px;
-            text: root.message;
-            color: #ffffff;
-            font-size: 13px;
-            font-weight: 700;
-            wrap: word-wrap;
-            overflow: clip;
-        }
-        Text {
-            width: parent.width;
-            height: 32px;
-            text: root.detail;
-            color: #c7c9d1;
-            font-size: 11px;
-            wrap: word-wrap;
-            overflow: clip;
-        }
+
+    msg := Text {
+        x: 15px;
+        y: 11px;
+        width: parent.width - 30px;
+        height: Math.min(self.preferred-height, 32px);
+        text: root.message;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 700;
+        wrap: word-wrap;
+        overflow: clip;
     }
+    det := Text {
+        x: 15px;
+        y: msg.y + msg.height + 3px;
+        width: parent.width - 30px;
+        height: root.detail != "" ? Math.min(self.preferred-height, 28px) : 0px;
+        text: root.detail;
+        color: #c7c9d1;
+        font-size: 10.5px;
+        wrap: word-wrap;
+        overflow: clip;
+    }
+    // Ekor membulat (isi dan garis berwarna sama, join bulat) mengarah ke notch.
     Path {
-        x: root.side ? (root.side-right ? parent.width - 1px : -7px) : (parent.width - 20px) / 2;
-        y: root.side ? (parent.height - 18px) / 2 : (root.bottom ? -1px : parent.height - 1px);
-        width: root.side ? 9px : 20px;
-        height: root.side ? 18px : 13px;
-        viewbox-width: root.side ? 9 : 20;
-        viewbox-height: root.side ? 18 : 13;
-        commands: root.side ? (root.side-right ? "M 0 0 L 9 9 L 0 18 Z" : "M 9 0 L 0 9 L 9 18 Z")
-            : (root.bottom ? "M 0 13 L 10 0 L 20 13 Z" : "M 0 0 L 10 13 L 20 0 Z");
+        x: root.side ? (root.side-right ? parent.width - 2px : -10px) : root.tail-center - 9px;
+        y: root.side ? root.tail-center - 9px : parent.height - 3px;
+        width: root.side ? 12px : 18px;
+        height: root.side ? 18px : 12px;
+        viewbox-width: root.side ? 12 : 18;
+        viewbox-height: root.side ? 18 : 12;
+        commands: root.side ? (root.side-right ? "M 1 2 L 10 9 L 1 16 Z" : "M 11 2 L 2 9 L 11 16 Z")
+            : "M 2 1 L 9 10 L 16 1 Z";
         fill: #08090df5;
         stroke: #08090df5;
-        stroke-width: 1px;
+        stroke-width: 3px;
+        stroke-line-join: round;
     }
 }
 
@@ -5422,12 +5426,13 @@ export component NotchWindow inherits Window {
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
     if root.dock >= 2 && !root.expanded && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
-        width: root.dock >= 3 ? 230px : 280px;
-        x: root.dock == 3 ? 64px : (root.dock == 4 ? 6px : (root.width - self.width) / 2);
-        y: root.dock >= 3 ? (root.height - self.height) / 2 : (root.dock == 2 ? 0px : 42px);
-        bottom: root.dock != 2;
+        width: root.dock >= 3 ? 200px : 224px;
+        // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
+        x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
+        y: root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height;
         side: root.dock >= 3;
         side-right: root.dock == 4;
+        tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
         message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
         detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
     }
