@@ -1018,23 +1018,69 @@ fn paint_currency(
     alerts.set_vec(
         s.alerts
             .iter()
-            .map(|a| CurrencyAlertItem { id: a.id.clone().into(), text: alert_text(a).into() })
+            .map(|a| CurrencyAlertItem {
+                id: a.id.clone().into(),
+                text: alert_text(a).into(),
+                stock: a.kind == notch_core::currency::AlertKind::Stock,
+                repeat: a.repeat,
+                armed: a.armed,
+            })
             .collect::<Vec<_>>(),
     );
 }
 
-/// Tampilkan satu pengingat kurs yang tercapai lewat gelembung notch, lalu hapus (sekali pakai).
-/// Hanya berjalan saat notch menciut dan tidak ada gelembung lain, supaya tidak tertimpa.
+/// Periksa alert kurs dan saham dari snapshot harga terbaru.
+/// Alert sekali pakai dihapus setelah tampil; alert berulang menunggu harga kembali
+/// ke sisi sebaliknya dari ambang sebelum dipersenjatai lagi.
 fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::path::Path) {
     let can_show = !w.get_expanded() && !w.get_nudge_visible() && !w.get_reminder_alert_visible()
         && !w.get_meeting_active() && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
-    let Some(rates) = s.rates.as_ref() else { return };
-    if !can_show {
-        return;
+
+    let mut rearmed = false;
+    let mut due: Option<(notch_core::currency::Alert, f64)> = None;
+    for alert in &mut s.alerts {
+        let now = match alert.kind {
+            notch_core::currency::AlertKind::Currency => s.rates.as_ref().and_then(|rates| rates.idr_for(&alert.code)),
+            notch_core::currency::AlertKind::Stock => s.stocks.iter()
+                .find(|point| point.label == alert.code)
+                .map(|point| point.last),
+        };
+        let Some(now) = now.filter(|value| value.is_finite() && *value > 0.0) else { continue };
+        let reached = if alert.above { now >= alert.target } else { now <= alert.target };
+
+        if alert.repeat && !alert.armed {
+            let returned_to_opposite_side = if alert.above { now < alert.target } else { now > alert.target };
+            if returned_to_opposite_side {
+                alert.armed = true;
+                rearmed = true;
+            }
+            continue;
+        }
+        if reached && can_show {
+            due = Some((alert.clone(), now));
+            break;
+        }
     }
-    let Some((alert, now)) = notch_core::currency::due_alerts(&s.alerts, rates).into_iter().next() else { return };
-    w.set_nudge_message(format!("{} {} ke {}", alert.code, if alert.above { "naik" } else { "turun" }, rupiah(now)).into());
-    w.set_nudge_detail(format!("Pengingat kurs \u{00B7} target {}", alert_text(&alert)).into());
+
+    if rearmed {
+        notch_core::currency::save_alerts(path, &s.alerts);
+    }
+    let Some((alert, now)) = due else { return };
+    if alert.repeat {
+        if let Some(saved) = s.alerts.iter_mut().find(|item| item.id == alert.id) {
+            saved.armed = false;
+        }
+    } else {
+        s.alerts.retain(|item| item.id != alert.id);
+    }
+
+    let action = if alert.above { "naik" } else { "turun" };
+    let asset = match alert.kind {
+        notch_core::currency::AlertKind::Stock => "saham IDX",
+        notch_core::currency::AlertKind::Currency => "kurs",
+    };
+    w.set_nudge_message(format!("{} {} ke {}", alert.code, action, rupiah(now)).into());
+    w.set_nudge_detail(format!("Pengingat {asset} · target {}", alert_text(&alert)).into());
     w.set_nudge_visible(true);
     let weak = w.as_weak();
     Timer::single_shot(Duration::from_secs(8), move || {
@@ -1042,7 +1088,6 @@ fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::p
             w.set_nudge_visible(false);
         }
     });
-    s.alerts.retain(|a| a.id != alert.id);
     notch_core::currency::save_alerts(path, &s.alerts);
 }
 
