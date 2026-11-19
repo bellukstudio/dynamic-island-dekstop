@@ -27,7 +27,22 @@ mod platform {
  fn is_self(s:&Session)->bool{let id=app_id(s);if id.contains("webview2"){return true;}std::env::current_exe().ok().and_then(|p|p.file_stem().map(|x|x.to_string_lossy().to_lowercase())).map(|n|n.len()>=3&&id.contains(&n)).unwrap_or(false)}
  fn session()->windows::core::Result<Session>{init();let m=Manager::RequestAsync()?.get()?;if let Ok(s)=m.GetCurrentSession(){if !is_self(&s){return Ok(s);}}for s in m.GetSessions()?{if !is_self(&s){return Ok(s);}}Err(windows::core::Error::from(windows::core::HRESULT(0x80004005u32 as i32)))}
  fn read(s:&Session)->windows::core::Result<State>{let p=s.TryGetMediaPropertiesAsync()?.get()?;let t=s.GetTimelineProperties()?;let playing=s.GetPlaybackInfo()?.PlaybackStatus()?==Status::Playing;let length=t.EndTime()?.Duration as f64/10_000_000.0;let mut position=t.Position()?.Duration as f64/10_000_000.0;if playing{let updated=t.LastUpdatedTime()?.UniversalTime as f64/10_000_000.0;let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d|d.as_secs_f64()).unwrap_or(0.0)+11_644_473_600.0;let elapsed=now-updated;if elapsed>0.0&&elapsed<21_600.0{position+=elapsed;}}if length>0.0{position=position.min(length);}Ok(State{active:true,title:p.Title()?.to_string(),artist:p.Artist()?.to_string(),playing,position,length})}
- fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32)>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let(w,h)=decoded.dimensions();Some((decoded.into_raw(),w,h))}
+ /// Renderer software Slint tidak memotong gambar mengikuti `border-radius`, jadi sudut cover dibulatkan
+ /// langsung di piksel: potong persegi di tengah lalu kurangi alpha di sudut (radius 20% sisi, setara 16 px pada 80 px di Tauri).
+ fn round_cover(img:image::RgbaImage)->(Vec<u8>,u32,u32){
+  let(w,h)=img.dimensions();let side=w.min(h);
+  let mut out=image::imageops::crop_imm(&img,(w-side)/2,(h-side)/2,side,side).to_image();
+  let s=side as f32;let r=s*0.2;
+  for(x,y,px)in out.enumerate_pixels_mut(){
+   let fx=x as f32+0.5;let fy=y as f32+0.5;
+   let cx=fx.clamp(r,s-r);let cy=fy.clamp(r,s-r);
+   let d=((fx-cx)*(fx-cx)+(fy-cy)*(fy-cy)).sqrt();
+   let cover=(r-d+0.5).clamp(0.0,1.0);
+   if cover<1.0{px.0[3]=(px.0[3] as f32*cover).round() as u8;}
+  }
+  let(ow,oh)=out.dimensions();(out.into_raw(),ow,oh)
+ }
+ fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32)>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();Some(round_cover(decoded))}
  pub fn poll(weak:Weak<NotchWindow>){std::thread::spawn(move||{
  init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
  loop{
