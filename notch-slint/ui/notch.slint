@@ -2423,31 +2423,31 @@ component SpeechBubble inherits Rectangle {
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     width: 224px;
-    height: 11px + msg.height + (root.detail != "" ? 3px + det.height : 0px) + 11px;
-    border-radius: 20px;
+    height: 10px + msg.height + (root.detail != "" ? 3px + det.height : 0px) + 10px;
+    border-radius: 18px;
     clip: false;
     background: #08090df5;
 
     msg := Text {
-        x: 15px;
-        y: 11px;
-        width: parent.width - 30px;
-        height: Math.min(self.preferred-height, 32px);
+        x: 14px;
+        y: 10px;
+        width: parent.width - 28px;
+        height: Math.min(self.preferred-height, 30px);
         text: root.message;
         color: #ffffff;
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 600;
         wrap: word-wrap;
         overflow: clip;
     }
     det := Text {
-        x: 15px;
+        x: 14px;
         y: msg.y + msg.height + 3px;
-        width: parent.width - 30px;
-        height: root.detail != "" ? Math.min(self.preferred-height, 28px) : 0px;
+        width: parent.width - 28px;
+        height: root.detail != "" ? Math.min(self.preferred-height, 25px) : 0px;
         text: root.detail;
         color: #c7c9d1;
-        font-size: 10.5px;
+        font-size: 9.5px;
         wrap: word-wrap;
         overflow: clip;
     }
