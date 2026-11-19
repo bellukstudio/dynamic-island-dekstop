@@ -108,13 +108,18 @@ global Icons {
 component Chip inherits Rectangle {
     in property <string> label;
     in property <bool> selected: false;
+    // Ruang kiri/kanan teks. Default 0 agar chip lain tidak berubah ukuran; isi (mis. 14px) untuk tombol yang lebarnya mengikuti teks.
+    in property <length> padding-x: 0px;
     callback clicked;
     height: 28px;
     min-width: 64px;
+    preferred-width: label-text.preferred-width + 2 * root.padding-x;
     border-radius: 14px;
     background: root.selected ? Theme.accent.with-alpha(0.24) : (ta.has-hover ? Theme.chip-hover : Theme.chip);
     animate background { duration: 120ms; }
-    Text {
+    label-text := Text {
+        x: root.padding-x;
+        width: parent.width - 2 * root.padding-x;
         text: root.label;
         color: Theme.text;
         font-size: 12px;
@@ -2069,7 +2074,7 @@ component ReminderPage inherits VerticalLayout {
             }
         }
         Rectangle { horizontal-stretch: 1; }
-        if root.items.length > 0: Chip { label: "Hapus selesai"; height: 32px; clicked => { root.clear-done(); } }
+        if root.items.length > 0: Chip { label: "Hapus selesai"; height: 32px; padding-x: 16px; clicked => { root.clear-done(); } }
     }
 
     if root.alert-visible: Rectangle {
@@ -2090,8 +2095,8 @@ component ReminderPage inherits VerticalLayout {
                 Text { text: root.alert-text; color: Theme.text; font-size: 13px; font-weight: 700; overflow: elide; }
                 Text { text: root.alert-sub; color: Theme.text-dim; font-size: 10px; overflow: elide; }
             }
-            Chip { label: "Tunda 5 menit"; height: 32px; clicked => { root.snooze-alert(); } }
-            Chip { label: "Selesai"; selected: true; height: 32px; clicked => { root.stop-alert(); } }
+            Chip { label: "Tunda 5 menit"; height: 32px; padding-x: 16px; clicked => { root.snooze-alert(); } }
+            Chip { label: "Selesai"; selected: true; height: 32px; padding-x: 16px; clicked => { root.stop-alert(); } }
         }
     }
 
