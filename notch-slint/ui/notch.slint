@@ -677,36 +677,7 @@ component StatMetric inherits VerticalLayout {
     Text { text: root.meta; color: Theme.text-faint; font-size: 9px; overflow: elide; preferred-width: 0px; min-width: 0px; }
 }
 
-component StatMetric inherits VerticalLayout {
-    in property <string> label;
-    in property <string> value-text;
-    in property <string> meta;
-    in property <float> value;        // 0..100
-    in property <float> hot-at: 90;   // di atas ini bar merah (`.hot`)
-    horizontal-stretch: 1;
-    preferred-width: 0px;
-    min-width: 0px;
-    spacing: 2px;
-    HorizontalLayout {
-        spacing: 6px;
-        Text { text: root.label; color: Theme.text-dim; font-size: 11px; font-weight: 700; horizontal-stretch: 1; overflow: elide; }
-        Text { text: root.value-text; color: Theme.text; font-size: 11px; font-weight: 700; horizontal-alignment: right; }
-    }
-    Rectangle {
-        height: 4px;
-        border-radius: 2px;
-        background: Theme.track;
-        Rectangle {
-            x: 0px;
-            width: parent.width * clamp(root.value, 0, 100) / 100;
-            height: parent.height;
-            border-radius: 2px;
-            background: root.value >= root.hot-at ? #ff626b : Theme.accent;
-            animate width { duration: 550ms; easing: ease-out; }
-        }
-    }
-    Text { text: root.meta; color: Theme.text-faint; font-size: 9px; overflow: elide; preferred-width: 0px; min-width: 0px; }
-}
+
 
 component StatsPage inherits VerticalLayout {
     in property <StatsView> d;
@@ -1815,12 +1786,18 @@ component CurrencyPage inherits VerticalLayout {
                 color: Theme.text-faint; font-size: 9px; vertical-alignment: center;
             }
             Rectangle { height: 14px; background: transparent; }
-            Flickable {
+            Rectangle {
                 vertical-stretch: 1;
-                content-width: self.width;
-                content-height: max(self.height, root.alerts.length * 58px);
+                background: transparent;
                 clip: true;
-                VerticalLayout {
+                Flickable {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    content-width: self.width;
+                    content-height: max(self.height, root.alerts.length * 58px);
+                    VerticalLayout {
                     width: parent.width;
                     spacing: 7px;
                     if root.alerts.length == 0: Text {
@@ -1864,6 +1841,7 @@ component CurrencyPage inherits VerticalLayout {
                                 remove-alert-ta := TouchArea { clicked => { root.remove-alert(a.id); } }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -5085,8 +5063,8 @@ export component NoteDetailWindow inherits Window {
                         edited => { root.edited(self.text); }
                         init => { self.focus(); }
                         cursor-position-changed(p) => {
-                            if (p.y + flick.viewport-y < 0px) { flick.viewport-y = -p.y; }
-                            else if (p.y + 26px + flick.viewport-y > flick.height) { flick.viewport-y = flick.height - p.y - 26px; }
+                            if (p.y + flick.content-y < 0px) { flick.content-y = -p.y; }
+                            else if (p.y + 26px + flick.content-y > flick.height) { flick.content-y = flick.height - p.y - 26px; }
                         }
                     }
                 }
