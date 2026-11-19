@@ -279,7 +279,6 @@ component MediaPlayer inherits HorizontalLayout {
             if root.has-art: Image { source: root.art; width: 80px; height: 80px; image-fit: cover; }
             if !root.has-art: Path {
                 x: (parent.width - self.width) / 2;
-                y: (parent.height - self.height) / 2;
                 width: 32px;
                 height: 32px;
                 viewbox-width: 24;
