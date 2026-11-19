@@ -2023,41 +2023,66 @@ component ReminderPage inherits VerticalLayout {
     padding-left: 16px;
     padding-right: 16px;
     padding-top: 4px;
-    padding-bottom: 2px;
-    spacing: 3px;
+    padding-bottom: 5px;
+    spacing: 4px;
 
     if root.alert-visible: Rectangle {
-        height: 34px;
-        border-radius: 11px;
+        height: 38px;
+        border-radius: 12px;
         background: #d9770628;
         border-width: 1px;
         border-color: #f59e0b88;
         HorizontalLayout {
-            padding-left: 8px;
-            padding-right: 5px;
-            spacing: 4px;
+            padding-left: 9px;
+            padding-right: 6px;
+            spacing: 5px;
             VerticalLayout {
                 horizontal-stretch: 1;
                 alignment: center;
-                spacing: 1px;
+                spacing: 2px;
+                Text { text: "Pengingat aktif"; color: #fbbf24; font-size: 9px; font-weight: 700; }
                 Text { text: root.alert-text; color: Theme.text; font-size: 11px; font-weight: 700; overflow: elide; }
                 Text { text: root.alert-sub; color: Theme.text-dim; font-size: 9px; overflow: elide; }
             }
-            Chip { label: "Tunda"; clicked => { root.snooze-alert(); } }
+            Chip { label: "Tunda 5m"; clicked => { root.snooze-alert(); } }
             Chip { label: "Selesai"; selected: true; clicked => { root.stop-alert(); } }
         }
     }
 
     HorizontalLayout {
-        height: 26px;
+        height: 23px;
+        spacing: 6px;
+        Text { text: "Pengingat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: center; }
+        Rectangle {
+            height: 17px;
+            width: count-text.preferred-width + 14px;
+            border-radius: 9px;
+            background: Theme.accent.with-alpha(0.18);
+            count-text := Text {
+                text: root.items.length + " item";
+                color: Theme.text;
+                font-size: 9px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        if root.items.length > 0: Chip { label: "Hapus selesai"; clicked => { root.clear-done(); } }
+    }
+
+    HorizontalLayout {
+        height: 28px;
         spacing: 5px;
         Rectangle {
             horizontal-stretch: 1;
-            border-radius: 13px;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: #ffffff14;
             background: Theme.chip;
             input := TextInput {
-                x: 9px;
-                width: parent.width - 18px;
+                x: 10px;
+                width: parent.width - 20px;
                 text <=> root.draft;
                 color: Theme.text;
                 font-size: 11px;
@@ -2066,27 +2091,28 @@ component ReminderPage inherits VerticalLayout {
                 accepted => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); }
             }
             if input.text == "": Text {
-                x: 9px;
-                text: "Ingatkan aku untuk…";
+                x: 10px;
+                text: "Apa yang perlu diingat?";
                 color: Theme.text-faint;
-                font-size: 11px;
+                font-size: 10px;
                 vertical-alignment: center;
             }
         }
-        Chip { label: "Tambah"; clicked => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); } }
-        Chip { label: "Bersih"; clicked => { root.clear-done(); } }
+        Chip { label: "+ Tambah"; selected: true; clicked => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); } }
     }
 
     HorizontalLayout {
-        height: 24px;
-        spacing: 4px;
+        height: 25px;
+        spacing: 5px;
         Rectangle {
             horizontal-stretch: 1;
-            border-radius: 12px;
+            border-radius: 9px;
+            border-width: 1px;
+            border-color: #ffffff14;
             background: Theme.chip;
             dt := TextInput {
-                x: 8px;
-                width: parent.width - 16px;
+                x: 9px;
+                width: parent.width - 18px;
                 text <=> root.date-time;
                 color: Theme.text;
                 font-size: 10px;
@@ -2094,10 +2120,10 @@ component ReminderPage inherits VerticalLayout {
                 single-line: true;
             }
             if dt.text == "": Text {
-                x: 8px;
-                text: "DD/MM/YYYY HH:MM (opsional)";
+                x: 9px;
+                text: "Tanggal & waktu · DD/MM/YYYY HH:MM";
                 color: Theme.text-faint;
-                font-size: 10px;
+                font-size: 9px;
                 vertical-alignment: center;
             }
         }
@@ -2107,17 +2133,10 @@ component ReminderPage inherits VerticalLayout {
         Chip { label: "Bulanan"; selected: root.repeat-mode == "monthly"; clicked => { root.repeat-mode = "monthly"; } }
     }
 
-    if root.status != "": Text {
-        text: root.status;
-        color: Theme.text-dim;
-        font-size: 9px;
-        horizontal-alignment: left;
-        height: 13px;
-    }
-
     if root.repeat-mode == "weekly": HorizontalLayout {
         height: 20px;
         spacing: 3px;
+        Text { text: "Ulang:"; color: Theme.text-dim; font-size: 9px; vertical-alignment: center; }
         for day[idx] in ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]: Chip {
             label: day;
             selected: root.weekday-selected[idx];
@@ -2125,28 +2144,98 @@ component ReminderPage inherits VerticalLayout {
         }
     }
 
-    if root.items.length == 0: Text {
-        text: "Belum ada pengingat";
-        color: Theme.text-faint;
-        font-size: 10px;
-        horizontal-alignment: center;
+    if root.status != "": Text {
+        text: root.status;
+        color: Theme.text-dim;
+        font-size: 9px;
+        height: 12px;
+        overflow: elide;
     }
-    for item in root.items: HorizontalLayout {
-        height: 20px;
-        spacing: 4px;
-        opacity: item.done ? 0.5 : 1;
-        Text { text: item.text; color: Theme.text; font-size: 10px; overflow: elide; vertical-alignment: center; horizontal-stretch: 1; }
-        Text { text: item.due; color: Theme.text-faint; font-size: 8px; vertical-alignment: center; }
-        RoundButton {
-            size: 18px;
-            commands: item.done ? Icons.reset : "M 4 12 L 9 17 L 20 6";
-            outline: true;
-            clicked => { root.toggle(item.id); }
+
+    Rectangle {
+        vertical-stretch: 1;
+        clip: true;
+        if root.items.length == 0: VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text { text: "Belum ada pengingat"; color: Theme.text; font-size: 12px; font-weight: 600; horizontal-alignment: center; }
+            Text { text: "Tambahkan tugas atau jadwalkan pengingat di atas."; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; }
         }
-        RoundButton { size: 18px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
+        if root.items.length > 0: Flickable {
+            width: parent.width;
+            height: parent.height;
+            content-width: self.width;
+            content-height: root.items.length * 31px;
+            for item[i] in root.items: Rectangle {
+                x: 0px;
+                y: i * 31px;
+                width: parent.width - 5px;
+                height: 27px;
+                border-radius: 9px;
+                border-width: 1px;
+                border-color: item.done ? #ffffff0a : #ffffff16;
+                background: item.done ? #ffffff08 : (row-area.has-hover ? Theme.chip-hover : #ffffff0a);
+                opacity: item.done ? 0.62 : 1;
+                HorizontalLayout {
+                    padding-left: 7px;
+                    padding-right: 5px;
+                    spacing: 5px;
+                    Rectangle {
+                        width: 15px;
+                        height: 15px;
+                        border-radius: 6px;
+                        background: item.done ? Theme.ok.with-alpha(0.2) : Theme.accent.with-alpha(0.16);
+                        Path {
+                            x: 2px;
+                            y: 2px;
+                            width: 11px;
+                            height: 11px;
+                            viewbox-width: 24;
+                            viewbox-height: 24;
+                            commands: item.done ? "M 5 12 L 10 17 L 19 7" : "M 12 5 V 19 M 5 12 H 19";
+                            fill: transparent;
+                            stroke: item.done ? Theme.ok : Theme.accent;
+                            stroke-width: 2px;
+                            stroke-line-cap: round;
+                        }
+                    }
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        alignment: center;
+                        spacing: 0px;
+                        Text {
+                            text: item.text;
+                            color: Theme.text;
+                            font-size: 10px;
+                            font-weight: 600;
+                            overflow: elide;
+                            vertical-alignment: center;
+                            height: 13px;
+                        }
+                        Text {
+                            text: item.due;
+                            color: Theme.text-faint;
+                            font-size: 8px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                            height: 10px;
+                        }
+                    }
+                    RoundButton {
+                        size: 18px;
+                        commands: item.done ? Icons.reset : "M 4 12 L 9 17 L 20 6";
+                        outline: true;
+                        clicked => { root.toggle(item.id); }
+                    }
+                    RoundButton { size: 18px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
+                }
+                row-area := TouchArea { mouse-cursor: default; }
+            }
+        }
     }
 }
 
+// Satu entri riwayat clipboard: nomor, pratinjau, dan ikon salin (centang hijau sesaat setelah disalin).
 // Satu entri riwayat clipboard: nomor, pratinjau, dan ikon salin (centang hijau sesaat setelah disalin).
 component ClipboardCard inherits Rectangle {
     in property <int> index: 0;
