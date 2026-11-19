@@ -871,32 +871,111 @@ component WeatherPage inherits HorizontalLayout {
 
 component ShelfPage inherits VerticalLayout {
     in property <[ShelfItem]> items;
-    in property <string> status: "File yang disimpan di sini tidak disalin";
+    in property <string> status: "Seret file ke Notch · file asli tetap aman";
+    in property <bool> dropping: false;
     callback add();
     callback open(string);
     callback reveal(string);
     callback remove(string);
     callback clear();
-    padding-left: 12px; padding-right: 12px; padding-top: 6px; spacing: 6px;
+    padding-left: 26px; padding-right: 26px; padding-top: 8px; padding-bottom: 12px; spacing: 7px;
+
     HorizontalLayout {
-        Text { text: "Shelf"; color: Theme.text; font-size: 16px; font-weight: 700; horizontal-stretch: 1; }
-        Chip { label: "Tambah file"; clicked => { root.add(); } }
-        Chip { label: "Bersihkan"; clicked => { root.clear(); } }
-    }
-    Text { text: root.status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-    if root.items.length == 0: Text { text: "Belum ada file. Tambahkan file atau folder untuk menyimpannya di Shelf."; color: Theme.text-faint; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; wrap: word-wrap; }
-    for item in root.items: Rectangle {
-        height: 44px; border-radius: 9px; background: #ffffff0b;
-        HorizontalLayout {
-            padding-left: 8px; padding-right: 6px; spacing: 5px;
-            VerticalLayout {
-                alignment: center; horizontal-stretch: 1; spacing: 2px;
-                Text { text: item.dir ? "📁 " + item.name : "📄 " + item.name; color: Theme.text; font-size: 10px; overflow: elide; }
-                Text { text: item.path; color: Theme.text-faint; font-size: 8px; overflow: elide; }
+        height: 22px;
+        alignment: center;
+        Text {
+            text: root.items.length == 0 ? "SHELF" : "SHELF  ·  " + root.items.length + "/30";
+            color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-stretch: 1; vertical-alignment: center;
+        }
+        Rectangle {
+            width: 25px; height: 24px; border-radius: 7px;
+            background: clear-area.has-hover ? Theme.chip-hover : Theme.chip;
+            Path {
+                x: 5px; y: 5px; width: 15px; height: 15px;
+                viewbox-width: 24; viewbox-height: 24;
+                commands: "M 4 7 H 20 M 10 11 V 17 M 14 11 V 17 M 6 7 L 7 20 H 17 L 18 7 M 9 7 V 4 H 15 V 7";
+                fill: transparent; stroke: Theme.text-dim; stroke-width: 1.8px;
+                stroke-line-cap: round; stroke-line-join: round;
             }
-            Chip { label: "Buka"; clicked => { root.open(item.path); } }
-            Chip { label: "Lokasi"; clicked => { root.reveal(item.path); } }
-            RoundButton { size: 22px; commands: Icons.close; outline: true; clicked => { root.remove(item.path); } }
+            clear-area := TouchArea { enabled: root.items.length > 0; clicked => { root.clear(); } }
+        }
+    }
+    Text {
+        text: root.dropping ? "Lepaskan untuk menambahkan file ke Shelf" : root.status;
+        color: root.dropping ? Theme.accent : Theme.text-faint;
+        font-size: 9px; wrap: word-wrap; max-height: 24px;
+    }
+    if root.items.length == 0: Rectangle {
+        vertical-stretch: 1; min-height: 78px;
+        border-radius: 12px; border-width: 1px;
+        border-color: root.dropping ? Theme.accent : Theme.text-faint.with-alpha(0.35);
+        background: root.dropping ? Theme.accent.with-alpha(0.13) : #ffffff08;
+        animate background { duration: 140ms; }
+        animate border-color { duration: 140ms; }
+        VerticalLayout {
+            alignment: center; spacing: 5px;
+            Text { text: "⇩"; color: root.dropping ? Theme.accent : Theme.text-dim; font-size: 25px; horizontal-alignment: center; }
+            Text { text: root.dropping ? "Lepaskan file di sini" : "Seret file ke notch"; color: Theme.text; font-size: 11px; font-weight: 600; horizontal-alignment: center; }
+            Text { text: "atau pilih dari komputer"; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; }
+        }
+        TouchArea { clicked => { root.add(); } }
+    }
+    if root.items.length > 0: Rectangle {
+        vertical-stretch: 1; min-height: 76px;
+        border-radius: 12px; border-width: root.dropping ? 1px : 0px;
+        border-color: Theme.accent; background: root.dropping ? Theme.accent.with-alpha(0.10) : #ffffff08;
+        Flickable {
+            x: 2px; y: 2px; width: parent.width - 4px; height: parent.height - 4px;
+            viewport-width: parent.width - 4px; viewport-height: parent.height - 4px;
+            content-width: max(self.viewport-width, shelf-row.width + 4px);
+            flickable-direction: horizontal;
+            HorizontalLayout {
+                x: 2px; y: 2px; spacing: 8px;
+                shelf-row := HorizontalLayout {
+                    spacing: 8px;
+                    for item in root.items: Rectangle {
+                        width: 58px; height: 70px; border-radius: 10px;
+                        background: tile-area.has-hover ? Theme.chip-hover : #ffffff12;
+                        animate background { duration: 120ms; }
+                        VerticalLayout {
+                            alignment: center; spacing: 4px;
+                            Text {
+                                text: item.dir ? "📁" : (
+                                    item.name.ends-with(".png") || item.name.ends-with(".jpg") || item.name.ends-with(".jpeg") || item.name.ends-with(".webp") ? "🖼️" :
+                                    item.name.ends-with(".mp3") || item.name.ends-with(".wav") || item.name.ends-with(".flac") ? "🎵" :
+                                    item.name.ends-with(".mp4") || item.name.ends-with(".mkv") || item.name.ends-with(".mov") ? "🎬" :
+                                    item.name.ends-with(".pdf") ? "📕" :
+                                    item.name.ends-with(".zip") || item.name.ends-with(".rar") || item.name.ends-with(".7z") ? "🗜️" : "📄");
+                                font-size: 23px; horizontal-alignment: center;
+                            }
+                            Text { text: item.name; color: Theme.text; font-size: 9px; max-width: 50px; overflow: elide; horizontal-alignment: center; }
+                        }
+                        Rectangle {
+                            x: 3px; y: 3px; width: 15px; height: 15px; border-radius: 8px;
+                            background: #ffffff30;
+                            Text { text: "×"; color: Theme.text; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
+                            TouchArea { clicked => { root.remove(item.path); } }
+                        }
+                        tile-area := TouchArea { clicked => { root.open(item.path); } }
+                    }
+                }
+            }
+        }
+    }
+    HorizontalLayout {
+        height: 25px; spacing: 6px;
+        Rectangle {
+            horizontal-stretch: 1; height: 25px; border-radius: 8px;
+            background: add-area.has-hover ? Theme.accent.with-alpha(0.28) : Theme.accent.with-alpha(0.18);
+            Text { text: "+ Tambah file"; color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+            add-area := TouchArea { clicked => { root.add(); } }
+        }
+        Rectangle {
+            width: 76px; height: 25px; border-radius: 8px;
+            background: Theme.chip;
+            Text { text: "Lokasi"; color: Theme.text-dim; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { enabled: root.items.length > 0; clicked => { root.reveal(root.items[0].path); } }
         }
     }
 }
@@ -4734,6 +4813,7 @@ export component NotchWindow inherits Window {
     in property <string> dhikr-meaning: "";
     in property <[ShelfItem]> shelf-items: [];
     in property <string> shelf-status: "";
+    in property <bool> shelf-dropping: false;
 
     in property <[string]> lyric-lines;
     in property <int> lyric-active: -1;
@@ -5528,6 +5608,7 @@ export component NotchWindow inherits Window {
                     if root.page-id == "shelf": ShelfPage {
                         items: root.shelf-items;
                         status: root.shelf-status;
+                        dropping: root.shelf-dropping;
                         add => { root.shelf-add(); }
                         open(path) => { root.shelf-open(path); }
                         reveal(path) => { root.shelf-reveal(path); }
