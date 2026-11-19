@@ -842,7 +842,6 @@ component WeatherPage inherits HorizontalLayout {
                 fill: #ffd166; stroke: #ffd166; stroke-width: 1px;
                 opacity: 0.25 + 0.75 * Math.abs(Math.sin(animation-tick() / 420ms * 360deg));
             }
-            }
             TouchArea { clicked => { root.refresh(); } }
         }
     }
