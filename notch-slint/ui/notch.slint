@@ -1206,17 +1206,23 @@ component CurrencyPage inherits VerticalLayout {
                         Text { text: "Hitung nilai Rupiah ke mata uang pilihan."; color: Theme.text.with-alpha(0.55); font-size: 10px; overflow: elide; }
                     }
                     Rectangle {
-                        width: 86px;
+                        width: 90px;
                         height: 22px;
                         border-radius: 11px;
                         border-width: 1px;
                         border-color: #43d9a02b;
                         background: #43d9a014;
                         HorizontalLayout {
-                            spacing: 4px;
+                            padding-left: 8px; padding-right: 8px;
+                            spacing: 5px;
                             alignment: center;
-                            Rectangle { width: 5px; height: 5px; border-radius: 3px; background: #68dfb1; }
-                            Text { text: "Kurs referensi"; color: #68dfb1; font-size: 8px; font-weight: 700; }
+                            Rectangle {
+                                width: 11px; height: 11px;
+                                border-radius: 6px;
+                                background: #43d9a01c;
+                                Rectangle { x: 3px; y: 3px; width: 5px; height: 5px; border-radius: 3px; background: #68dfb1; }
+                            }
+                            Text { text: "Kurs referensi"; color: #68dfb1; font-size: 9px; font-weight: 700; }
                         }
                     }
                 }
@@ -1430,14 +1436,14 @@ component CurrencyPage inherits VerticalLayout {
                         border-color: Theme.text.with-alpha(0.08);
                         background: #00000021;
                         VerticalLayout {
-                            x: 9px; y: 10px;
-                            width: parent.width - 18px;
-                            height: parent.height - 20px;
+                            x: 10px; y: 11px;
+                            width: parent.width - 20px;
+                            height: parent.height - 22px;
                             spacing: 7px;
                             HorizontalLayout {
                                 height: 17px;
-                                Rectangle { width: 6px; height: 6px; border-radius: 2px; background: #68dfb1; }
-                                Text { text: "Performa terbaik"; color: #68dfb1; font-size: 9px; font-weight: 700; vertical-alignment: center; }
+                                Rectangle { width: 6px; height: 6px; border-radius: 3px; background: #68dfb1; }
+                                Text { text: "Performa terbaik"; color: #68dfb1; font-size: 10px; font-weight: 650; vertical-alignment: center; }
                             }
                             if root.gainers.length == 0: Text { text: root.d.loading ? "Memuat data..." : "Data belum tersedia"; color: Theme.text-faint; font-size: 9px; vertical-alignment: center; }
                             for g in root.gainers: Rectangle {
@@ -1450,10 +1456,10 @@ component CurrencyPage inherits VerticalLayout {
                                         horizontal-stretch: 1; preferred-width: 0px;
                                         alignment: center; spacing: 2px;
                                         Text { text: g.name; color: Theme.text; font-size: 12px; font-weight: 760; overflow: elide; }
-                                        Text { text: g.price; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+                                        Text { text: g.price; color: Theme.text.with-alpha(0.52); font-size: 9.5px; overflow: elide; }
                                     }
                                     Rectangle {
-                                        width: 52px; height: 20px;
+                                        width: 56px; height: 20px;
                                         border-radius: 10px;
                                         background: #43d9a020;
                                         Text { text: g.change; color: #68dfb1; font-size: 10px; font-weight: 740; horizontal-alignment: center; vertical-alignment: center; }
@@ -1470,14 +1476,14 @@ component CurrencyPage inherits VerticalLayout {
                         border-color: Theme.text.with-alpha(0.08);
                         background: #00000021;
                         VerticalLayout {
-                            x: 9px; y: 10px;
-                            width: parent.width - 18px;
-                            height: parent.height - 20px;
+                            x: 10px; y: 11px;
+                            width: parent.width - 20px;
+                            height: parent.height - 22px;
                             spacing: 7px;
                             HorizontalLayout {
                                 height: 17px;
-                                Rectangle { width: 6px; height: 6px; border-radius: 2px; background: #ff8e98; }
-                                Text { text: "Performa terendah"; color: #ff8e98; font-size: 9px; font-weight: 700; vertical-alignment: center; }
+                                Rectangle { width: 6px; height: 6px; border-radius: 3px; background: #ff8e98; }
+                                Text { text: "Performa terendah"; color: #ff8e98; font-size: 10px; font-weight: 650; vertical-alignment: center; }
                             }
                             if root.losers.length == 0: Text { text: root.d.loading ? "Memuat data..." : "Data belum tersedia"; color: Theme.text-faint; font-size: 9px; vertical-alignment: center; }
                             for l in root.losers: Rectangle {
@@ -1490,10 +1496,10 @@ component CurrencyPage inherits VerticalLayout {
                                         horizontal-stretch: 1; preferred-width: 0px;
                                         alignment: center; spacing: 2px;
                                         Text { text: l.name; color: Theme.text; font-size: 12px; font-weight: 760; overflow: elide; }
-                                        Text { text: l.price; color: Theme.text-faint; font-size: 9px; overflow: elide; }
+                                        Text { text: l.price; color: Theme.text.with-alpha(0.52); font-size: 9.5px; overflow: elide; }
                                     }
                                     Rectangle {
-                                        width: 52px; height: 20px;
+                                        width: 56px; height: 20px;
                                         border-radius: 10px;
                                         background: #ff8e9820;
                                         Text { text: l.change; color: #ff8e98; font-size: 10px; font-weight: 740; horizontal-alignment: center; vertical-alignment: center; }
@@ -1720,28 +1726,28 @@ component CurrencyPage inherits VerticalLayout {
         vertical-stretch: 1;
         border-radius: 16px;
         border-width: 1px;
-        border-color: Theme.text-faint.with-alpha(0.17);
-        background: Theme.body.with-alpha(0.42);
+        border-color: Theme.text.with-alpha(0.16);
+        background: Theme.body;
         VerticalLayout {
             x: 14px; y: 13px;
             width: parent.width - 28px;
             height: parent.height - 26px;
-            spacing: 8px;
+            spacing: 9px;
             HorizontalLayout {
                 height: 30px;
                 spacing: 8px;
                 VerticalLayout {
                     horizontal-stretch: 1; preferred-width: 0px;
                     alignment: center; spacing: 2px;
-                    Text { text: "Alert harga & kurs"; color: Theme.text; font-size: 13px; font-weight: 750; }
-                    Text { text: "Kurs diperbarui tiap 10 menit"; color: Theme.text-faint; font-size: 9px; }
+                    Text { text: "Alert harga & kurs"; color: Theme.text; font-size: 14px; font-weight: 760; }
+                    Text { text: "Dicek tiap 5 menit · sumber Yahoo Finance"; color: Theme.text.with-alpha(0.55); font-size: 10px; }
                 }
                 Rectangle {
-                    width: 28px; height: 28px;
-                    border-radius: 9px;
-                    background: alert-close-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                    width: 26px; height: 26px;
+                    border-radius: 8px;
+                    background: alert-close-ta.has-hover ? Theme.text.with-alpha(0.16) : Theme.text.with-alpha(0.07);
                     Path {
-                        x: 7px; y: 7px; width: 14px; height: 14px;
+                        x: 6px; y: 6px; width: 14px; height: 14px;
                         viewbox-width: 24; viewbox-height: 24;
                         commands: Icons.close;
                         fill: transparent; stroke: Theme.text-dim;
@@ -1751,61 +1757,61 @@ component CurrencyPage inherits VerticalLayout {
                 }
             }
             HorizontalLayout {
-                height: 34px;
-                spacing: 8px;
+                height: 32px;
+                spacing: 7px;
                 Rectangle {
-                    width: 270px; height: 34px;
-                    border-radius: 10px; border-width: 1px;
-                    border-color: Theme.text-faint.with-alpha(0.19);
-                    background: currency-alert-picker-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.5);
+                    horizontal-stretch: 1; preferred-width: 0px; height: 32px;
+                    border-radius: 9px; border-width: 1px;
+                    border-color: Theme.text.with-alpha(0.16);
+                    background: currency-alert-picker-ta.has-hover ? Theme.text.with-alpha(0.1) : Theme.text.with-alpha(0.07);
                     HorizontalLayout {
-                        padding-left: 11px; padding-right: 9px; spacing: 6px;
-                        Text { text: root.d.code + " · " + root.d.name; color: Theme.text; font-size: 10px; font-weight: 650; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                        padding-left: 9px; padding-right: 9px; spacing: 6px;
+                        Text { text: root.d.code + " · " + root.d.name; color: Theme.text; font-size: 11.5px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
                         Text { text: root.picker-open ? "⌃" : "⌄"; color: Theme.text-dim; font-size: 12px; vertical-alignment: center; }
                     }
                     currency-alert-picker-ta := TouchArea { clicked => { root.picker-open = !root.picker-open; } }
                 }
                 Rectangle {
-                    width: 96px; height: 34px;
-                    border-radius: 10px; border-width: 1px;
-                    border-color: Theme.text-faint.with-alpha(0.19);
-                    background: condition-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.5);
+                    width: 96px; height: 32px;
+                    border-radius: 9px; border-width: 1px;
+                    border-color: Theme.text.with-alpha(0.16);
+                    background: condition-ta.has-hover ? Theme.text.with-alpha(0.1) : Theme.text.with-alpha(0.07);
                     HorizontalLayout {
-                        padding-left: 10px; padding-right: 8px; spacing: 3px;
-                        Text { text: root.above ? "Naik ke ≥" : "Turun ke ≤"; color: Theme.text; font-size: 10px; font-weight: 650; vertical-alignment: center; horizontal-stretch: 1; }
+                        padding-left: 9px; padding-right: 8px; spacing: 3px;
+                        Text { text: root.above ? "Naik ke ≥" : "Turun ke ≤"; color: Theme.text; font-size: 11.5px; font-weight: 600; vertical-alignment: center; horizontal-stretch: 1; }
                         Text { text: "⌄"; color: Theme.text-dim; font-size: 11px; vertical-alignment: center; }
                     }
                     condition-ta := TouchArea { clicked => { root.above = !root.above; } }
                 }
                 Rectangle {
                     horizontal-stretch: 1; preferred-width: 0px;
-                    height: 34px; border-radius: 10px; border-width: 1px;
-                    border-color: Theme.accent.with-alpha(0.55);
-                    background: Theme.body.with-alpha(0.62);
+                    height: 32px; border-radius: 9px; border-width: 1px;
+                    border-color: Theme.accent.with-alpha(0.85);
+                    background: Theme.text.with-alpha(0.07);
                     alert-target-input := TextInput {
-                        x: 11px; y: 0px; width: parent.width - 22px; height: parent.height;
-                        color: Theme.text; font-size: 11px; vertical-alignment: center;
+                        x: 9px; y: 0px; width: parent.width - 18px; height: parent.height;
+                        color: Theme.text; font-size: 11.5px; vertical-alignment: center;
                         single-line: true; input-type: text;
                         accepted => { root.add-alert(root.above, self.text); self.text = ""; }
                     }
                     if alert-target-input.text == "": Text {
-                        x: 11px; y: 0px; width: parent.width - 22px; height: parent.height;
-                        text: "mis. 18.225";
-                        color: Theme.text-faint; font-size: 10px; vertical-alignment: center;
+                        x: 9px; y: 0px; width: parent.width - 18px; height: parent.height;
+                        text: "Target (Rp)";
+                        color: Theme.text.with-alpha(0.4); font-size: 11.5px; vertical-alignment: center;
                     }
                 }
                 Rectangle {
-                    width: 66px; height: 34px;
-                    border-radius: 10px;
+                    width: 66px; height: 32px;
+                    border-radius: 9px;
                     background: Theme.accent;
-                    Text { text: "Pasang"; color: Theme.on-accent; font-size: 10px; font-weight: 750; horizontal-alignment: center; vertical-alignment: center; }
+                    Text { x: 0px; y: 0px; width: parent.width; height: parent.height; text: "Pasang"; color: #11131b; font-size: 11px; font-weight: 750; horizontal-alignment: center; vertical-alignment: center; }
                     install-alert-ta := TouchArea { clicked => { root.add-alert(root.above, alert-target-input.text); alert-target-input.text = ""; } }
                 }
             }
             Text {
                 height: 16px;
                 text: "Harga sekarang: " + (root.d.alert-rate != "" ? root.d.alert-rate : "—");
-                color: Theme.text-faint; font-size: 9px; vertical-alignment: center;
+                color: Theme.text.with-alpha(0.66); font-size: 10.5px; vertical-alignment: center;
             }
             Rectangle { height: 14px; background: transparent; }
             Rectangle {
@@ -1821,7 +1827,7 @@ component CurrencyPage inherits VerticalLayout {
                     content-height: max(self.height, root.alerts.length * 58px);
                     VerticalLayout {
                     width: parent.width;
-                    spacing: 7px;
+                    spacing: 6px;
                     if root.alerts.length == 0: Text {
                         text: "Belum ada pengingat kurs";
                         color: Theme.text-faint; font-size: 10px;
@@ -1830,8 +1836,8 @@ component CurrencyPage inherits VerticalLayout {
                     for a in root.alerts: Rectangle {
                         height: 48px;
                         border-radius: 11px; border-width: 1px;
-                        border-color: Theme.text-faint.with-alpha(0.1);
-                        background: Theme.chip.with-alpha(0.34);
+                        border-color: Theme.text.with-alpha(0.09);
+                        background: Theme.text.with-alpha(0.045);
                         HorizontalLayout {
                             x: 12px; y: 0px;
                             width: parent.width - 24px; height: parent.height;
@@ -1846,13 +1852,13 @@ component CurrencyPage inherits VerticalLayout {
                             VerticalLayout {
                                 horizontal-stretch: 1; preferred-width: 0px;
                                 alignment: center; spacing: 2px;
-                                Text { text: a.text; color: Theme.text; font-size: 11px; font-weight: 700; }
-                                Text { text: "Aktif · kurs ke Rupiah"; color: Theme.text-faint; font-size: 8px; }
+                                Text { text: a.text; color: Theme.text; font-size: 12px; font-weight: 700; }
+                                Text { text: "Aktif · kurs ke Rupiah"; color: Theme.text.with-alpha(0.55); font-size: 10px; }
                             }
                             Rectangle {
                                 width: 26px; height: 26px;
                                 border-radius: 8px;
-                                background: remove-alert-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                                background: remove-alert-ta.has-hover ? Theme.text.with-alpha(0.16) : Theme.text.with-alpha(0.07);
                                 Path {
                                     x: 6px; y: 6px; width: 14px; height: 14px;
                                     viewbox-width: 24; viewbox-height: 24;
