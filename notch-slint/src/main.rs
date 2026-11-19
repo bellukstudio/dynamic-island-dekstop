@@ -3515,7 +3515,27 @@ fn main() -> Result<(), slint::PlatformError> {
                 open_timer.stop();
                 if w.get_expanded() {
                     let c = collapse_on_hover.clone();
-                    close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms.get()), move || c());
+                    let weak_check = weak.clone();
+                close_timer.start(TimerMode::SingleShot, Duration::from_millis(close_ms.get()), move || {
+                    let Some(w) = weak_check.upgrade() else { return };
+                    // Slint Flickable dapat mengambil alih pointer saat roda mouse digulir.
+                    // Pada halaman Clipboard, event hover sementara bisa melaporkan keluar
+                    // meskipun kursor masih berada di dalam window. Jangan ciutkan notch
+                    // selama pointer masih berada di batas window; hover berikutnya akan
+                    // tetap mengatur penutupan normal ketika pointer benar-benar keluar.
+                    if w.get_page_id() == "clipboard" {
+                        if let Some((cx, cy)) = platform::cursor_pos() {
+                            let p = w.window().position();
+                            let s = w.window().size();
+                            if cx >= p.x && cx < p.x + s.width as i32
+                                && cy >= p.y && cy < p.y + s.height as i32
+                            {
+                                return;
+                            }
+                        }
+                    }
+                    c();
+                });
                 }
             }
         });
