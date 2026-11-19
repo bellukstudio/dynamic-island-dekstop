@@ -3063,6 +3063,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_reminder_status("Isi deskripsi pengingat terlebih dahulu.".into()); }
                 return;
             }
+            if mode != "none" && date_time.trim().is_empty() {
+                if let Some(w) = weak.upgrade() {
+                    w.set_reminder_status("Pengulangan memerlukan tanggal dan waktu.".into());
+                }
+                return;
+            }
             let due_at = if date_time.trim().is_empty() {
                 0
             } else {
