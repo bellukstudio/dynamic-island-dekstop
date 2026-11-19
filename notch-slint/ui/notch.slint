@@ -927,7 +927,6 @@ component ShelfPage inherits VerticalLayout {
         border-color: Theme.accent; background: root.dropping ? Theme.accent.with-alpha(0.10) : #ffffff08;
         Flickable {
             x: 2px; y: 2px; width: parent.width - 4px; height: parent.height - 4px;
-            flickable-direction: horizontal;
             HorizontalLayout {
                 spacing: 8px;
                 for item in root.items: Rectangle {
