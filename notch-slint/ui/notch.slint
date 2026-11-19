@@ -174,7 +174,7 @@ component Ear inherits Path {
             : "M 10 0 L 0 0 A 10 10 0 0 1 10 10 Z";
 }
 
-component StatBar inherits VerticalLayout {
+export component StatBar inherits VerticalLayout {
     in property <string> label;
     in property <float> value;   // 0..100
     in property <string> text;
@@ -1970,26 +1970,26 @@ component CurrencyPage inherits VerticalLayout {
                         width: parent.width; spacing: 2px;
                         for stock[i] in ["BBCA", "BBRI", "BMRI", "BBNI", "TLKM", "ASII", "ANTM", "GOTO", "ICBP", "MDKA", "BRPT", "INDF"]: Rectangle {
                             height: 27px; border-radius: 7px;
-                            background: stock == root.alert-stock-code ? Theme.accent.with-alpha(0.22) : (alert-pick-ta.has-hover ? Theme.chip-hover : transparent);
+                            background: stock == root.alert-stock-code ? Theme.accent.with-alpha(0.22) : (alert-stock-pick-ta.has-hover ? Theme.chip-hover : transparent);
                             HorizontalLayout {
                                 padding-left: 8px; padding-right: 6px; spacing: 3px;
                                 Text { text: stock; color: Theme.text; font-size: 10px; font-weight: 750; vertical-alignment: center; horizontal-stretch: 1; }
                                 Text { text: "Saham IDX"; color: Theme.text-dim; font-size: 8px; vertical-alignment: center; }
                             }
-                            alert-pick-ta := TouchArea { clicked => { root.alert-stock-code = stock; root.picker-open = false; } }
+                            alert-stock-pick-ta := TouchArea { clicked => { root.alert-stock-code = stock; root.picker-open = false; } }
                         }
                     }
                     if !root.alert-stock-mode: VerticalLayout {
                         width: parent.width; spacing: 2px;
                         for item[i] in root.currencies: Rectangle {
                             height: 27px; border-radius: 7px;
-                            background: item.code == root.alert-currency-code ? Theme.accent.with-alpha(0.22) : (alert-pick-ta.has-hover ? Theme.chip-hover : transparent);
+                            background: item.code == root.alert-currency-code ? Theme.accent.with-alpha(0.22) : (alert-currency-pick-ta.has-hover ? Theme.chip-hover : transparent);
                             HorizontalLayout {
                                 padding-left: 8px; padding-right: 6px; spacing: 3px;
                                 Text { text: item.code; color: Theme.text; font-size: 9px; font-weight: 750; vertical-alignment: center; }
                                 Text { text: item.name; color: Theme.text-dim; font-size: 8px; vertical-alignment: center; horizontal-stretch: 1; }
                             }
-                            alert-pick-ta := TouchArea { clicked => { root.alert-currency-code = item.code; root.alert-currency-name = item.name; root.picker-open = false; } }
+                            alert-currency-pick-ta := TouchArea { clicked => { root.alert-currency-code = item.code; root.alert-currency-name = item.name; root.picker-open = false; } }
                         }
                     }
                 }
