@@ -2174,7 +2174,7 @@ component ReminderPage inherits VerticalLayout {
                 border-radius: 9px;
                 border-width: 1px;
                 border-color: item.done ? #ffffff0a : #ffffff16;
-                background: item.done ? #ffffff08 : (row-area.has-hover ? Theme.chip-hover : #ffffff0a);
+                background: item.done ? #ffffff08 : #ffffff0a;
                 opacity: item.done ? 0.62 : 1;
                 HorizontalLayout {
                     padding-left: 7px;
@@ -2229,7 +2229,6 @@ component ReminderPage inherits VerticalLayout {
                     }
                     RoundButton { size: 18px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
                 }
-                row-area := TouchArea { mouse-cursor: default; }
             }
         }
     }
