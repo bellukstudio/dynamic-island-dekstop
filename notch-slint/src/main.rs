@@ -2655,7 +2655,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             let mut s = state.borrow_mut();
-            if s.alerts.iter().any(|item| item.code == code && item.kind == kind && item.above == above && item.target == target) {
+            if s.alerts.iter().any(|item| item.code == code && item.kind == kind && item.above == above && item.target == target && item.repeat == repeat) {
                 return;
             }
             let id = std::time::SystemTime::now()
