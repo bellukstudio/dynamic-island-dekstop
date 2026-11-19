@@ -3062,6 +3062,25 @@ fn main() -> Result<(), slint::PlatformError> {
     win.on_shelf_open(|path| shelf::open(path.as_str()));
     win.on_shelf_reveal(|path| shelf::reveal(path.as_str()));
 
+    // Native drag-out memakai crate inti drag-rs yang juga digunakan plugin Tauri.
+    #[cfg(windows)]
+    {
+        const DRAG_ICON: &[u8] = &[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,120,156,99,96,24,5,0,0,1,0,1,90,44,12,72,0,0,0,0,73,69,78,68,174,66,96,130];
+        let native_window = win.window();
+        win.on_shelf_drag(move |raw_path| {
+            let path = std::path::PathBuf::from(raw_path.as_str());
+            if !path.exists() { return; }
+            let path = match std::fs::canonicalize(path) { Ok(path) => path, Err(_) => return };
+            let _ = native_window.with_winit_window(|window| {
+                let item = drag::DragItem::Files(vec![path]);
+                let preview = drag::Image::Raw(DRAG_ICON.to_vec());
+                if let Err(error) = drag::start_drag(window, item, preview) {
+                    eprintln!("Shelf drag-out gagal: {error:?}");
+                }
+            });
+        });
+    }
+
     // Terima file/folder yang diseret dari File Explorer atau aplikasi lain ke jendela Notch.
     // Winit mengirim satu DroppedFile untuk setiap path yang dilepas.
     {
