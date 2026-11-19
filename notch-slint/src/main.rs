@@ -3076,12 +3076,14 @@ fn main() -> Result<(), slint::PlatformError> {
                         if shelf_enabled {
                             w.set_page_id("shelf".into());
                             w.set_expanded(true);
+                            w.set_shelf_dropping(true);
                         }
                         w.set_shelf_status("Lepaskan file atau folder untuk menyimpannya ke Shelf".into());
                     }
                 }
                 winit::event::WindowEvent::HoveredFileCancelled => {
                     if let Some(w) = weak.upgrade() {
+                        w.set_shelf_dropping(false);
                         w.set_shelf_status("File yang disimpan di sini tidak disalin".into());
                     }
                 }
@@ -3092,6 +3094,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         path: item.path.into(), name: item.name.into(), dir: item.dir,
                     }).collect::<Vec<_>>());
                     if let Some(w) = weak.upgrade() {
+                        w.set_shelf_dropping(false);
                         if shelf_enabled {
                             w.set_page_id("shelf".into());
                             w.set_expanded(true);
