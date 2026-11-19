@@ -1032,7 +1032,7 @@ fn paint_currency(
 /// Periksa alert kurs dan saham dari snapshot harga terbaru.
 /// Alert sekali pakai dihapus setelah tampil; alert berulang menunggu harga kembali
 /// ke sisi sebaliknya dari ambang sebelum dipersenjatai lagi.
-fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::path::Path) {
+fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::path::Path) -> bool {
     let can_show = !w.get_expanded() && !w.get_nudge_visible() && !w.get_reminder_alert_visible()
         && !w.get_meeting_active() && w.get_meeting_finished().is_empty() && !w.get_adhan_active();
 
@@ -1065,7 +1065,7 @@ fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::p
     if rearmed {
         notch_core::currency::save_alerts(path, &s.alerts);
     }
-    let Some((alert, now)) = due else { return };
+    let Some((alert, now)) = due else { return rearmed };
     if alert.repeat {
         if let Some(saved) = s.alerts.iter_mut().find(|item| item.id == alert.id) {
             saved.armed = false;
@@ -1089,6 +1089,7 @@ fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::p
         }
     });
     notch_core::currency::save_alerts(path, &s.alerts);
+    true
 }
 
 fn note_meta(ms: i64) -> String {
@@ -2634,25 +2635,53 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
     {
-        let (weak, state, path) = (win.as_weak(), currency.clone(), currency_path.clone());
+        let (weak, state, path, req) = (win.as_weak(), currency.clone(), currency_path.clone(), currency_request.clone());
         let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
-        win.on_currency_add_alert(move |above, text| {
+        win.on_currency_add_alert(move |above, text, is_stock, code, repeat| {
             let Some(w) = weak.upgrade() else { return };
             let digits: String = text.chars().filter(char::is_ascii_digit).collect();
             let Ok(target) = digits.parse::<f64>() else { return };
             if target <= 0.0 {
                 return;
             }
+            let code = code.to_string();
+            let kind = if is_stock {
+                notch_core::currency::AlertKind::Stock
+            } else {
+                notch_core::currency::AlertKind::Currency
+            };
+            let valid_code = match kind {
+                notch_core::currency::AlertKind::Stock => notch_core::currency::is_allowed_stock_code(&code),
+                notch_core::currency::AlertKind::Currency => notch_core::currency::CURRENCIES.iter().any(|(item, _)| *item == code),
+            };
+            if !valid_code {
+                return;
+            }
             let mut s = state.borrow_mut();
-            let code = notch_core::currency::CURRENCIES[s.target % notch_core::currency::CURRENCIES.len()].0;
+            if s.alerts.iter().any(|item| item.code == code && item.kind == kind && item.above == above && item.target == target) {
+                return;
+            }
             let id = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_millis().to_string())
                 .unwrap_or_default();
-            s.alerts.push(notch_core::currency::Alert { id, code: code.into(), above, target });
+            s.alerts.push(notch_core::currency::Alert {
+                id,
+                code,
+                kind,
+                above,
+                target,
+                repeat,
+                armed: true,
+            });
             s.alerts.truncate(20);
             notch_core::currency::save_alerts(&path, &s.alerts);
             paint_currency(&w, &s, &gm, &lm, &am);
+            drop(s);
+            // Saat memasang alert saham, pastikan snapshot harga seluruh saham IDX segera diminta.
+            if is_stock {
+                req(false, true);
+            }
         });
     }
     {
@@ -2679,14 +2708,16 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             }
             ticks.set(ticks.get() + 1);
-            if s.rates.is_none() || ticks.get() % 20 == 0 {
+            let has_stock_alert = s.alerts.iter().any(|alert| alert.kind == notch_core::currency::AlertKind::Stock);
+            let stocks_stale = has_stock_alert && s.stocks_loaded_at
+                .map(|loaded| loaded.elapsed() >= Duration::from_secs(600))
+                .unwrap_or(true);
+            if s.rates.is_none() || ticks.get() % 20 == 0 || stocks_stale {
                 drop(s);
-                req(true, false);
+                req(false, has_stock_alert);
                 return;
             }
-            let before = s.alerts.len();
-            fire_due_currency_alert(&w, &mut s, &path);
-            if s.alerts.len() != before {
+            if fire_due_currency_alert(&w, &mut s, &path) {
                 paint_currency(&w, &s, &gm, &lm, &am);
             }
         });
