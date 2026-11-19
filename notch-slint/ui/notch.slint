@@ -1774,7 +1774,7 @@ component CurrencyPage inherits VerticalLayout {
                     horizontal-stretch: 1; preferred-width: 0px;
                     alignment: center; spacing: 2px;
                     Text { text: "Alert harga & kurs"; color: Theme.text; font-size: 14px; font-weight: 760; }
-                    Text { text: "Dicek tiap 5 menit · sumber Yahoo Finance"; color: Theme.text.with-alpha(0.55); font-size: 10px; }
+                    Text { text: "Harga diperbarui tiap 10 menit · Yahoo Finance"; color: Theme.text.with-alpha(0.55); font-size: 10px; }
                 }
                 Rectangle {
                     width: 26px; height: 26px;
@@ -1844,7 +1844,11 @@ component CurrencyPage inherits VerticalLayout {
                     }
                     if alert-target-input.text == "": Text {
                         x: 9px; y: 0px; width: parent.width - 18px; height: parent.height;
-                        text: root.d.alert-rate != "" && root.d.alert-rate != "—" ? "mis. " + root.d.alert-rate : "Target (Rp)";
+                        text: root.alert-stock-mode
+                            ? "Target saham (Rp)"
+                            : (root.alert-currency-code == root.d.code && root.d.alert-rate != "" && root.d.alert-rate != "—"
+                                ? "mis. " + root.d.alert-rate
+                                : "Target (Rp)");
                         color: Theme.text.with-alpha(0.4); font-size: 11.5px; vertical-alignment: center;
                     }
                 }
