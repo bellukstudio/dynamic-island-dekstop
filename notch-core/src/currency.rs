@@ -376,7 +376,7 @@ fn unix_from_iso_date(value: &str) -> Option<i64> {
 /// Riwayat kurs untuk panel Currency yang diperluas.
 /// Coba Yahoo Finance terlebih dahulu, lalu Frankfurter (ECB) sebagai fallback seperti Tauri.
 /// Hanya kode yang tercantum di CURRENCIES yang dapat dipakai.
-pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i64, f64)>, String> {
+pub fn fetch_fx_history_with_source(code: &str, period1: i64, period2: i64) -> Result<(Vec<(i64, f64)>, &'static str), String> {
     if !CURRENCIES.iter().any(|(allowed, _)| *allowed == code) {
         return Err(format!("Mata uang tidak diizinkan: {code}"));
     }
@@ -388,7 +388,7 @@ pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i
     if let Ok(data) = fetch_yahoo_chart(&symbol, period1, period2) {
         let points = parse_fx_points(&data);
         if points.len() >= 2 {
-            return Ok(points);
+            return Ok((points, "Yahoo Finance"));
         }
     }
 
@@ -414,7 +414,21 @@ pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i
     if points.len() < 2 {
         return Err(format!("Riwayat {code} belum tersedia dari Yahoo Finance maupun Frankfurter"));
     }
-    Ok(points)
+    Ok((points, "Frankfurter (ECB)"))
+}
+
+/// Compatibility wrapper for callers that only need historical point values.
+pub fn fetch_fx_history(code: &str, period1: i64, period2: i64) -> Result<Vec<(i64, f64)>, String> {
+    fetch_fx_history_with_source(code, period1, period2).map(|(points, _)| points)
+}
+
+/// Localized date label for chart inspection tooltips.
+pub fn full_fx_date_from_unix(timestamp: i64) -> String {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    let days = timestamp.div_euclid(86_400);
+    let (year, month) = civil_from_days(days);
+    let day = days - days_from_civil(year, month, 1) + 1;
+    format!("{day} {} {year}", MONTHS[(month.clamp(1, 12) - 1) as usize])
 }
 
 #[cfg(test)]
@@ -438,6 +452,7 @@ mod fx_chart_tests {
     fn frankfurter_dates_round_trip_across_leap_day() {
         let timestamp = unix_from_iso_date("2024-02-29").unwrap();
         assert_eq!(iso_date_from_unix(timestamp), "2024-02-29");
+        assert_eq!(full_fx_date_from_unix(timestamp), "29 Feb 2024");
         assert_eq!(unix_from_iso_date("1970-01-01"), Some(0));
     }
 

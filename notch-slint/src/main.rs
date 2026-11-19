@@ -851,12 +851,14 @@ struct CurrencyState {
     rates: Option<notch_core::currency::Rates>,
     stocks: Vec<notch_core::currency::StockPoint>,
     rates_error: String,
+    rates_warning: String,
     stock_error: String,
     amount: String, // hanya digit
     target: usize,
     alerts: Vec<notch_core::currency::Alert>,
     updated: String,
-    loaded_at: Option<Instant>,
+    rates_loaded_at: Option<Instant>,
+    stocks_loaded_at: Option<Instant>,
     loading: bool,
 }
 
@@ -866,12 +868,14 @@ impl CurrencyState {
             rates: None,
             stocks: Vec::new(),
             rates_error: String::new(),
+            rates_warning: String::new(),
             stock_error: String::new(),
             amount: "100000".into(),
             target: 0,
             alerts,
             updated: String::new(),
-            loaded_at: None,
+            rates_loaded_at: None,
+            stocks_loaded_at: None,
             loading: false,
         }
     }
@@ -978,6 +982,7 @@ fn paint_currency(
         rate: rate.into(),
         alert_rate: per_unit.map(rupiah).unwrap_or_else(|| "—".to_string()).into(),
         updated: s.updated.clone().into(),
+        warning: s.rates_warning.clone().into(),
         stock_period: format!("MTD \u{00B7} 1 {}", SHORT_MONTHS[(month.clamp(1, 12) - 1) as usize]).into(),
         stock_status: if s.stock_error.is_empty() {
             format!("Pilihan saham IDX \u{00B7} {} {} \u{00B7} data Yahoo Finance, bukan seluruh bursa", FULL_MONTHS[(month.clamp(1, 12) - 1) as usize], year).into()
@@ -2289,17 +2294,19 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_stock_losers(ModelRc::from(stock_losers.clone()));
     win.set_currency_alerts(ModelRc::from(currency_alert_model.clone()));
     paint_currency(&win, &currency.borrow(), &stock_gainers, &stock_losers, &currency_alert_model);
-    // Minta data baru di thread latar. `stocks` = ikut ambil saham; `force` = abaikan cache 10 menit.
+    // Kurs dan saham memiliki cache 10 menit masing-masing; kegagalan satu sumber
+    // tidak memaksa data dari sumber lain untuk diunduh ulang.
     let currency_request: Rc<dyn Fn(bool, bool)> = {
         let (weak, state, fetch, busy) = (win.as_weak(), currency.clone(), currency_fetch.clone(), currency_busy.clone());
         let (gm, lm, am) = (stock_gainers.clone(), stock_losers.clone(), currency_alert_model.clone());
-        Rc::new(move |force: bool, stocks: bool| {
-            {
+        Rc::new(move |force: bool, include_stocks: bool| {
+            let (load_rates, load_stocks) = {
                 let s = state.borrow();
-                let fresh = s.loaded_at.map(|t| t.elapsed() < Duration::from_secs(600)).unwrap_or(false) && !s.stocks.is_empty();
-                if stocks && !force && fresh {
-                    return;
-                }
+                let fresh = |loaded: Option<Instant>| loaded.map(|t| t.elapsed() < Duration::from_secs(600)).unwrap_or(false);
+                (!fresh(s.rates_loaded_at) || force, include_stocks && (!fresh(s.stocks_loaded_at) || force))
+            };
+            if !load_rates && !load_stocks {
+                return;
             }
             if busy.swap(true, Ordering::SeqCst) {
                 return;
@@ -2310,10 +2317,10 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let (weak, fetch, busy) = (weak.clone(), fetch.clone(), busy.clone());
             std::thread::spawn(move || {
-                let rates = notch_core::currency::fetch_rates();
-                let stock_result = if stocks { Some(notch_core::currency::fetch_stocks()) } else { None };
+                let rates = if load_rates { Some(notch_core::currency::fetch_rates()) } else { None };
+                let stock_result = if load_stocks { Some(notch_core::currency::fetch_stocks()) } else { None };
                 if let Ok(mut guard) = fetch.lock() {
-                    guard.rates = Some(rates);
+                    guard.rates = rates;
                     guard.stocks = stock_result;
                 }
                 busy.store(false, Ordering::SeqCst);
@@ -2337,11 +2344,15 @@ fn main() -> Result<(), slint::PlatformError> {
                     let (h, mi, _, _, _) = platform::local_time();
                     s.rates = Some(r);
                     s.rates_error.clear();
+                    s.rates_warning.clear();
+                    s.rates_loaded_at = Some(Instant::now());
                     s.updated = format!("Diperbarui {h:02}:{mi:02}");
                 }
                 Some(Err(e)) => {
                     if s.rates.is_none() {
                         s.rates_error = format!("Kurs belum tersedia: {e}");
+                    } else {
+                        s.rates_warning = format!("Pembaruan gagal · memakai kurs terakhir ({e})");
                     }
                 }
                 None => {}
@@ -2350,9 +2361,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 Some(Ok(v)) => {
                     s.stocks = v;
                     s.stock_error.clear();
-                    s.loaded_at = Some(Instant::now());
+                    s.stocks_loaded_at = Some(Instant::now());
                 }
                 Some(Err(e)) => {
+                    s.stocks_loaded_at = Some(Instant::now());
                     if s.stocks.is_empty() {
                         s.stock_error = e;
                     }
@@ -2418,14 +2430,19 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
     }
+    let currency_chart_cache = Arc::new(Mutex::new(
+        std::collections::HashMap::<String, (Instant, Vec<(i64, f64)>, String)>::new()
+    ));
     {
-        // Grafik riwayat kurs (mode diperluas). Token mencegah respons lama menimpa pilihan yang sudah berganti.
+        // Cache riwayat 10 menit per mata uang/periode; token mencegah respons lama menimpa pilihan terbaru.
         let token = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let cache = currency_chart_cache.clone();
         let weak = win.as_weak();
         win.on_currency_chart_request(move |code, days| {
             let Some(w) = weak.upgrade() else { return };
             w.set_fx_chart_line("".into());
             w.set_fx_chart_area("".into());
+            w.set_fx_chart_points(ModelRc::from(Rc::new(VecModel::<FxChartPoint>::default())));
             w.set_fx_chart_last("".into());
             w.set_fx_chart_change("".into());
             w.set_fx_chart_max("".into());
@@ -2436,47 +2453,106 @@ fn main() -> Result<(), slint::PlatformError> {
             w.set_fx_chart_date_mid("".into());
             w.set_fx_chart_date_end("".into());
             w.set_fx_chart_dot_y(50.0);
-            w.set_fx_chart_status("Memuat grafik\u{2026}".into());
+            w.set_fx_chart_status("Memuat grafik…".into());
             let mine = token.fetch_add(1, Ordering::SeqCst) + 1;
-            let (token, weak, code, days) = (token.clone(), w.as_weak(), code.to_string(), i64::from(days.clamp(7, 730)));
+            let (token, weak, cache, code, days) = (
+                token.clone(), w.as_weak(), cache.clone(), code.to_string(), i64::from(days.clamp(7, 730))
+            );
             std::thread::spawn(move || {
-                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
-                let result = notch_core::currency::fetch_fx_history(&code, now - days * 86_400, now + 86_400)
-                    .and_then(|pts| {
-                        if pts.len() < 2 { return Err("Riwayat kosong".to_string()); }
-                        let count = pts.len();
-                        let first_time = pts[0].0;
-                        let middle_time = pts[pts.len() / 2].0;
-                        let last_time = pts[pts.len() - 1].0;
-                        let chart = notch_core::currency::build_fx_chart(&pts)
-                            .ok_or_else(|| "Riwayat kosong".to_string())?;
-                        let span = chart.max - chart.min;
-                        let pad = if span.abs() <= f64::EPSILON { chart.max.abs() * 0.01 } else { span * 0.14 };
-                        let axis_min = chart.min - pad;
-                        let axis_max = chart.max + pad;
-                        let axis_span = axis_max - axis_min;
-                        let axis = [
-                            fx_axis_label(axis_max, axis_span),
-                            fx_axis_label(axis_min + axis_span * 2.0 / 3.0, axis_span),
-                            fx_axis_label(axis_min + axis_span / 3.0, axis_span),
-                            fx_axis_label(axis_min, axis_span),
-                        ];
-                        let dot_y = if span.abs() <= f64::EPSILON { 50.0 } else { 94.0 - (chart.last - axis_min) / axis_span * 88.0 };
-                        let dates = [
-                            notch_core::currency::short_fx_date_from_unix(first_time),
-                            notch_core::currency::short_fx_date_from_unix(middle_time),
-                            notch_core::currency::short_fx_date_from_unix(last_time),
-                        ];
-                        Ok((chart, count, axis, dates, dot_y))
-                    });
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs() as i64).unwrap_or(0);
+                let cache_key = format!("{code}:{days}");
+                let cached = cache.lock().ok().and_then(|entries| {
+                    entries.get(&cache_key)
+                        .filter(|(loaded_at, _, _)| loaded_at.elapsed() < Duration::from_secs(600))
+                        .cloned()
+                });
+                let history = match cached {
+                    Some((_, points, source)) => Ok((points, source)),
+                    None => notch_core::currency::fetch_fx_history_with_source(
+                        &code, now - days * 86_400, now + 86_400
+                    ).map(|(points, source)| {
+                        let source = source.to_string();
+                        if let Ok(mut entries) = cache.lock() {
+                            entries.insert(cache_key, (Instant::now(), points.clone(), source.clone()));
+                        }
+                        (points, source)
+                    }),
+                };
+                let result = history.and_then(|(pts, source)| {
+                    if pts.len() < 2 { return Err("Riwayat kosong".to_string()); }
+                    let count = pts.len();
+                    let first_time = pts[0].0;
+                    let middle_time = pts[pts.len() / 2].0;
+                    let last_time = pts[pts.len() - 1].0;
+                    let chart = notch_core::currency::build_fx_chart(&pts)
+                        .ok_or_else(|| "Riwayat kosong".to_string())?;
+                    let span = chart.max - chart.min;
+                    let pad = if span.abs() <= f64::EPSILON { chart.max.abs() * 0.01 } else { span * 0.14 };
+                    let axis_min = chart.min - pad;
+                    let axis_max = chart.max + pad;
+                    let axis_span = (axis_max - axis_min).max(f64::EPSILON);
+                    let axis = [
+                        fx_axis_label(axis_max, axis_span),
+                        fx_axis_label(axis_min + axis_span * 2.0 / 3.0, axis_span),
+                        fx_axis_label(axis_min + axis_span / 3.0, axis_span),
+                        fx_axis_label(axis_min, axis_span),
+                    ];
+                    let dot_y = if span.abs() <= f64::EPSILON {
+                        50.0
+                    } else {
+                        94.0 - (chart.last - axis_min) / axis_span * 88.0
+                    };
+                    let dates = [
+                        notch_core::currency::short_fx_date_from_unix(first_time),
+                        notch_core::currency::short_fx_date_from_unix(middle_time),
+                        notch_core::currency::short_fx_date_from_unix(last_time),
+                    ];
+                    let t0 = first_time as f64;
+                    let t1 = last_time as f64;
+                    let time_span = (t1 - t0).max(1.0);
+                    let chart_points = pts.iter().enumerate().map(|(index, (timestamp, value))| {
+                        let x = (*timestamp as f64 - t0) / time_span;
+                        let left = if index == 0 {
+                            0.0
+                        } else {
+                            ((pts[index - 1].0 as f64 + *timestamp as f64) * 0.5 - t0) / time_span
+                        };
+                        let right = if index + 1 == pts.len() {
+                            1.0
+                        } else {
+                            ((*timestamp as f64 + pts[index + 1].0 as f64) * 0.5 - t0) / time_span
+                        };
+                        let y = if span.abs() <= f64::EPSILON {
+                            50.0
+                        } else {
+                            94.0 - (*value - axis_min) / axis_span * 88.0
+                        };
+                        FxChartPoint {
+                            x: x as f32,
+                            y: y as f32,
+                            left: left as f32,
+                            right: right as f32,
+                            date: notch_core::currency::full_fx_date_from_unix(*timestamp).into(),
+                            value: fx_idr(*value).into(),
+                        }
+                    }).collect::<Vec<_>>();
+                    Ok((chart, count, axis, dates, dot_y, chart_points, source))
+                });
                 if token.load(Ordering::SeqCst) != mine { return; }
                 let _ = weak.upgrade_in_event_loop(move |w| match result {
-                    Ok((chart, count, axis, dates, dot_y)) => {
-                        let pct = if chart.first > 0.0 { (chart.last - chart.first) / chart.first * 100.0 } else { 0.0 };
-                        let period = match days { 30 => "30 hari", 90 => "3 bulan", 180 => "6 bulan", 365 => "1 tahun", _ => "periode dipilih" };
+                    Ok((chart, count, axis, dates, dot_y, chart_points, source)) => {
+                        let pct = if chart.first > 0.0 {
+                            (chart.last - chart.first) / chart.first * 100.0
+                        } else { 0.0 };
+                        let period = match days {
+                            30 => "30 hari", 90 => "3 bulan", 180 => "6 bulan", 365 => "1 tahun",
+                            _ => "periode dipilih",
+                        };
                         w.set_fx_chart_line(chart.line.into());
                         w.set_fx_chart_area(chart.area.into());
-                        w.set_fx_chart_status(format!("Kurs penutupan harian · {count} titik data · sumber Yahoo Finance").into());
+                        w.set_fx_chart_points(ModelRc::from(Rc::new(VecModel::from(chart_points))));
+                        w.set_fx_chart_status(format!("Kurs penutupan harian · {count} titik data · sumber {source}").into());
                         w.set_fx_chart_max(axis[0].clone().into());
                         w.set_fx_chart_y1(axis[1].clone().into());
                         w.set_fx_chart_y2(axis[2].clone().into());
@@ -2486,12 +2562,16 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_fx_chart_date_end(dates[2].clone().into());
                         w.set_fx_chart_dot_y(dot_y as f32);
                         w.set_fx_chart_last(fx_idr(chart.last).into());
-                        w.set_fx_chart_change(format!("{}{:.2}% · {period}", if pct >= 0.0 { "+" } else { "" }, pct).replace('.', ",").into());
+                        w.set_fx_chart_change(format!(
+                            "{}{:.2}% · {period}",
+                            if pct >= 0.0 { "+" } else { "" }, pct
+                        ).replace('.', ",").into());
                         w.set_fx_chart_up(pct >= 0.0);
                     }
                     Err(error) => {
                         w.set_fx_chart_line("".into());
                         w.set_fx_chart_area("".into());
+                        w.set_fx_chart_points(ModelRc::from(Rc::new(VecModel::<FxChartPoint>::default())));
                         w.set_fx_chart_last("".into());
                         w.set_fx_chart_change("".into());
                         w.set_fx_chart_max("".into());

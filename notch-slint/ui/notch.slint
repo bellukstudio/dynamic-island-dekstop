@@ -16,8 +16,9 @@ export struct StatsView {
 }
 export struct CurrencyView {
     amount: string, code: string, name: string, result: string, rate: string, alert-rate: string,
-    updated: string, stock-period: string, stock-status: string, error: string, loading: bool,
+    updated: string, warning: string, stock-period: string, stock-status: string, error: string, loading: bool,
 }
+export struct FxChartPoint { x: float, y: float, left: float, right: float, date: string, value: string }
 export struct StockRow { name: string, price: string, change: string, positive: bool }
 export struct CurrencyAlertItem { id: string, text: string }
 export struct CurrencyItem { code: string, name: string, value: string, selected: bool }
@@ -1057,6 +1058,7 @@ component CurrencyPage inherits VerticalLayout {
     in property <[StockRow]> losers;
     in property <[CurrencyAlertItem]> alerts;
     in property <[CurrencyItem]> currencies;
+    in property <[FxChartPoint]> chart-points;
     callback refresh();
     callback amount-edited(string);
     callback quick(int);
@@ -1120,7 +1122,7 @@ component CurrencyPage inherits VerticalLayout {
             alignment: center;
             spacing: 2px;
             Text { text: "Currency"; color: Theme.text; font-size: 16px; font-weight: 800; }
-            Text { text: root.d.updated != "" ? root.d.updated : (root.d.loading ? "Menyiapkan kurs referensi..." : "Kurs referensi"); color: Theme.text-faint; font-size: 9px; overflow: elide; }
+            Text { text: root.d.error != "" ? "Kurs belum tersedia" : (root.d.warning != "" ? root.d.warning : (root.d.updated != "" ? root.d.updated : (root.d.loading ? "Menyiapkan kurs referensi..." : "Kurs referensi"))); color: root.d.error != "" ? #ff9b8f : Theme.text-faint; font-size: 9px; overflow: elide; }
         }
         Rectangle {
             width: 40px;
@@ -1330,7 +1332,7 @@ component CurrencyPage inherits VerticalLayout {
                             overflow: elide;
                             wrap: no-wrap;
                         }
-                        Text { text: root.d.rate != "" ? root.d.rate : "Mengambil kurs referensi terbaru..."; color: Theme.text-dim; font-size: 8px; overflow: elide; }
+                        Text { text: root.d.rate != "" ? root.d.rate : (root.d.error != "" ? root.d.error : "Mengambil kurs referensi terbaru..."); color: root.d.error != "" ? #ff9b8f : Theme.text-dim; font-size: 8px; overflow: elide; }
                     }
                 }
                 HorizontalLayout {
@@ -1660,7 +1662,54 @@ component CurrencyPage inherits VerticalLayout {
                         border-radius: 5px;
                         border-width: 1.5px; border-color: Theme.body;
                         background: Theme.accent;
-                        visible: root.chart-line != "";
+                        visible: root.chart-line != "" && !chart-hit.has-hover;
+                    }
+                    // Mouse position is reactive in Slint; midpoint ranges select the nearest daily quote.
+                    chart-hit := TouchArea {
+                        x: 46px; y: 10px;
+                        width: parent.width - 58px;
+                        height: parent.height - 34px;
+                        mouse-cursor: pointer;
+                    }
+                    for point in root.chart-points: Rectangle {
+                        width: parent.width;
+                        height: parent.height;
+                        background: transparent;
+                        visible: chart-hit.has-hover
+                            && chart-hit.mouse-x / max(chart-hit.width, 1px) >= point.left
+                            && chart-hit.mouse-x / max(chart-hit.width, 1px) <= point.right;
+                        Rectangle {
+                            x: 46px + (parent.width - 58px) * point.x - 0.5px;
+                            y: 10px;
+                            width: 1px;
+                            height: parent.height - 34px;
+                            background: Theme.accent.with-alpha(0.48);
+                        }
+                        Rectangle {
+                            x: 46px + (parent.width - 58px) * point.x - 4.5px;
+                            y: 10px + (parent.height - 34px) * point.y / 100 - 4.5px;
+                            width: 9px; height: 9px;
+                            border-radius: 5px;
+                            border-width: 1.5px; border-color: Theme.body;
+                            background: Theme.accent;
+                        }
+                        Rectangle {
+                            x: clamp(46px + (parent.width - 58px) * point.x - 77px, 4px, parent.width - 158px);
+                            y: max(10px + (parent.height - 34px) * point.y / 100 - 49px, 4px);
+                            width: 154px; height: 42px;
+                            border-radius: 9px;
+                            border-width: 1px;
+                            border-color: Theme.accent.with-alpha(0.45);
+                            background: Theme.body;
+                            VerticalLayout {
+                                x: 9px; y: 5px;
+                                width: parent.width - 18px;
+                                height: parent.height - 10px;
+                                spacing: 2px;
+                                Text { text: point.date; color: Theme.text-faint; font-size: 8px; }
+                                Text { text: "1 " + root.d.code + " = " + point.value; color: Theme.text; font-size: 10px; font-weight: 750; }
+                            }
+                        }
                     }
                     if root.chart-line == "": Text { width: parent.width - 20px; height: parent.height - 48px; x: 10px; y: 24px; text: root.chart-status != "" ? root.chart-status : "Memuat grafik..."; color: Theme.text-faint; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
                 }
@@ -1692,7 +1741,7 @@ component CurrencyPage inherits VerticalLayout {
                     horizontal-stretch: 1; preferred-width: 0px;
                     alignment: center; spacing: 2px;
                     Text { text: "Alert harga & kurs"; color: Theme.text; font-size: 13px; font-weight: 750; }
-                    Text { text: "Dicek tiap 5 menit · sumber Yahoo Finance"; color: Theme.text-faint; font-size: 9px; }
+                    Text { text: "Kurs diperbarui tiap 10 menit"; color: Theme.text-faint; font-size: 9px; }
                 }
                 Rectangle {
                     width: 28px; height: 28px;
@@ -3836,6 +3885,7 @@ export component NotchWindow inherits Window {
     in property <[StockRow]> stock-losers;
     in property <[CurrencyAlertItem]> currency-alerts;
     in property <[CurrencyItem]> currency-items;
+    in property <[FxChartPoint]> fx-chart-points;
     in property <string> pomo-text: "25:00";
     in property <string> pomo-label: "";
     in property <float> pomo-progress: 0;
@@ -4842,6 +4892,7 @@ export component NotchWindow inherits Window {
                         losers: root.stock-losers;
                         alerts: root.currency-alerts;
                         currencies: root.currency-items;
+                        chart-points: root.fx-chart-points;
                         refresh => { root.currency-refresh(); }
                         amount-edited(t) => { root.currency-amount-edited(t); }
                         quick(i) => { root.currency-quick(i); }
