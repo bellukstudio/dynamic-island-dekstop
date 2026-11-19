@@ -169,7 +169,13 @@ fn stock_point(symbol: &str, period1: i64, period2: i64) -> Option<StockPoint> {
     points.sort_by_key(|(t, _)| *t);
     if points.len() < 2 { return None; }
     let first = points[0].1;
-    let last = points[points.len() - 1].1;
+    // Yahoo regularMarketPrice lebih mutakhir saat sesi berjalan; saat tidak tersedia,
+    // gunakan penutupan terakhir yang valid dari seri harian.
+    let last = result
+        .pointer("/meta/regularMarketPrice")
+        .and_then(Value::as_f64)
+        .filter(|price| price.is_finite() && *price > 0.0)
+        .unwrap_or_else(|| points[points.len() - 1].1);
     Some(StockPoint { label: symbol.trim_end_matches(".JK").to_string(), last, change: (last - first) / first * 100.0 })
 }
 
@@ -198,14 +204,38 @@ pub fn fetch_stocks() -> Result<Vec<StockPoint>, String> {
     Ok(points)
 }
 
-/// Pengingat kurs: beri tahu sekali ketika 1 `code` mencapai `target` rupiah.
+/// Jenis aset untuk pengingat harga Currency.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AlertKind {
+    /// Pengingat kurs mata uang ke Rupiah (nilai default untuk kompatibilitas data lama).
+    #[default]
+    Currency,
+    /// Pengingat harga saham IDX.
+    Stock,
+}
+
+fn default_armed() -> bool { true }
+
+/// Pengingat harga. Data lama tanpa `kind`, `repeat`, atau `armed` tetap kompatibel.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Alert {
     pub id: String,
     pub code: String,
-    /// true = saat kurs >= target, false = saat kurs <= target.
+    pub kind: AlertKind,
+    /// true = saat harga >= target, false = saat harga <= target.
     pub above: bool,
     pub target: f64,
+    /// Saat true, alert dipersenjatai kembali setelah harga kembali ke sisi sebaliknya dari target.
+    #[serde(default)]
+    pub repeat: bool,
+    /// Status kesiapan alert berulang. Alert sekali pakai selalu dianggap armed.
+    #[serde(default = "default_armed")]
+    pub armed: bool,
+}
+
+pub fn is_allowed_stock_code(code: &str) -> bool {
+    STOCKS.iter().any(|symbol| symbol.strip_suffix(".JK") == Some(code))
 }
 
 pub fn load_alerts(path: &std::path::Path) -> Vec<Alert> {
@@ -214,7 +244,12 @@ pub fn load_alerts(path: &std::path::Path) -> Vec<Alert> {
         .and_then(|text| serde_json::from_str::<Vec<Alert>>(&text).ok())
         .unwrap_or_default()
         .into_iter()
-        .filter(|a| a.target.is_finite() && a.target > 0.0 && CURRENCIES.iter().any(|(c, _)| *c == a.code))
+        .filter(|a| {
+            a.target.is_finite() && a.target > 0.0 && match a.kind {
+                AlertKind::Currency => CURRENCIES.iter().any(|(c, _)| *c == a.code),
+                AlertKind::Stock => is_allowed_stock_code(&a.code),
+            }
+        })
         .collect()
 }
 
@@ -261,11 +296,37 @@ mod tests {
     fn alerts_fire_on_threshold() {
         let mut r = Rates { idr_per_unit: BTreeMap::new(), date: String::new(), source: String::new() };
         r.idr_per_unit.insert("USD".into(), 1.0 / 16_500.0);
-        let up = Alert { id: "1".into(), code: "USD".into(), above: true, target: 16_400.0 };
-        let down = Alert { id: "2".into(), code: "USD".into(), above: false, target: 16_400.0 };
+        let up = Alert { id: "1".into(), code: "USD".into(), kind: AlertKind::Currency, above: true, target: 16_400.0, repeat: false, armed: true };
+        let down = Alert { id: "2".into(), code: "USD".into(), kind: AlertKind::Currency, above: false, target: 16_400.0, repeat: false, armed: true };
         let due = due_alerts(&[up, down], &r);
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].0.id, "1");
+    }
+
+    #[test]
+    fn legacy_alert_json_defaults_to_one_shot_currency() {
+        let alerts: Vec<Alert> = serde_json::from_str(
+            r#"[{"id":"legacy-1","code":"USD","above":true,"target":18000.0}]"#
+        ).unwrap();
+        assert_eq!(alerts.len(), 1);
+        assert_eq!(alerts[0].kind, AlertKind::Currency);
+        assert!(!alerts[0].repeat);
+        assert!(alerts[0].armed);
+    }
+
+    #[test]
+    fn stock_alert_json_accepts_only_idx_symbols() {
+        let alert = Alert {
+            id: "stock-1".into(), code: "BBCA".into(), kind: AlertKind::Stock,
+            above: true, target: 10_000.0, repeat: true, armed: false,
+        };
+        let json = serde_json::to_string(&alert).unwrap();
+        let decoded: Alert = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.kind, AlertKind::Stock);
+        assert!(decoded.repeat);
+        assert!(!decoded.armed);
+        assert!(is_allowed_stock_code("BBCA"));
+        assert!(!is_allowed_stock_code("AAPL"));
     }
 
     #[test]
