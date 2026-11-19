@@ -1121,7 +1121,7 @@ component CurrencyPage inherits VerticalLayout {
         Rectangle {
             width: 86px;
             height: 34px;
-            border-radius: 10px;
+            border-radius: 11px;
             border-width: 1px;
             border-color: root.expanded ? Theme.accent.with-alpha(0.55) : Theme.text.with-alpha(0.13);
             background: root.expanded ? Theme.accent.with-alpha(0.18) : (ex-ta.has-hover ? Theme.text.with-alpha(0.12) : Theme.text.with-alpha(0.055));
@@ -1130,21 +1130,26 @@ component CurrencyPage inherits VerticalLayout {
                 width: parent.width; height: parent.height;
                 spacing: 7px;
                 alignment: center;
-                Path {
-                    width: 14px; height: 14px;
-                    viewbox-width: 24; viewbox-height: 24;
-                    commands: Icons.expand;
-                    fill: transparent; stroke: Theme.text;
-                    stroke-width: 1.9px; stroke-line-cap: round; stroke-line-join: round;
+                Rectangle {
+                    width: 14px; height: parent.height;
+                    background: transparent;
+                    Path {
+                        x: 0px; y: (parent.height - 14px) / 2;
+                        width: 14px; height: 14px;
+                        viewbox-width: 24; viewbox-height: 24;
+                        commands: Icons.expand;
+                        fill: transparent; stroke: Theme.text;
+                        stroke-width: 1.9px; stroke-line-cap: round; stroke-line-join: round;
+                    }
                 }
-                Text { text: root.expanded ? "Ringkas" : "Perluas"; color: Theme.text; font-size: 11px; font-weight: 650; }
+                Text { height: parent.height; text: root.expanded ? "Ringkas" : "Perluas"; color: Theme.text; font-size: 11px; font-weight: 650; vertical-alignment: center; }
             }
             ex-ta := TouchArea { clicked => { root.alert-mode = false; root.expanded = !root.expanded; root.picker-open = false; if (root.expanded) { root.request-chart(); } } }
         }
         Rectangle {
             width: 90px;
             height: 34px;
-            border-radius: 10px;
+            border-radius: 11px;
             border-width: 1px;
             border-color: Theme.text.with-alpha(0.13);
             background: refresh-ta.has-hover ? Theme.text.with-alpha(0.12) : Theme.text.with-alpha(0.055);
@@ -1153,14 +1158,19 @@ component CurrencyPage inherits VerticalLayout {
                 width: parent.width; height: parent.height;
                 spacing: 7px;
                 alignment: center;
-                Path {
-                    width: 14px; height: 14px;
-                    viewbox-width: 24; viewbox-height: 24;
-                    commands: Icons.refresh;
-                    fill: transparent; stroke: Theme.text;
-                    stroke-width: 1.9px; stroke-line-cap: round; stroke-line-join: round;
+                Rectangle {
+                    width: 14px; height: parent.height;
+                    background: transparent;
+                    Path {
+                        x: 0px; y: (parent.height - 14px) / 2;
+                        width: 14px; height: 14px;
+                        viewbox-width: 24; viewbox-height: 24;
+                        commands: Icons.refresh;
+                        fill: transparent; stroke: Theme.text;
+                        stroke-width: 1.9px; stroke-line-cap: round; stroke-line-join: round;
+                    }
                 }
-                Text { text: "Perbarui"; color: Theme.text; font-size: 11px; font-weight: 650; }
+                Text { height: parent.height; text: "Perbarui"; color: Theme.text; font-size: 11px; font-weight: 650; vertical-alignment: center; }
             }
             refresh-ta := TouchArea { clicked => { root.refresh(); if (root.expanded) { root.request-chart(); } } }
         }
@@ -1515,15 +1525,15 @@ component CurrencyPage inherits VerticalLayout {
             border-color: Theme.text.with-alpha(0.095);
             background: @linear-gradient(145deg, Theme.text.with-alpha(0.055), Theme.text.with-alpha(0.022));
             VerticalLayout {
-                x: 11px; y: 12px;
-                width: parent.width - 22px;
-                height: parent.height - 24px;
+                x: 12px; y: 14px;
+                width: parent.width - 20px;
+                height: parent.height - 22px;
                 spacing: 9px;
                 VerticalLayout {
                     height: 34px;
-                    spacing: 2px;
-                    Text { text: "Nilai tukar ke Rupiah"; color: Theme.text; font-size: 12px; font-weight: 750; }
-                    Text { text: "Pilih mata uang untuk melihat grafik"; color: Theme.text-faint; font-size: 8px; }
+                    spacing: 3px;
+                    Text { text: "Nilai tukar ke Rupiah"; color: Theme.text; font-size: 13px; font-weight: 750; }
+                    Text { text: "Pilih mata uang untuk melihat grafik"; color: Theme.text.with-alpha(0.55); font-size: 10px; }
                 }
                 Flickable {
                     vertical-stretch: 1;
@@ -1537,16 +1547,16 @@ component CurrencyPage inherits VerticalLayout {
                             border-radius: 9px;
                             border-width: item.selected ? 1px : 0px;
                             border-color: Theme.accent.with-alpha(0.6);
-                            background: item.selected ? Theme.accent.with-alpha(0.2) : (currency-row-ta.has-hover ? Theme.chip-hover : Theme.chip.with-alpha(0.52));
+                            background: item.selected ? Theme.accent.with-alpha(0.2) : (currency-row-ta.has-hover ? Theme.text.with-alpha(0.1) : Theme.text.with-alpha(0.04));
                             HorizontalLayout {
-                                padding-left: 9px; padding-right: 8px; spacing: 4px;
+                                padding-left: 10px; padding-right: 10px; spacing: 8px;
                                 VerticalLayout {
                                     horizontal-stretch: 1; preferred-width: 0px;
                                     alignment: center; spacing: 2px;
-                                    Text { text: "1 " + item.code; color: Theme.text; font-size: 10px; font-weight: 750; }
-                                    Text { text: item.name; color: Theme.text-faint; font-size: 8px; overflow: elide; }
+                                    Text { text: "1 " + item.code; color: Theme.text; font-size: 12px; font-weight: 760; }
+                                    Text { text: item.name; color: Theme.text.with-alpha(0.52); font-size: 9.5px; overflow: elide; }
                                 }
-                                Text { text: item.value; color: item.value == "—" ? Theme.text-faint : Theme.text; font-size: 9px; font-weight: 700; vertical-alignment: center; horizontal-alignment: right; }
+                                Text { text: item.value; color: item.value == "—" ? Theme.text-faint : Theme.text; font-size: 12px; font-weight: 720; vertical-alignment: center; horizontal-alignment: right; }
                             }
                             currency-row-ta := TouchArea { clicked => { root.select-currency(item.code, [30, 90, 180, 365][root.range]); } }
                         }
@@ -1585,8 +1595,8 @@ component CurrencyPage inherits VerticalLayout {
                             border-radius: 12px;
                             border-width: root.range == i ? 1px : 0px;
                             border-color: Theme.accent.with-alpha(0.45);
-                            background: root.range == i ? Theme.accent.with-alpha(0.28) : (rg-ta.has-hover ? Theme.chip-hover : Theme.chip);
-                            Text { text: lbl; color: root.range == i ? Theme.text : Theme.text-dim; font-size: 9px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+                            background: root.range == i ? Theme.accent.with-alpha(0.32) : (rg-ta.has-hover ? Theme.text.with-alpha(0.1) : transparent);
+                            Text { text: lbl; color: root.range == i ? Theme.text : Theme.text.with-alpha(0.65); font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
                             rg-ta := TouchArea { clicked => { root.range = i; root.request-chart(); } }
                         }
                     }
