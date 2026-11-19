@@ -1796,7 +1796,7 @@ component CurrencyPage inherits VerticalLayout {
                     }
                     if alert-target-input.text == "": Text {
                         x: 9px; y: 0px; width: parent.width - 18px; height: parent.height;
-                        text: "Target (Rp)";
+                        text: root.d.alert-rate != "" && root.d.alert-rate != "—" ? "mis. " + root.d.alert-rate : "Target (Rp)";
                         color: Theme.text.with-alpha(0.4); font-size: 11.5px; vertical-alignment: center;
                     }
                 }
