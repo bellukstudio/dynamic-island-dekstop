@@ -593,6 +593,49 @@ mod platform {
         false
     }
 
+    /// Sembunyikan jendela dari taskbar Windows (dan Alt+Tab). Idempotent, aman dipanggil berulang.
+    /// Tiga lapis karena winit memasang WS_EX_APPWINDOW (memaksa tombol taskbar) dan menimpa style jendela
+    /// setiap `show()` ulang: (1) `set_skip_taskbar` (ITaskbarList::DeleteTab), (2) buang WS_EX_APPWINDOW dan
+    /// pasang WS_EX_TOOLWINDOW, (3) hide/show sesaat bila style berubah agar shell membaca style baru.
+    /// Jendela winit hanya bisa diakses saat event loop aktif (dari timer/callback); sebelum `win.run()` berjalan
+    /// pemanggilan ini tidak berefek.
+    pub fn hide_from_taskbar(window: &slint::Window) {
+        #[cfg(windows)]
+        {
+            use slint::winit_030::winit::platform::windows::WindowExtWindows;
+            use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            use slint::winit_030::WinitWindowAccessor;
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::WindowsAndMessaging::{
+                GetWindowLongPtrW, SetWindowLongPtrW, ShowWindow, GWL_EXSTYLE, SW_HIDE, SW_SHOWNA,
+                WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
+            };
+            let raw = window
+                .with_winit_window(|w| {
+                    w.set_skip_taskbar(true);
+                    match w.window_handle().map(|h| h.as_raw()) {
+                        Ok(RawWindowHandle::Win32(h)) => Some(h.hwnd.get()),
+                        _ => None,
+                    }
+                })
+                .flatten();
+            if let Some(raw) = raw {
+                unsafe {
+                    let hwnd = HWND(raw as *mut core::ffi::c_void);
+                    let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                    let want = (ex | WS_EX_TOOLWINDOW.0 as isize) & !(WS_EX_APPWINDOW.0 as isize);
+                    if want != ex {
+                        SetWindowLongPtrW(hwnd, GWL_EXSTYLE, want);
+                        let _ = ShowWindow(hwnd, SW_HIDE);
+                        let _ = ShowWindow(hwnd, SW_SHOWNA);
+                    }
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = window;
+    }
+
     /// Area kerja monitor (di luar taskbar) tempat notch berada, dalam piksel fisik: lebar penuh monitor,
     /// vertikal mengikuti area kerja (sama dengan `monitor_work_area` di src-tauri/src/lib.rs).
     /// `near` = titik (mis. tengah posisi kustom) untuk memilih monitor; `None` = monitor utama.
@@ -1616,6 +1659,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
             } else if !should_hide && hidden.get() {
                 if w.show().is_ok() {
+                    platform::hide_from_taskbar(w.window());
                     hidden.set(false);
                 }
             }
@@ -6182,6 +6226,17 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_nudge_visible(false);
                     }
                 });
+            }
+        });
+    }
+
+    // Sembunyikan dari taskbar. Jendela winit baru bisa diakses setelah event loop berjalan, jadi diterapkan dari timer;
+    // diulang beberapa kali karena shell Windows membuat tombol taskbar secara asinkron.
+    for delay_ms in [100u64, 400, 1500] {
+        let weak = win.as_weak();
+        Timer::single_shot(Duration::from_millis(delay_ms), move || {
+            if let Some(w) = weak.upgrade() {
+                platform::hide_from_taskbar(w.window());
             }
         });
     }
