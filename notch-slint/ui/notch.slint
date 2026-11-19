@@ -3841,7 +3841,7 @@ component PrivacyPage inherits Rectangle {
             if root.active: Rectangle {
                 x: (parent.width - self.width) / 2;
                 y: 8px + (68px - self.height) / 2;
-                width: 46px + 58px * root.phase;
+                width: 46px + 26px * root.phase;
                 height: self.width;
                 border-radius: self.width / 2;
                 border-width: 2px;
@@ -3850,7 +3850,7 @@ component PrivacyPage inherits Rectangle {
             if root.active: Rectangle {
                 x: (parent.width - self.width) / 2;
                 y: 8px + (68px - self.height) / 2;
-                width: 46px + 58px * Math.mod(root.phase + 0.5, 1.0);
+                width: 46px + 26px * Math.mod(root.phase + 0.5, 1.0);
                 height: self.width;
                 border-radius: self.width / 2;
                 border-width: 2px;
