@@ -1902,7 +1902,7 @@ component CurrencyPage inherits VerticalLayout {
                     width: parent.width;
                     spacing: 6px;
                     if root.alerts.length == 0: Text {
-                        text: "Belum ada pengingat kurs";
+                        text: "Belum ada pengingat harga atau kurs";
                         color: Theme.text-faint; font-size: 10px;
                         vertical-alignment: center;
                     }
@@ -1918,7 +1918,7 @@ component CurrencyPage inherits VerticalLayout {
                             Path {
                                 width: 16px; height: 16px;
                                 viewbox-width: 24; viewbox-height: 24;
-                                commands: Icons.reset;
+                                commands: a.stock ? Icons.stats : Icons.reset;
                                 fill: transparent; stroke: Theme.accent;
                                 stroke-width: 1.8px; stroke-line-cap: round; stroke-line-join: round;
                             }
