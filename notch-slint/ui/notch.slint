@@ -927,14 +927,10 @@ component ShelfPage inherits VerticalLayout {
         border-color: Theme.accent; background: root.dropping ? Theme.accent.with-alpha(0.10) : #ffffff08;
         Flickable {
             x: 2px; y: 2px; width: parent.width - 4px; height: parent.height - 4px;
-            viewport-width: parent.width - 4px; viewport-height: parent.height - 4px;
-            content-width: max(self.viewport-width, shelf-row.width + 4px);
             flickable-direction: horizontal;
             HorizontalLayout {
-                x: 2px; y: 2px; spacing: 8px;
-                shelf-row := HorizontalLayout {
-                    spacing: 8px;
-                    for item in root.items: Rectangle {
+                spacing: 8px;
+                for item in root.items: Rectangle {
                         width: 58px; height: 70px; border-radius: 10px;
                         background: tile-area.has-hover ? Theme.chip-hover : #ffffff12;
                         animate background { duration: 120ms; }
@@ -942,11 +938,11 @@ component ShelfPage inherits VerticalLayout {
                             alignment: center; spacing: 4px;
                             Text {
                                 text: item.dir ? "📁" : (
-                                    item.name.ends-with(".png") || item.name.ends-with(".jpg") || item.name.ends-with(".jpeg") || item.name.ends-with(".webp") ? "🖼️" :
-                                    item.name.ends-with(".mp3") || item.name.ends-with(".wav") || item.name.ends-with(".flac") ? "🎵" :
-                                    item.name.ends-with(".mp4") || item.name.ends-with(".mkv") || item.name.ends-with(".mov") ? "🎬" :
-                                    item.name.ends-with(".pdf") ? "📕" :
-                                    item.name.ends-with(".zip") || item.name.ends-with(".rar") || item.name.ends-with(".7z") ? "🗜️" : "📄");
+                                    item.name.to-lowercase().ends-with(".png") || item.name.to-lowercase().ends-with(".jpg") || item.name.to-lowercase().ends-with(".jpeg") || item.name.to-lowercase().ends-with(".webp") ? "🖼️" :
+                                    item.name.to-lowercase().ends-with(".mp3") || item.name.to-lowercase().ends-with(".wav") || item.name.to-lowercase().ends-with(".flac") ? "🎵" :
+                                    item.name.to-lowercase().ends-with(".mp4") || item.name.to-lowercase().ends-with(".mkv") || item.name.to-lowercase().ends-with(".mov") ? "🎬" :
+                                    item.name.to-lowercase().ends-with(".pdf") ? "📕" :
+                                    item.name.to-lowercase().ends-with(".zip") || item.name.to-lowercase().ends-with(".rar") || item.name.to-lowercase().ends-with(".7z") ? "🗜️" : "📄");
                                 font-size: 23px; horizontal-alignment: center;
                             }
                             Text { text: item.name; color: Theme.text; font-size: 9px; max-width: 50px; overflow: elide; horizontal-alignment: center; }
@@ -971,11 +967,11 @@ component ShelfPage inherits VerticalLayout {
             Text { text: "+ Tambah file"; color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
             add-area := TouchArea { clicked => { root.add(); } }
         }
-        Rectangle {
+        if root.items.length > 0: Rectangle {
             width: 76px; height: 25px; border-radius: 8px;
             background: Theme.chip;
-            Text { text: "Lokasi"; color: Theme.text-dim; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-            TouchArea { enabled: root.items.length > 0; clicked => { root.reveal(root.items[0].path); } }
+            Text { text: "Lokasi pertama"; color: Theme.text-dim; font-size: 9px; horizontal-alignment: center; vertical-alignment: center; }
+            TouchArea { clicked => { root.reveal(root.items[0].path); } }
         }
     }
 }
