@@ -1793,8 +1793,12 @@ component CurrencyPage inherits VerticalLayout {
                         x: 11px; y: 0px; width: parent.width - 22px; height: parent.height;
                         color: Theme.text; font-size: 11px; vertical-alignment: center;
                         single-line: true; input-type: text;
-                        placeholder-text: "mis. 18.225";
                         accepted => { root.add-alert(root.above, self.text); self.text = ""; }
+                    }
+                    if alert-target-input.text == "": Text {
+                        x: 11px; y: 0px; width: parent.width - 22px; height: parent.height;
+                        text: "mis. 18.225";
+                        color: Theme.text-faint; font-size: 10px; vertical-alignment: center;
                     }
                 }
                 Rectangle {
