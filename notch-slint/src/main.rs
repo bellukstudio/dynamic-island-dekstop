@@ -1046,17 +1046,14 @@ fn fire_due_currency_alert(w: &NotchWindow, s: &mut CurrencyState, path: &std::p
                 .map(|point| point.last),
         };
         let Some(now) = now.filter(|value| value.is_finite() && *value > 0.0) else { continue };
-        let reached = if alert.above { now >= alert.target } else { now <= alert.target };
-
         if alert.repeat && !alert.armed {
-            let returned_to_opposite_side = if alert.above { now < alert.target } else { now > alert.target };
-            if returned_to_opposite_side {
+            if notch_core::currency::alert_returned_to_opposite_side(alert, now) {
                 alert.armed = true;
                 rearmed = true;
             }
             continue;
         }
-        if reached && can_show {
+        if notch_core::currency::alert_target_reached(alert, now) && can_show {
             due = Some((alert.clone(), now));
             break;
         }
