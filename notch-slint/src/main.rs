@@ -1253,7 +1253,7 @@ fn show_clipboard(model: &VecModel<ClipboardItem>, monitor: Option<&ClipboardMon
     model.set_vec(
         items
             .into_iter()
-            .take(3)
+            .take(10)
             .map(|text| {
                 let preview = text.replace('\n', " ").replace('\r', " ");
                 let mut chars = preview.chars();
