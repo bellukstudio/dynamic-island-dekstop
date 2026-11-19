@@ -2222,9 +2222,10 @@ component ReminderPage inherits VerticalLayout {
                     vertical-stretch: 1;
                     content-width: self.width;
                     content-height: root.items.length * 64px;
-                    for item[i] in root.items: Rectangle {
-                        x: 0px;
-                        y: i * 64px;
+                    VerticalLayout {
+                        width: parent.width;
+                        spacing: 8px;
+                        for item[i] in root.items: Rectangle {
                         width: parent.width - 8px;
                         height: 56px;
                         border-radius: 12px;
@@ -2260,6 +2261,7 @@ component ReminderPage inherits VerticalLayout {
                             }
                             RoundButton { size: 28px; commands: item.done ? Icons.reset : "M 4 12 L 9 17 L 20 6"; outline: true; clicked => { root.toggle(item.id); } }
                             RoundButton { size: 28px; commands: Icons.close; outline: true; clicked => { root.remove(item.id); } }
+                        }
                         }
                     }
                 }
@@ -4700,6 +4702,8 @@ export component NotchWindow inherits Window {
     callback prayer-dhikr-prev();
     // Hub melebar (780 x 540) saat Mode Ramadan aktif di halaman shalat, seperti `ramadan-expanded` di Tauri.
     property <bool> prayer-wide: root.expanded && root.page-id == "prayer" && root.ramadan-enabled;
+    // Hub Pengingat melebar (780 x 392) agar form dan daftar tidak berhimpitan; harus sinkron dengan EXPANDED_REMINDER di main.rs.
+    property <bool> reminder-wide: root.expanded && root.page-id == "reminder";
     in property <bool> ramadan-enabled: false;
     in property <string> ramadan-date: "";
     in property <string> ramadan-imsak-countdown: "";
@@ -4904,8 +4908,8 @@ export component NotchWindow inherits Window {
             : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px))))) * root.ui-scale;
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.expanded ? ((root.prayer-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? 288px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x)));
-        height: root.expanded ? (root.prayer-wide ? 540px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)));
+        width: root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? 288px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x)));
+        height: root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 392px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
