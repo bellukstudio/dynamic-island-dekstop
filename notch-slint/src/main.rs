@@ -457,6 +457,8 @@ const GREETING_INLINE: (u32, u32) = (420, 112);
 const EXPANDED: (u32, u32) = (612, 240);
 /// Dashboard Currency membutuhkan ruang vertikal untuk konverter dan ringkasan pasar.
 const EXPANDED_CURRENCY: (u32, u32) = (812, 558);
+/// Hub Reminder lebih lebar dan tinggi agar form dan daftar tidak saling berhimpitan.
+const EXPANDED_REMINDER: (u32, u32) = (812, 430);
 /// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
 const EXPANDED_TALL: (u32, u32) = (612, 338);
 
@@ -468,6 +470,8 @@ fn expanded_size(w: &NotchWindow) -> (u32, u32) {
         EXPANDED_RAMADAN
     } else if w.get_page_id() == "currency" {
         EXPANDED_CURRENCY
+    } else if w.get_page_id() == "reminder" {
+        EXPANDED_REMINDER
     } else if w.get_page_id() == "notes" && w.get_notes_expanded() {
         EXPANDED_TALL
     } else {
