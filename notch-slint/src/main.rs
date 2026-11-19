@@ -24,6 +24,7 @@ use notch_core::reminder::{self, Reminder};
 use notch_core::stats::StatsMonitor;
 use slint::Model;
 use notch_core::theme::{Palette, Rgba};
+use slint::winit_030::{winit, EventResult, WinitWindowAccessor};
 use slint::{
     ComponentHandle, Global, Image, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel,
     SharedPixelBuffer, SharedString, Timer, TimerMode, VecModel, Weak,
@@ -3061,6 +3062,39 @@ fn main() -> Result<(), slint::PlatformError> {
     win.on_shelf_open(|path| shelf::open(path.as_str()));
     win.on_shelf_reveal(|path| shelf::reveal(path.as_str()));
 
+    // Terima file/folder yang diseret dari File Explorer atau aplikasi lain ke jendela Notch.
+    // Winit mengirim satu DroppedFile untuk setiap path yang dilepas.
+    {
+        let store = shelf_store.clone();
+        let model = shelf_model.clone();
+        let weak = win.as_weak();
+        win.window().on_winit_window_event(move |_window, event| {
+            match event {
+                winit::event::WindowEvent::HoveredFile(_) => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_shelf_status("Lepaskan file atau folder untuk menyimpannya ke Shelf".into());
+                    }
+                }
+                winit::event::WindowEvent::HoveredFileCancelled => {
+                    if let Some(w) = weak.upgrade() {
+                        w.set_shelf_status("File yang disimpan di sini tidak disalin".into());
+                    }
+                }
+                winit::event::WindowEvent::DroppedFile(path) => {
+                    let paths = vec![path.to_string_lossy().to_string()];
+                    let items = store.borrow_mut().add(paths);
+                    model.set_vec(items.into_iter().map(|item| ShelfItem {
+                        path: item.path.into(), name: item.name.into(), dir: item.dir,
+                    }).collect::<Vec<_>>());
+                    if let Some(w) = weak.upgrade() {
+                        w.set_shelf_status(format!("File ditambahkan · {} item tersimpan · file asli tetap di lokasi semula", model.row_count()).into());
+                    }
+                }
+                _ => {}
+            }
+            EventResult::Propagate
+        });
+    }
 
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
