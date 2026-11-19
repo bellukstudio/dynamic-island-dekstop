@@ -2692,7 +2692,7 @@ fn main() -> Result<(), slint::PlatformError> {
             paint_currency(&w, &s, &gm, &lm, &am);
         });
     }
-    // Pengingat kurs berjalan walau halaman tidak dibuka: cek cache tiap 30 dtk, ambil kurs baru tiap 10 menit.
+    // Pengingat kurs dan saham berjalan walau halaman tidak dibuka: cek cache tiap 30 dtk, ambil data baru tiap 10 menit.
     let currency_alert_timer = Timer::default();
     {
         let (weak, state, req, path) = (win.as_weak(), currency.clone(), currency_request.clone(), currency_path.clone());
