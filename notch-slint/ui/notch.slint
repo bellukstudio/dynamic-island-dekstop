@@ -876,6 +876,7 @@ component ShelfPage inherits VerticalLayout {
     callback add();
     callback open(string);
     callback reveal(string);
+    callback drag(string);
     callback remove(string);
     callback clear();
     padding-left: 26px; padding-right: 26px; padding-top: 8px; padding-bottom: 12px; spacing: 7px;
@@ -952,7 +953,22 @@ component ShelfPage inherits VerticalLayout {
                             Text { text: "×"; color: Theme.text; font-size: 11px; horizontal-alignment: center; vertical-alignment: center; }
                             TouchArea { clicked => { root.remove(item.path); } }
                         }
-                        tile-area := TouchArea { clicked => { root.open(item.path); } }
+                        tile-area := TouchArea {
+                            property <bool> drag-started: false;
+                            pointer-event(event) => {
+                                if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) { self.drag-started = false; }
+                                if (event.button == PointerEventButton.right && event.kind == PointerEventKind.down) { root.reveal(item.path); }
+                            }
+                            moved => {
+                                if (self.pressed && !self.drag-started && abs(self.mouse-x - self.pressed-x) + abs(self.mouse-y - self.pressed-y) >= 6px) {
+                                    self.drag-started = true;
+                                    root.drag(item.path);
+                                }
+                            }
+                            clicked => {
+                                if (self.drag-started) { self.drag-started = false; } else { root.open(item.path); }
+                            }
+                        }
                     }
                 }
             }
@@ -5607,6 +5623,7 @@ export component NotchWindow inherits Window {
                         add => { root.shelf-add(); }
                         open(path) => { root.shelf-open(path); }
                         reveal(path) => { root.shelf-reveal(path); }
+                        drag(path) => { root.shelf-drag(path); }
                         remove(path) => { root.shelf-remove(path); }
                         clear => { root.shelf-clear(); }
                     }
