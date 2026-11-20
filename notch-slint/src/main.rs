@@ -1027,7 +1027,7 @@ fn paint_currency(
         None => (String::new(), String::new()),
     };
     const FULL_MONTHS: [&str; 12] = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-    let (year, month) = notch_core::currency::month_start();
+    let (year, month) = notch_core::currency::year_month();
     w.set_currency(CurrencyView {
         amount: group_digits(&s.amount).into(),
         code: code.into(),

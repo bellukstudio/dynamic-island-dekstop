@@ -24,6 +24,8 @@ export struct CurrencyAlertItem { id: string, text: string, stock: bool, repeat:
 export struct CurrencyItem { code: string, name: string, value: string, selected: bool }
 export struct CalCell { day: int, in-month: bool, sun: bool, today: bool, sel: bool, kind: int }
 
+// CATATAN renderer software: jangan pakai @linear-gradient pada Rectangle ber-border-radius. Gradien digambar sebagai
+// persegi penuh sehingga menyembul keluar dari sudut yang melengkung. Pakai warna solid (with-alpha) untuk elemen rounded.
 export global Theme {
     in-out property <color> body: #000000;
     in-out property <color> text: #ffffff;
@@ -1219,7 +1221,7 @@ component CurrencyPage inherits VerticalLayout {
             border-radius: 13px;
             border-width: 1px;
             border-color: Theme.accent.with-alpha(0.30);
-            background: @linear-gradient(145deg, Theme.accent.with-alpha(0.24), Theme.accent.with-alpha(0.08));
+            background: Theme.accent.with-alpha(0.16);
             Path {
                 x: 9px; y: 9px; width: 22px; height: 22px;
                 viewbox-width: 24; viewbox-height: 24;
@@ -1340,7 +1342,7 @@ component CurrencyPage inherits VerticalLayout {
             border-radius: 16px;
             border-width: 1px;
             border-color: Theme.text.with-alpha(0.095);
-            background: @linear-gradient(145deg, Theme.text.with-alpha(0.055), Theme.text.with-alpha(0.022));
+            background: Theme.text.with-alpha(0.04);
             VerticalLayout {
                 x: 16px; y: 16px;
                 width: parent.width - 32px;
@@ -1476,7 +1478,7 @@ component CurrencyPage inherits VerticalLayout {
                     border-radius: 14px;
                     border-width: 1px;
                     border-color: Theme.accent.with-alpha(0.27);
-                    background: @linear-gradient(120deg, Theme.accent.with-alpha(0.22), Theme.accent.with-alpha(0.065), Theme.text.with-alpha(0.03));
+                    background: Theme.accent.with-alpha(0.12);
                     VerticalLayout {
                         x: 13px; y: 11px;
                         width: parent.width - 26px;
@@ -1556,7 +1558,7 @@ component CurrencyPage inherits VerticalLayout {
             border-radius: 16px;
             border-width: 1px;
             border-color: Theme.text.with-alpha(0.095);
-            background: @linear-gradient(145deg, Theme.text.with-alpha(0.055), Theme.text.with-alpha(0.022));
+            background: Theme.text.with-alpha(0.04);
             VerticalLayout {
                 x: 16px; y: 16px;
                 width: parent.width - 32px;
@@ -1700,7 +1702,7 @@ component CurrencyPage inherits VerticalLayout {
             border-radius: 16px;
             border-width: 1px;
             border-color: Theme.text.with-alpha(0.095);
-            background: @linear-gradient(145deg, Theme.text.with-alpha(0.055), Theme.text.with-alpha(0.022));
+            background: Theme.text.with-alpha(0.04);
             VerticalLayout {
                 x: 12px; y: 14px;
                 width: parent.width - 20px;
@@ -1748,7 +1750,7 @@ component CurrencyPage inherits VerticalLayout {
             border-radius: 16px;
             border-width: 1px;
             border-color: Theme.text.with-alpha(0.095);
-            background: @linear-gradient(145deg, Theme.text.with-alpha(0.055), Theme.text.with-alpha(0.022));
+            background: Theme.text.with-alpha(0.04);
             VerticalLayout {
                 x: 14px; y: 12px;
                 width: parent.width - 28px;
@@ -4433,7 +4435,7 @@ component PrayerPage inherits VerticalLayout {
                 border-radius: 14px;
                 border-width: 1px;
                 border-color: #50dcaa59;
-                background: @linear-gradient(120deg, #14785a47 0%, #14785a0f 100%);
+                background: #14785a2b;
                 HorizontalLayout {
                     padding-left: 12px;
                     padding-right: 12px;

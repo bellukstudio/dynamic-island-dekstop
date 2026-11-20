@@ -148,7 +148,12 @@ fn now_secs() -> i64 {
         .unwrap_or(0)
 }
 
-/// Epoch detik awal bulan berjalan (UTC) dan label "1 Nov" untuk periode MTD.
+/// Tahun dan bulan (1-12) berjalan (UTC).
+pub fn year_month() -> (i64, i64) {
+    civil_from_days(now_secs().div_euclid(86_400))
+}
+
+/// Epoch detik awal bulan berjalan (UTC) dan bulan (1-12). Untuk tahun dan bulan gunakan [`year_month`].
 pub fn month_start() -> (i64, i64) {
     let now = now_secs();
     let (y, m) = civil_from_days(now.div_euclid(86_400));
