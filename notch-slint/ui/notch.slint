@@ -2852,8 +2852,6 @@ export component SettingsWindow inherits Window {
     // Theme diisi Rust (tiap jendela punya instance global sendiri). Latar sedikit lebih terang dari badan notch agar kartu tetap terbaca.
     background: Theme.body;
     default-font-size: 12px;
-    // Posisi gulir (dipakai menandai bagian aktif di sidebar).
-    property <length> pos: -flick.content-y + 48px;
     property <string> active-tab: "appearance";
     in property <[string]> active-pages;
     in property <string> shortcut-hub;
@@ -3091,693 +3089,758 @@ export component SettingsWindow inherits Window {
                 padding-left: 12px;
                 padding-right: 12px;
 
-    sec-shortcuts := Rectangle { visible: root.active-tab == "features"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pintasan global"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "features";
-        background: Theme.text.with-alpha(0.045);
-        border-radius: 12px;
-        border-width: 1px;
-        border-color: Theme.text.with-alpha(0.08);
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "features";
+        height: root.active-tab == "features" ? self.preferred-height : 0px;
+        min-height: 0px;
         VerticalLayout {
-            padding: 9px;
-            spacing: 6px;
-            Text { text: "Buka / tutup hub"; color: Theme.text; font-size: 10px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hub-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hub-input := TextInput { vertical-alignment: center;
-                text: root.shortcut-hub;
-                color: Theme.text;
-                font-size: 12px;
-                single-line: true;
-            } } }
-            Text { text: "Buka pengaturan"; color: Theme.text; font-size: 10px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: settings-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; settings-input := TextInput { vertical-alignment: center;
-                text: root.shortcut-settings;
-                color: Theme.text;
-                font-size: 12px;
-                single-line: true;
-            } } }
-            Text { text: "Pomodoro"; color: Theme.text; font-size: 10px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-input := TextInput { vertical-alignment: center;
-                text: root.shortcut-pomodoro;
-                color: Theme.text;
-                font-size: 12px;
-                single-line: true;
-            } } }
-            Text { text: "Jadwal shalat"; color: Theme.text; font-size: 10px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-input := TextInput { vertical-alignment: center;
-                text: root.shortcut-prayer;
-                color: Theme.text;
-                font-size: 12px;
-                single-line: true;
-            } } }
-            Text { text: "Format shortcut: minimal satu modifier (Ctrl / Alt / Shift / Win) + satu tombol."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Text { text: "Tombol: A–Z, 0–9, F1–F12, Space, Enter, Esc, Tab, Backspace, koma, titik, slash, titik koma, apostrof, kurung siku, minus, dan sama dengan."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-            Text { text: "Pintasan fitur bawaan (tetap)"; color: Theme.text-faint; font-size: 9px; }
-            Text { text: "Color Picker  Ctrl+Alt+Shift+P"; color: Theme.text; font-size: 9px; }
-            Text { text: "Compress  Ctrl+Alt+Shift+K"; color: Theme.text; font-size: 9px; }
-            Text { text: "Convert  Ctrl+Alt+Shift+C"; color: Theme.text; font-size: 9px; }
-            Text { text: "Transfer  Ctrl+Alt+Shift+S · Android  Ctrl+Alt+Shift+A"; color: Theme.text; font-size: 9px; wrap: word-wrap; }
-        }
-    }
-    Text { visible: root.active-tab == "features"; text: "Halaman"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "Pilih tab utama yang ingin ditampilkan pada hub notch."; color: Theme.text-faint; font-size: 9px; }
-    Rectangle { visible: root.active-tab == "features"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 6px;
-            HorizontalLayout {
-                spacing: 6px;
-                VerticalLayout {
-                    spacing: 5px;
-                    PageToggle { label: "Musik"; checked: root.page-enabled("media"); toggled(v) => { root.toggle-page("media", v); } }
-                    PageToggle { label: "Cuaca"; checked: root.page-enabled("weather"); toggled(v) => { root.toggle-page("weather", v); } }
-                    PageToggle { label: "Timer Pomodoro"; checked: root.page-enabled("timer"); toggled(v) => { root.toggle-page("timer", v); } }
-                    PageToggle { label: "Alat"; checked: root.page-enabled("tools"); toggled(v) => { root.toggle-page("tools", v); } }
-                    PageToggle { label: "Riwayat clipboard"; checked: root.page-enabled("clipboard"); toggled(v) => { root.toggle-page("clipboard", v); } }
-                    PageToggle { label: "Pengingat"; checked: root.page-enabled("reminder"); toggled(v) => { root.toggle-page("reminder", v); } }
-                    PageToggle { label: "Jadwal shalat"; checked: root.page-enabled("prayer"); toggled(v) => { root.toggle-page("prayer", v); } }
-                }
-                VerticalLayout {
-                    spacing: 5px;
-                    PageToggle { label: "Jam & tanggal"; checked: root.page-enabled("clock"); toggled(v) => { root.toggle-page("clock", v); } }
-                    PageToggle { label: "Baterai"; checked: root.page-enabled("battery"); toggled(v) => { root.toggle-page("battery", v); } }
-                    PageToggle { label: "Kontrol cepat"; checked: root.page-enabled("quick"); toggled(v) => { root.toggle-page("quick", v); } }
-                    PageToggle { label: "Status sistem"; checked: root.page-enabled("stats"); toggled(v) => { root.toggle-page("stats", v); } }
-                    PageToggle { label: "Shelf file"; checked: root.page-enabled("shelf"); toggled(v) => { root.toggle-page("shelf", v); } }
-                    PageToggle { label: "Catatan"; checked: root.page-enabled("notes"); toggled(v) => { root.toggle-page("notes", v); } }
-                    PageToggle { label: "Currency · Kurs & saham"; checked: root.page-enabled("currency"); toggled(v) => { root.toggle-page("currency", v); } }
-                }
-            }
-            Rectangle { height: 1px; background: Theme.chip; }
-            Text { text: "Tambahan"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-            Text { text: "Fitur pendamping dan alat tambahan; tidak semuanya menjadi tab utama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            HorizontalLayout {
-                spacing: 6px;
-                VerticalLayout {
-                    spacing: 5px;
-                    PageToggle { label: "Link lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
-                    PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
-                    PageToggle { label: "Convert"; checked: root.page-enabled("convert"); toggled(v) => { root.toggle-page("convert", v); } }
-                }
-                VerticalLayout {
-                    spacing: 5px;
-                    PageToggle { label: "Compress"; checked: root.page-enabled("compress"); toggled(v) => { root.toggle-page("compress", v); } }
-                    PageToggle { label: "Transfer file"; checked: root.page-enabled("transfer"); toggled(v) => { root.toggle-page("transfer", v); } }
-                    PageToggle { label: "Android & mirroring"; checked: root.page-enabled("android"); toggled(v) => { root.toggle-page("android", v); } }
-                }
-            }
-            Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            HorizontalLayout {
-                Chip {
-                    label: "Pulihkan halaman default";
-                    clicked => {
-                        root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency");
-                    }
-                }
-            }
-            Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-        }
-    }
-    sec-appearance := Rectangle { visible: root.active-tab == "appearance" || root.active-tab == "eyes"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: root.active-tab == "eyes" ? "Mata" : "Tampilan"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
-    Text { visible: root.active-tab == "appearance" || root.active-tab == "eyes"; text: root.active-tab == "eyes" ? "Ekspresi mata dan skin Notch." : "Warna, tema, dan ukuran notch."; color: Theme.text-dim; font-size: 10px; }
-    appearance-card := Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { visible: root.active-tab == "appearance"; text: "Warna & tema"; color: Theme.text; font-size: 11px; font-weight: 700; }
-            Rectangle { visible: false; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout { visible: root.active-tab == "appearance";
-                spacing: 6px;
-                SettingsSegmentButton { label: "Ikuti OS"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
-                SettingsSegmentButton { label: "Gelap"; selected: theme-input.text == "dark"; clicked => { theme-input.text = "dark"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "appearance";
-                spacing: 6px;
-                SettingsSegmentButton { label: "Terang"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
-                SettingsSegmentButton { label: "Kustom"; selected: theme-input.text == "custom"; clicked => { theme-input.text = "custom"; } }
-            }
-            Text { visible: root.active-tab == "eyes"; text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
-            Text { visible: root.active-tab == "eyes"; text: "Tema badan notch"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: notch-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; notch-theme-input := TextInput { vertical-alignment: center; text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Default"; selected: notch-theme-input.text == "default"; clicked => { notch-theme-input.text = "default"; } }
-                Chip { label: "Aurora"; selected: notch-theme-input.text == "aurora"; clicked => { notch-theme-input.text = "aurora"; } }
-                Chip { label: "Obsidian"; selected: notch-theme-input.text == "obsidian"; clicked => { notch-theme-input.text = "obsidian"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Neon"; selected: notch-theme-input.text == "neon"; clicked => { notch-theme-input.text = "neon"; } }
-                Chip { label: "Sakura"; selected: notch-theme-input.text == "sakura"; clicked => { notch-theme-input.text = "sakura"; } }
-                Chip { label: "Matcha"; selected: notch-theme-input.text == "matcha"; clicked => { notch-theme-input.text = "matcha"; } }
-            }
-            Text { visible: root.active-tab == "eyes"; text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; mood-input := TextInput { vertical-alignment: center; text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Normal"; selected: mood-input.text == "normal"; clicked => { mood-input.text = "normal"; } }
-                Chip { label: "Happy"; selected: mood-input.text == "happy"; clicked => { mood-input.text = "happy"; } }
-                Chip { label: "Sleepy"; selected: mood-input.text == "sleepy"; clicked => { mood-input.text = "sleepy"; } }
-                Chip { label: "Love"; selected: mood-input.text == "love"; clicked => { mood-input.text = "love"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Surprised"; selected: mood-input.text == "surprised"; clicked => { mood-input.text = "surprised"; } }
-                Chip { label: "Angry"; selected: mood-input.text == "angry"; clicked => { mood-input.text = "angry"; } }
-                Chip { label: "Sad"; selected: mood-input.text == "sad"; clicked => { mood-input.text = "sad"; } }
-                Chip { label: "Suspicious"; selected: mood-input.text == "suspicious"; clicked => { mood-input.text = "suspicious"; } }
-            }
-            Text { visible: root.active-tab == "eyes"; text: "Skin mata (20 pilihan tersedia)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: eye-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; eye-theme-input := TextInput { vertical-alignment: center; text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Aurora"; selected: eye-theme-input.text == "aurora"; clicked => { eye-theme-input.text = "aurora"; } }
-                Chip { label: "Neon"; selected: eye-theme-input.text == "neon"; clicked => { eye-theme-input.text = "neon"; } }
-                Chip { label: "Pastel"; selected: eye-theme-input.text == "pastel"; clicked => { eye-theme-input.text = "pastel"; } }
-                Chip { label: "Pixel"; selected: eye-theme-input.text == "pixel"; clicked => { eye-theme-input.text = "pixel"; } }
-                Chip { label: "Holo"; selected: eye-theme-input.text == "holo"; clicked => { eye-theme-input.text = "holo"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Ember"; selected: eye-theme-input.text == "ember"; clicked => { eye-theme-input.text = "ember"; } }
-                Chip { label: "Ocean"; selected: eye-theme-input.text == "ocean"; clicked => { eye-theme-input.text = "ocean"; } }
-                Chip { label: "Sakura"; selected: eye-theme-input.text == "sakura"; clicked => { eye-theme-input.text = "sakura"; } }
-                Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
-                Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Kawaii"; selected: eye-theme-input.text == "kawaii"; clicked => { eye-theme-input.text = "kawaii"; } }
-                Chip { label: "Boba"; selected: eye-theme-input.text == "boba"; clicked => { eye-theme-input.text = "boba"; } }
-                Chip { label: "Galaxy"; selected: eye-theme-input.text == "galaxy"; clicked => { eye-theme-input.text = "galaxy"; } }
-                Chip { label: "Matcha"; selected: eye-theme-input.text == "matcha"; clicked => { eye-theme-input.text = "matcha"; } }
-                Chip { label: "Candy"; selected: eye-theme-input.text == "candy"; clicked => { eye-theme-input.text = "candy"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "eyes";
-                spacing: 4px;
-                Chip { label: "Synthwave"; selected: eye-theme-input.text == "synthwave"; clicked => { eye-theme-input.text = "synthwave"; } }
-                Chip { label: "Slime"; selected: eye-theme-input.text == "slime"; clicked => { eye-theme-input.text = "slime"; } }
-                Chip { label: "Cotton"; selected: eye-theme-input.text == "cotton"; clicked => { eye-theme-input.text = "cotton"; } }
-                Chip { label: "Pumpkin"; selected: eye-theme-input.text == "pumpkin"; clicked => { eye-theme-input.text = "pumpkin"; } }
-                Chip { label: "Frost"; selected: eye-theme-input.text == "frost"; clicked => { eye-theme-input.text = "frost"; } }
-            }
-            Text { visible: root.active-tab == "appearance"; text: "Warna aksen (HEX)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; accent-input := TextInput { vertical-alignment: center; text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { visible: root.active-tab == "appearance"; text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
-            HorizontalLayout { visible: root.active-tab == "appearance";
-                spacing: 4px;
-                Chip { label: "Biru"; selected: accent-input.text == "#6C8CFF"; clicked => { accent-input.text = "#6C8CFF"; } }
-                Chip { label: "Ungu"; selected: accent-input.text == "#A78BFA"; clicked => { accent-input.text = "#A78BFA"; } }
-                Chip { label: "Pink"; selected: accent-input.text == "#F472B6"; clicked => { accent-input.text = "#F472B6"; } }
-                Chip { label: "Hijau"; selected: accent-input.text == "#34D399"; clicked => { accent-input.text = "#34D399"; } }
-            }
-            HorizontalLayout { visible: root.active-tab == "appearance";
-                spacing: 4px;
-                Chip { label: "Oranye"; selected: accent-input.text == "#FB923C"; clicked => { accent-input.text = "#FB923C"; } }
-                Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
-                Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
-            }
-            Text { visible: root.active-tab == "appearance"; text: "Warna notch (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-bg-input := TextInput { vertical-alignment: center; text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { visible: root.active-tab == "appearance"; text: "Warna teks (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-text-input := TextInput { vertical-alignment: center; text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema gelap"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dark-bg-input := TextInput { vertical-alignment: center; text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema terang"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; light-bg-input := TextInput { vertical-alignment: center; text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout { visible: root.active-tab == "appearance" || root.active-tab == "eyes";
-                spacing: 5px;
-                Chip {
-                    label: "Reset default";
-                    clicked => {
-                        theme-input.text = "auto";
-                        eye-theme-input.text = "aurora";
-                        notch-theme-input.text = "default";
-                        mood-input.text = "normal";
-                        accent-input.text = "";
-                        custom-bg-input.text = "#000000";
-                        custom-text-input.text = "";
-                        dark-bg-input.text = "#000000";
-                        light-bg-input.text = "#f5f5f7";
-                        root.save-appearance("auto", "aurora", "default", "normal", "", "#000000", "", "#000000", "#f5f5f7");
-                    }
-                }
-                Chip { label: "Simpan tampilan"; selected: true; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text); } }
-            }
-        }
-    }
-    sec-weather := Rectangle { visible: root.active-tab == "weather"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Lokasi cuaca"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "weather"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Cari kota (hasil mengisi nama dan koordinat)"; color: Theme.text-faint; font-size: 9px; }
-            HorizontalLayout { spacing: 6px;
-                Rectangle { horizontal-stretch: 1; height: 28px; border-radius: 8px; background: #ffffff10;
-                    if city-search-input.text == "": Text { x: 8px; height: parent.height; text: "mis. Surabaya"; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; }
-                    city-search-input := TextInput { x: 8px; width: parent.width - 16px; height: parent.height; text: ""; color: Theme.text; font-size: 11px; single-line: true; vertical-alignment: center;
-                        accepted => { root.search-city(self.text); }
-                    }
-                }
-                Chip { label: "Cari"; clicked => { root.search-city(city-search-input.text); } }
-            }
-            for hit in root.weather-hits: Rectangle {
-                height: 24px;
-                border-radius: 8px;
-                background: hit-ta.has-hover ? Theme.chip-hover : Theme.chip;
-                Text { x: 8px; width: parent.width - 16px; height: parent.height; text: hit.label; color: Theme.text; font-size: 10px; vertical-alignment: center; overflow: elide; }
-                hit-ta := TouchArea { clicked => {
-                    weather-city-input.text = hit.name;
-                    weather-lat-input.text = hit.lat;
-                    weather-lon-input.text = hit.lon;
-                } }
-            }
-            Text { text: root.weather-search-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; visible: root.weather-search-status != ""; }
-            Text { text: "Nama kota"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-city-input := TextInput { vertical-alignment: center; text: root.weather-city; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Latitude"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lat-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lat-input := TextInput { vertical-alignment: center; text: root.weather-lat; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Longitude"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lon-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lon-input := TextInput { vertical-alignment: center; text: root.weather-lon; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    weather-city-input.text = "Bandung";
-                    weather-lat-input.text = "-6.9175";
-                    weather-lon-input.text = "107.6191";
-                    root.save-weather("Bandung", "-6.9175", "107.6191");
-                } }
-                Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
-            }
-            Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-        }
-    }
-    sec-position := Rectangle { visible: root.active-tab == "behavior"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "behavior"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 6px;
-            Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
-            HorizontalLayout {
-                Chip { label: "Atas"; selected: root.position-mode == "top"; clicked => { root.save-position("top"); } }
-                Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
-                Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
-            }
-            HorizontalLayout {
-                Chip { label: "Kiri"; selected: root.position-mode == "left"; clicked => { root.save-position("left"); } }
-                Chip { label: "Kanan"; selected: root.position-mode == "right"; clicked => { root.save-position("right"); } }
-            }
-            Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-        }
-    }
-    sec-behavior := Rectangle { visible: root.active-tab == "behavior"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "behavior"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Skala UI (0.5–1.5)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-scale-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-scale-input := TextInput { vertical-alignment: center; text: root.behavior-scale; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-open-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-open-input := TextInput { vertical-alignment: center; text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-close-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-close-input := TextInput { vertical-alignment: center; text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-sleep-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-sleep-input := TextInput { vertical-alignment: center; text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hide-fullscreen-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hide-fullscreen-input := TextInput { vertical-alignment: center; text: root.behavior-hide-fullscreen ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Sembunyikan notch saat aplikasi fullscreen"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                Chip {
-                    label: hide-fullscreen-input.text == "true" ? "Aktif" : "Nonaktif";
-                    selected: hide-fullscreen-input.text == "true";
-                    clicked => { hide-fullscreen-input.text = hide-fullscreen-input.text == "true" ? "false" : "true"; }
-                }
-            }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true"); } }
-                Chip {
-                    label: "Reset default";
-                    clicked => {
-                        behavior-scale-input.text = "1.00";
-                        behavior-hover-open-input.text = "150";
-                        behavior-hover-close-input.text = "450";
-                        behavior-sleep-input.text = "60";
-                        hide-fullscreen-input.text = "true";
-                        root.save-behavior("1.00", "150", "450", "60", true);
-                        root.save-autostart(false);
-                    }
-                }
-            }
-            Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            HorizontalLayout {
-                Text { text: "Jalankan otomatis saat komputer login"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                Chip {
-                    label: root.autostart-enabled ? "Aktif" : "Nonaktif";
-                    selected: root.autostart-enabled;
-                    clicked => { root.save-autostart(!root.autostart-enabled); }
-                }
-            }
-            Text { text: root.autostart-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-        }
-    }
-    sec-motion := Rectangle { visible: root.active-tab == "behavior"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Liquid movement"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "behavior"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 6px;
-            HorizontalLayout {
-                Text { text: "Gerakan acak saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: motion-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.text == "true"; clicked => { motion-enabled-input.text = motion-enabled-input.text == "true" ? "false" : "true"; } }
-            }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-enabled-input := TextInput { vertical-alignment: center; text: root.motion-enabled ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dock-play-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dock-play-input := TextInput { vertical-alignment: center; text: root.dock-play-enabled ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Bottom Play / Side Play"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: dock-play-input.text == "true" ? "Aktif" : "Nonaktif"; selected: dock-play-input.text == "true"; clicked => { dock-play-input.text = dock-play-input.text == "true" ? "false" : "true"; } }
-            }
-            Text { text: "Interval perpindahan (60–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-interval-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-interval-input := TextInput { vertical-alignment: center; text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-max-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-max-input := TextInput { vertical-alignment: center; text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    motion-enabled-input.text = "false";
-                    dock-play-input.text = "true";
-                    motion-interval-input.text = "180";
-                    motion-max-input.text = "3";
-                    root.save-motion(false, "180", "3", true);
-                } }
-                Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
-                Chip { label: "Tes animasi"; clicked => { root.test-dock-play(); } }
-            }
-            Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-        }
-    }
-    sec-nudge := Rectangle { visible: root.active-tab == "nudge"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Notifikasi & perilaku otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "nudge"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 6px;
-            HorizontalLayout {
-                Text { text: "Sapaan otomatis saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: nudge-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-enabled-input.text == "true"; clicked => { nudge-enabled-input.text = nudge-enabled-input.text == "true" ? "false" : "true"; } }
-            }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-enabled-input := TextInput { vertical-alignment: center; text: root.nudge-enabled ? "true" : "false"; visible: false; } } }
-            Text { text: "Waktu idle sebelum sapaan (1–240 menit)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-idle-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-idle-input := TextInput { vertical-alignment: center; text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Pesan (maksimal 80 karakter)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-message-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-message-input := TextInput { vertical-alignment: center; text: root.nudge-message; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Emoji"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-emoji-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-emoji-input := TextInput { vertical-alignment: center; text: root.nudge-emoji; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Ekspresi saat menyapa"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-mood-input := TextInput { vertical-alignment: center; text: root.nudge-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                spacing: 4px;
-                Chip { label: "Normal"; selected: nudge-mood-input.text == "normal"; clicked => { nudge-mood-input.text = "normal"; } }
-                Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
-                Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
-                Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
-            }
-            HorizontalLayout {
-                spacing: 4px;
-                Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
-                Chip { label: "Surprised"; selected: nudge-mood-input.text == "surprised"; clicked => { nudge-mood-input.text = "surprised"; } }
-                Chip { label: "Angry"; selected: nudge-mood-input.text == "angry"; clicked => { nudge-mood-input.text = "angry"; } }
-                Chip { label: "Suspicious"; selected: nudge-mood-input.text == "suspicious"; clicked => { nudge-mood-input.text = "suspicious"; } }
-            }
-            Text { text: "Lama pesan tampil (2000–30000 ms)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-show-input := TextInput { vertical-alignment: center; text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                Text { text: "Hanya saat tidak ada media diputar"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                Chip { label: nudge-silent-input.text == "true" ? "Ya" : "Tidak"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
-            }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-silent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-silent-input := TextInput { vertical-alignment: center; text: root.nudge-only-silent ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-until-move-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-until-move-input := TextInput { vertical-alignment: center; text: root.nudge-until-move ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Tampilkan sampai pointer bergerak lagi"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                Chip {
-                    label: nudge-until-move-input.text == "true" ? "Aktif" : "Nonaktif";
-                    selected: nudge-until-move-input.text == "true";
-                    clicked => { nudge-until-move-input.text = nudge-until-move-input.text == "true" ? "false" : "true"; }
-                }
-            }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    nudge-enabled-input.text = "true"; nudge-idle-input.text = "2";
-                    nudge-message-input.text = "Kamu kemana, kok diam saja?"; nudge-emoji-input.text = "🥺";
-                    nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
-                    root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
-                } }
-                Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text == "true"); } }
-                Chip { label: "Simpan notifikasi"; selected: true; clicked => {
-                    root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
-                } }
-            }
-            Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-        }
-    }
-    sec-greeting := Rectangle { visible: root.active-tab == "nudge"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Greeting & sapaan otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "nudge"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 11px; spacing: 8px;
-            Text { text: "Sapaan ditampilkan di Notch dan dibacakan saat aplikasi mulai berjalan."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-enabled-input := TextInput { vertical-alignment: center; text: root.greeting-enabled ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Aktifkan greeting suara"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
-                Chip { label: greeting-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: greeting-enabled-input.text == "true"; clicked => { greeting-enabled-input.text = greeting-enabled-input.text == "true" ? "false" : "true"; } }
-            }
-            Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-mode-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-mode-input := TextInput { vertical-alignment: center; text: root.greeting-mode; visible: false; } } }
-            Text { text: "PILIH SAPAAN"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Acak lucu"; selected: greeting-mode-input.text == "random"; clicked => { greeting-mode-input.text = "random"; } }
-                Chip { label: "Otomatis"; selected: greeting-mode-input.text == "auto"; clicked => { greeting-mode-input.text = "auto"; } }
-                Chip { label: "Halo"; selected: greeting-mode-input.text == "halo"; clicked => { greeting-mode-input.text = "halo"; } }
-            }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
-                Chip { label: "Siang"; selected: greeting-mode-input.text == "noon"; clicked => { greeting-mode-input.text = "noon"; } }
-                Chip { label: "Sore"; selected: greeting-mode-input.text == "afternoon"; clicked => { greeting-mode-input.text = "afternoon"; } }
-            }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Malam"; selected: greeting-mode-input.text == "evening"; clicked => { greeting-mode-input.text = "evening"; } }
-                Chip { label: "Custom"; selected: greeting-mode-input.text == "custom"; clicked => { greeting-mode-input.text = "custom"; } }
-            }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-voice-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-voice-input := TextInput { vertical-alignment: center; text: root.greeting-voice; visible: false; } } }
-            Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
-            Text { text: "PILIH SUARA"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Cewek natural"; selected: greeting-voice-input.text == "cewek"; clicked => { greeting-voice-input.text = "cewek"; } }
-                Chip { label: "Cowok natural"; selected: greeting-voice-input.text == "cowok"; clicked => { greeting-voice-input.text = "cowok"; } }
-            }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip { label: "Anime cewek"; selected: greeting-voice-input.text == "anime-cewek"; clicked => { greeting-voice-input.text = "anime-cewek"; } }
-                Chip { label: "Anime cowok"; selected: greeting-voice-input.text == "anime-cowok"; clicked => { greeting-voice-input.text = "anime-cowok"; } }
-                Chip { label: "Suara sistem"; selected: greeting-voice-input.text == "system"; clicked => { greeting-voice-input.text = "system"; } }
-            }
-            Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
-            Text { text: "TEKS SAPAAN KUSTOM · MAKS. 120 KARAKTER"; color: Theme.text-faint; font-size: 8px; font-weight: 700; visible: greeting-mode-input.text == "custom"; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-custom-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-custom-input := TextInput { vertical-alignment: center; text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; visible: greeting-mode-input.text == "custom"; } } }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    greeting-enabled-input.text = "true";
-                    greeting-mode-input.text = "random";
-                    greeting-voice-input.text = "cewek";
-                    greeting-custom-input.text = "Halo, semangat menjalani hari!";
-                    root.save-greeting(true, "random", "cewek", "Halo, semangat menjalani hari!");
-                } }
-                Chip { label: "Pratinjau"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text, greeting-voice-input.text); } }
-            }
-            HorizontalLayout {
-                Chip { label: "Simpan pengaturan greeting"; selected: true; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
-            }
-            Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-        }
-    }
-    sec-conversation := Rectangle { visible: root.active-tab == "nudge"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Conversation Moments"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "nudge"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-enabled-input := TextInput { vertical-alignment: center; text: root.conversation-enabled ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Aktifkan komentar kontekstual"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: cm-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: cm-enabled-input.text == "true"; clicked => { cm-enabled-input.text = cm-enabled-input.text == "true" ? "false" : "true"; } }
-            }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-play-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-play-input := TextInput { vertical-alignment: center; text: root.conversation-on-play ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-track-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-track-input := TextInput { vertical-alignment: center; text: root.conversation-on-track-change ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-pause-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-pause-input := TextInput { vertical-alignment: center; text: root.conversation-on-pause ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-return-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-return-input := TextInput { vertical-alignment: center; text: root.conversation-on-return ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-weather-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-weather-input := TextInput { vertical-alignment: center; text: root.conversation-on-weather-change ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-rain-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-rain-input := TextInput { vertical-alignment: center; text: root.conversation-on-rain-soon ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-battery-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-battery-input := TextInput { vertical-alignment: center; text: root.conversation-on-low-battery ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-charging-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-charging-input := TextInput { vertical-alignment: center; text: root.conversation-on-charging ? "true" : "false"; visible: false; } } }
+            width: parent.width;
+            spacing: 8px;
+        sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pintasan global"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle {
+            background: Theme.text.with-alpha(0.045);
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.text.with-alpha(0.08);
             VerticalLayout {
-                spacing: 3px;
-                PageToggle { label: "Saat musik mulai diputar"; checked: cm-play-input.text == "true"; toggled(v) => { cm-play-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat lagu berganti"; checked: cm-track-input.text == "true"; toggled(v) => { cm-track-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat musik dijeda atau selesai"; checked: cm-pause-input.text == "true"; toggled(v) => { cm-pause-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat kembali setelah lama tidak aktif"; checked: cm-return-input.text == "true"; toggled(v) => { cm-return-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat kondisi cuaca berubah"; checked: cm-weather-input.text == "true"; toggled(v) => { cm-weather-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat hujan segera diperkirakan"; checked: cm-rain-input.text == "true"; toggled(v) => { cm-rain-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat baterai turun ke 15%"; checked: cm-battery-input.text == "true"; toggled(v) => { cm-battery-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat laptop mulai mengisi daya"; checked: cm-charging-input.text == "true"; toggled(v) => { cm-charging-input.text = v ? "true" : "false"; } }
+                padding: 9px;
+                spacing: 6px;
+                Text { text: "Buka / tutup hub"; color: Theme.text; font-size: 10px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hub-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hub-input := TextInput { vertical-alignment: center;
+                    text: root.shortcut-hub;
+                    color: Theme.text;
+                    font-size: 12px;
+                    single-line: true;
+                } } }
+                Text { text: "Buka pengaturan"; color: Theme.text; font-size: 10px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: settings-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; settings-input := TextInput { vertical-alignment: center;
+                    text: root.shortcut-settings;
+                    color: Theme.text;
+                    font-size: 12px;
+                    single-line: true;
+                } } }
+                Text { text: "Pomodoro"; color: Theme.text; font-size: 10px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-input := TextInput { vertical-alignment: center;
+                    text: root.shortcut-pomodoro;
+                    color: Theme.text;
+                    font-size: 12px;
+                    single-line: true;
+                } } }
+                Text { text: "Jadwal shalat"; color: Theme.text; font-size: 10px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-input := TextInput { vertical-alignment: center;
+                    text: root.shortcut-prayer;
+                    color: Theme.text;
+                    font-size: 12px;
+                    single-line: true;
+                } } }
+                Text { text: "Format shortcut: minimal satu modifier (Ctrl / Alt / Shift / Win) + satu tombol."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Text { text: "Tombol: A–Z, 0–9, F1–F12, Space, Enter, Esc, Tab, Backspace, koma, titik, slash, titik koma, apostrof, kurung siku, minus, dan sama dengan."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+                Text { text: "Pintasan fitur bawaan (tetap)"; color: Theme.text-faint; font-size: 9px; }
+                Text { text: "Color Picker  Ctrl+Alt+Shift+P"; color: Theme.text; font-size: 9px; }
+                Text { text: "Compress  Ctrl+Alt+Shift+K"; color: Theme.text; font-size: 9px; }
+                Text { text: "Convert  Ctrl+Alt+Shift+C"; color: Theme.text; font-size: 9px; }
+                Text { text: "Transfer  Ctrl+Alt+Shift+S · Android  Ctrl+Alt+Shift+A"; color: Theme.text; font-size: 9px; wrap: word-wrap; }
             }
-            Text { text: "Anggap kembali setelah (5–120 menit)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-return-min-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-return-min-input := TextInput { vertical-alignment: center; text: root.conversation-return-after-min; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Jeda antar komentar (1–60 menit)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-cooldown-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-cooldown-input := TextInput { vertical-alignment: center; text: root.conversation-cooldown-min; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                Chip { label: "Coba momen"; clicked => { root.test-conversation("Asyik, kita ketemu momen baru! ✨", "Uji Conversation Moments"); } }
-                Chip { label: "Coba momen cuaca"; clicked => { root.test-conversation("Cuaca berubah, jangan lupa sesuaikan aktivitasmu ☀️", "Uji momen cuaca"); } }
-            }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    cm-enabled-input.text = "true";
-                    cm-play-input.text = "true";
-                    cm-track-input.text = "true";
-                    cm-pause-input.text = "false";
-                    cm-return-input.text = "true";
-                    cm-weather-input.text = "true";
-                    cm-rain-input.text = "true";
-                    cm-battery-input.text = "true";
-                    cm-charging-input.text = "false";
-                    cm-return-min-input.text = "10";
-                    cm-cooldown-input.text = "3";
-                    root.save-conversation(true, true, true, false, true, true, true, true, false, "10", "3");
-                } }
-                Chip { label: "Simpan Conversation Moments"; clicked => {
-                    root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
-                } }
-            }
-            Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
-    }
-    sec-focus := Rectangle { visible: root.active-tab == "nudge"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Focus Companion"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "nudge"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-enabled-input := TextInput { vertical-alignment: center; text: root.focus-companion-enabled ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-start-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-start-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-start ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-halfway-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-halfway-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-halfway ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-complete-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-complete-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-focus-complete ? "true" : "false"; visible: false; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-break-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-break-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-break-end ? "true" : "false"; visible: false; } } }
-            HorizontalLayout {
-                Text { text: "Aktifkan teman fokus Pomodoro"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                Chip { label: fc-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: fc-enabled-input.text == "true"; clicked => { fc-enabled-input.text = fc-enabled-input.text == "true" ? "false" : "true"; } }
-            }
-            VerticalLayout {
-                spacing: 3px;
-                PageToggle { label: "Saat sesi fokus dimulai"; checked: fc-start-input.text == "true"; toggled(v) => { fc-start-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat mencapai setengah sesi"; checked: fc-halfway-input.text == "true"; toggled(v) => { fc-halfway-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat sesi fokus selesai"; checked: fc-complete-input.text == "true"; toggled(v) => { fc-complete-input.text = v ? "true" : "false"; } }
-                PageToggle { label: "Saat waktu istirahat selesai"; checked: fc-break-input.text == "true"; toggled(v) => { fc-break-input.text = v ? "true" : "false"; } }
-            }
-            HorizontalLayout {
-                Chip { label: "Reset default"; clicked => {
-                    fc-enabled-input.text = "true";
-                    fc-start-input.text = "true";
-                    fc-halfway-input.text = "true";
-                    fc-complete-input.text = "true";
-                    fc-break-input.text = "true";
-                    root.save-focus-companion(true, true, true, true, true);
-                } }
-                Chip { label: "Coba Focus Companion"; clicked => { root.test-focus-companion("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯", "Uji Focus Companion"); } }
-                Chip { label: "Simpan Focus Companion"; clicked => {
-                    root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
-                } }
-            }
-            Text { text: root.focus-companion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-        }
-    }
-    sec-prayer := Rectangle { visible: root.active-tab == "features"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "features"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Provinsi"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-province-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-province-input := TextInput { vertical-alignment: center; text: root.prayer-province; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Kabupaten / Kota"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-city-input := TextInput { vertical-alignment: center; text: root.prayer-city; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Mode notifikasi waktu shalat"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-mode-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-mode-input := TextInput { vertical-alignment: center; text: root.prayer-mode; visible: false; } } }
-            HorizontalLayout {
-                spacing: 4px;
-                Chip { label: "Nada"; selected: prayer-mode-input.text == "tone"; clicked => { prayer-mode-input.text = "tone"; } }
-                Chip { label: "Adzan"; selected: prayer-mode-input.text == "adzan"; clicked => { prayer-mode-input.text = "adzan"; } }
-                Chip { label: "Senyap"; selected: prayer-mode-input.text == "silent"; clicked => { prayer-mode-input.text = "silent"; } }
-            }
-            Text { text: "Pengingat sebelum adzan"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-remind-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-remind-input := TextInput { vertical-alignment: center; text: root.prayer-remind-before; visible: false; } } }
-            HorizontalLayout {
-                spacing: 4px;
-                Chip { label: "Aktif"; selected: prayer-remind-input.text == "true"; clicked => { prayer-remind-input.text = "true"; } }
-                Chip { label: "Nonaktif"; selected: prayer-remind-input.text != "true"; clicked => { prayer-remind-input.text = "false"; } }
-            }
-            Text { text: "Menit sebelum waktu shalat (1–120)"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-min-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-min-input := TextInput { vertical-alignment: center; text: root.prayer-remind-min; color: Theme.text; font-size: 11px; single-line: true; } } }
-        }
-    }
-    sec-pomodoro := Rectangle { visible: root.active-tab == "features"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pomodoro"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "features"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 5px;
-            Text { text: "Durasi fokus / istirahat / istirahat panjang (menit)"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-focus-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-focus-input := TextInput { vertical-alignment: center; text: root.pomodoro-focus; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-break-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-break-input := TextInput { vertical-alignment: center; text: root.pomodoro-break; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-long-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-long-input := TextInput { vertical-alignment: center; text: root.pomodoro-long-break; color: Theme.text; font-size: 11px; single-line: true; } } }
-            Text { text: "Jumlah ronde sebelum istirahat panjang"; color: Theme.text-faint; font-size: 9px; }
-            Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-rounds-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-rounds-input := TextInput { vertical-alignment: center; text: root.pomodoro-rounds; color: Theme.text; font-size: 11px; single-line: true; } } }
-            HorizontalLayout {
-                spacing: 5px;
-                Chip {
-                    label: "Reset default";
-                    clicked => {
-                        prayer-province-input.text = "Jawa Barat";
-                        prayer-city-input.text = "Kota Bandung";
-                        prayer-mode-input.text = "tone";
-                        prayer-remind-input.text = "false";
-                        prayer-min-input.text = "10";
-                        pomo-focus-input.text = "25";
-                        pomo-break-input.text = "5";
-                        pomo-long-input.text = "15";
-                        pomo-rounds-input.text = "4";
-                        root.save-routines("tone", "false", "10", "25", "5", "15", "4", "Jawa Barat", "Kota Bandung");
+        Text { text: "Halaman"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+        Text { text: "Pilih tab utama yang ingin ditampilkan pada hub notch."; color: Theme.text-faint; font-size: 9px; }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 6px;
+                HorizontalLayout {
+                    spacing: 6px;
+                    VerticalLayout {
+                        spacing: 5px;
+                        PageToggle { label: "Musik"; checked: root.page-enabled("media"); toggled(v) => { root.toggle-page("media", v); } }
+                        PageToggle { label: "Cuaca"; checked: root.page-enabled("weather"); toggled(v) => { root.toggle-page("weather", v); } }
+                        PageToggle { label: "Timer Pomodoro"; checked: root.page-enabled("timer"); toggled(v) => { root.toggle-page("timer", v); } }
+                        PageToggle { label: "Alat"; checked: root.page-enabled("tools"); toggled(v) => { root.toggle-page("tools", v); } }
+                        PageToggle { label: "Riwayat clipboard"; checked: root.page-enabled("clipboard"); toggled(v) => { root.toggle-page("clipboard", v); } }
+                        PageToggle { label: "Pengingat"; checked: root.page-enabled("reminder"); toggled(v) => { root.toggle-page("reminder", v); } }
+                        PageToggle { label: "Jadwal shalat"; checked: root.page-enabled("prayer"); toggled(v) => { root.toggle-page("prayer", v); } }
+                    }
+                    VerticalLayout {
+                        spacing: 5px;
+                        PageToggle { label: "Jam & tanggal"; checked: root.page-enabled("clock"); toggled(v) => { root.toggle-page("clock", v); } }
+                        PageToggle { label: "Baterai"; checked: root.page-enabled("battery"); toggled(v) => { root.toggle-page("battery", v); } }
+                        PageToggle { label: "Kontrol cepat"; checked: root.page-enabled("quick"); toggled(v) => { root.toggle-page("quick", v); } }
+                        PageToggle { label: "Status sistem"; checked: root.page-enabled("stats"); toggled(v) => { root.toggle-page("stats", v); } }
+                        PageToggle { label: "Shelf file"; checked: root.page-enabled("shelf"); toggled(v) => { root.toggle-page("shelf", v); } }
+                        PageToggle { label: "Catatan"; checked: root.page-enabled("notes"); toggled(v) => { root.toggle-page("notes", v); } }
+                        PageToggle { label: "Currency · Kurs & saham"; checked: root.page-enabled("currency"); toggled(v) => { root.toggle-page("currency", v); } }
                     }
                 }
-                Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text); } }
+                Rectangle { height: 1px; background: Theme.chip; }
+                Text { text: "Tambahan"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+                Text { text: "Fitur pendamping dan alat tambahan; tidak semuanya menjadi tab utama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                HorizontalLayout {
+                    spacing: 6px;
+                    VerticalLayout {
+                        spacing: 5px;
+                        PageToggle { label: "Link lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
+                        PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
+                        PageToggle { label: "Convert"; checked: root.page-enabled("convert"); toggled(v) => { root.toggle-page("convert", v); } }
+                    }
+                    VerticalLayout {
+                        spacing: 5px;
+                        PageToggle { label: "Compress"; checked: root.page-enabled("compress"); toggled(v) => { root.toggle-page("compress", v); } }
+                        PageToggle { label: "Transfer file"; checked: root.page-enabled("transfer"); toggled(v) => { root.toggle-page("transfer", v); } }
+                        PageToggle { label: "Android & mirroring"; checked: root.page-enabled("android"); toggled(v) => { root.toggle-page("android", v); } }
+                    }
+                }
+                Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                HorizontalLayout {
+                    Chip {
+                        label: "Pulihkan halaman default";
+                        clicked => {
+                            root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency");
+                        }
+                    }
+                }
+                Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             }
         }
-    }
-    HorizontalLayout { visible: root.active-tab == "features";
-        alignment: end;
-        spacing: 5px;
-        Chip {
-            label: "Reset default";
-            clicked => {
-                hub-input.text = "Ctrl+Alt+N";
-                settings-input.text = "Ctrl+Alt+,";
-                pomo-input.text = "Ctrl+Alt+P";
-                prayer-input.text = "Ctrl+Alt+A";
-                root.save-shortcuts("Ctrl+Alt+N", "Ctrl+Alt+,", "Ctrl+Alt+P", "Ctrl+Alt+A");
-            }
-        }
-        Chip {
-            label: "Simpan";
-            clicked => {
-                root.save-shortcuts(hub-input.text, settings-input.text, pomo-input.text, prayer-input.text);
-            }
         }
     }
-    Text { visible: root.active-tab == "features";
-        text: root.save-status;
-        color: Theme.text-faint;
-        font-size: 10px;
-        wrap: word-wrap;
-    }
-    Text { visible: root.active-tab == "features";
-        text: "Shortcut langsung aktif setelah disimpan. Pastikan setiap kombinasi tidak bentrok dengan aplikasi lain.";
-        color: Theme.text-faint;
-        font-size: 9px;
-        wrap: word-wrap;
-    }
-    sec-adhan := Rectangle { visible: root.active-tab == "features"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Suara adzan"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    Rectangle { visible: root.active-tab == "features"; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-        VerticalLayout { padding: 9px; spacing: 6px;
-            Text { text: "Putar adzan.mp3 untuk pengujian. Tidak mengubah pengingat jadwal shalat."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-            Text { text: root.adhan-active ? "Status: sedang diputar" : "Status: siap diputar"; color: Theme.text; font-size: 10px; }
-            HorizontalLayout { spacing: 6px;
-                Chip { label: "Mulai tes adzan"; padding-x: 14px; selected: root.adhan-active; clicked => { if (!root.adhan-active) { root.test-adhan(); } } }
-                Chip { label: "Hentikan"; padding-x: 14px; clicked => { root.stop-adhan(); } }
+
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "appearance" || root.active-tab == "eyes";
+        height: root.active-tab == "appearance" || root.active-tab == "eyes" ? self.preferred-height : 0px;
+        min-height: 0px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 8px;
+        sec-appearance := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: root.active-tab == "eyes" ? "Mata" : "Tampilan"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
+        Text { text: root.active-tab == "eyes" ? "Ekspresi mata dan skin Notch." : "Warna, tema, dan ukuran notch."; color: Theme.text-dim; font-size: 10px; }
+        appearance-card := Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Text { visible: root.active-tab == "appearance"; text: "Warna & tema"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                Rectangle { visible: false; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout { visible: root.active-tab == "appearance";
+                    spacing: 6px;
+                    SettingsSegmentButton { label: "Ikuti OS"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
+                    SettingsSegmentButton { label: "Gelap"; selected: theme-input.text == "dark"; clicked => { theme-input.text = "dark"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "appearance";
+                    spacing: 6px;
+                    SettingsSegmentButton { label: "Terang"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
+                    SettingsSegmentButton { label: "Kustom"; selected: theme-input.text == "custom"; clicked => { theme-input.text = "custom"; } }
+                }
+                Text { visible: root.active-tab == "eyes"; text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
+                Text { visible: root.active-tab == "eyes"; text: "Tema badan notch"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: notch-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; notch-theme-input := TextInput { vertical-alignment: center; text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Default"; selected: notch-theme-input.text == "default"; clicked => { notch-theme-input.text = "default"; } }
+                    Chip { label: "Aurora"; selected: notch-theme-input.text == "aurora"; clicked => { notch-theme-input.text = "aurora"; } }
+                    Chip { label: "Obsidian"; selected: notch-theme-input.text == "obsidian"; clicked => { notch-theme-input.text = "obsidian"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Neon"; selected: notch-theme-input.text == "neon"; clicked => { notch-theme-input.text = "neon"; } }
+                    Chip { label: "Sakura"; selected: notch-theme-input.text == "sakura"; clicked => { notch-theme-input.text = "sakura"; } }
+                    Chip { label: "Matcha"; selected: notch-theme-input.text == "matcha"; clicked => { notch-theme-input.text = "matcha"; } }
+                }
+                Text { visible: root.active-tab == "eyes"; text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; mood-input := TextInput { vertical-alignment: center; text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Normal"; selected: mood-input.text == "normal"; clicked => { mood-input.text = "normal"; } }
+                    Chip { label: "Happy"; selected: mood-input.text == "happy"; clicked => { mood-input.text = "happy"; } }
+                    Chip { label: "Sleepy"; selected: mood-input.text == "sleepy"; clicked => { mood-input.text = "sleepy"; } }
+                    Chip { label: "Love"; selected: mood-input.text == "love"; clicked => { mood-input.text = "love"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Surprised"; selected: mood-input.text == "surprised"; clicked => { mood-input.text = "surprised"; } }
+                    Chip { label: "Angry"; selected: mood-input.text == "angry"; clicked => { mood-input.text = "angry"; } }
+                    Chip { label: "Sad"; selected: mood-input.text == "sad"; clicked => { mood-input.text = "sad"; } }
+                    Chip { label: "Suspicious"; selected: mood-input.text == "suspicious"; clicked => { mood-input.text = "suspicious"; } }
+                }
+                Text { visible: root.active-tab == "eyes"; text: "Skin mata (20 pilihan tersedia)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: eye-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; eye-theme-input := TextInput { vertical-alignment: center; text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Aurora"; selected: eye-theme-input.text == "aurora"; clicked => { eye-theme-input.text = "aurora"; } }
+                    Chip { label: "Neon"; selected: eye-theme-input.text == "neon"; clicked => { eye-theme-input.text = "neon"; } }
+                    Chip { label: "Pastel"; selected: eye-theme-input.text == "pastel"; clicked => { eye-theme-input.text = "pastel"; } }
+                    Chip { label: "Pixel"; selected: eye-theme-input.text == "pixel"; clicked => { eye-theme-input.text = "pixel"; } }
+                    Chip { label: "Holo"; selected: eye-theme-input.text == "holo"; clicked => { eye-theme-input.text = "holo"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Ember"; selected: eye-theme-input.text == "ember"; clicked => { eye-theme-input.text = "ember"; } }
+                    Chip { label: "Ocean"; selected: eye-theme-input.text == "ocean"; clicked => { eye-theme-input.text = "ocean"; } }
+                    Chip { label: "Sakura"; selected: eye-theme-input.text == "sakura"; clicked => { eye-theme-input.text = "sakura"; } }
+                    Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
+                    Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Kawaii"; selected: eye-theme-input.text == "kawaii"; clicked => { eye-theme-input.text = "kawaii"; } }
+                    Chip { label: "Boba"; selected: eye-theme-input.text == "boba"; clicked => { eye-theme-input.text = "boba"; } }
+                    Chip { label: "Galaxy"; selected: eye-theme-input.text == "galaxy"; clicked => { eye-theme-input.text = "galaxy"; } }
+                    Chip { label: "Matcha"; selected: eye-theme-input.text == "matcha"; clicked => { eye-theme-input.text = "matcha"; } }
+                    Chip { label: "Candy"; selected: eye-theme-input.text == "candy"; clicked => { eye-theme-input.text = "candy"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "eyes";
+                    spacing: 4px;
+                    Chip { label: "Synthwave"; selected: eye-theme-input.text == "synthwave"; clicked => { eye-theme-input.text = "synthwave"; } }
+                    Chip { label: "Slime"; selected: eye-theme-input.text == "slime"; clicked => { eye-theme-input.text = "slime"; } }
+                    Chip { label: "Cotton"; selected: eye-theme-input.text == "cotton"; clicked => { eye-theme-input.text = "cotton"; } }
+                    Chip { label: "Pumpkin"; selected: eye-theme-input.text == "pumpkin"; clicked => { eye-theme-input.text = "pumpkin"; } }
+                    Chip { label: "Frost"; selected: eye-theme-input.text == "frost"; clicked => { eye-theme-input.text = "frost"; } }
+                }
+                Text { visible: root.active-tab == "appearance"; text: "Warna aksen (HEX)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; accent-input := TextInput { vertical-alignment: center; text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { visible: root.active-tab == "appearance"; text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
+                HorizontalLayout { visible: root.active-tab == "appearance";
+                    spacing: 4px;
+                    Chip { label: "Biru"; selected: accent-input.text == "#6C8CFF"; clicked => { accent-input.text = "#6C8CFF"; } }
+                    Chip { label: "Ungu"; selected: accent-input.text == "#A78BFA"; clicked => { accent-input.text = "#A78BFA"; } }
+                    Chip { label: "Pink"; selected: accent-input.text == "#F472B6"; clicked => { accent-input.text = "#F472B6"; } }
+                    Chip { label: "Hijau"; selected: accent-input.text == "#34D399"; clicked => { accent-input.text = "#34D399"; } }
+                }
+                HorizontalLayout { visible: root.active-tab == "appearance";
+                    spacing: 4px;
+                    Chip { label: "Oranye"; selected: accent-input.text == "#FB923C"; clicked => { accent-input.text = "#FB923C"; } }
+                    Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
+                    Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
+                }
+                Text { visible: root.active-tab == "appearance"; text: "Warna notch (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-bg-input := TextInput { vertical-alignment: center; text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { visible: root.active-tab == "appearance"; text: "Warna teks (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-text-input := TextInput { vertical-alignment: center; text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema gelap"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dark-bg-input := TextInput { vertical-alignment: center; text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema terang"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; light-bg-input := TextInput { vertical-alignment: center; text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout { visible: root.active-tab == "appearance" || root.active-tab == "eyes";
+                    spacing: 5px;
+                    Chip {
+                        label: "Reset default";
+                        clicked => {
+                            theme-input.text = "auto";
+                            eye-theme-input.text = "aurora";
+                            notch-theme-input.text = "default";
+                            mood-input.text = "normal";
+                            accent-input.text = "";
+                            custom-bg-input.text = "#000000";
+                            custom-text-input.text = "";
+                            dark-bg-input.text = "#000000";
+                            light-bg-input.text = "#f5f5f7";
+                            root.save-appearance("auto", "aurora", "default", "normal", "", "#000000", "", "#000000", "#f5f5f7");
+                        }
+                    }
+                    Chip { label: "Simpan tampilan"; selected: true; clicked => { root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text); } }
+                }
             }
         }
+        }
     }
-    sec-app := Rectangle { visible: root.active-tab == "features"; height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Aplikasi"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-    HorizontalLayout { visible: root.active-tab == "features";
-        Chip { label: "Mulai ulang Notch"; padding-x: 14px; clicked => { root.restart-app(); } }
+
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "weather";
+        height: root.active-tab == "weather" ? self.preferred-height : 0px;
+        min-height: 0px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 8px;
+        sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Lokasi cuaca"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Text { text: "Cari kota (hasil mengisi nama dan koordinat)"; color: Theme.text-faint; font-size: 9px; }
+                HorizontalLayout { spacing: 6px;
+                    Rectangle { horizontal-stretch: 1; height: 28px; border-radius: 8px; background: #ffffff10;
+                        if city-search-input.text == "": Text { x: 8px; height: parent.height; text: "mis. Surabaya"; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; }
+                        city-search-input := TextInput { x: 8px; width: parent.width - 16px; height: parent.height; text: ""; color: Theme.text; font-size: 11px; single-line: true; vertical-alignment: center;
+                            accepted => { root.search-city(self.text); }
+                        }
+                    }
+                    Chip { label: "Cari"; clicked => { root.search-city(city-search-input.text); } }
+                }
+                for hit in root.weather-hits: Rectangle {
+                    height: 24px;
+                    border-radius: 8px;
+                    background: hit-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                    Text { x: 8px; width: parent.width - 16px; height: parent.height; text: hit.label; color: Theme.text; font-size: 10px; vertical-alignment: center; overflow: elide; }
+                    hit-ta := TouchArea { clicked => {
+                        weather-city-input.text = hit.name;
+                        weather-lat-input.text = hit.lat;
+                        weather-lon-input.text = hit.lon;
+                    } }
+                }
+                Text { text: root.weather-search-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; visible: root.weather-search-status != ""; }
+                Text { text: "Nama kota"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-city-input := TextInput { vertical-alignment: center; text: root.weather-city; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Latitude"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lat-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lat-input := TextInput { vertical-alignment: center; text: root.weather-lat; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Longitude"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lon-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lon-input := TextInput { vertical-alignment: center; text: root.weather-lon; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        weather-city-input.text = "Bandung";
+                        weather-lat-input.text = "-6.9175";
+                        weather-lon-input.text = "107.6191";
+                        root.save-weather("Bandung", "-6.9175", "107.6191");
+                    } }
+                    Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
+                }
+                Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            }
+        }
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "behavior";
+        height: root.active-tab == "behavior" ? self.preferred-height : 0px;
+        min-height: 0px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 8px;
+        sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 6px;
+                Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
+                HorizontalLayout {
+                    Chip { label: "Atas"; selected: root.position-mode == "top"; clicked => { root.save-position("top"); } }
+                    Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
+                    Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
+                }
+                HorizontalLayout {
+                    Chip { label: "Kiri"; selected: root.position-mode == "left"; clicked => { root.save-position("left"); } }
+                    Chip { label: "Kanan"; selected: root.position-mode == "right"; clicked => { root.save-position("right"); } }
+                }
+                Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            }
+        }
+        sec-behavior := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Text { text: "Skala UI (0.5–1.5)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-scale-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-scale-input := TextInput { vertical-alignment: center; text: root.behavior-scale; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-open-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-open-input := TextInput { vertical-alignment: center; text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-close-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-close-input := TextInput { vertical-alignment: center; text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-sleep-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-sleep-input := TextInput { vertical-alignment: center; text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hide-fullscreen-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hide-fullscreen-input := TextInput { vertical-alignment: center; text: root.behavior-hide-fullscreen ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Sembunyikan notch saat aplikasi fullscreen"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                    Chip {
+                        label: hide-fullscreen-input.text == "true" ? "Aktif" : "Nonaktif";
+                        selected: hide-fullscreen-input.text == "true";
+                        clicked => { hide-fullscreen-input.text = hide-fullscreen-input.text == "true" ? "false" : "true"; }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true"); } }
+                    Chip {
+                        label: "Reset default";
+                        clicked => {
+                            behavior-scale-input.text = "1.00";
+                            behavior-hover-open-input.text = "150";
+                            behavior-hover-close-input.text = "450";
+                            behavior-sleep-input.text = "60";
+                            hide-fullscreen-input.text = "true";
+                            root.save-behavior("1.00", "150", "450", "60", true);
+                            root.save-autostart(false);
+                        }
+                    }
+                }
+                Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                HorizontalLayout {
+                    Text { text: "Jalankan otomatis saat komputer login"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                    Chip {
+                        label: root.autostart-enabled ? "Aktif" : "Nonaktif";
+                        selected: root.autostart-enabled;
+                        clicked => { root.save-autostart(!root.autostart-enabled); }
+                    }
+                }
+                Text { text: root.autostart-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            }
+        }
+        sec-motion := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Liquid movement"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 6px;
+                HorizontalLayout {
+                    Text { text: "Gerakan acak saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                    Chip { label: motion-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: motion-enabled-input.text == "true"; clicked => { motion-enabled-input.text = motion-enabled-input.text == "true" ? "false" : "true"; } }
+                }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-enabled-input := TextInput { vertical-alignment: center; text: root.motion-enabled ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dock-play-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dock-play-input := TextInput { vertical-alignment: center; text: root.dock-play-enabled ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Bottom Play / Side Play"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                    Chip { label: dock-play-input.text == "true" ? "Aktif" : "Nonaktif"; selected: dock-play-input.text == "true"; clicked => { dock-play-input.text = dock-play-input.text == "true" ? "false" : "true"; } }
+                }
+                Text { text: "Interval perpindahan (60–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-interval-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-interval-input := TextInput { vertical-alignment: center; text: root.motion-interval; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Maksimal perpindahan per sesi (1–10)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: motion-max-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; motion-max-input := TextInput { vertical-alignment: center; text: root.motion-max-moves; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        motion-enabled-input.text = "false";
+                        dock-play-input.text = "true";
+                        motion-interval-input.text = "180";
+                        motion-max-input.text = "3";
+                        root.save-motion(false, "180", "3", true);
+                    } }
+                    Chip { label: "Simpan pengaturan gerakan"; clicked => { root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true"); } }
+                    Chip { label: "Tes animasi"; clicked => { root.test-dock-play(); } }
+                }
+                Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            }
+        }
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "nudge";
+        height: root.active-tab == "nudge" ? self.preferred-height : 0px;
+        min-height: 0px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 8px;
+        sec-nudge := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Notifikasi & perilaku otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 6px;
+                HorizontalLayout {
+                    Text { text: "Sapaan otomatis saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                    Chip { label: nudge-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-enabled-input.text == "true"; clicked => { nudge-enabled-input.text = nudge-enabled-input.text == "true" ? "false" : "true"; } }
+                }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-enabled-input := TextInput { vertical-alignment: center; text: root.nudge-enabled ? "true" : "false"; visible: false; } } }
+                Text { text: "Waktu idle sebelum sapaan (1–240 menit)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-idle-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-idle-input := TextInput { vertical-alignment: center; text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Pesan (maksimal 80 karakter)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-message-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-message-input := TextInput { vertical-alignment: center; text: root.nudge-message; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Emoji"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-emoji-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-emoji-input := TextInput { vertical-alignment: center; text: root.nudge-emoji; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Ekspresi saat menyapa"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-mood-input := TextInput { vertical-alignment: center; text: root.nudge-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Chip { label: "Normal"; selected: nudge-mood-input.text == "normal"; clicked => { nudge-mood-input.text = "normal"; } }
+                    Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
+                    Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
+                    Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
+                }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
+                    Chip { label: "Surprised"; selected: nudge-mood-input.text == "surprised"; clicked => { nudge-mood-input.text = "surprised"; } }
+                    Chip { label: "Angry"; selected: nudge-mood-input.text == "angry"; clicked => { nudge-mood-input.text = "angry"; } }
+                    Chip { label: "Suspicious"; selected: nudge-mood-input.text == "suspicious"; clicked => { nudge-mood-input.text = "suspicious"; } }
+                }
+                Text { text: "Lama pesan tampil (2000–30000 ms)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-show-input := TextInput { vertical-alignment: center; text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    Text { text: "Hanya saat tidak ada media diputar"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                    Chip { label: nudge-silent-input.text == "true" ? "Ya" : "Tidak"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
+                }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-silent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-silent-input := TextInput { vertical-alignment: center; text: root.nudge-only-silent ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-until-move-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-until-move-input := TextInput { vertical-alignment: center; text: root.nudge-until-move ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Tampilkan sampai pointer bergerak lagi"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                    Chip {
+                        label: nudge-until-move-input.text == "true" ? "Aktif" : "Nonaktif";
+                        selected: nudge-until-move-input.text == "true";
+                        clicked => { nudge-until-move-input.text = nudge-until-move-input.text == "true" ? "false" : "true"; }
+                    }
+                }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        nudge-enabled-input.text = "true"; nudge-idle-input.text = "2";
+                        nudge-message-input.text = "Kamu kemana, kok diam saja?"; nudge-emoji-input.text = "🥺";
+                        nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
+                        root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
+                    } }
+                    Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text == "true"); } }
+                    Chip { label: "Simpan notifikasi"; selected: true; clicked => {
+                        root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
+                    } }
+                }
+                Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            }
+        }
+        sec-greeting := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Greeting & sapaan otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 11px; spacing: 8px;
+                Text { text: "Sapaan ditampilkan di Notch dan dibacakan saat aplikasi mulai berjalan."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-enabled-input := TextInput { vertical-alignment: center; text: root.greeting-enabled ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Aktifkan greeting suara"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                    Chip { label: greeting-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: greeting-enabled-input.text == "true"; clicked => { greeting-enabled-input.text = greeting-enabled-input.text == "true" ? "false" : "true"; } }
+                }
+                Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-mode-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-mode-input := TextInput { vertical-alignment: center; text: root.greeting-mode; visible: false; } } }
+                Text { text: "PILIH SAPAAN"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Acak lucu"; selected: greeting-mode-input.text == "random"; clicked => { greeting-mode-input.text = "random"; } }
+                    Chip { label: "Otomatis"; selected: greeting-mode-input.text == "auto"; clicked => { greeting-mode-input.text = "auto"; } }
+                    Chip { label: "Halo"; selected: greeting-mode-input.text == "halo"; clicked => { greeting-mode-input.text = "halo"; } }
+                }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Pagi"; selected: greeting-mode-input.text == "morning"; clicked => { greeting-mode-input.text = "morning"; } }
+                    Chip { label: "Siang"; selected: greeting-mode-input.text == "noon"; clicked => { greeting-mode-input.text = "noon"; } }
+                    Chip { label: "Sore"; selected: greeting-mode-input.text == "afternoon"; clicked => { greeting-mode-input.text = "afternoon"; } }
+                }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Malam"; selected: greeting-mode-input.text == "evening"; clicked => { greeting-mode-input.text = "evening"; } }
+                    Chip { label: "Custom"; selected: greeting-mode-input.text == "custom"; clicked => { greeting-mode-input.text = "custom"; } }
+                }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-voice-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-voice-input := TextInput { vertical-alignment: center; text: root.greeting-voice; visible: false; } } }
+                Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
+                Text { text: "PILIH SUARA"; color: Theme.text-faint; font-size: 8px; font-weight: 700; }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Cewek natural"; selected: greeting-voice-input.text == "cewek"; clicked => { greeting-voice-input.text = "cewek"; } }
+                    Chip { label: "Cowok natural"; selected: greeting-voice-input.text == "cowok"; clicked => { greeting-voice-input.text = "cowok"; } }
+                }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip { label: "Anime cewek"; selected: greeting-voice-input.text == "anime-cewek"; clicked => { greeting-voice-input.text = "anime-cewek"; } }
+                    Chip { label: "Anime cowok"; selected: greeting-voice-input.text == "anime-cowok"; clicked => { greeting-voice-input.text = "anime-cowok"; } }
+                    Chip { label: "Suara sistem"; selected: greeting-voice-input.text == "system"; clicked => { greeting-voice-input.text = "system"; } }
+                }
+                Rectangle { height: 1px; background: Theme.text.with-alpha(0.08); }
+                Text { text: "TEKS SAPAAN KUSTOM · MAKS. 120 KARAKTER"; color: Theme.text-faint; font-size: 8px; font-weight: 700; visible: greeting-mode-input.text == "custom"; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-custom-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-custom-input := TextInput { vertical-alignment: center; text: root.greeting-custom-text; color: Theme.text; font-size: 11px; single-line: true; visible: greeting-mode-input.text == "custom"; } } }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        greeting-enabled-input.text = "true";
+                        greeting-mode-input.text = "random";
+                        greeting-voice-input.text = "cewek";
+                        greeting-custom-input.text = "Halo, semangat menjalani hari!";
+                        root.save-greeting(true, "random", "cewek", "Halo, semangat menjalani hari!");
+                    } }
+                    Chip { label: "Pratinjau"; clicked => { root.test-greeting(greeting-mode-input.text, greeting-custom-input.text, greeting-voice-input.text); } }
+                }
+                HorizontalLayout {
+                    Chip { label: "Simpan pengaturan greeting"; selected: true; clicked => { root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text); } }
+                }
+                Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            }
+        }
+        sec-conversation := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Conversation Moments"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-enabled-input := TextInput { vertical-alignment: center; text: root.conversation-enabled ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Aktifkan komentar kontekstual"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                    Chip { label: cm-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: cm-enabled-input.text == "true"; clicked => { cm-enabled-input.text = cm-enabled-input.text == "true" ? "false" : "true"; } }
+                }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-play-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-play-input := TextInput { vertical-alignment: center; text: root.conversation-on-play ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-track-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-track-input := TextInput { vertical-alignment: center; text: root.conversation-on-track-change ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-pause-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-pause-input := TextInput { vertical-alignment: center; text: root.conversation-on-pause ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-return-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-return-input := TextInput { vertical-alignment: center; text: root.conversation-on-return ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-weather-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-weather-input := TextInput { vertical-alignment: center; text: root.conversation-on-weather-change ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-rain-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-rain-input := TextInput { vertical-alignment: center; text: root.conversation-on-rain-soon ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-battery-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-battery-input := TextInput { vertical-alignment: center; text: root.conversation-on-low-battery ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-charging-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-charging-input := TextInput { vertical-alignment: center; text: root.conversation-on-charging ? "true" : "false"; visible: false; } } }
+                VerticalLayout {
+                    spacing: 3px;
+                    PageToggle { label: "Saat musik mulai diputar"; checked: cm-play-input.text == "true"; toggled(v) => { cm-play-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat lagu berganti"; checked: cm-track-input.text == "true"; toggled(v) => { cm-track-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat musik dijeda atau selesai"; checked: cm-pause-input.text == "true"; toggled(v) => { cm-pause-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat kembali setelah lama tidak aktif"; checked: cm-return-input.text == "true"; toggled(v) => { cm-return-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat kondisi cuaca berubah"; checked: cm-weather-input.text == "true"; toggled(v) => { cm-weather-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat hujan segera diperkirakan"; checked: cm-rain-input.text == "true"; toggled(v) => { cm-rain-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat baterai turun ke 15%"; checked: cm-battery-input.text == "true"; toggled(v) => { cm-battery-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat laptop mulai mengisi daya"; checked: cm-charging-input.text == "true"; toggled(v) => { cm-charging-input.text = v ? "true" : "false"; } }
+                }
+                Text { text: "Anggap kembali setelah (5–120 menit)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-return-min-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-return-min-input := TextInput { vertical-alignment: center; text: root.conversation-return-after-min; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Jeda antar komentar (1–60 menit)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-cooldown-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-cooldown-input := TextInput { vertical-alignment: center; text: root.conversation-cooldown-min; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    Chip { label: "Coba momen"; clicked => { root.test-conversation("Asyik, kita ketemu momen baru! ✨", "Uji Conversation Moments"); } }
+                    Chip { label: "Coba momen cuaca"; clicked => { root.test-conversation("Cuaca berubah, jangan lupa sesuaikan aktivitasmu ☀️", "Uji momen cuaca"); } }
+                }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        cm-enabled-input.text = "true";
+                        cm-play-input.text = "true";
+                        cm-track-input.text = "true";
+                        cm-pause-input.text = "false";
+                        cm-return-input.text = "true";
+                        cm-weather-input.text = "true";
+                        cm-rain-input.text = "true";
+                        cm-battery-input.text = "true";
+                        cm-charging-input.text = "false";
+                        cm-return-min-input.text = "10";
+                        cm-cooldown-input.text = "3";
+                        root.save-conversation(true, true, true, false, true, true, true, true, false, "10", "3");
+                    } }
+                    Chip { label: "Simpan Conversation Moments"; clicked => {
+                        root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
+                    } }
+                }
+                Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            }
+        }
+        sec-focus := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Focus Companion"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-enabled-input := TextInput { vertical-alignment: center; text: root.focus-companion-enabled ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-start-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-start-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-start ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-halfway-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-halfway-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-halfway ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-complete-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-complete-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-focus-complete ? "true" : "false"; visible: false; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-break-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-break-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-break-end ? "true" : "false"; visible: false; } } }
+                HorizontalLayout {
+                    Text { text: "Aktifkan teman fokus Pomodoro"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
+                    Chip { label: fc-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: fc-enabled-input.text == "true"; clicked => { fc-enabled-input.text = fc-enabled-input.text == "true" ? "false" : "true"; } }
+                }
+                VerticalLayout {
+                    spacing: 3px;
+                    PageToggle { label: "Saat sesi fokus dimulai"; checked: fc-start-input.text == "true"; toggled(v) => { fc-start-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat mencapai setengah sesi"; checked: fc-halfway-input.text == "true"; toggled(v) => { fc-halfway-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat sesi fokus selesai"; checked: fc-complete-input.text == "true"; toggled(v) => { fc-complete-input.text = v ? "true" : "false"; } }
+                    PageToggle { label: "Saat waktu istirahat selesai"; checked: fc-break-input.text == "true"; toggled(v) => { fc-break-input.text = v ? "true" : "false"; } }
+                }
+                HorizontalLayout {
+                    Chip { label: "Reset default"; clicked => {
+                        fc-enabled-input.text = "true";
+                        fc-start-input.text = "true";
+                        fc-halfway-input.text = "true";
+                        fc-complete-input.text = "true";
+                        fc-break-input.text = "true";
+                        root.save-focus-companion(true, true, true, true, true);
+                    } }
+                    Chip { label: "Coba Focus Companion"; clicked => { root.test-focus-companion("Yuk, fokus satu hal dulu. Kamu pasti bisa! 🎯", "Uji Focus Companion"); } }
+                    Chip { label: "Simpan Focus Companion"; clicked => {
+                        root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
+                    } }
+                }
+                Text { text: root.focus-companion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+            }
+        }
+        }
+    }
+
+    Rectangle {
+        width: parent.width;
+        visible: root.active-tab == "features";
+        height: root.active-tab == "features" ? self.preferred-height : 0px;
+        min-height: 0px;
+        VerticalLayout {
+            width: parent.width;
+            spacing: 8px;
+        sec-prayer := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Text { text: "Provinsi"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-province-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-province-input := TextInput { vertical-alignment: center; text: root.prayer-province; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Kabupaten / Kota"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-city-input := TextInput { vertical-alignment: center; text: root.prayer-city; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Mode notifikasi waktu shalat"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-mode-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-mode-input := TextInput { vertical-alignment: center; text: root.prayer-mode; visible: false; } } }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Chip { label: "Nada"; selected: prayer-mode-input.text == "tone"; clicked => { prayer-mode-input.text = "tone"; } }
+                    Chip { label: "Adzan"; selected: prayer-mode-input.text == "adzan"; clicked => { prayer-mode-input.text = "adzan"; } }
+                    Chip { label: "Senyap"; selected: prayer-mode-input.text == "silent"; clicked => { prayer-mode-input.text = "silent"; } }
+                }
+                Text { text: "Pengingat sebelum adzan"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-remind-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-remind-input := TextInput { vertical-alignment: center; text: root.prayer-remind-before; visible: false; } } }
+                HorizontalLayout {
+                    spacing: 4px;
+                    Chip { label: "Aktif"; selected: prayer-remind-input.text == "true"; clicked => { prayer-remind-input.text = "true"; } }
+                    Chip { label: "Nonaktif"; selected: prayer-remind-input.text != "true"; clicked => { prayer-remind-input.text = "false"; } }
+                }
+                Text { text: "Menit sebelum waktu shalat (1–120)"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-min-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-min-input := TextInput { vertical-alignment: center; text: root.prayer-remind-min; color: Theme.text; font-size: 11px; single-line: true; } } }
+            }
+        }
+        sec-pomodoro := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pomodoro"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 5px;
+                Text { text: "Durasi fokus / istirahat / istirahat panjang (menit)"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-focus-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-focus-input := TextInput { vertical-alignment: center; text: root.pomodoro-focus; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-break-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-break-input := TextInput { vertical-alignment: center; text: root.pomodoro-break; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-long-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-long-input := TextInput { vertical-alignment: center; text: root.pomodoro-long-break; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Text { text: "Jumlah ronde sebelum istirahat panjang"; color: Theme.text-faint; font-size: 9px; }
+                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-rounds-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-rounds-input := TextInput { vertical-alignment: center; text: root.pomodoro-rounds; color: Theme.text; font-size: 11px; single-line: true; } } }
+                HorizontalLayout {
+                    spacing: 5px;
+                    Chip {
+                        label: "Reset default";
+                        clicked => {
+                            prayer-province-input.text = "Jawa Barat";
+                            prayer-city-input.text = "Kota Bandung";
+                            prayer-mode-input.text = "tone";
+                            prayer-remind-input.text = "false";
+                            prayer-min-input.text = "10";
+                            pomo-focus-input.text = "25";
+                            pomo-break-input.text = "5";
+                            pomo-long-input.text = "15";
+                            pomo-rounds-input.text = "4";
+                            root.save-routines("tone", "false", "10", "25", "5", "15", "4", "Jawa Barat", "Kota Bandung");
+                        }
+                    }
+                    Chip { label: "Simpan jadwal & Pomodoro"; clicked => { root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text); } }
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            spacing: 5px;
+            Chip {
+                label: "Reset default";
+                clicked => {
+                    hub-input.text = "Ctrl+Alt+N";
+                    settings-input.text = "Ctrl+Alt+,";
+                    pomo-input.text = "Ctrl+Alt+P";
+                    prayer-input.text = "Ctrl+Alt+A";
+                    root.save-shortcuts("Ctrl+Alt+N", "Ctrl+Alt+,", "Ctrl+Alt+P", "Ctrl+Alt+A");
+                }
+            }
+            Chip {
+                label: "Simpan";
+                clicked => {
+                    root.save-shortcuts(hub-input.text, settings-input.text, pomo-input.text, prayer-input.text);
+                }
+            }
+        }
+        Text {
+            text: root.save-status;
+            color: Theme.text-faint;
+            font-size: 10px;
+            wrap: word-wrap;
+        }
+        Text {
+            text: "Shortcut langsung aktif setelah disimpan. Pastikan setiap kombinasi tidak bentrok dengan aplikasi lain.";
+            color: Theme.text-faint;
+            font-size: 9px;
+            wrap: word-wrap;
+        }
+        sec-adhan := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Suara adzan"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout { padding: 9px; spacing: 6px;
+                Text { text: "Putar adzan.mp3 untuk pengujian. Tidak mengubah pengingat jadwal shalat."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                Text { text: root.adhan-active ? "Status: sedang diputar" : "Status: siap diputar"; color: Theme.text; font-size: 10px; }
+                HorizontalLayout { spacing: 6px;
+                    Chip { label: "Mulai tes adzan"; padding-x: 14px; selected: root.adhan-active; clicked => { if (!root.adhan-active) { root.test-adhan(); } } }
+                    Chip { label: "Hentikan"; padding-x: 14px; clicked => { root.stop-adhan(); } }
+                }
+            }
+        }
+        sec-app := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Aplikasi"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        HorizontalLayout {
+            Chip { label: "Mulai ulang Notch"; padding-x: 14px; clicked => { root.restart-app(); } }
+        }
+        }
     }
             }
         }
