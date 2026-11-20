@@ -1578,6 +1578,31 @@ impl Shell {
     }
 }
 
+/// Pastikan ukuran jendela native mengikuti hub yang terbuka. Pada hover pertama setelah startup, `set_size`
+/// bisa diabaikan atau ditimpa (jendela native belum siap, atau hide/show untuk menyembunyikan taskbar), sehingga
+/// hub tergambar terpotong di jendela 300 x 140. Cek ulang beberapa kali dan pasang ulang ukuran bila tidak cocok.
+fn settle_expanded_geometry(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>, tries_left: u8) {
+    if tries_left == 0 {
+        return;
+    }
+    Timer::single_shot(Duration::from_millis(80), move || {
+        let Some(w) = weak.upgrade() else { return };
+        if !w.get_expanded() {
+            return;
+        }
+        let (lw, lh) = expanded_size(&w);
+        let sf = w.window().scale_factor();
+        let want = ((lw as f32 * sf).round() as i32, (lh as f32 * sf).round() as i32);
+        let got = w.window().size();
+        if (got.width as i32 - want.0).abs() > 2 || (got.height as i32 - want.1).abs() > 2 {
+            eprintln!("[Geometry] ukuran hub {}x{} != {}x{}, dipasang ulang", got.width, got.height, want.0, want.1);
+            shell.memo.set((None, 0));
+            shell.place(&w, (lw, lh));
+            settle_expanded_geometry(weak.clone(), shell.clone(), tries_left - 1);
+        }
+    });
+}
+
 /// Tanggal lokal hari ini.
 fn today() -> Date {
     let (_, _, d, m, y) = platform::local_time();
@@ -3886,6 +3911,7 @@ fn main() -> Result<(), slint::PlatformError> {
             shell.place(&w, size);
             w.set_expanded(true);
             sync();
+            settle_expanded_geometry(weak.clone(), shell.clone(), 8);
         })
     };
     let collapse: Rc<dyn Fn()> = {
