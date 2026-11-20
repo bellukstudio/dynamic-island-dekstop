@@ -3040,7 +3040,7 @@ export component SettingsWindow inherits Window {
     callback save-autostart(bool);
     callback save-position(string);
     callback save-routines(string, string, string, string, string, string, string, string, string);
-    callback save-appearance(string, string, string, string, string, string, string, string, string);
+    callback save-appearance(string, string, string, string, string, string, string, string, string, float);
     callback preview-appearance(string, string, string, string, string, string, string, string, string, float);
     callback save-weather(string, string, string);
     // Pencarian kota (Open-Meteo geocoding) seperti kolom "Cari kota" di Pengaturan Tauri.
@@ -3068,10 +3068,9 @@ export component SettingsWindow inherits Window {
     // Simpan kategori aktif melalui callback yang sama dengan tombol simpan masing-masing kartu.
     function save-current-tab() {
         if root.active-tab == "appearance" {
-            root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text);
-            root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true");
+            root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text, root.behavior-scale-value);
         } else if root.active-tab == "eyes" {
-            root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text);
+            root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text, root.behavior-scale-value);
         } else if root.active-tab == "features" {
             root.save-shortcuts(hub-input.text, settings-input.text, pomo-input.text, prayer-input.text);
             root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text);
@@ -3580,12 +3579,11 @@ export component SettingsWindow inherits Window {
                             custom-text-input.text = "";
                             dark-bg-input.text = "#000000";
                             light-bg-input.text = "#f5f5f7";
-                            root.save-appearance("auto", "aurora", "default", "normal", "", "#000000", "", "#000000", "#f5f5f7");
+                            root.save-appearance("auto", "aurora", "default", "normal", "", "#000000", "", "#000000", "#f5f5f7", root.behavior-scale-value);
                         }
                     }
                     Chip { label: "Simpan tampilan"; selected: true; clicked => {
-                        root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text);
-                        root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true");
+                        root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text, root.behavior-scale-value);
                     } }
                 }
             }
@@ -5585,7 +5583,7 @@ export component NotchWindow inherits Window {
     in property <string> appearance-dark-bg: "#000000";
     in property <string> appearance-light-bg: "#f5f5f7";
     in property <string> appearance-save-status: "";
-    callback settings-save-appearance(string, string, string, string, string, string, string, string, string);
+    callback settings-save-appearance(string, string, string, string, string, string, string, string, string, float);
     callback settings-preview-appearance(string, string, string, string, string, string, string, string, string, float);
     callback settings-save-behavior(string, string, string, string, bool);
     callback settings-save-autostart(bool);
