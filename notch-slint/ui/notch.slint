@@ -3846,64 +3846,147 @@ export component SettingsWindow inherits Window {
         VerticalLayout {
             spacing: 8px;
         sec-nudge := Rectangle { visible: root.active-tab == "nudge"; height: root.active-tab == "nudge" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Pesan saat pointer diam"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { visible: root.active-tab == "nudge"; height: root.active-tab == "nudge" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-            VerticalLayout { padding: 9px; spacing: 6px;
-                HorizontalLayout {
-                    Text { text: "Sapaan otomatis saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
-                    Chip { label: nudge-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-enabled-input.text == "true"; clicked => { nudge-enabled-input.text = nudge-enabled-input.text == "true" ? "false" : "true"; } }
-                }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-enabled-input := TextInput { vertical-alignment: center; text: root.nudge-enabled ? "true" : "false"; visible: false; } } }
-                Text { text: "Waktu idle sebelum sapaan (1–240 menit)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-idle-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-idle-input := TextInput { vertical-alignment: center; text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Pesan (maksimal 80 karakter)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-message-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-message-input := TextInput { vertical-alignment: center; text: root.nudge-message; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Emoji"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-emoji-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-emoji-input := TextInput { vertical-alignment: center; text: root.nudge-emoji; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Ekspresi saat menyapa"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-mood-input := TextInput { vertical-alignment: center; text: root.nudge-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout {
-                    spacing: 4px;
-                    Chip { label: "Normal"; selected: nudge-mood-input.text == "normal"; clicked => { nudge-mood-input.text = "normal"; } }
-                    Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
-                    Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
-                    Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
-                }
-                HorizontalLayout {
-                    spacing: 4px;
-                    Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
-                    Chip { label: "Surprised"; selected: nudge-mood-input.text == "surprised"; clicked => { nudge-mood-input.text = "surprised"; } }
-                    Chip { label: "Angry"; selected: nudge-mood-input.text == "angry"; clicked => { nudge-mood-input.text = "angry"; } }
-                    Chip { label: "Suspicious"; selected: nudge-mood-input.text == "suspicious"; clicked => { nudge-mood-input.text = "suspicious"; } }
-                }
-                Text { text: "Lama pesan tampil (2000–30000 ms)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-show-input := TextInput { vertical-alignment: center; text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout {
-                    Text { text: "Hanya saat tidak ada media diputar"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                    Chip { label: nudge-silent-input.text == "true" ? "Ya" : "Tidak"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
-                }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-silent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-silent-input := TextInput { vertical-alignment: center; text: root.nudge-only-silent ? "true" : "false"; visible: false; } } }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: nudge-until-move-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; nudge-until-move-input := TextInput { vertical-alignment: center; text: root.nudge-until-move ? "true" : "false"; visible: false; } } }
-                HorizontalLayout {
-                    Text { text: "Tampilkan sampai pointer bergerak lagi"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                    Chip {
-                        label: nudge-until-move-input.text == "true" ? "Aktif" : "Nonaktif";
-                        selected: nudge-until-move-input.text == "true";
-                        clicked => { nudge-until-move-input.text = nudge-until-move-input.text == "true" ? "false" : "true"; }
+        HorizontalLayout {
+            visible: root.active-tab == "nudge";
+            height: root.active-tab == "nudge" ? self.preferred-height : 0px;
+            spacing: 8px;
+            Rectangle {
+                horizontal-stretch: 1;
+                min-width: 0px;
+                background: Theme.text.with-alpha(0.045);
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.08);
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 7px;
+                    Text { text: "Isi pesan"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                    HorizontalLayout {
+                        Text { text: "Aktifkan"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                        Chip { label: nudge-enabled-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-enabled-input.text == "true"; clicked => { nudge-enabled-input.text = nudge-enabled-input.text == "true" ? "false" : "true"; } }
+                    }
+                    Rectangle { height: 0px; nudge-enabled-input := TextInput { text: root.nudge-enabled ? "true" : "false"; visible: false; } }
+                    Text { text: "Pesan (maksimal 80 karakter)"; color: Theme.text-faint; font-size: 9px; }
+                    Rectangle {
+                        height: 34px;
+                        border-radius: 8px;
+                        background: Theme.text.with-alpha(0.06);
+                        border-width: 1px;
+                        border-color: nudge-message-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            nudge-message-input := TextInput { vertical-alignment: center; text: root.nudge-message; color: Theme.text; font-size: 11px; single-line: true; }
+                        }
+                    }
+                    Text { text: "Emoji"; color: Theme.text-faint; font-size: 9px; }
+                    Rectangle {
+                        height: 34px;
+                        border-radius: 8px;
+                        background: Theme.text.with-alpha(0.06);
+                        border-width: 1px;
+                        border-color: nudge-emoji-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            nudge-emoji-input := TextInput { vertical-alignment: center; text: root.nudge-emoji; color: Theme.text; font-size: 11px; single-line: true; }
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 5px;
+                        Chip { label: "🥺"; clicked => { nudge-emoji-input.text = "🥺"; } }
+                        Chip { label: "😳"; clicked => { nudge-emoji-input.text = "😳"; } }
+                        Chip { label: "😴"; clicked => { nudge-emoji-input.text = "😴"; } }
+                        Chip { label: "😿"; clicked => { nudge-emoji-input.text = "😿"; } }
+                        Chip { label: "😺"; clicked => { nudge-emoji-input.text = "😺"; } }
+                        Chip { label: "🥰"; clicked => { nudge-emoji-input.text = "🥰"; } }
+                        Chip { label: "🤔"; clicked => { nudge-emoji-input.text = "🤔"; } }
+                    }
+                    Text { text: "Ekspresi mata"; color: Theme.text-faint; font-size: 9px; }
+                    Rectangle { height: 0px; nudge-mood-input := TextInput { text: root.nudge-mood; visible: false; } }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Chip { label: "Normal"; selected: nudge-mood-input.text == "normal"; clicked => { nudge-mood-input.text = "normal"; } }
+                        Chip { label: "Happy"; selected: nudge-mood-input.text == "happy"; clicked => { nudge-mood-input.text = "happy"; } }
+                        Chip { label: "Sleepy"; selected: nudge-mood-input.text == "sleepy"; clicked => { nudge-mood-input.text = "sleepy"; } }
+                        Chip { label: "Love"; selected: nudge-mood-input.text == "love"; clicked => { nudge-mood-input.text = "love"; } }
+                    }
+                    HorizontalLayout {
+                        spacing: 4px;
+                        Chip { label: "Sad"; selected: nudge-mood-input.text == "sad"; clicked => { nudge-mood-input.text = "sad"; } }
+                        Chip { label: "Surprised"; selected: nudge-mood-input.text == "surprised"; clicked => { nudge-mood-input.text = "surprised"; } }
+                        Chip { label: "Angry"; selected: nudge-mood-input.text == "angry"; clicked => { nudge-mood-input.text = "angry"; } }
+                        Chip { label: "Suspicious"; selected: nudge-mood-input.text == "suspicious"; clicked => { nudge-mood-input.text = "suspicious"; } }
                     }
                 }
-                HorizontalLayout {
-                    Chip { label: "Reset default"; clicked => {
-                        nudge-enabled-input.text = "true"; nudge-idle-input.text = "2";
-                        nudge-message-input.text = "Kamu kemana, kok diam saja?"; nudge-emoji-input.text = "🥺";
-                        nudge-mood-input.text = "sad"; nudge-show-input.text = "6000"; nudge-silent-input.text = "true"; nudge-until-move-input.text = "false";
-                        root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
-                    } }
-                    Chip { label: "Pratinjau"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text == "true"); } }
-                    Chip { label: "Simpan notifikasi"; selected: true; clicked => {
-                        root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
-                    } }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                min-width: 0px;
+                background: Theme.text.with-alpha(0.045);
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.08);
+                VerticalLayout {
+                    padding: 10px;
+                    spacing: 7px;
+                    Text { text: "Kapan muncul"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                    Text { text: "Muncul setelah diam (menit)"; color: Theme.text; font-size: 9px; }
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 8px;
+                        background: Theme.text.with-alpha(0.06);
+                        border-width: 1px;
+                        border-color: nudge-idle-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            nudge-idle-input := TextInput { vertical-alignment: center; text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; }
+                        }
+                    }
+                    Text { text: "Lama tampil (detik)"; color: Theme.text; font-size: 9px; }
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 8px;
+                        background: Theme.text.with-alpha(0.06);
+                        border-width: 1px;
+                        border-color: nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            nudge-show-input := TextInput { vertical-alignment: center; text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; }
+                        }
+                    }
+                    Rectangle { height: 0px; nudge-silent-input := TextInput { text: root.nudge-only-silent ? "true" : "false"; visible: false; } }
+                    HorizontalLayout {
+                        Text { text: "Jangan muncul saat musik/video diputar"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; vertical-alignment: center; }
+                        Chip { label: nudge-silent-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-silent-input.text == "true"; clicked => { nudge-silent-input.text = nudge-silent-input.text == "true" ? "false" : "true"; } }
+                    }
+                    Rectangle { height: 0px; nudge-until-move-input := TextInput { text: root.nudge-until-move ? "true" : "false"; visible: false; } }
+                    HorizontalLayout {
+                        Text { text: "Tampilkan sampai pointer bergerak lagi"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; vertical-alignment: center; }
+                        Chip { label: nudge-until-move-input.text == "true" ? "Aktif" : "Nonaktif"; selected: nudge-until-move-input.text == "true"; clicked => { nudge-until-move-input.text = nudge-until-move-input.text == "true" ? "false" : "true"; } }
+                    }
+                    HorizontalLayout {
+                        spacing: 5px;
+                        Chip { label: "Reset default"; clicked => {
+                            nudge-enabled-input.text = "true";
+                            nudge-idle-input.text = "2";
+                            nudge-message-input.text = "Kamu kemana, kok diam saja?";
+                            nudge-emoji-input.text = "🥺";
+                            nudge-mood-input.text = "sad";
+                            nudge-show-input.text = "6000";
+                            nudge-silent-input.text = "true";
+                            nudge-until-move-input.text = "false";
+                            root.save-nudge(true, "2", "Kamu kemana, kok diam saja?", "🥺", "sad", "6000", true, false);
+                        } }
+                        Chip { label: "Coba tampilkan"; clicked => { root.test-nudge(nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-until-move-input.text == "true"); } }
+                        Chip { label: "Simpan notifikasi"; selected: true; clicked => {
+                            root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
+                        } }
+                    }
+                    Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
                 }
-                Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             }
         }
         sec-greeting := Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Greeting & sapaan otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
