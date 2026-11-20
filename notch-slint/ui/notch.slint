@@ -3229,8 +3229,127 @@ export component SettingsWindow inherits Window {
                         SettingsSegmentButton { label: "Terang"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
                         SettingsSegmentButton { label: "Kustom"; selected: theme-input.text == "custom"; clicked => { theme-input.text = "custom"; } }
                         }
-                        Text { visible: root.active-tab == "appearance"; text: "Warna aksen (HEX)"; color: Theme.text-faint; font-size: 9px; }
-                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; accent-input := TextInput { vertical-alignment: center; text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        HorizontalLayout {
+                            height: 32px;
+                            Text { text: "Warna notch"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                            Rectangle {
+                                width: 132px;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: Theme.text.with-alpha(0.06);
+                                border-width: 1px;
+                                border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                animate border-color { duration: 120ms; }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    custom-bg-input := TextInput {
+                                        vertical-alignment: center;
+                                        text: root.appearance-custom-bg;
+                                        color: Theme.text;
+                                        font-size: 10px;
+                                        single-line: true;
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            height: 32px;
+                            Text { text: "Warna notch di tema gelap"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                            Rectangle {
+                                width: 132px;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: Theme.text.with-alpha(0.06);
+                                border-width: 1px;
+                                border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                animate border-color { duration: 120ms; }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    dark-bg-input := TextInput {
+                                        vertical-alignment: center;
+                                        text: root.appearance-dark-bg;
+                                        color: Theme.text;
+                                        font-size: 10px;
+                                        single-line: true;
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            height: 32px;
+                            Text { text: "Warna notch di tema terang"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                            Rectangle {
+                                width: 132px;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: Theme.text.with-alpha(0.06);
+                                border-width: 1px;
+                                border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                animate border-color { duration: 120ms; }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    light-bg-input := TextInput {
+                                        vertical-alignment: center;
+                                        text: root.appearance-light-bg;
+                                        color: Theme.text;
+                                        font-size: 10px;
+                                        single-line: true;
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            height: 32px;
+                            Text { text: "Warna teks"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                    Chip { label: "otomatis"; selected: custom-text-input.text == ""; clicked => { custom-text-input.text = ""; } }
+                            Rectangle {
+                                width: 118px;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: Theme.text.with-alpha(0.06);
+                                border-width: 1px;
+                                border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                animate border-color { duration: 120ms; }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    custom-text-input := TextInput {
+                                        vertical-alignment: center;
+                                        text: root.appearance-custom-text;
+                                        color: Theme.text;
+                                        font-size: 10px;
+                                        single-line: true;
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            height: 32px;
+                            Text { text: "Warna aksen"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; vertical-alignment: center; }
+                            Rectangle {
+                                width: 132px;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: Theme.text.with-alpha(0.06);
+                                border-width: 1px;
+                                border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                animate border-color { duration: 120ms; }
+                                HorizontalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    accent-input := TextInput {
+                                        vertical-alignment: center;
+                                        text: root.appearance-accent;
+                                        color: Theme.text;
+                                        font-size: 10px;
+                                        single-line: true;
+                                    }
+                                }
+                            }
+                        }
                         Text { visible: root.active-tab == "appearance"; text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
                         HorizontalLayout { visible: root.active-tab == "appearance";
                         spacing: 4px;
@@ -3245,14 +3364,6 @@ export component SettingsWindow inherits Window {
                         Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
                         Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
                         }
-                        Text { visible: root.active-tab == "appearance"; text: "Warna notch (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
-                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-bg-input := TextInput { vertical-alignment: center; text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-                        Text { visible: root.active-tab == "appearance"; text: "Warna teks (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
-                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-text-input := TextInput { vertical-alignment: center; text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; } } }
-                        Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema gelap"; color: Theme.text-faint; font-size: 9px; }
-                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dark-bg-input := TextInput { vertical-alignment: center; text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-                        Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema terang"; color: Theme.text-faint; font-size: 9px; }
-                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; light-bg-input := TextInput { vertical-alignment: center; text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
                     }
                 }
                 Rectangle {
