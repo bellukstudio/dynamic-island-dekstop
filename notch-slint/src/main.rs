@@ -459,8 +459,8 @@ const GREETING_INLINE: (u32, u32) = (420, 112);
 const EXPANDED: (u32, u32) = (612, 240);
 /// Dashboard Currency membutuhkan ruang vertikal untuk konverter dan ringkasan pasar.
 const EXPANDED_CURRENCY: (u32, u32) = (812, 558);
-/// Hub Reminder lebih lebar dan tinggi agar form dan daftar tidak saling berhimpitan.
-const EXPANDED_REMINDER: (u32, u32) = (812, 430);
+/// Hub Reminder menyediakan ruang untuk header, banner aktif, form dan daftar tanpa terpotong.
+const EXPANDED_REMINDER: (u32, u32) = (812, 540);
 /// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
 const EXPANDED_TALL: (u32, u32) = (612, 338);
 
@@ -1736,6 +1736,26 @@ fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_save_status(m.get_settings_save_status());
 }
 
+/// Sinkronkan status yang berubah saat Settings terbuka tanpa menimpa input yang sedang diedit pengguna.
+fn sync_settings_live_state(m: &NotchWindow, s: &SettingsWindow) {
+    s.set_weather_save_status(m.get_weather_save_status());
+    s.set_weather_hits(m.get_weather_hits());
+    s.set_weather_search_status(m.get_weather_search_status());
+    s.set_adhan_active(m.get_adhan_active());
+    s.set_appearance_save_status(m.get_appearance_save_status());
+    s.set_autostart_save_status(m.get_autostart_save_status());
+    s.set_behavior_save_status(m.get_behavior_save_status());
+    s.set_motion_save_status(m.get_motion_save_status());
+    s.set_nudge_save_status(m.get_nudge_save_status());
+    s.set_greeting_save_status(m.get_greeting_save_status());
+    s.set_conversation_save_status(m.get_conversation_save_status());
+    s.set_focus_companion_save_status(m.get_focus_companion_save_status());
+    s.set_active_pages(m.get_active_pages());
+    s.set_hub_pages(m.get_hub_pages());
+    s.set_pages_save_status(m.get_pages_save_status());
+    s.set_save_status(m.get_settings_save_status());
+}
+
 /// Teruskan tombol Simpan/Tes di jendela Pengaturan ke handler yang sudah ada di NotchWindow.
 fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     {
@@ -1877,17 +1897,30 @@ type SettingsSlot = Rc<RefCell<Option<SettingsHandle>>>;
 
 /// Buka (atau munculkan kembali) jendela Pengaturan terpisah, setara jendela Pengaturan versi Tauri.
 fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
-    if let Some(handle) = slot.borrow().as_ref() {
-        sync_settings_theme(main, &handle.win);
-        sync_settings_window(main, &handle.win);
-        let _ = handle.win.show();
-        let _ = handle.win.window().with_winit_window(|w| {
-            w.set_minimized(false);
-            w.focus_window();
-        });
-        return;
+    // Ambil Weak dalam scope borrow singkat agar operasi show/focus tidak berjalan saat RefCell dipinjam.
+    let existing = {
+        slot.borrow().as_ref().map(|handle| handle.win.as_weak())
+    };
+    if let Some(existing) = existing {
+        if let Some(win) = existing.upgrade() {
+            sync_settings_theme(main, &win);
+            sync_settings_window(main, &win);
+            let _ = win.show();
+            let _ = win.window().with_winit_window(|w| {
+                w.set_minimized(false);
+                w.focus_window();
+            });
+            return;
+        }
+        slot.borrow_mut().take();
     }
-    let Ok(win) = SettingsWindow::new() else { return };
+    let win = match SettingsWindow::new() {
+        Ok(win) => win,
+        Err(error) => {
+            eprintln!("[Settings] Gagal membuat jendela: {error}");
+            return;
+        }
+    };
     sync_settings_theme(main, &win);
     sync_settings_window(main, &win);
     wire_settings_window(main, &win);
@@ -1908,11 +1941,12 @@ fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
         sync.start(TimerMode::Repeated, Duration::from_millis(250), move || {
             if let (Some(m), Some(s)) = (main_weak.upgrade(), win_weak.upgrade()) {
                 sync_settings_theme(&m, &s);
-                sync_settings_window(&m, &s);
+                sync_settings_live_state(&m, &s);
             }
         });
     }
-    if win.show().is_err() {
+    if let Err(error) = win.show() {
+        eprintln!("[Settings] Gagal menampilkan jendela: {error}");
         return;
     }
     *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync });
@@ -1949,10 +1983,18 @@ fn main() -> Result<(), slint::PlatformError> {
     let settings_slot: SettingsSlot = Rc::default();
     let open_settings: Rc<dyn Fn()> = {
         let (weak, slot) = (win.as_weak(), settings_slot.clone());
+        let opening = Rc::new(Cell::new(false));
         Rc::new(move || {
-            if let Some(w) = weak.upgrade() {
-                open_settings_window(&w, &slot);
+            if opening.replace(true) {
+                return;
             }
+            let (weak, slot, opening) = (weak.clone(), slot.clone(), opening.clone());
+            Timer::single_shot(Duration::from_millis(1), move || {
+                if let Some(w) = weak.upgrade() {
+                    open_settings_window(&w, &slot);
+                }
+                opening.set(false);
+            });
         })
     };
     {
@@ -3836,11 +3878,12 @@ fn main() -> Result<(), slint::PlatformError> {
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             shrink.stop();
-            shell.place(&w, if w.get_page_id() == "clock" || !w.get_idle_clock() { expanded_size(&w) } else { EXPANDED });
-            // Dengan wajah jam, hub dibuka di halaman Jam (homePage di Tauri).
+            // Dengan wajah jam, halaman home harus ditetapkan sebelum ukuran native dihitung.
             if w.get_idle_clock() {
                 w.set_page_id("clock".into());
             }
+            let size = expanded_size(&w);
+            shell.place(&w, size);
             w.set_expanded(true);
             sync();
         })
@@ -6778,6 +6821,20 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_nudge_visible(false);
                     }
                 });
+            }
+        });
+    }
+
+    // Koreksi geometri setelah native Winit window siap; shell.place() pertama terjadi sebelum event loop.
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        Timer::single_shot(Duration::from_millis(350), move || {
+            if let Some(w) = weak.upgrade() {
+                shell.memo.set((None, 0));
+                let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
+                shell.place(&w, size);
+                platform::hide_from_taskbar(w.window());
             }
         });
     }
