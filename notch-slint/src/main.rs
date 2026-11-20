@@ -3562,7 +3562,8 @@ fn main() -> Result<(), slint::PlatformError> {
                             "Pengingat".to_string()
                         };
                         w.set_reminder_alert_sub(when.into());
-                        shell.place(&w, EXPANDED);
+                        // Halaman Pengingat lebih besar dari EXPANDED; ukuran jendela harus mengikuti badan hub.
+                        shell.place(&w, expanded_size(&w));
                         w.set_expanded(true);
                         show_reminders(&model, items, timezone_offset);
                     }

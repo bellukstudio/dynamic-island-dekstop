@@ -2222,7 +2222,12 @@ component ReminderPage inherits VerticalLayout {
             border-width: 1px;
             border-color: #ffffff18;
             background: #ffffff08;
-            VerticalLayout {
+            // Bisa digulir bila tinggi tidak cukup (banner alert 58 px atau pilihan hari mingguan); bila muat, tampil seperti biasa.
+            Flickable {
+                interactive: false;
+                content-width: self.width;
+                content-height: max(self.height, reminder-form.min-height);
+                reminder-form := VerticalLayout {
                 padding: 14px;
                 spacing: 10px;
                 Text { text: "Buat pengingat"; color: Theme.text; font-size: 14px; font-weight: 700; }
@@ -2307,6 +2312,7 @@ component ReminderPage inherits VerticalLayout {
                     selected: true;
                     height: 38px;
                     clicked => { root.add(root.draft, root.date-time, root.repeat-mode, root.weekdays-mask); }
+                }
                 }
             }
         }
