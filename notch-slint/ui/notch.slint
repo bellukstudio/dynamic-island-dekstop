@@ -114,6 +114,8 @@ component Chip inherits Rectangle {
     height: 28px;
     min-width: 64px;
     preferred-width: label-text.preferred-width + 2 * root.padding-x;
+    // Tanpa ini, preferred-width eksplisit membuat chip ikut menyerap sisa lebar HorizontalLayout (tombol jadi melebar).
+    horizontal-stretch: 0;
     border-radius: 14px;
     background: root.selected ? Theme.accent.with-alpha(0.24) : (ta.has-hover ? Theme.chip-hover : Theme.chip);
     animate background { duration: 120ms; }
@@ -869,9 +871,11 @@ component WeatherPage inherits HorizontalLayout {
     }
 }
 
+// Shelf: header (judul, jumlah, Tambah, Kosongkan) + area drop / tile file yang bisa digulir.
+// Area halaman 580 x 148 px: header 28 + area isi (min. 76) + satu baris petunjuk 12 muat tanpa meluber.
 component ShelfPage inherits VerticalLayout {
     in property <[ShelfItem]> items;
-    in property <string> status: "Seret file ke Notch · file asli tetap aman";
+    in property <string> status: "";
     in property <bool> dropping: false;
     callback add();
     callback open(string);
@@ -879,55 +883,71 @@ component ShelfPage inherits VerticalLayout {
     callback drag(string);
     callback remove(string);
     callback clear();
-    padding-left: 26px; padding-right: 26px; padding-top: 8px; padding-bottom: 12px; spacing: 7px;
+    padding-left: 18px;
+    padding-right: 18px;
+    padding-top: 4px;
+    padding-bottom: 8px;
+    spacing: 6px;
 
     HorizontalLayout {
-        height: 22px;
-        alignment: center;
-        Text {
-            text: root.items.length == 0 ? "SHELF" : "SHELF  ·  " + root.items.length + "/30";
-            color: Theme.text-dim; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
-            horizontal-stretch: 1; vertical-alignment: center;
-        }
-        Rectangle {
-            width: 25px; height: 24px; border-radius: 7px;
-            background: clear-area.has-hover ? Theme.chip-hover : Theme.chip;
-            Path {
-                x: 5px; y: 5px; width: 15px; height: 15px;
-                viewbox-width: 24; viewbox-height: 24;
-                commands: "M 4 7 H 20 M 10 11 V 17 M 14 11 V 17 M 6 7 L 7 20 H 17 L 18 7 M 9 7 V 4 H 15 V 7";
-                fill: transparent; stroke: Theme.text-dim; stroke-width: 1.8px;
-                stroke-line-cap: round; stroke-line-join: round;
+        height: 28px;
+        spacing: 8px;
+        Text { text: "Shelf"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: center; }
+        if root.items.length > 0: VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: count-text.preferred-width + 16px;
+                height: 18px;
+                border-radius: 9px;
+                background: Theme.accent.with-alpha(0.18);
+                border-width: 1px;
+                border-color: Theme.accent.with-alpha(0.34);
+                count-text := Text {
+                    text: root.items.length + "/30";
+                    color: Theme.text;
+                    font-size: 10px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
             }
-            clear-area := TouchArea { enabled: root.items.length > 0; clicked => { root.clear(); } }
         }
+        Rectangle { horizontal-stretch: 1; }
+        Chip { label: "+ Tambah"; padding-x: 12px; clicked => { root.add(); } }
+        if root.items.length > 0: Chip { label: "Kosongkan"; padding-x: 12px; clicked => { root.clear(); } }
     }
-    Text {
-        text: root.dropping ? "Lepaskan untuk menambahkan file ke Shelf" : root.status;
-        color: root.dropping ? Theme.accent : Theme.text-faint;
-        font-size: 9px; wrap: word-wrap; max-height: 24px;
-    }
+
     if root.items.length == 0: Rectangle {
-        vertical-stretch: 1; min-height: 78px;
-        border-radius: 12px; border-width: 1px;
+        vertical-stretch: 1;
+        border-radius: 12px;
+        border-width: 1px;
         border-color: root.dropping ? Theme.accent : Theme.text-faint.with-alpha(0.35);
         background: root.dropping ? Theme.accent.with-alpha(0.13) : #ffffff08;
         animate background { duration: 140ms; }
         animate border-color { duration: 140ms; }
         VerticalLayout {
-            alignment: center; spacing: 5px;
-            Text { text: "⇩"; color: root.dropping ? Theme.accent : Theme.text-dim; font-size: 25px; horizontal-alignment: center; }
+            alignment: center;
+            spacing: 3px;
+            Text { text: "⇩"; color: root.dropping ? Theme.accent : Theme.text-dim; font-size: 22px; horizontal-alignment: center; }
             Text { text: root.dropping ? "Lepaskan file di sini" : "Seret file ke notch"; color: Theme.text; font-size: 11px; font-weight: 600; horizontal-alignment: center; }
-            Text { text: "atau pilih dari komputer"; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; }
+            Text { text: "atau klik area ini untuk memilih dari komputer"; color: Theme.text-faint; font-size: 9px; horizontal-alignment: center; }
         }
         TouchArea { clicked => { root.add(); } }
     }
+
     if root.items.length > 0: Rectangle {
-        vertical-stretch: 1; min-height: 76px;
-        border-radius: 12px; border-width: root.dropping ? 1px : 0px;
-        border-color: Theme.accent; background: root.dropping ? Theme.accent.with-alpha(0.10) : #ffffff08;
+        vertical-stretch: 1;
+        border-radius: 12px;
+        border-width: root.dropping ? 1px : 0px;
+        border-color: Theme.accent;
+        background: root.dropping ? Theme.accent.with-alpha(0.10) : #ffffff08;
+        animate background { duration: 140ms; }
+        // Tile 70 px diletakkan di tengah vertikal area ini (anak berukuran tetap di layout selalu menempel ke atas).
         Flickable {
-            x: 2px; y: 2px; width: parent.width - 4px; height: parent.height - 4px;
+            x: 6px;
+            y: (parent.height - 70px) / 2;
+            width: parent.width - 12px;
+            height: 70px;
             HorizontalLayout {
                 spacing: 8px;
                 for item in root.items: Rectangle {
@@ -969,24 +989,19 @@ component ShelfPage inherits VerticalLayout {
                                 if (self.drag-started) { self.drag-started = false; } else { root.open(item.path); }
                             }
                         }
-                    }
                 }
             }
         }
-    HorizontalLayout {
-        height: 25px; spacing: 6px;
-        Rectangle {
-            horizontal-stretch: 1; height: 25px; border-radius: 8px;
-            background: add-area.has-hover ? Theme.accent.with-alpha(0.28) : Theme.accent.with-alpha(0.18);
-            Text { text: "+ Tambah file"; color: Theme.text; font-size: 10px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
-            add-area := TouchArea { clicked => { root.add(); } }
-        }
-        if root.items.length > 0: Rectangle {
-            width: 76px; height: 25px; border-radius: 8px;
-            background: Theme.chip;
-            Text { text: "Lokasi pertama"; color: Theme.text-dim; font-size: 9px; horizontal-alignment: center; vertical-alignment: center; }
-            TouchArea { clicked => { root.reveal(root.items[0].path); } }
-        }
+    }
+
+    // Petunjuk / status satu baris; tidak dirender saat kosong supaya tidak menyisakan celah.
+    if root.items.length > 0 || root.dropping || root.status != "": Text {
+        height: 12px;
+        text: root.dropping ? "Lepaskan untuk menambahkan file ke Shelf" : (root.status != "" ? root.status : "Klik: buka  ·  Klik kanan: lokasi file  ·  Seret: keluarkan");
+        color: root.dropping ? Theme.accent : Theme.text-faint;
+        font-size: 9px;
+        overflow: elide;
+        vertical-alignment: center;
     }
 }
 component NoteIconButton inherits Rectangle {
