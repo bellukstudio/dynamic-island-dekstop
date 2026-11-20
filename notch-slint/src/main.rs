@@ -1764,6 +1764,14 @@ fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     }
     {
         let weak = m.as_weak();
+        s.on_preview_appearance(move |a0, a1, a2, a3, a4, a5, a6, a7, a8, a9| {
+            if let Some(m) = weak.upgrade() {
+                m.invoke_settings_preview_appearance(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9);
+            }
+        });
+    }
+    {
+        let weak = m.as_weak();
         s.on_save_nudge(move |a0, a1, a2, a3, a4, a5, a6, a7| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_nudge(a0, a1, a2, a3, a4, a5, a6, a7); } });
     }
     {
@@ -5762,6 +5770,80 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
+            }
+        });
+    }
+
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        let eye_runtime = appearance_eye.clone();
+        let sleep_after_s = sleep_after_s.clone();
+        let preview_config = cfg.clone();
+        win.on_settings_preview_appearance(move |theme, eye, notch, mood, accent, custom_bg, custom_text, dark, light, scale| {
+            let mut next = preview_config.clone();
+            next.appearance.theme = theme.to_string();
+            next.appearance.eye_theme = eye.to_string();
+            next.appearance.notch_theme = notch.to_string();
+            next.appearance.default_mood = mood.to_string();
+            next.appearance.accent = accent.to_string();
+            next.appearance.background = custom_bg.to_string();
+            next.appearance.text = custom_text.to_string();
+            next.appearance.dark_bg = dark.to_string();
+            next.appearance.light_bg = light.to_string();
+            let scale = f64::from(scale);
+            if !(0.5..=1.5).contains(&scale) {
+                return;
+            }
+            next.scale = scale;
+            next.normalize();
+            if !["auto", "dark", "light", "custom"].contains(&next.appearance.theme.as_str()) {
+                return;
+            }
+            let valid_hex = |v: &str| v.is_empty() || (v.len() == 7 && v.starts_with("#") && v[1..].bytes().all(|b| b.is_ascii_hexdigit()));
+            if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.background) || !valid_hex(&next.appearance.text) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) {
+                return;
+            }
+
+            // Preview only: update the running notch and the settings mirror, but never write config.toml.
+            let palette = Palette::from_appearance(&next.appearance, platform::os_light());
+            *shell.theme.borrow_mut() = next.appearance.notch_theme.clone();
+            *shell.body.borrow_mut() = palette.body;
+            *shell.scale.borrow_mut() = scale as f32;
+            shell.memo.set((None, 0));
+            if let Some(w) = weak.upgrade() {
+                apply_theme(&w, &palette);
+                w.set_ui_scale(scale as f32);
+                let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
+                shell.place(&w, size);
+
+                if let Some(eye) = eye_runtime.borrow().as_ref() {
+                    let mut eye = eye.borrow_mut();
+                    let skin = eyes::skin_index(&next.appearance.eye_theme);
+                    let (renderer, canvas_size) = eye_renderer_for_dock(&next.appearance.eye_theme, w.get_dock());
+                    eye.renderer = renderer;
+                    eye.canvas_size = canvas_size;
+                    eye.skin = skin;
+                    let mood = Mood::parse(&next.appearance.default_mood).unwrap_or(Mood::Normal);
+                    eye.mood = MoodState::new(mood, next.timing.sleep_after_s, Instant::now());
+                    sleep_after_s.set(next.timing.sleep_after_s);
+                    eye.cur = mood;
+                    eye.cur_since = 0.0;
+                    eye.morph = Morph::new(Face::for_mood(mood, skin));
+                    eye.last_key = None;
+                }
+
+                w.set_appearance_theme(next.appearance.theme.clone().into());
+                w.set_appearance_eye_theme(next.appearance.eye_theme.clone().into());
+                w.set_appearance_notch_theme(next.appearance.notch_theme.clone().into());
+                w.set_appearance_mood(next.appearance.default_mood.clone().into());
+                w.set_appearance_accent(next.appearance.accent.clone().into());
+                w.set_appearance_custom_bg(next.appearance.background.clone().into());
+                w.set_appearance_custom_text(next.appearance.text.clone().into());
+                w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into());
+                w.set_appearance_light_bg(next.appearance.light_bg.clone().into());
+                w.set_behavior_scale(format!("{scale:.2}").into());
+                w.set_appearance_save_status("Pratinjau aktif — belum disimpan.".into());
             }
         });
     }
