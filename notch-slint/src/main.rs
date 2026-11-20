@@ -1831,19 +1831,31 @@ fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     }
 }
 
-/// Warna Theme dibaca dari NotchWindow lalu disalin, karena tiap jendela Slint punya instance global Theme sendiri.
+/// Jendela Pengaturan memakai palet gelap sendiri (seperti versi Tauri) agar selalu terbaca, apa pun tema notch.
+/// Hanya warna aksen yang diikuti dari pengaturan pengguna. Tiap jendela Slint punya instance global Theme sendiri.
 fn sync_settings_theme(m: &NotchWindow, s: &SettingsWindow) {
-    let (from, to) = (Theme::get(m), Theme::get(s));
-    to.set_body(from.get_body());
-    to.set_text(from.get_text());
-    to.set_text_dim(from.get_text_dim());
-    to.set_text_faint(from.get_text_faint());
-    to.set_accent(from.get_accent());
-    to.set_on_accent(from.get_on_accent());
-    to.set_ok(from.get_ok());
-    to.set_chip(from.get_chip());
-    to.set_chip_hover(from.get_chip_hover());
-    to.set_track(from.get_track());
+    let to = Theme::get(s);
+    let rgba = |r: u8, g: u8, b: u8, a: u8| slint::Color::from_argb_u8(a, r, g, b);
+    let accent = Theme::get(m).get_accent();
+    // Aksen terlalu gelap tidak terbaca di latar gelap: pakai aksen bawaan.
+    let luma = 0.299 * f32::from(accent.red()) + 0.587 * f32::from(accent.green()) + 0.114 * f32::from(accent.blue());
+    let (accent, on_accent) = if luma < 90.0 {
+        (rgba(0x78, 0x8c, 0xff, 255), rgba(255, 255, 255, 255))
+    } else if luma > 170.0 {
+        (accent, rgba(0x10, 0x12, 0x18, 255))
+    } else {
+        (accent, rgba(255, 255, 255, 255))
+    };
+    to.set_body(rgba(0x14, 0x16, 0x1d, 255));
+    to.set_text(rgba(0xec, 0xee, 0xf5, 255));
+    to.set_text_dim(rgba(0xec, 0xee, 0xf5, 0xb8));
+    to.set_text_faint(rgba(0xec, 0xee, 0xf5, 0x85));
+    to.set_accent(accent);
+    to.set_on_accent(on_accent);
+    to.set_ok(rgba(0x7b, 0xdc, 0x9a, 255));
+    to.set_chip(rgba(255, 255, 255, 0x16));
+    to.set_chip_hover(rgba(255, 255, 255, 0x28));
+    to.set_track(rgba(255, 255, 255, 0x1f));
 }
 
 /// Jendela Pengaturan yang sedang terbuka. Timer menjaga nilainya sama dengan NotchWindow selama jendela hidup;
