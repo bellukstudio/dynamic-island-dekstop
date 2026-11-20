@@ -1,3 +1,5 @@
+import { Slider } from "std-widgets.slint";
+
 // Notch (Slint). Hub dengan tab dinamis (mengikuti `pages` di config.toml), bahu melengkung,
 // dan tema dari `[appearance]`. Semua warna berasal dari `Theme`, yang diisi Rust saat start.
 
@@ -2758,25 +2760,25 @@ component SettingsNavItem inherits Rectangle {
     in property <string> commands;
     in property <bool> active: false;
     callback clicked;
-    width: 42px;
-    height: 42px;
-    border-radius: 11px;
-    background: root.active ? #252d43 : (nav-ta.has-hover ? #ffffff12 : transparent);
+    width: 148px;
+    height: 34px;
+    border-radius: 9px;
+    background: root.active ? #252d43 : (nav-ta.has-hover ? #ffffff0d : transparent);
     animate background { duration: 130ms; }
     Rectangle {
         x: 0px;
-        y: (parent.height - self.height) / 2;
+        y: 0px;
         width: root.active ? 3px : 0px;
-        height: root.active ? 19px : 0px;
+        height: parent.height;
         border-radius: 2px;
         background: Theme.accent;
-        animate height { duration: 130ms; }
+        animate width { duration: 130ms; }
     }
     Path {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        width: 19px;
-        height: 19px;
+        x: 10px;
+        y: (parent.height - 16px) / 2;
+        width: 16px;
+        height: 16px;
         viewbox-width: 24;
         viewbox-height: 24;
         commands: root.commands;
@@ -2785,6 +2787,17 @@ component SettingsNavItem inherits Rectangle {
         stroke-width: 1.8px;
         stroke-line-cap: round;
         stroke-line-join: round;
+    }
+    Text {
+        x: 36px;
+        width: parent.width - 43px;
+        height: parent.height;
+        text: root.label;
+        color: root.active ? Theme.accent : Theme.text;
+        font-size: 11px;
+        font-weight: root.active ? 700 : 500;
+        vertical-alignment: center;
+        overflow: elide;
     }
     nav-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
@@ -2845,10 +2858,10 @@ component SettingsFooterButton inherits Rectangle {
 export component SettingsWindow inherits Window {
     title: "Notch — Pengaturan";
     icon: @image-url("../assets/tray.png");
-    preferred-width: 458px;
-    preferred-height: 706px;
-    min-width: 420px;
-    min-height: 520px;
+    preferred-width: 1100px;
+    preferred-height: 820px;
+    min-width: 900px;
+    min-height: 650px;
     // Theme diisi Rust (tiap jendela punya instance global sendiri). Latar sedikit lebih terang dari badan notch agar kartu tetap terbaca.
     background: Theme.body;
     default-font-size: 12px;
@@ -3003,29 +3016,39 @@ export component SettingsWindow inherits Window {
 
     HorizontalLayout {
         Rectangle {
-            width: 70px;
+            width: 170px;
             background: #141821;
             VerticalLayout {
                 alignment: start;
-                padding-left: 13px;
-                padding-right: 13px;
-                padding-top: 16px;
+                padding-left: 10px;
+                padding-right: 10px;
+                padding-top: 18px;
                 spacing: 7px;
-                Rectangle {
-                    width: 42px;
-                    height: 42px;
-                    border-radius: 12px;
-                    background: #e8ecf7;
+                HorizontalLayout {
+                    height: 44px;
+                    spacing: 9px;
+                    alignment: center;
                     Rectangle {
-                        x: 9px;
-                        y: 11px;
-                        width: 24px;
-                        height: 17px;
-                        border-radius: 7px;
-                        background: #10131b;
+                        width: 32px;
+                        height: 32px;
+                        border-radius: 9px;
+                        background: #e8ecf7;
+                        Rectangle {
+                            x: 7px;
+                            y: 8px;
+                            width: 18px;
+                            height: 14px;
+                            border-radius: 5px;
+                            background: #10131b;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 1px;
+                        Text { text: "Notch"; color: Theme.text; font-size: 13px; font-weight: 700; }
+                        Text { text: "Pengaturan"; color: Theme.text-dim; font-size: 9px; }
                     }
                 }
-                Rectangle { height: 5px; }
+                Rectangle { height: 8px; }
                 SettingsNavItem { label: "Tampilan"; commands: Icons.moon; active: root.active-tab == "appearance"; clicked => { root.show-tab("appearance"); } }
                 SettingsNavItem { label: "Mata"; commands: Icons.eyes; active: root.active-tab == "eyes"; clicked => { root.show-tab("eyes"); } }
                 SettingsNavItem { label: "Fitur"; commands: Icons.grid; active: root.active-tab == "features"; clicked => { root.show-tab("features"); } }
@@ -3042,36 +3065,58 @@ export component SettingsWindow inherits Window {
                 height: 108px;
                 background: Theme.body;
                 Rectangle {
-                    x: 10px;
+                    x: max(12px, (parent.width - min(parent.width - 24px, 820px)) / 2);
                     y: 8px;
-                    width: parent.width - 20px;
-                    height: 72px;
-                    border-radius: 11px;
-                    background: #aeb8c8;
-                }
-                preview-pill := Rectangle {
-                    x: (parent.width - self.width) / 2;
-                    y: 8px;
-                    width: min(parent.width - 36px, 210px);
-                    height: 44px;
-                    border-radius: 15px;
-                    background: #03050b;
-                    Text {
-                        width: parent.width;
-                        height: parent.height;
-                        text: "●  ●  Notch";
-                        color: #ffffff;
-                        font-size: 11px;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                    width: min(parent.width - 24px, 820px);
+                    height: 84px;
+                    border-radius: 12px;
+                    background: #191e29;
+                    border-width: 1px;
+                    border-color: #2b3240;
+                    HorizontalLayout {
+                        padding: 8px;
+                        spacing: 9px;
+                        stage := Rectangle {
+                            horizontal-stretch: 1;
+                            height: 66px;
+                            border-radius: 9px;
+                            background: #aeb8c8;
+                            preview-pill := Rectangle {
+                                x: (parent.width - self.width) / 2;
+                                y: 0px;
+                                width: 184px;
+                                height: 39px;
+                                border-radius: 0px 0px 15px 15px;
+                                background: #03050b;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    spacing: 6px;
+                                    Rectangle { width: 6px; height: 6px; border-radius: 3px; background: #ffffff; }
+                                    Rectangle { width: 6px; height: 6px; border-radius: 3px; background: #ffffff; }
+                                    Text { text: "Notch"; color: #ffffff; font-size: 10px; vertical-alignment: center; }
+                                }
+                            }
+                            Rectangle {
+                                x: preview-pill.x + 26px;
+                                y: 32px;
+                                width: preview-pill.width - 52px;
+                                height: 2px;
+                                background: Theme.accent;
+                            }
+                        }
+                        VerticalLayout {
+                            width: 154px;
+                            spacing: 4px;
+                            alignment: center;
+                            Text { text: "Pratinjau"; color: Theme.text; font-size: 10px; font-weight: 700; }
+                            Text {
+                                text: "Perubahan tampilan langsung terlihat pada notch asli sebelum disimpan.";
+                                color: Theme.text-dim;
+                                font-size: 9px;
+                                wrap: word-wrap;
+                            }
+                        }
                     }
-                }
-                Rectangle {
-                    x: preview-pill.x + 29px;
-                    y: 50px;
-                    width: preview-pill.width - 58px;
-                    height: 2px;
-                    background: Theme.accent;
                 }
             }
         flick := Flickable {
@@ -3080,9 +3125,9 @@ export component SettingsWindow inherits Window {
             vertical-stretch: 1;
             content-height: max(self.height, form.preferred-height + 24px);
             form := VerticalLayout {
-                // Isi dipusatkan dan dibatasi 660 px agar tidak melebar di jendela besar.
-                width: parent.width;
-                x: 0px;
+                // Konten utama mengikuti lebar Tauri dan tetap terpusat pada jendela lebar.
+                width: min(parent.width, 820px);
+                x: max(0px, (parent.width - self.width) / 2);
                 y: 10px;
                 alignment: start;
                 spacing: 8px;
