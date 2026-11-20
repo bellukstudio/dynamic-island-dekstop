@@ -2910,6 +2910,7 @@ export component SettingsWindow inherits Window {
     in property <string> pomodoro-long-break: "15";
     in property <string> pomodoro-rounds: "4";
     in property <string> behavior-scale: "1.00";
+    in property <float> behavior-scale-value: 1.0;
     in property <string> behavior-hover-open: "150";
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
@@ -2995,22 +2996,25 @@ export component SettingsWindow inherits Window {
 
     // Simpan kategori aktif melalui callback yang sama dengan tombol simpan masing-masing kartu.
     function save-current-tab() {
-        if root.active-tab == "appearance" || root.active-tab == "eyes" {
+        if root.active-tab == "appearance" {
+            root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text);
+            root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true");
+        } else if root.active-tab == "eyes" {
             root.save-appearance(theme-input.text, eye-theme-input.text, notch-theme-input.text, mood-input.text, accent-input.text, custom-bg-input.text, custom-text-input.text, dark-bg-input.text, light-bg-input.text);
         } else if root.active-tab == "features" {
             root.save-shortcuts(hub-input.text, settings-input.text, pomo-input.text, prayer-input.text);
             root.save-routines(prayer-mode-input.text, prayer-remind-input.text, prayer-min-input.text, pomo-focus-input.text, pomo-break-input.text, pomo-long-input.text, pomo-rounds-input.text, prayer-province-input.text, prayer-city-input.text);
         } else if root.active-tab == "nudge" {
             root.save-nudge(nudge-enabled-input.text == "true", nudge-idle-input.text, nudge-message-input.text, nudge-emoji-input.text, nudge-mood-input.text, nudge-show-input.text, nudge-silent-input.text == "true", nudge-until-move-input.text == "true");
-            root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text);
-            root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
-            root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
         } else if root.active-tab == "weather" {
             root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text);
         } else if root.active-tab == "behavior" {
             root.save-position(root.position-mode);
             root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true");
             root.save-motion(motion-enabled-input.text == "true", motion-interval-input.text, motion-max-input.text, dock-play-input.text == "true");
+            root.save-greeting(greeting-enabled-input.text == "true", greeting-mode-input.text, greeting-voice-input.text, greeting-custom-input.text);
+            root.save-conversation(cm-enabled-input.text == "true", cm-play-input.text == "true", cm-track-input.text == "true", cm-pause-input.text == "true", cm-return-input.text == "true", cm-weather-input.text == "true", cm-rain-input.text == "true", cm-battery-input.text == "true", cm-charging-input.text == "true", cm-return-min-input.text, cm-cooldown-input.text);
+            root.save-focus-companion(fc-enabled-input.text == "true", fc-start-input.text == "true", fc-halfway-input.text == "true", fc-complete-input.text == "true", fc-break-input.text == "true");
         }
     }
 
@@ -3139,7 +3143,8 @@ export component SettingsWindow inherits Window {
         height: root.active-tab == "features" ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pintasan global"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Fitur"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
+        Text { text: "Centang halaman yang ingin ditampilkan pada hub notch. Perubahan halaman langsung diterapkan."; color: Theme.text-dim; font-size: 10px; wrap: word-wrap; }
         Rectangle {
             background: Theme.text.with-alpha(0.045);
             border-radius: 12px;
@@ -3252,7 +3257,7 @@ export component SettingsWindow inherits Window {
             spacing: 8px;
         sec-appearance := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: root.active-tab == "eyes" ? "Mata" : "Tampilan"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
         Text { text: root.active-tab == "eyes" ? "Ekspresi mata dan skin Notch." : "Warna, tema, dan ukuran notch."; color: Theme.text-dim; font-size: 10px; }
-        appearance-card := Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        HorizontalLayout { spacing: 10px; appearance-card := Rectangle { width: 510px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Rectangle {
                     visible: root.active-tab == "appearance";
@@ -3501,6 +3506,34 @@ export component SettingsWindow inherits Window {
                 }
             }
         }
+        Rectangle {
+            visible: root.active-tab == "appearance";
+            width: 280px;
+            background: Theme.text.with-alpha(0.045);
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: Theme.text.with-alpha(0.08);
+            VerticalLayout {
+                padding: 12px;
+                spacing: 10px;
+                Text { text: "Ukuran"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                HorizontalLayout {
+                    Text { text: "Skala notch"; color: Theme.text; font-size: 10px; vertical-alignment: center; horizontal-stretch: 1; }
+                    Slider {
+                        width: 130px;
+                        minimum: 0.5;
+                        maximum: 1.5;
+                        step: 0.05;
+                        value <=> root.behavior-scale-value;
+                        changed(value) => {
+                            root.behavior-scale-value = value;
+                            behavior-scale-input.text = "\\{value}";
+                        }
+                    }
+                    Text { text: "\\{root.behavior-scale-value}x"; color: Theme.text-dim; font-size: 9px; }
+                }
+            }
+        }
         }
     }
 
@@ -3509,7 +3542,7 @@ export component SettingsWindow inherits Window {
         height: root.active-tab == "weather" ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Lokasi cuaca"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Cuaca"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Text { text: "Cari kota (hasil mengisi nama dan koordinat)"; color: Theme.text-faint; font-size: 9px; }
@@ -3561,7 +3594,7 @@ export component SettingsWindow inherits Window {
         height: root.active-tab == "behavior" ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku & posisi"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 6px;
                 Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
@@ -3577,11 +3610,10 @@ export component SettingsWindow inherits Window {
                 Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             }
         }
-        sec-behavior := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-behavior := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku"; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
-                Text { text: "Skala UI (0.5–1.5)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-scale-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-scale-input := TextInput { vertical-alignment: center; text: root.behavior-scale; color: Theme.text; font-size: 11px; single-line: true; } } }
+                Rectangle { visible: false; height: 0px; behavior-scale-input := TextInput { text: root.behavior-scale; visible: false; } }
                 Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-open-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-open-input := TextInput { vertical-alignment: center; text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; } } }
                 Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
@@ -3626,7 +3658,7 @@ export component SettingsWindow inherits Window {
                 Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             }
         }
-        sec-motion := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Liquid movement"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-motion := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Gerakan otomatis"; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 6px;
                 HorizontalLayout {
@@ -3661,12 +3693,12 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        visible: root.active-tab == "nudge";
-        height: root.active-tab == "nudge" ? self.preferred-height : 0px;
+        visible: root.active-tab == "nudge" || root.active-tab == "behavior";
+        height: (root.active-tab == "nudge" || root.active-tab == "behavior") ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-nudge := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Notifikasi & perilaku otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-nudge := Rectangle { visible: root.active-tab == "nudge"; height: root.active-tab == "nudge" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Pesan saat pointer diam"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "nudge"; height: root.active-tab == "nudge" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 6px;
                 HorizontalLayout {
                     Text { text: "Sapaan otomatis saat idle"; color: Theme.text; font-size: 10px; horizontal-stretch: 1; }
@@ -3726,8 +3758,8 @@ export component SettingsWindow inherits Window {
                 Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             }
         }
-        sec-greeting := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Greeting & sapaan otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-greeting := Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Greeting & sapaan otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 11px; spacing: 8px;
                 Text { text: "Sapaan ditampilkan di Notch dan dibacakan saat aplikasi mulai berjalan."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: greeting-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; greeting-enabled-input := TextInput { vertical-alignment: center; text: root.greeting-enabled ? "true" : "false"; visible: false; } } }
@@ -3788,8 +3820,8 @@ export component SettingsWindow inherits Window {
                 Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             }
         }
-        sec-conversation := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Conversation Moments"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-conversation := Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Conversation Moments"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: cm-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; cm-enabled-input := TextInput { vertical-alignment: center; text: root.conversation-enabled ? "true" : "false"; visible: false; } } }
                 HorizontalLayout {
@@ -3845,8 +3877,8 @@ export component SettingsWindow inherits Window {
                 Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
             }
         }
-        sec-focus := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Focus Companion"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-focus := Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Focus Companion"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-enabled-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-enabled-input := TextInput { vertical-alignment: center; text: root.focus-companion-enabled ? "true" : "false"; visible: false; } } }
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: fc-start-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; fc-start-input := TextInput { vertical-alignment: center; text: root.focus-companion-on-start ? "true" : "false"; visible: false; } } }
@@ -3885,8 +3917,8 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        visible: root.active-tab == "features";
-        height: root.active-tab == "features" ? self.preferred-height : 0px;
+        visible: root.active-tab == "features" || root.active-tab == "behavior";
+        height: (root.active-tab == "features" || root.active-tab == "behavior") ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
         sec-prayer := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3977,8 +4009,8 @@ export component SettingsWindow inherits Window {
             font-size: 9px;
             wrap: word-wrap;
         }
-        sec-adhan := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Suara adzan"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-adhan := Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Suara adzan"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "behavior"; height: root.active-tab == "behavior" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 6px;
                 Text { text: "Putar adzan.mp3 untuk pengujian. Tidak mengubah pengingat jadwal shalat."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
                 Text { text: root.adhan-active ? "Status: sedang diputar" : "Status: siap diputar"; color: Theme.text; font-size: 10px; }
