@@ -3136,7 +3136,8 @@ export component SettingsWindow inherits Window {
             horizontal-stretch: 1;
             spacing: 0px;
             Rectangle {
-                height: 108px;
+                visible: root.active-tab == "appearance" || root.active-tab == "eyes";
+                height: (root.active-tab == "appearance" || root.active-tab == "eyes") ? 108px : 0px;
                 background: Theme.body;
                 Rectangle {
                     x: max(12px, (parent.width - min(parent.width - 24px, 820px)) / 2);
@@ -3979,17 +3980,17 @@ export component SettingsWindow inherits Window {
                             nudge-idle-input := TextInput { vertical-alignment: center; text: root.nudge-idle-min; color: Theme.text; font-size: 11px; single-line: true; }
                         }
                     }
-                    Text { text: "Lama tampil (detik)"; color: Theme.text; font-size: 9px; }
+                    Text { text: "Lama tampil (detik)"; color: nudge-until-move-input.text == "true" ? Theme.text-faint : Theme.text; font-size: 9px; }
                     Rectangle {
                         height: 32px;
                         border-radius: 8px;
                         background: Theme.text.with-alpha(0.06);
                         border-width: 1px;
-                        border-color: nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                        border-color: nudge-until-move-input.text == "true" ? Theme.text.with-alpha(0.05) : (nudge-show-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10));
                         HorizontalLayout {
                             padding-left: 10px;
                             padding-right: 10px;
-                            nudge-show-input := TextInput { vertical-alignment: center; text: root.nudge-show-ms; color: Theme.text; font-size: 11px; single-line: true; }
+                            nudge-show-input := TextInput { enabled: nudge-until-move-input.text != "true"; vertical-alignment: center; text: root.nudge-show-ms; color: nudge-until-move-input.text == "true" ? Theme.text-faint : Theme.text; font-size: 11px; single-line: true; }
                         }
                     }
                     Rectangle { height: 0px; nudge-silent-input := TextInput { text: root.nudge-only-silent ? "true" : "false"; visible: false; } }
