@@ -3960,8 +3960,8 @@ export component SettingsWindow inherits Window {
         height: (root.active-tab == "features" || root.active-tab == "behavior") ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-prayer := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-prayer := Rectangle { visible: root.active-tab == "features"; height: root.active-tab == "features" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "features"; height: root.active-tab == "features" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Text { text: "Provinsi"; color: Theme.text-faint; font-size: 9px; }
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-province-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-province-input := TextInput { vertical-alignment: center; text: root.prayer-province; color: Theme.text; font-size: 11px; single-line: true; } } }
@@ -3986,8 +3986,8 @@ export component SettingsWindow inherits Window {
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: prayer-min-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; prayer-min-input := TextInput { vertical-alignment: center; text: root.prayer-remind-min; color: Theme.text; font-size: 11px; single-line: true; } } }
             }
         }
-        sec-pomodoro := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pomodoro"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+        sec-pomodoro := Rectangle { visible: root.active-tab == "features"; height: root.active-tab == "features" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Pomodoro"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        Rectangle { visible: root.active-tab == "features"; height: root.active-tab == "features" ? self.preferred-height : 0px; background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
                 Text { text: "Durasi fokus / istirahat / istirahat panjang (menit)"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
                 Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: pomo-focus-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; pomo-focus-input := TextInput { vertical-alignment: center; text: root.pomodoro-focus; color: Theme.text; font-size: 11px; single-line: true; } } }
@@ -4017,6 +4017,8 @@ export component SettingsWindow inherits Window {
             }
         }
         HorizontalLayout {
+            visible: root.active-tab == "features";
+            height: root.active-tab == "features" ? self.preferred-height : 0px;
             alignment: end;
             spacing: 5px;
             Chip {
@@ -4037,12 +4039,16 @@ export component SettingsWindow inherits Window {
             }
         }
         Text {
+            visible: root.active-tab == "features";
+            height: root.active-tab == "features" ? self.preferred-height : 0px;
             text: root.save-status;
             color: Theme.text-faint;
             font-size: 10px;
             wrap: word-wrap;
         }
         Text {
+            visible: root.active-tab == "features";
+            height: root.active-tab == "features" ? self.preferred-height : 0px;
             text: "Shortcut langsung aktif setelah disimpan. Pastikan setiap kombinasi tidak bentrok dengan aplikasi lain.";
             color: Theme.text-faint;
             font-size: 9px;
@@ -4059,8 +4065,10 @@ export component SettingsWindow inherits Window {
                 }
             }
         }
-        sec-app := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Aplikasi"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
+        sec-app := Rectangle { visible: root.active-tab == "features"; height: root.active-tab == "features" ? 46px : 0px; Text { width: parent.width; height: parent.height - 6px; text: "Aplikasi"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         HorizontalLayout {
+            visible: root.active-tab == "features";
+            height: root.active-tab == "features" ? self.preferred-height : 0px;
             Chip { label: "Mulai ulang Notch"; padding-x: 14px; clicked => { root.restart-app(); } }
         }
         }
