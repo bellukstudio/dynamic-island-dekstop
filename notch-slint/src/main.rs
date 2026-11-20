@@ -3066,26 +3066,30 @@ fn main() -> Result<(), slint::PlatformError> {
     #[cfg(windows)]
     {
         const DRAG_ICON: &[u8] = &[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,120,156,99,96,24,5,0,0,1,0,1,90,44,12,72,0,0,0,0,73,69,78,68,174,66,96,130];
-        let native_window = win.window();
+        let weak_window = win.as_weak();
         win.on_shelf_drag(move |raw_path| {
             let path = std::path::PathBuf::from(raw_path.as_str());
             if !path.exists() { return; }
             let path = match std::fs::canonicalize(path) { Ok(path) => path, Err(_) => return };
-            let _ = native_window.with_winit_window(|window| {
-                let item = drag::DragItem::Files(vec![path]);
-                let preview = drag::Image::Raw(DRAG_ICON.to_vec());
-                if let Err(error) = drag::start_drag(
-                    window,
-                    item,
-                    preview,
-                    |result, cursor_position| {
-                        eprintln!("Shelf drag-out selesai: {result:?} di {cursor_position:?}");
-                    },
-                    drag::Options::default(),
-                ) {
-                    eprintln!("Shelf drag-out gagal: {error:?}");
-                }
-            });
+            // Upgrade weak handle di dalam callback agar tidak menyimpan borrow
+            // dari `win.window()` ke closure yang harus hidup selama 'static.
+            if let Some(window_component) = weak_window.upgrade() {
+                let _ = window_component.window().with_winit_window(|window| {
+                    let item = drag::DragItem::Files(vec![path]);
+                    let preview = drag::Image::Raw(DRAG_ICON.to_vec());
+                    if let Err(error) = drag::start_drag(
+                        window,
+                        item,
+                        preview,
+                        |result, cursor_position| {
+                            eprintln!("Shelf drag-out selesai: {result:?} di {cursor_position:?}");
+                        },
+                        drag::Options::default(),
+                    ) {
+                        eprintln!("Shelf drag-out gagal: {error:?}");
+                    }
+                });
+            }
         });
     }
 
