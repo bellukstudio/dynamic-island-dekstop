@@ -480,6 +480,12 @@ fn expanded_size(w: &NotchWindow) -> (u32, u32) {
     }
 }
 
+/// File yang dilepas ke notch masuk ke Shelf kecuali halaman Convert sedang terbuka (halaman itu punya antrean sendiri)
+/// atau halaman Shelf dimatikan di pengaturan. Dibaca langsung dari UI agar mengikuti perubahan pengaturan.
+fn shelf_accepts_drop(w: &NotchWindow) -> bool {
+    !(w.get_expanded() && w.get_page_id() == "convert") && w.get_active_pages().iter().any(|p| p == "shelf")
+}
+
 // Canvas mata mengikuti ukuran notch sesuai orientasi dock.
 const EYES_W: f32 = 130.0;
 const EYES_H: f32 = 34.0;
@@ -3062,83 +3068,6 @@ fn main() -> Result<(), slint::PlatformError> {
     win.on_shelf_open(|path| shelf::open(path.as_str()));
     win.on_shelf_reveal(|path| shelf::reveal(path.as_str()));
 
-    // Native drag-out memakai crate inti drag-rs yang juga digunakan plugin Tauri.
-    #[cfg(windows)]
-    {
-        const DRAG_ICON: &[u8] = &[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,120,156,99,96,24,5,0,0,1,0,1,90,44,12,72,0,0,0,0,73,69,78,68,174,66,96,130];
-        let weak_window = win.as_weak();
-        win.on_shelf_drag(move |raw_path| {
-            let path = std::path::PathBuf::from(raw_path.as_str());
-            if !path.exists() { return; }
-            let path = match std::fs::canonicalize(path) { Ok(path) => path, Err(_) => return };
-            // Upgrade weak handle di dalam callback agar tidak menyimpan borrow
-            // dari `win.window()` ke closure yang harus hidup selama 'static.
-            if let Some(window_component) = weak_window.upgrade() {
-                let _ = window_component.window().with_winit_window(|window| {
-                    let item = drag::DragItem::Files(vec![path]);
-                    let preview = drag::Image::Raw(DRAG_ICON.to_vec());
-                    if let Err(error) = drag::start_drag(
-                        window,
-                        item,
-                        preview,
-                        |result, cursor_position| {
-                            eprintln!("Shelf drag-out selesai: {result:?} di {cursor_position:?}");
-                        },
-                        drag::Options::default(),
-                    ) {
-                        eprintln!("Shelf drag-out gagal: {error:?}");
-                    }
-                });
-            }
-        });
-    }
-
-    // Terima file/folder yang diseret dari File Explorer atau aplikasi lain ke jendela Notch.
-    // Winit mengirim satu DroppedFile untuk setiap path yang dilepas.
-    {
-        let store = shelf_store.clone();
-        let model = shelf_model.clone();
-        let weak = win.as_weak();
-        let shelf_enabled = pages.iter().any(|page| page == "shelf");
-        win.window().on_winit_window_event(move |_window, event| {
-            match event {
-                winit::event::WindowEvent::HoveredFile(_) => {
-                    if let Some(w) = weak.upgrade() {
-                        if shelf_enabled {
-                            w.set_page_id("shelf".into());
-                            w.set_expanded(true);
-                            w.set_shelf_dropping(true);
-                        }
-                        w.set_shelf_status("Lepaskan file atau folder untuk menyimpannya ke Shelf".into());
-                    }
-                }
-                winit::event::WindowEvent::HoveredFileCancelled => {
-                    if let Some(w) = weak.upgrade() {
-                        w.set_shelf_dropping(false);
-                        w.set_shelf_status("File yang disimpan di sini tidak disalin".into());
-                    }
-                }
-                winit::event::WindowEvent::DroppedFile(path) => {
-                    let paths = vec![path.to_string_lossy().to_string()];
-                    let items = store.borrow_mut().add(paths);
-                    model.set_vec(items.into_iter().map(|item| ShelfItem {
-                        path: item.path.into(), name: item.name.into(), dir: item.dir,
-                    }).collect::<Vec<_>>());
-                    if let Some(w) = weak.upgrade() {
-                        w.set_shelf_dropping(false);
-                        if shelf_enabled {
-                            w.set_page_id("shelf".into());
-                            w.set_expanded(true);
-                        }
-                        w.set_shelf_status(format!("File ditambahkan · {} item tersimpan · file asli tetap di lokasi semula", model.row_count()).into());
-                    }
-                }
-                _ => {}
-            }
-            EventResult::Propagate
-        });
-    }
-
     {
       let weak=win.as_weak();let prefs=prayer_prefs.clone();
       win.on_media_control(|action| media::control(&action));
@@ -3668,6 +3597,158 @@ fn main() -> Result<(), slint::PlatformError> {
                     c();
                 });
                 }
+            }
+        });
+    }
+
+    // --- Shelf: drag file MASUK (dari Explorer) dan KELUAR (dari tile Shelf) ---
+    // Slint hanya menyimpan SATU callback on_winit_window_event (pendaftaran baru menimpa yang lama), jadi semua
+    // pendengar event jendela (Shelf, Convert) didaftarkan ke `winit_handlers` dan dipanggil lewat satu dispatcher.
+    let winit_handlers: Rc<RefCell<Vec<Box<dyn FnMut(&winit::event::WindowEvent)>>>> = Rc::new(RefCell::new(Vec::new()));
+    {
+        let handlers = winit_handlers.clone();
+        win.window().on_winit_window_event(move |_window, event| {
+            for handler in handlers.borrow_mut().iter_mut() {
+                handler(event);
+            }
+            EventResult::Propagate
+        });
+    }
+    // True selama kita sendiri yang menyeret file keluar: event hover/drop dari drag itu diabaikan.
+    let shelf_drag_out = Rc::new(Cell::new(false));
+    // True bila hub dibuka oleh drag file (bukan oleh pengguna), supaya ditutup otomatis setelah selesai.
+    let shelf_opened_by_drag = Rc::new(Cell::new(false));
+    // Tutup hub yang dibuka oleh drag setelah jeda, kecuali pointer masih di dalam jendela
+    // (hover Slint yang menutupnya saat pointer benar-benar keluar).
+    let shelf_close_later: Rc<dyn Fn(u64)> = {
+        let weak = win.as_weak();
+        let close_timer = close_timer.clone();
+        let collapse = collapse.clone();
+        let opened = shelf_opened_by_drag.clone();
+        Rc::new(move |delay_ms| {
+            let weak = weak.clone();
+            let collapse = collapse.clone();
+            let opened = opened.clone();
+            close_timer.start(TimerMode::SingleShot, Duration::from_millis(delay_ms), move || {
+                let Some(w) = weak.upgrade() else { return };
+                if !opened.get() || !w.get_expanded() { return; }
+                if let Some((cx, cy)) = platform::cursor_pos() {
+                    let (p, z) = (w.window().position(), w.window().size());
+                    if cx >= p.x && cx < p.x + z.width as i32 && cy >= p.y && cy < p.y + z.height as i32 { return; }
+                }
+                opened.set(false);
+                collapse();
+            });
+        })
+    };
+    {
+        let store = shelf_store.clone();
+        let model = shelf_model.clone();
+        let weak = win.as_weak();
+        let (open_timer, close_timer, shrink_timer) = (open_timer.clone(), close_timer.clone(), shrink_timer.clone());
+        let (sync, shell) = (sync_pages.clone(), shell.clone());
+        let (drag_out, opened_by_drag, close_later) = (shelf_drag_out.clone(), shelf_opened_by_drag.clone(), shelf_close_later.clone());
+        // Buka hub di halaman Shelf SEKARANG: ubah halaman, perbesar jendela OS, lalu expand. Mengubah properti dari Rust
+        // tidak memicu callback page-changed/hover Slint, jadi ukuran jendela dan sinkron halaman dilakukan di sini.
+        let open_shelf = {
+            let (weak, shell, sync) = (weak.clone(), shell.clone(), sync.clone());
+            move || {
+                let Some(w) = weak.upgrade() else { return };
+                shrink_timer.stop();
+                w.set_page_id("shelf".into());
+                shell.place(&w, expanded_size(&w));
+                w.set_expanded(true);
+                sync();
+            }
+        };
+        winit_handlers.borrow_mut().push(Box::new(move |event| {
+            let Some(w) = weak.upgrade() else { return };
+            match event {
+                winit::event::WindowEvent::HoveredFile(_) => {
+                    if drag_out.get() || !shelf_accepts_drop(&w) { return; }
+                    open_timer.stop();
+                    close_timer.stop();
+                    if !(w.get_expanded() && w.get_page_id() == "shelf") {
+                        opened_by_drag.set(!w.get_expanded());
+                        open_shelf();
+                    }
+                    w.set_shelf_dropping(true);
+                    w.set_shelf_status("Lepaskan file atau folder untuk menyimpannya ke Shelf".into());
+                }
+                winit::event::WindowEvent::HoveredFileCancelled => {
+                    if drag_out.get() { return; }
+                    w.set_shelf_dropping(false);
+                    w.set_shelf_status("Seret file ke Notch · file asli tetap aman".into());
+                    // File keluar dari jendela tanpa dilepas: tutup lagi bila hub dibuka oleh drag ini.
+                    if opened_by_drag.get() { close_later(700); }
+                }
+                winit::event::WindowEvent::DroppedFile(path) => {
+                    if drag_out.get() || !shelf_accepts_drop(&w) { return; }
+                    // Winit mengirim satu DroppedFile per path; hub dipastikan terbuka walau tanpa HoveredFile.
+                    let items = store.borrow_mut().add(vec![path.to_string_lossy().to_string()]);
+                    model.set_vec(items.into_iter().map(|item| ShelfItem {
+                        path: item.path.into(), name: item.name.into(), dir: item.dir,
+                    }).collect::<Vec<_>>());
+                    close_timer.stop();
+                    if !(w.get_expanded() && w.get_page_id() == "shelf") {
+                        opened_by_drag.set(!w.get_expanded());
+                        open_shelf();
+                    }
+                    w.set_shelf_dropping(false);
+                    w.set_shelf_status(format!("File ditambahkan · {} item tersimpan · file asli tetap di lokasi semula", model.row_count()).into());
+                    // Beri waktu melihat hasilnya, lalu tutup bila hub dibuka oleh drag ini dan pointer sudah keluar.
+                    if opened_by_drag.get() { close_later(2500); }
+                }
+                _ => {}
+            }
+        }));
+    }
+
+    // Native drag-out memakai crate drag-rs (OLE DoDragDrop, memblokir sampai drop selesai).
+    #[cfg(windows)]
+    {
+        const DRAG_ICON: &[u8] = &[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,120,156,99,96,24,5,0,0,1,0,1,90,44,12,72,0,0,0,0,73,69,78,68,174,66,96,130];
+        let weak_window = win.as_weak();
+        let (drag_out, close_later, opened_by_drag) = (shelf_drag_out.clone(), shelf_close_later.clone(), shelf_opened_by_drag.clone());
+        win.on_shelf_drag(move |raw_path| {
+            if drag_out.get() { return; }
+            let path = std::path::PathBuf::from(raw_path.as_str());
+            if !path.exists() { return; }
+            let path = match std::fs::canonicalize(path) { Ok(path) => path, Err(_) => return };
+            // Upgrade weak handle di dalam callback agar tidak menyimpan borrow
+            // dari `win.window()` ke closure yang harus hidup selama 'static.
+            let Some(window_component) = weak_window.upgrade() else { return };
+            let dropped = Arc::new(AtomicBool::new(false));
+            let dropped_cb = dropped.clone();
+            drag_out.set(true);
+            let started = window_component.window().with_winit_window(|window| {
+                let item = drag::DragItem::Files(vec![path]);
+                let preview = drag::Image::Raw(DRAG_ICON.to_vec());
+                drag::start_drag(
+                    window,
+                    item,
+                    preview,
+                    move |result, _cursor| { dropped_cb.store(matches!(result, drag::DragResult::Dropped), Ordering::Relaxed); },
+                    drag::Options::default(),
+                )
+            });
+            drag_out.set(false);
+            match started {
+                Some(Ok(())) => {
+                    window_component.set_shelf_status(if dropped.load(Ordering::Relaxed) {
+                        "File dikirim ke tujuan · file asli tetap tersimpan di Shelf".into()
+                    } else {
+                        "Seret dibatalkan · file tetap di Shelf".into()
+                    });
+                    // Selama drag modal Slint tidak menerima event pointer, jadi hub dapat tertinggal terbuka.
+                    // Hanya hub yang dibuka oleh drag masuk yang ditutup otomatis; hub buka manual dibiarkan.
+                    if opened_by_drag.get() { close_later(1200); }
+                }
+                Some(Err(error)) => {
+                    eprintln!("Shelf drag-out gagal: {error:?}");
+                    window_component.set_shelf_status("Gagal menyeret file keluar".into());
+                }
+                None => {}
             }
         });
     }
@@ -6210,7 +6291,6 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     {
-        use slint::winit_030::{winit, EventResult, WinitWindowAccessor};
         let weak = win.as_weak();
         let selected_paths = convert_selected_paths.clone();
         let last_output = convert_last_output.clone();
@@ -6218,22 +6298,26 @@ fn main() -> Result<(), slint::PlatformError> {
         let preview_page = convert_preview_page.clone();
         let preview_path = convert_preview_path.clone();
         let weak_preview = weak.clone();
-        win.window().on_winit_window_event(move |_, event| {
+        winit_handlers.borrow_mut().push(Box::new(move |event| {
             if let winit::event::WindowEvent::DroppedFile(path) = event {
+                // File lepas ke Shelf kecuali halaman Convert terbuka (lihat shelf_accepts_drop).
+                if weak.upgrade().is_some_and(|w| shelf_accepts_drop(&w)) {
+                    return;
+                }
                 if running.load(std::sync::atomic::Ordering::Acquire) {
                     if let Some(w) = weak.upgrade() {
                         w.set_convert_status("Selesaikan atau batalkan batch sebelum menambahkan file".into());
                     }
-                    return EventResult::Propagate;
+                    return;
                 }
                 if !path.is_file() {
-                    return EventResult::Propagate;
+                    return;
                 }
                 if convert::available_targets(path).is_empty() {
                     if let Some(w) = weak.upgrade() {
                         w.set_convert_status(format!("Format file tidak didukung: {}", path.display()).into());
                     }
-                    return EventResult::Propagate;
+                    return;
                 }
                 let raw = path.to_string_lossy().to_string();
                 let mut selected = selected_paths.borrow_mut();
@@ -6258,8 +6342,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     w.set_convert_status(format!("{} file siap dikonversi · file diterima dari Explorer", paths.len()).into());
                 }
             }
-            EventResult::Propagate
-        });
+        }));
     }
 
     // Sapaan otomatis native saat aplikasi mulai. Timer hidup selama event loop Slint berjalan.
