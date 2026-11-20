@@ -1760,7 +1760,7 @@ fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     }
     {
         let weak = m.as_weak();
-        s.on_save_appearance(move |a0, a1, a2, a3, a4, a5, a6, a7, a8| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_appearance(a0, a1, a2, a3, a4, a5, a6, a7, a8); } });
+        s.on_save_appearance(move |a0, a1, a2, a3, a4, a5, a6, a7, a8, a9| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_appearance(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9); } });
     }
     {
         let weak = m.as_weak();
@@ -5716,8 +5716,14 @@ fn main() -> Result<(), slint::PlatformError> {
         let sleep_after_s = sleep_after_s.clone();
         let config_path = notch_core::paths::config_path();
         let mut updated_config = cfg.clone();
-        win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, custom_bg, custom_text, dark, light| {
+        win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, custom_bg, custom_text, dark, light, scale| {
             let mut next = updated_config.clone();
+            let scale = f64::from(scale);
+            if !(0.5..=1.5).contains(&scale) {
+                if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Skala notch harus berada di antara 0.50× dan 1.50×".into()); }
+                return;
+            }
+            next.scale = scale;
             next.appearance.theme = theme.to_string();
             next.appearance.eye_theme = eye.to_string();
             next.appearance.notch_theme = notch.to_string();
@@ -5737,9 +5743,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     let palette = Palette::from_appearance(&next.appearance, platform::os_light());
                     *shell.theme.borrow_mut() = next.appearance.notch_theme.clone();
                     *shell.body.borrow_mut() = palette.body;
+                    *shell.scale.borrow_mut() = scale as f32;
                     shell.memo.set((None, 0));
                     if let Some(w) = weak.upgrade() {
                         apply_theme(&w, &palette);
+                        w.set_ui_scale(scale as f32);
                         let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                         shell.place(&w, size);
                         if let Some(eye) = eye_runtime.borrow().as_ref() {
@@ -5766,7 +5774,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_appearance_custom_text(next.appearance.text.clone().into());
                         w.set_appearance_dark_bg(next.appearance.dark_bg.clone().into());
                         w.set_appearance_light_bg(next.appearance.light_bg.clone().into());
-                        w.set_appearance_save_status("Tampilan tersimpan dan langsung diterapkan.".into());
+                        w.set_behavior_scale(format!("{scale:.2}").into());
+                        w.set_appearance_save_status("Tampilan dan ukuran tersimpan dan langsung diterapkan.".into());
                     }
                 },
                 Err(error) => { if let Some(w) = weak.upgrade() { w.set_appearance_save_status(format!("Gagal menyimpan: {error}").into()); } }
