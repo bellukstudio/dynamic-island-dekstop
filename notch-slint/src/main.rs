@@ -3074,7 +3074,15 @@ fn main() -> Result<(), slint::PlatformError> {
             let _ = native_window.with_winit_window(|window| {
                 let item = drag::DragItem::Files(vec![path]);
                 let preview = drag::Image::Raw(DRAG_ICON.to_vec());
-                if let Err(error) = drag::start_drag(window, item, preview) {
+                if let Err(error) = drag::start_drag(
+                    window,
+                    item,
+                    preview,
+                    |result, cursor_position| {
+                        eprintln!("Shelf drag-out selesai: {result:?} di {cursor_position:?}");
+                    },
+                    drag::Options::default(),
+                ) {
                     eprintln!("Shelf drag-out gagal: {error:?}");
                 }
             });
