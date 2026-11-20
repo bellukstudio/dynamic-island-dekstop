@@ -1675,6 +1675,7 @@ fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_appearance_light_bg(m.get_appearance_light_bg());
     s.set_appearance_save_status(m.get_appearance_save_status());
     s.set_behavior_scale(m.get_behavior_scale());
+    s.set_behavior_scale_value(m.get_behavior_scale().parse::<f32>().unwrap_or(1.0));
     s.set_behavior_hover_open(m.get_behavior_hover_open());
     s.set_behavior_hover_close(m.get_behavior_hover_close());
     s.set_behavior_sleep_after(m.get_behavior_sleep_after());
