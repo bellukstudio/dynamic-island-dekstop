@@ -2746,7 +2746,29 @@ component PageToggle inherits Rectangle {
     ta := TouchArea { clicked => { root.toggled(!root.checked); } }
 }
 
-component SettingsPage inherits VerticalLayout {
+component SettingsNavItem inherits Rectangle {
+    in property <string> label;
+    callback clicked;
+    height: 26px;
+    border-radius: 7px;
+    background: nav-ta.has-hover ? Theme.text.with-alpha(0.10) : transparent;
+    animate background { duration: 100ms; }
+    Text { x: 10px; width: parent.width - 20px; text: root.label; color: Theme.text; font-size: 11.5px; vertical-alignment: center; overflow: elide; }
+    nav-ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+// Jendela Pengaturan terpisah (sama seperti jendela Pengaturan versi Tauri), bukan lagi halaman di dalam notch.
+// Seluruh state dan handler tetap hidup di NotchWindow; jendela ini hanya cermin yang disinkronkan dari Rust (lihat open_settings_window).
+export component SettingsWindow inherits Window {
+    title: "Notch — Pengaturan";
+    icon: @image-url("../assets/tray.png");
+    preferred-width: 720px;
+    preferred-height: 720px;
+    min-width: 560px;
+    min-height: 480px;
+    // Theme diisi Rust (tiap jendela punya instance global sendiri). Latar sedikit lebih terang dari badan notch agar kartu tetap terbaca.
+    background: Theme.body.mix(Theme.text, 0.07).with-alpha(1.0);
+    default-font-size: 12px;
     in property <[string]> active-pages;
     in property <string> shortcut-hub;
     in property <string> shortcut-settings;
@@ -2867,13 +2889,51 @@ component SettingsPage inherits VerticalLayout {
     callback stop-adhan();
     callback restart-app();
     callback save-shortcuts(string, string, string, string);
-    alignment: start;
-    spacing: 7px;
-    padding-left: 12px;
-    padding-right: 12px;
 
-    Text { text: "Pengaturan"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { text: "Pintasan global"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    // Loncat ke bagian yang dipilih di sidebar.
+    function jump(target: length) {
+        flick.content-y = -max(0px, min(target - 6px, form.preferred-height + 24px - flick.height));
+    }
+
+    HorizontalLayout {
+        Rectangle {
+            width: 158px;
+            background: Theme.text.with-alpha(0.04);
+            VerticalLayout {
+                alignment: start;
+                padding: 10px;
+                spacing: 2px;
+                Text { text: "Pengaturan"; color: Theme.text; font-size: 16px; font-weight: 700; }
+                Rectangle { height: 8px; }
+                SettingsNavItem { label: "Pintasan"; clicked => { root.jump(sec-shortcuts.y); } }
+                SettingsNavItem { label: "Tampilan"; clicked => { root.jump(sec-appearance.y); } }
+                SettingsNavItem { label: "Cuaca"; clicked => { root.jump(sec-weather.y); } }
+                SettingsNavItem { label: "Posisi"; clicked => { root.jump(sec-position.y); } }
+                SettingsNavItem { label: "Perilaku"; clicked => { root.jump(sec-behavior.y); } }
+                SettingsNavItem { label: "Gerakan"; clicked => { root.jump(sec-motion.y); } }
+                SettingsNavItem { label: "Notifikasi"; clicked => { root.jump(sec-nudge.y); } }
+                SettingsNavItem { label: "Sapaan"; clicked => { root.jump(sec-greeting.y); } }
+                SettingsNavItem { label: "Percakapan"; clicked => { root.jump(sec-conversation.y); } }
+                SettingsNavItem { label: "Fokus"; clicked => { root.jump(sec-focus.y); } }
+                SettingsNavItem { label: "Shalat"; clicked => { root.jump(sec-prayer.y); } }
+                SettingsNavItem { label: "Pomodoro"; clicked => { root.jump(sec-pomodoro.y); } }
+                SettingsNavItem { label: "Suara adzan"; clicked => { root.jump(sec-adhan.y); } }
+                SettingsNavItem { label: "Aplikasi"; clicked => { root.jump(sec-app.y); } }
+            }
+            Rectangle { x: parent.width - 1px; width: 1px; background: Theme.text.with-alpha(0.10); }
+        }
+        flick := Flickable {
+            content-width: self.width;
+            content-height: max(self.height, form.preferred-height + 24px);
+            form := VerticalLayout {
+                width: parent.width;
+                y: 12px;
+                alignment: start;
+                spacing: 7px;
+                padding-left: 16px;
+                padding-right: 16px;
+
+    sec-shortcuts := Text { text: "Pintasan global"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
@@ -2976,7 +3036,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
-    Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-appearance := Text { text: "Tampilan & ekspresi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             Text { text: "Tema aplikasi"; color: Theme.text-faint; font-size: 9px; }
@@ -3098,7 +3158,7 @@ component SettingsPage inherits VerticalLayout {
             }
         }
     }
-    Text { text: "Lokasi cuaca"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-weather := Text { text: "Lokasi cuaca"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             Text { text: "Cari kota (hasil mengisi nama dan koordinat)"; color: Theme.text-faint; font-size: 9px; }
@@ -3142,7 +3202,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
-    Text { text: "Posisi notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-position := Text { text: "Posisi notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 6px;
             Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
@@ -3158,7 +3218,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
-    Text { text: "Perilaku notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-behavior := Text { text: "Perilaku notch"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             Text { text: "Skala UI (0.5–1.5)"; color: Theme.text-faint; font-size: 9px; }
@@ -3207,7 +3267,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
-    Text { text: "Liquid movement"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-motion := Text { text: "Liquid movement"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 6px;
             HorizontalLayout {
@@ -3238,7 +3298,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.motion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Notifikasi & perilaku otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-nudge := Text { text: "Notifikasi & perilaku otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 6px;
             HorizontalLayout {
@@ -3299,7 +3359,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.nudge-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Greeting & sapaan otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-greeting := Text { text: "Greeting & sapaan otomatis"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 11px; spacing: 8px;
             Text { text: "Sapaan ditampilkan di Notch dan dibacakan saat aplikasi mulai berjalan."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
@@ -3361,7 +3421,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.greeting-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Conversation Moments"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-conversation := Text { text: "Conversation Moments"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             cm-enabled-input := TextInput { text: root.conversation-enabled ? "true" : "false"; visible: false; }
@@ -3418,7 +3478,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.conversation-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Focus Companion"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-focus := Text { text: "Focus Companion"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             fc-enabled-input := TextInput { text: root.focus-companion-enabled ? "true" : "false"; visible: false; }
@@ -3454,7 +3514,7 @@ component SettingsPage inherits VerticalLayout {
             Text { text: root.focus-companion-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-prayer := Text { text: "Jadwal shalat"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             Text { text: "Provinsi"; color: Theme.text-faint; font-size: 9px; }
@@ -3480,7 +3540,7 @@ component SettingsPage inherits VerticalLayout {
             prayer-min-input := TextInput { text: root.prayer-remind-min; color: Theme.text; font-size: 11px; single-line: true; }
         }
     }
-    Text { text: "Pomodoro"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-pomodoro := Text { text: "Pomodoro"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 5px;
             Text { text: "Durasi fokus / istirahat / istirahat panjang (menit)"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
@@ -3542,7 +3602,7 @@ component SettingsPage inherits VerticalLayout {
         font-size: 9px;
         wrap: word-wrap;
     }
-    Text { text: "Suara adzan"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-adhan := Text { text: "Suara adzan"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     Rectangle { background: #ffffff0b; border-radius: 10px; border-width: 1px; border-color: #ffffff18;
         VerticalLayout { padding: 9px; spacing: 6px;
             Text { text: "Putar adzan.mp3 untuk pengujian. Tidak mengubah pengingat jadwal shalat."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
@@ -3553,9 +3613,12 @@ component SettingsPage inherits VerticalLayout {
             }
         }
     }
-    Text { text: "Aplikasi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    sec-app := Text { text: "Aplikasi"; color: Theme.accent; font-size: 11px; font-weight: 700; }
     HorizontalLayout {
         Chip { label: "Mulai ulang Notch"; padding-x: 14px; clicked => { root.restart-app(); } }
+    }
+            }
+        }
     }
 }
 
@@ -4800,6 +4863,8 @@ export component NotchWindow inherits Window {
     in property <[string]> active-pages;
     in property <string> hub-pages: "";
     in property <string> pages-save-status: "";
+    // Buka jendela Pengaturan terpisah (tab Pengaturan, tray, dan shortcut).
+    callback open-settings();
     callback settings-save-pages(string);
     callback settings-toggle-page(string, bool);
     in property <string> appearance-theme: "auto";
@@ -5088,7 +5153,7 @@ export component NotchWindow inherits Window {
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
         width: root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? 288px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x)));
-        height: root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 392px : (root.page-id == "currency" ? 520px : (root.page-id == "settings" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px))))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)));
+        height: root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 392px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
@@ -5427,7 +5492,7 @@ export component NotchWindow inherits Window {
                     for id in root.tabs: TabIcon {
                         commands: Icons.for-page(id);
                         active: root.page-id == id;
-                        clicked => { root.page-id = id; root.page-changed(id); }
+                        clicked => { if (id == "settings") { root.open-settings(); } else { root.page-id = id; root.page-changed(id); } }
                     }
                 }
 
@@ -5538,119 +5603,6 @@ export component NotchWindow inherits Window {
                         file-path: root.compress-selected-path;
                         run(path) => { root.compress-run(path); }
                         pick-file => { root.compress-pick(); }
-                    }
-                    if root.page-id == "settings": Flickable {
-                        width: parent.width;
-                        height: parent.height;
-                        content-width: self.width;
-                        // Mengikuti tinggi isi formulir; kalau disamakan dengan tinggi jendela, bagian bawah tidak bisa digulir.
-                        content-height: max(self.height, settings-page.preferred-height);
-                        settings-page := SettingsPage {
-                            width: parent.width;
-                        weather-city: root.weather-city;
-                        weather-lat: root.weather-lat;
-                        weather-lon: root.weather-lon;
-                        weather-save-status: root.weather-save-status;
-                        save-weather(city, lat, lon) => { root.settings-save-weather(city, lat, lon); }
-                        weather-hits: root.weather-hits;
-                        weather-search-status: root.weather-search-status;
-                        search-city(query) => { root.settings-search-city(query); }
-                        adhan-active: root.adhan-active;
-                        test-adhan => { root.settings-test-adhan(); }
-                        stop-adhan => { root.adhan-stop(); }
-                        restart-app => { root.settings-restart(); }
-                        shortcut-hub: root.shortcut-hub;
-                        shortcut-settings: root.shortcut-settings;
-                        shortcut-pomodoro: root.shortcut-pomodoro;
-                        shortcut-prayer: root.shortcut-prayer;
-                        appearance-theme: root.appearance-theme;
-                        appearance-eye-theme: root.appearance-eye-theme;
-                        appearance-notch-theme: root.appearance-notch-theme;
-                        appearance-mood: root.appearance-mood;
-                        appearance-accent: root.appearance-accent;
-                        appearance-custom-bg: root.appearance-custom-bg;
-                        appearance-custom-text: root.appearance-custom-text;
-                        appearance-dark-bg: root.appearance-dark-bg;
-                        appearance-light-bg: root.appearance-light-bg;
-                        appearance-save-status: root.appearance-save-status;
-                        save-appearance(theme, eye, notch, mood, accent, custom-bg, custom-text, dark, light) => { root.settings-save-appearance(theme, eye, notch, mood, accent, custom-bg, custom-text, dark, light); }
-                        behavior-scale: root.behavior-scale;
-                        behavior-hover-open: root.behavior-hover-open;
-                        behavior-hover-close: root.behavior-hover-close;
-                        behavior-sleep-after: root.behavior-sleep-after;
-                        behavior-hide-fullscreen: root.behavior-hide-fullscreen;
-                        autostart-enabled: root.autostart-enabled;
-                        autostart-save-status: root.autostart-save-status;
-                        behavior-save-status: root.behavior-save-status;
-                        motion-enabled: root.motion-enabled;
-                        dock-play-enabled: root.dock-play-enabled;
-                        motion-interval: root.motion-interval;
-                        motion-max-moves: root.motion-max-moves;
-                        motion-save-status: root.motion-save-status;
-                        nudge-enabled: root.nudge-enabled;
-                        nudge-idle-min: root.nudge-idle-min;
-                        nudge-message: root.nudge-message;
-                        nudge-emoji: root.nudge-emoji;
-                        nudge-mood: root.nudge-mood;
-                        nudge-show-ms: root.nudge-show-ms;
-                        nudge-only-silent: root.nudge-only-silent;
-                        nudge-until-move: root.nudge-until-move;
-                        nudge-save-status: root.nudge-save-status;
-                        greeting-enabled: root.greeting-enabled;
-                        greeting-mode: root.greeting-mode;
-                        greeting-voice: root.greeting-voice;
-                        greeting-custom-text: root.greeting-custom-text;
-                        greeting-save-status: root.greeting-save-status;
-                        conversation-enabled: root.conversation-enabled;
-                        conversation-on-play: root.conversation-on-play;
-                        conversation-on-track-change: root.conversation-on-track-change;
-                        conversation-on-pause: root.conversation-on-pause;
-                        conversation-on-return: root.conversation-on-return;
-                        conversation-on-weather-change: root.conversation-on-weather-change;
-                        conversation-on-rain-soon: root.conversation-on-rain-soon;
-                        conversation-on-low-battery: root.conversation-on-low-battery;
-                        conversation-on-charging: root.conversation-on-charging;
-                        conversation-return-after-min: root.conversation-return-after-min;
-                        conversation-cooldown-min: root.conversation-cooldown-min;
-                        conversation-save-status: root.conversation-save-status;
-                        focus-companion-enabled: root.focus-companion-enabled;
-                        focus-companion-on-start: root.focus-companion-on-start;
-                        focus-companion-on-halfway: root.focus-companion-on-halfway;
-                        focus-companion-on-focus-complete: root.focus-companion-on-focus-complete;
-                        focus-companion-on-break-end: root.focus-companion-on-break-end;
-                        focus-companion-save-status: root.focus-companion-save-status;
-                        save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move) => { root.settings-save-nudge(enabled, idle, message, emoji, mood, show, silent, until-move); }
-                        test-nudge(message, emoji, mood, show, until-move) => { root.settings-test-nudge(message, emoji, mood, show, until-move); }
-                        save-greeting(enabled, mode, voice, custom-text) => { root.settings-save-greeting(enabled, mode, voice, custom-text); }
-                        test-greeting(mode, custom-text, voice) => { root.settings-test-greeting(mode, custom-text, voice); }
-                        save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown) => { root.settings-save-conversation(enabled, play, track, pause, returning, weather, rain, battery, charging, return-after, cooldown); }
-                        test-conversation(message, detail) => { root.settings-test-conversation(message, detail); }
-                        save-focus-companion(enabled, start, halfway, complete, break-end) => { root.settings-save-focus-companion(enabled, start, halfway, complete, break-end); }
-                        test-focus-companion(message, detail) => { root.settings-test-focus-companion(message, detail); }
-                        position-mode: root.position-mode;
-                        save-behavior(scale, open, close, sleep, hide-fullscreen) => { root.settings-save-behavior(scale, open, close, sleep, hide-fullscreen); }
-                        save-autostart(enabled) => { root.settings-save-autostart(enabled); }
-                        save-position(mode) => { root.settings-save-position(mode); }
-                        save-motion(enabled, interval, maximum, dock-play) => { root.settings-save-motion(enabled, interval, maximum, dock-play); }
-                        test-dock-play => { root.settings-test-dock-play(); }
-                        active-pages: root.active-pages;
-                        hub-pages: root.hub-pages;
-                        pages-save-status: root.pages-save-status;
-                        save-pages(value) => { root.settings-save-pages(value); }
-                        toggle-page(id, enabled) => { root.settings-toggle-page(id, enabled); }
-                        prayer-province: root.prayer-province;
-                        prayer-city: root.prayer-city;
-                        prayer-mode: root.prayer-mode;
-                        prayer-remind-before: root.prayer-remind-before;
-                        prayer-remind-min: root.prayer-remind-min;
-                        pomodoro-focus: root.pomodoro-focus;
-                        pomodoro-break: root.pomodoro-break;
-                        pomodoro-long-break: root.pomodoro-long-break;
-                        pomodoro-rounds: root.pomodoro-rounds;
-                        save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city) => { root.settings-save-routines(mode, remind, minutes, focus, rest, long, rounds, province, city); }
-                        save-status: root.settings-save-status;
-                        save-shortcuts(hub, settings, pomo, prayer) => { root.settings-save-shortcuts(hub, settings, pomo, prayer); }
-                        }
                     }
                     if root.page-id == "media": MediaPage {
                         width: parent.width;

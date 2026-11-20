@@ -464,17 +464,12 @@ const EXPANDED_REMINDER: (u32, u32) = (812, 430);
 /// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
 const EXPANDED_TALL: (u32, u32) = (612, 338);
 
-/// Halaman Pengaturan (580 x 520) + jalur Pusatkan dan telinga. Formulirnya panjang, jadi tidak muat di hub 202 px.
-const EXPANDED_SETTINGS: (u32, u32) = (612, 558);
-
 /// Hub Ramadan (780 x 540) + jalur Pusatkan dan telinga.
 const EXPANDED_RAMADAN: (u32, u32) = (812, 578);
 
 fn expanded_size(w: &NotchWindow) -> (u32, u32) {
     if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
         EXPANDED_RAMADAN
-    } else if w.get_page_id() == "settings" {
-        EXPANDED_SETTINGS
     } else if w.get_page_id() == "currency" {
         EXPANDED_CURRENCY
     } else if w.get_page_id() == "reminder" {
@@ -1656,6 +1651,252 @@ fn search_cities(query: &str) -> Result<Vec<(String, String, String, String)>, S
     Ok(hits)
 }
 
+/// Salin nilai tampilan dari NotchWindow (pemilik state) ke jendela Pengaturan. Property yang nilainya sama tidak memicu render ulang.
+fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
+    s.set_weather_city(m.get_weather_city());
+    s.set_weather_lat(m.get_weather_lat());
+    s.set_weather_lon(m.get_weather_lon());
+    s.set_weather_save_status(m.get_weather_save_status());
+    s.set_weather_hits(m.get_weather_hits());
+    s.set_weather_search_status(m.get_weather_search_status());
+    s.set_adhan_active(m.get_adhan_active());
+    s.set_shortcut_hub(m.get_shortcut_hub());
+    s.set_shortcut_settings(m.get_shortcut_settings());
+    s.set_shortcut_pomodoro(m.get_shortcut_pomodoro());
+    s.set_shortcut_prayer(m.get_shortcut_prayer());
+    s.set_appearance_theme(m.get_appearance_theme());
+    s.set_appearance_eye_theme(m.get_appearance_eye_theme());
+    s.set_appearance_notch_theme(m.get_appearance_notch_theme());
+    s.set_appearance_mood(m.get_appearance_mood());
+    s.set_appearance_accent(m.get_appearance_accent());
+    s.set_appearance_custom_bg(m.get_appearance_custom_bg());
+    s.set_appearance_custom_text(m.get_appearance_custom_text());
+    s.set_appearance_dark_bg(m.get_appearance_dark_bg());
+    s.set_appearance_light_bg(m.get_appearance_light_bg());
+    s.set_appearance_save_status(m.get_appearance_save_status());
+    s.set_behavior_scale(m.get_behavior_scale());
+    s.set_behavior_hover_open(m.get_behavior_hover_open());
+    s.set_behavior_hover_close(m.get_behavior_hover_close());
+    s.set_behavior_sleep_after(m.get_behavior_sleep_after());
+    s.set_behavior_hide_fullscreen(m.get_behavior_hide_fullscreen());
+    s.set_autostart_enabled(m.get_autostart_enabled());
+    s.set_autostart_save_status(m.get_autostart_save_status());
+    s.set_behavior_save_status(m.get_behavior_save_status());
+    s.set_motion_enabled(m.get_motion_enabled());
+    s.set_dock_play_enabled(m.get_dock_play_enabled());
+    s.set_motion_interval(m.get_motion_interval());
+    s.set_motion_max_moves(m.get_motion_max_moves());
+    s.set_motion_save_status(m.get_motion_save_status());
+    s.set_nudge_enabled(m.get_nudge_enabled());
+    s.set_nudge_idle_min(m.get_nudge_idle_min());
+    s.set_nudge_message(m.get_nudge_message());
+    s.set_nudge_emoji(m.get_nudge_emoji());
+    s.set_nudge_mood(m.get_nudge_mood());
+    s.set_nudge_show_ms(m.get_nudge_show_ms());
+    s.set_nudge_only_silent(m.get_nudge_only_silent());
+    s.set_nudge_until_move(m.get_nudge_until_move());
+    s.set_nudge_save_status(m.get_nudge_save_status());
+    s.set_greeting_enabled(m.get_greeting_enabled());
+    s.set_greeting_mode(m.get_greeting_mode());
+    s.set_greeting_voice(m.get_greeting_voice());
+    s.set_greeting_custom_text(m.get_greeting_custom_text());
+    s.set_greeting_save_status(m.get_greeting_save_status());
+    s.set_conversation_enabled(m.get_conversation_enabled());
+    s.set_conversation_on_play(m.get_conversation_on_play());
+    s.set_conversation_on_track_change(m.get_conversation_on_track_change());
+    s.set_conversation_on_pause(m.get_conversation_on_pause());
+    s.set_conversation_on_return(m.get_conversation_on_return());
+    s.set_conversation_on_weather_change(m.get_conversation_on_weather_change());
+    s.set_conversation_on_rain_soon(m.get_conversation_on_rain_soon());
+    s.set_conversation_on_low_battery(m.get_conversation_on_low_battery());
+    s.set_conversation_on_charging(m.get_conversation_on_charging());
+    s.set_conversation_return_after_min(m.get_conversation_return_after_min());
+    s.set_conversation_cooldown_min(m.get_conversation_cooldown_min());
+    s.set_conversation_save_status(m.get_conversation_save_status());
+    s.set_focus_companion_enabled(m.get_focus_companion_enabled());
+    s.set_focus_companion_on_start(m.get_focus_companion_on_start());
+    s.set_focus_companion_on_halfway(m.get_focus_companion_on_halfway());
+    s.set_focus_companion_on_focus_complete(m.get_focus_companion_on_focus_complete());
+    s.set_focus_companion_on_break_end(m.get_focus_companion_on_break_end());
+    s.set_focus_companion_save_status(m.get_focus_companion_save_status());
+    s.set_position_mode(m.get_position_mode());
+    s.set_active_pages(m.get_active_pages());
+    s.set_hub_pages(m.get_hub_pages());
+    s.set_pages_save_status(m.get_pages_save_status());
+    s.set_prayer_province(m.get_prayer_province());
+    s.set_prayer_city(m.get_prayer_city());
+    s.set_prayer_mode(m.get_prayer_mode());
+    s.set_prayer_remind_before(m.get_prayer_remind_before());
+    s.set_prayer_remind_min(m.get_prayer_remind_min());
+    s.set_pomodoro_focus(m.get_pomodoro_focus());
+    s.set_pomodoro_break(m.get_pomodoro_break());
+    s.set_pomodoro_long_break(m.get_pomodoro_long_break());
+    s.set_pomodoro_rounds(m.get_pomodoro_rounds());
+    s.set_save_status(m.get_settings_save_status());
+}
+
+/// Teruskan tombol Simpan/Tes di jendela Pengaturan ke handler yang sudah ada di NotchWindow.
+fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
+    {
+        let weak = m.as_weak();
+        s.on_save_weather(move |a0, a1, a2| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_weather(a0, a1, a2); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_search_city(move |a0| { if let Some(m) = weak.upgrade() { m.invoke_settings_search_city(a0); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_adhan(move || { if let Some(m) = weak.upgrade() { m.invoke_settings_test_adhan(); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_stop_adhan(move || { if let Some(m) = weak.upgrade() { m.invoke_adhan_stop(); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_restart_app(move || { if let Some(m) = weak.upgrade() { m.invoke_settings_restart(); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_appearance(move |a0, a1, a2, a3, a4, a5, a6, a7, a8| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_appearance(a0, a1, a2, a3, a4, a5, a6, a7, a8); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_nudge(move |a0, a1, a2, a3, a4, a5, a6, a7| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_nudge(a0, a1, a2, a3, a4, a5, a6, a7); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_nudge(move |a0, a1, a2, a3, a4| { if let Some(m) = weak.upgrade() { m.invoke_settings_test_nudge(a0, a1, a2, a3, a4); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_greeting(move |a0, a1, a2, a3| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_greeting(a0, a1, a2, a3); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_greeting(move |a0, a1, a2| { if let Some(m) = weak.upgrade() { m.invoke_settings_test_greeting(a0, a1, a2); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_conversation(move |a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_conversation(a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_conversation(move |a0, a1| { if let Some(m) = weak.upgrade() { m.invoke_settings_test_conversation(a0, a1); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_focus_companion(move |a0, a1, a2, a3, a4| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_focus_companion(a0, a1, a2, a3, a4); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_focus_companion(move |a0, a1| { if let Some(m) = weak.upgrade() { m.invoke_settings_test_focus_companion(a0, a1); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_behavior(move |a0, a1, a2, a3, a4| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_behavior(a0, a1, a2, a3, a4); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_autostart(move |a0| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_autostart(a0); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_position(move |a0| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_position(a0); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_motion(move |a0, a1, a2, a3| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_motion(a0, a1, a2, a3); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_test_dock_play(move || { if let Some(m) = weak.upgrade() { m.invoke_settings_test_dock_play(); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_pages(move |a0| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_pages(a0); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_toggle_page(move |a0, a1| { if let Some(m) = weak.upgrade() { m.invoke_settings_toggle_page(a0, a1); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_routines(move |a0, a1, a2, a3, a4, a5, a6, a7, a8| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_routines(a0, a1, a2, a3, a4, a5, a6, a7, a8); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_save_shortcuts(move |a0, a1, a2, a3| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_shortcuts(a0, a1, a2, a3); } });
+    }
+}
+
+/// Warna Theme dibaca dari NotchWindow lalu disalin, karena tiap jendela Slint punya instance global Theme sendiri.
+fn sync_settings_theme(m: &NotchWindow, s: &SettingsWindow) {
+    let (from, to) = (Theme::get(m), Theme::get(s));
+    to.set_body(from.get_body());
+    to.set_text(from.get_text());
+    to.set_text_dim(from.get_text_dim());
+    to.set_text_faint(from.get_text_faint());
+    to.set_accent(from.get_accent());
+    to.set_on_accent(from.get_on_accent());
+    to.set_ok(from.get_ok());
+    to.set_chip(from.get_chip());
+    to.set_chip_hover(from.get_chip_hover());
+    to.set_track(from.get_track());
+}
+
+/// Jendela Pengaturan yang sedang terbuka. Timer menjaga nilainya sama dengan NotchWindow selama jendela hidup;
+/// saat jendela ditutup, `SettingsHandle` dilepas sehingga memori dan timer ikut bebas.
+struct SettingsHandle {
+    win: SettingsWindow,
+    _sync: Timer,
+}
+type SettingsSlot = Rc<RefCell<Option<SettingsHandle>>>;
+
+/// Buka (atau munculkan kembali) jendela Pengaturan terpisah, setara jendela Pengaturan versi Tauri.
+fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
+    if let Some(handle) = slot.borrow().as_ref() {
+        sync_settings_theme(main, &handle.win);
+        sync_settings_window(main, &handle.win);
+        let _ = handle.win.show();
+        let _ = handle.win.window().with_winit_window(|w| {
+            w.set_minimized(false);
+            w.focus_window();
+        });
+        return;
+    }
+    let Ok(win) = SettingsWindow::new() else { return };
+    sync_settings_theme(main, &win);
+    sync_settings_window(main, &win);
+    wire_settings_window(main, &win);
+    {
+        let slot = slot.clone();
+        win.window().on_close_requested(move || {
+            // Lepas jendela setelah callback selesai agar tidak membebaskan dirinya sendiri.
+            let slot = slot.clone();
+            Timer::single_shot(Duration::from_millis(50), move || {
+                slot.borrow_mut().take();
+            });
+            slint::CloseRequestResponse::HideWindow
+        });
+    }
+    let sync = Timer::default();
+    {
+        let (main_weak, win_weak) = (main.as_weak(), win.as_weak());
+        sync.start(TimerMode::Repeated, Duration::from_millis(250), move || {
+            if let (Some(m), Some(s)) = (main_weak.upgrade(), win_weak.upgrade()) {
+                sync_settings_theme(&m, &s);
+                sync_settings_window(&m, &s);
+            }
+        });
+    }
+    if win.show().is_err() {
+        return;
+    }
+    *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync });
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     if let Some(resource_dir) = std::env::current_exe().ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf)) {
         notch_tools::pdf::set_resource_dir(resource_dir.clone());
@@ -1683,6 +1924,20 @@ fn main() -> Result<(), slint::PlatformError> {
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
+    // Pengaturan dibuka sebagai jendela terpisah (bukan halaman di dalam notch): tab Pengaturan, tray, dan shortcut memakai jalur ini.
+    let settings_slot: SettingsSlot = Rc::default();
+    let open_settings: Rc<dyn Fn()> = {
+        let (weak, slot) = (win.as_weak(), settings_slot.clone());
+        Rc::new(move || {
+            if let Some(w) = weak.upgrade() {
+                open_settings_window(&w, &slot);
+            }
+        })
+    };
+    {
+        let open = open_settings.clone();
+        win.on_open_settings(move || open());
+    }
     win.set_convert_history_text(format_convert_history().into());
     win.set_convert_source_preview(Image::default());
     win.set_convert_result_preview(Image::default());
@@ -5684,6 +5939,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let hotkey_poll_timer = Timer::default();
     {
         let (expand, collapse, pomo) = (expand.clone(), collapse.clone(), pomo.clone());
+        let open_settings = open_settings.clone();
         let weak = win.as_weak();
         hotkey_poll_timer.start(TimerMode::Repeated, Duration::from_millis(60), move || {
             while let Ok(action) = hotkey_rx.try_recv() {
@@ -5731,12 +5987,7 @@ fn main() -> Result<(), slint::PlatformError> {
                             expand();
                         }
                     }
-                    hotkeys::Action::OpenSettings => {
-                        if let Some(w) = weak.upgrade() {
-                            w.set_page_id("settings".into());
-                            expand();
-                        }
-                    }
+                    hotkeys::Action::OpenSettings => open_settings(),
                     hotkeys::Action::ShortcutRegistrationFailed => {
                         if let Some(w) = weak.upgrade() {
                             w.set_settings_save_status("Windows menolak salah satu shortcut karena sedang dipakai aplikasi lain atau sistem. Ganti kombinasinya.".into());
@@ -6500,22 +6751,11 @@ fn main() -> Result<(), slint::PlatformError> {
     let tray_retry = Rc::new(Timer::default());
     {
         let weak = win.as_weak();
-        let (open_timer, close_timer, shrink_timer) = (open_timer.clone(), close_timer.clone(), shrink_timer.clone());
-        let (shell, sync) = (shell.clone(), sync_pages.clone());
+        let open_settings = open_settings.clone();
         let on_action: Rc<dyn Fn(tray::Action)> = Rc::new(move |action| {
             let Some(w) = weak.upgrade() else { return };
             match action {
-                tray::Action::Settings => {
-                    // Bukan expand(): fungsi itu memaksa halaman Jam bila wajah jam sedang aktif.
-                    // Kursor ada di tray (di luar jendela), jadi timer hover dihentikan agar hub tidak menutup sendiri.
-                    open_timer.stop();
-                    close_timer.stop();
-                    shrink_timer.stop();
-                    w.set_page_id("settings".into());
-                    shell.place(&w, expanded_size(&w));
-                    w.set_expanded(true);
-                    sync();
-                }
+                tray::Action::Settings => open_settings(),
                 // Jalur yang sama dengan pilihan posisi "top" di Pengaturan: disimpan ke config seperti di Tauri.
                 tray::Action::Center => w.invoke_settings_save_position("top".into()),
                 tray::Action::Quit => {
