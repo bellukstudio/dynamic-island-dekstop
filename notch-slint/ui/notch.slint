@@ -3604,53 +3604,139 @@ export component SettingsWindow inherits Window {
         height: root.active-tab == "weather" ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Cuaca"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-            VerticalLayout { padding: 9px; spacing: 5px;
-                Text { text: "Cari kota (hasil mengisi nama dan koordinat)"; color: Theme.text-faint; font-size: 9px; }
-                HorizontalLayout { spacing: 6px;
-                    Rectangle { horizontal-stretch: 1; height: 28px; border-radius: 8px; background: #ffffff10;
-                        if city-search-input.text == "": Text { x: 8px; height: parent.height; text: "mis. Surabaya"; color: Theme.text-faint; font-size: 11px; vertical-alignment: center; }
-                        city-search-input := TextInput { x: 8px; width: parent.width - 16px; height: parent.height; text: ""; color: Theme.text; font-size: 11px; single-line: true; vertical-alignment: center;
-                            accepted => { root.search-city(self.text); }
+            sec-weather := Rectangle {
+                height: 46px;
+                Text { width: parent.width; height: parent.height - 6px; text: "Cuaca"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; }
+            }
+            Text { text: "Lokasi cuaca"; color: Theme.text-dim; font-size: 10px; }
+            HorizontalLayout {
+                spacing: 8px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    background: Theme.text.with-alpha(0.045);
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: Theme.text.with-alpha(0.08);
+                    VerticalLayout {
+                        padding: 9px;
+                        spacing: 6px;
+                        Text { text: "Cari kota"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            Rectangle {
+                                horizontal-stretch: 1;
+                                height: 30px;
+                                border-radius: 8px;
+                                background: #ffffff10;
+                                if city-search-input.text == "": Text { x: 8px; height: parent.height; text: "Cari kota, mis. Surabaya"; color: Theme.text-faint; font-size: 10px; vertical-alignment: center; }
+                                city-search-input := TextInput {
+                                    x: 8px;
+                                    width: parent.width - 16px;
+                                    height: parent.height;
+                                    text: "";
+                                    color: Theme.text;
+                                    font-size: 10px;
+                                    single-line: true;
+                                    vertical-alignment: center;
+                                    accepted => { root.search-city(self.text); }
+                                }
+                            }
+                            Chip { label: "Cari"; clicked => { root.search-city(city-search-input.text); } }
                         }
+                        for hit in root.weather-hits: Rectangle {
+                            height: 26px;
+                            border-radius: 8px;
+                            background: hit-ta.has-hover ? Theme.chip-hover : Theme.chip;
+                            Text { x: 8px; width: parent.width - 16px; height: parent.height; text: hit.label; color: Theme.text; font-size: 10px; vertical-alignment: center; overflow: elide; }
+                            hit-ta := TouchArea { clicked => {
+                                weather-city-input.text = hit.name;
+                                weather-lat-input.text = hit.lat;
+                                weather-lon-input.text = hit.lon;
+                            } }
+                        }
+                        Text { text: root.weather-search-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; visible: root.weather-search-status != ""; }
+                        Text { text: "Pilih hasil pencarian untuk mengisi nama dan koordinat otomatis."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
                     }
-                    Chip { label: "Cari"; clicked => { root.search-city(city-search-input.text); } }
                 }
-                for hit in root.weather-hits: Rectangle {
-                    height: 24px;
-                    border-radius: 8px;
-                    background: hit-ta.has-hover ? Theme.chip-hover : Theme.chip;
-                    Text { x: 8px; width: parent.width - 16px; height: parent.height; text: hit.label; color: Theme.text; font-size: 10px; vertical-alignment: center; overflow: elide; }
-                    hit-ta := TouchArea { clicked => {
-                        weather-city-input.text = hit.name;
-                        weather-lat-input.text = hit.lat;
-                        weather-lon-input.text = hit.lon;
-                    } }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    background: Theme.text.with-alpha(0.045);
+                    border-radius: 12px;
+                    border-width: 1px;
+                    border-color: Theme.text.with-alpha(0.08);
+                    VerticalLayout {
+                        padding: 9px;
+                        spacing: 6px;
+                        Text { text: "Koordinat"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                        Text { text: "Nama lokasi"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle {
+                            height: 32px;
+                            border-radius: 8px;
+                            background: Theme.text.with-alpha(0.06);
+                            border-width: 1px;
+                            border-color: weather-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                            HorizontalLayout {
+                                padding-left: 10px;
+                                padding-right: 10px;
+                                weather-city-input := TextInput { vertical-alignment: center; text: root.weather-city; color: Theme.text; font-size: 10px; single-line: true; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 3px;
+                                Text { text: "Lintang"; color: Theme.text-faint; font-size: 9px; }
+                                Rectangle {
+                                    height: 32px;
+                                    border-radius: 8px;
+                                    background: Theme.text.with-alpha(0.06);
+                                    border-width: 1px;
+                                    border-color: weather-lat-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        weather-lat-input := TextInput { vertical-alignment: center; text: root.weather-lat; color: Theme.text; font-size: 10px; single-line: true; }
+                                    }
+                                }
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 3px;
+                                Text { text: "Bujur"; color: Theme.text-faint; font-size: 9px; }
+                                Rectangle {
+                                    height: 32px;
+                                    border-radius: 8px;
+                                    background: Theme.text.with-alpha(0.06);
+                                    border-width: 1px;
+                                    border-color: weather-lon-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10);
+                                    HorizontalLayout {
+                                        padding-left: 8px;
+                                        padding-right: 8px;
+                                        weather-lon-input := TextInput { vertical-alignment: center; text: root.weather-lon; color: Theme.text; font-size: 10px; single-line: true; }
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 5px;
+                            Chip { label: "Reset default"; clicked => {
+                                weather-city-input.text = "Bandung";
+                                weather-lat-input.text = "-6.9175";
+                                weather-lon-input.text = "107.6191";
+                                root.save-weather("Bandung", "-6.9175", "107.6191");
+                            } }
+                            Chip { label: "Simpan"; selected: true; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
+                        }
+                        Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                        Text { text: "Gunakan koordinat desimal."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+                    }
                 }
-                Text { text: root.weather-search-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; visible: root.weather-search-status != ""; }
-                Text { text: "Nama kota"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-city-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-city-input := TextInput { vertical-alignment: center; text: root.weather-city; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Latitude"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lat-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lat-input := TextInput { vertical-alignment: center; text: root.weather-lat; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Longitude"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: weather-lon-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; weather-lon-input := TextInput { vertical-alignment: center; text: root.weather-lon; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout {
-                    Chip { label: "Reset default"; clicked => {
-                        weather-city-input.text = "Bandung";
-                        weather-lat-input.text = "-6.9175";
-                        weather-lon-input.text = "107.6191";
-                        root.save-weather("Bandung", "-6.9175", "107.6191");
-                    } }
-                    Chip { label: "Simpan lokasi cuaca"; clicked => { root.save-weather(weather-city-input.text, weather-lat-input.text, weather-lon-input.text); } }
-                }
-                Text { text: root.weather-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                Text { text: "Gunakan koordinat desimal. Contoh Bandung: -6.9175, 107.6191."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             }
         }
-        }
     }
-
     Rectangle {
         visible: root.active-tab == "behavior";
         height: root.active-tab == "behavior" ? self.preferred-height : 0px;
