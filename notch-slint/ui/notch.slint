@@ -3192,8 +3192,7 @@ export component SettingsWindow inherits Window {
         VerticalLayout {
             spacing: 8px;
         sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Fitur"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
-        Text { text: "Centang halaman yang ingin ditampilkan pada hub notch. Fitur tambahan tertentu mungkin memerlukan restart."; color: Theme.text-dim; font-size: 10px; wrap: word-wrap; }
-        Text { text: "Centang halaman yang ingin ditampilkan pada hub notch. Perubahan halaman langsung diterapkan."; color: Theme.text-dim; font-size: 10px; wrap: word-wrap; }
+        Text { text: "Centang halaman yang ingin ditampilkan. Daftar halaman langsung dipratinjau di Hub; fitur tambahan tertentu mungkin memerlukan restart."; color: Theme.text-dim; font-size: 10px; wrap: word-wrap; }
         Rectangle {
             background: Theme.text.with-alpha(0.045);
             border-radius: 12px;
@@ -3241,9 +3240,21 @@ export component SettingsWindow inherits Window {
         }
         Text { text: "Halaman"; color: Theme.accent; font-size: 11px; font-weight: 700; }
         Text { text: "Pilih tab utama yang ingin ditampilkan pada hub notch."; color: Theme.text-faint; font-size: 9px; }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-            VerticalLayout { padding: 9px; spacing: 6px;
-                HorizontalLayout {
+        HorizontalLayout {
+            spacing: 8px;
+            Rectangle {
+                horizontal-stretch: 2;
+                min-width: 0px;
+                background: Theme.text.with-alpha(0.045);
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.08);
+                VerticalLayout {
+                    padding: 9px;
+                    spacing: 6px;
+                    Text { text: "Halaman"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                    Text { text: "Pilih tab utama yang ingin ditampilkan pada hub notch."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                    HorizontalLayout {
                     spacing: 6px;
                     VerticalLayout {
                         spacing: 5px;
@@ -3266,10 +3277,21 @@ export component SettingsWindow inherits Window {
                         PageToggle { label: "Currency · Kurs & saham"; checked: root.page-enabled("currency"); toggled(v) => { root.toggle-page("currency", v); } }
                     }
                 }
-                Rectangle { height: 1px; background: Theme.chip; }
-                Text { text: "Tambahan"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-                Text { text: "Fitur pendamping dan alat tambahan; tidak semuanya menjadi tab utama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                HorizontalLayout {
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                min-width: 220px;
+                background: Theme.text.with-alpha(0.045);
+                border-radius: 12px;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.08);
+                VerticalLayout {
+                    padding: 9px;
+                    spacing: 6px;
+                    Text { text: "Tambahan"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                    Text { text: "Fitur pendamping dan alat tambahan; tidak semuanya menjadi tab utama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                    HorizontalLayout {
                     spacing: 6px;
                     VerticalLayout {
                         spacing: 5px;
@@ -3284,18 +3306,19 @@ export component SettingsWindow inherits Window {
                         PageToggle { label: "Android & mirroring"; checked: root.page-enabled("android"); toggled(v) => { root.toggle-page("android", v); } }
                     }
                 }
-                Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                HorizontalLayout {
-                    Chip {
-                        label: "Pulihkan halaman default";
-                        clicked => {
-                            root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency");
-                        }
-                    }
                 }
-                Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
             }
         }
+        Text { text: root.pages-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+        HorizontalLayout {
+            Chip {
+                label: "Pulihkan halaman default";
+                clicked => {
+                    root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency");
+                }
+            }
+        }
+        Text { text: "Perubahan disimpan otomatis. Musik wajib aktif sebagai halaman utama."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
         }
     }
 
