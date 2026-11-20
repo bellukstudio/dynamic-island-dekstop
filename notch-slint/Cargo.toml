@@ -33,6 +33,7 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 windows-core = "0.61"
 drag = "2.1.1"
 windows = { version = "0.61", features = ["Foundation", "Foundation_Collections", "Media_Control", "Storage_Streams", "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_WinRT", "Win32_System_SystemInformation", "Win32_System_Registry", "Win32_Graphics_Gdi", "Win32_Media_Multimedia", "Win32_Media_Audio", "Win32_System_Com", "Win32_System_LibraryLoader", "Win32_System_Diagnostics_Debug", "Win32_Media_MediaFoundation"] }
+tray-icon = { version = "0.26.1", default-features = false }
 
 [build-dependencies]
 slint-build = "1"

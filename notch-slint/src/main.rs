@@ -32,6 +32,7 @@ use slint::{
 
 mod privacy;
 mod shelf;
+mod tray;
 mod hotkeys;
 mod colorpick;
 mod compress;
@@ -6399,6 +6400,68 @@ fn main() -> Result<(), slint::PlatformError> {
                 platform::hide_from_taskbar(w.window());
             }
         });
+    }
+
+    // --- Tray: Pengaturan, Pusatkan Notch, Keluar (sama dengan tray versi Tauri) ---
+    let tray_handle: Rc<RefCell<Option<tray::Tray>>> = Rc::new(RefCell::new(None));
+    let tray_retry = Rc::new(Timer::default());
+    {
+        let weak = win.as_weak();
+        let (open_timer, close_timer, shrink_timer) = (open_timer.clone(), close_timer.clone(), shrink_timer.clone());
+        let (shell, sync) = (shell.clone(), sync_pages.clone());
+        let on_action: Rc<dyn Fn(tray::Action)> = Rc::new(move |action| {
+            let Some(w) = weak.upgrade() else { return };
+            match action {
+                tray::Action::Settings => {
+                    // Bukan expand(): fungsi itu memaksa halaman Jam bila wajah jam sedang aktif.
+                    // Kursor ada di tray (di luar jendela), jadi timer hover dihentikan agar hub tidak menutup sendiri.
+                    open_timer.stop();
+                    close_timer.stop();
+                    shrink_timer.stop();
+                    w.set_page_id("settings".into());
+                    shell.place(&w, expanded_size(&w));
+                    w.set_expanded(true);
+                    sync();
+                }
+                // Jalur yang sama dengan pilihan posisi "top" di Pengaturan: disimpan ke config seperti di Tauri.
+                tray::Action::Center => w.invoke_settings_save_position("top".into()),
+                tray::Action::Quit => {
+                    let _ = slint::quit_event_loop();
+                }
+            }
+        });
+        let try_install = {
+            let holder = tray_handle.clone();
+            move || -> bool {
+                if holder.borrow().is_some() {
+                    return true;
+                }
+                let on_action = on_action.clone();
+                match tray::install(move |action| on_action(action)) {
+                    Ok(installed) => {
+                        *holder.borrow_mut() = Some(installed);
+                        true
+                    }
+                    Err(error) => {
+                        eprintln!("tray gagal dibuat (pengaturan tidak bisa dibuka lewat tray): {error}");
+                        false
+                    }
+                }
+            }
+        };
+        // Saat berjalan otomatis ketika login, tray kadang belum siap: coba lagi tiap 3 detik (maksimal 20 kali).
+        if tray::SUPPORTED && !try_install() {
+            let tries = Cell::new(0u32);
+            let timer = Rc::downgrade(&tray_retry);
+            tray_retry.start(TimerMode::Repeated, Duration::from_secs(3), move || {
+                tries.set(tries.get() + 1);
+                if try_install() || tries.get() >= 20 {
+                    if let Some(timer) = timer.upgrade() {
+                        timer.stop();
+                    }
+                }
+            });
+        }
     }
 
     win.run()
