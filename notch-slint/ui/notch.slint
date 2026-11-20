@@ -3092,7 +3092,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "features";
         height: root.active-tab == "features" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pintasan global"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3204,7 +3203,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "appearance" || root.active-tab == "eyes";
         height: root.active-tab == "appearance" || root.active-tab == "eyes" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-appearance := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: root.active-tab == "eyes" ? "Mata" : "Tampilan"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3214,11 +3212,10 @@ export component SettingsWindow inherits Window {
                 Rectangle {
                     visible: root.active-tab == "appearance";
                     height: root.active-tab == "appearance" ? self.preferred-height : 0px;
-                    min-height: 0px;
                     VerticalLayout {
                         spacing: 5px;
                         Text { visible: root.active-tab == "appearance"; text: "Warna & tema"; color: Theme.text; font-size: 11px; font-weight: 700; }
-                        Rectangle { visible: false; height: 0px; min-height: 0px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        Rectangle { visible: false; height: 0px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
                         HorizontalLayout { visible: root.active-tab == "appearance";
                         spacing: 6px;
                         SettingsSegmentButton { label: "Ikuti OS"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
@@ -3369,7 +3366,6 @@ export component SettingsWindow inherits Window {
                 Rectangle {
                     visible: root.active-tab == "eyes";
                     height: root.active-tab == "eyes" ? self.preferred-height : 0px;
-                    min-height: 0px;
                     VerticalLayout {
                         spacing: 5px;
                         Text { visible: root.active-tab == "eyes"; text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
@@ -3466,7 +3462,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "weather";
         height: root.active-tab == "weather" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Lokasi cuaca"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3519,7 +3514,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "behavior";
         height: root.active-tab == "behavior" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3624,7 +3618,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "nudge";
         height: root.active-tab == "nudge" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-nudge := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Notifikasi & perilaku otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3849,7 +3842,6 @@ export component SettingsWindow inherits Window {
     Rectangle {
         visible: root.active-tab == "features";
         height: root.active-tab == "features" ? self.preferred-height : 0px;
-        min-height: 0px;
         VerticalLayout {
             spacing: 8px;
         sec-prayer := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
@@ -3994,9 +3986,9 @@ component CompressPage inherits VerticalLayout {
     padding-left: 14px;
     padding-right: 14px;
     spacing: 8px;
-    Text { visible: root.active-tab == "features"; text: "Compress"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "Kompresi batch gambar, PDF & Office · target pengurangan 30%"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-    Rectangle { visible: root.active-tab == "features";
+    Text { text: "Compress"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Kompresi batch gambar, PDF & Office · target pengurangan 30%"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
         border-width: 1px;
@@ -4014,12 +4006,12 @@ component CompressPage inherits VerticalLayout {
             Text { text: "Hasil disimpan sebagai nama_compressed.<format> (Office tetap memakai ekstensi aslinya) di folder yang sama."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: end;
         Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
         Chip { label: "Kompres"; clicked => { root.run(path-input.text); } }
     }
-    Text { visible: root.active-tab == "features"; text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+    Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
 }
 component ConvertPage inherits VerticalLayout {
     in property <string> file-path: "";
@@ -4063,10 +4055,10 @@ component ConvertPage inherits VerticalLayout {
     padding-left: 14px;
     padding-right: 14px;
     spacing: 7px;
-    Text { visible: root.active-tab == "features"; text: "Convert"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "Konversi gambar, PDF, dan dokumen Office"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "Tip: seret file langsung dari Windows Explorer ke jendela ini, atau gunakan Pilih file."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
-    Rectangle { visible: root.active-tab == "features";
+    Text { text: "Convert"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Konversi gambar, PDF, dan dokumen Office"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Text { text: "Tip: seret file langsung dari Windows Explorer ke jendela ini, atau gunakan Pilih file."; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+    Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
         border-width: 1px;
@@ -4091,7 +4083,7 @@ component ConvertPage inherits VerticalLayout {
             }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: end;
         Chip { label: "Pilih file"; clicked => { root.pick-file(); } }
         Chip { label: "Tambah file"; clicked => { root.add-files(); } }
@@ -4112,7 +4104,7 @@ component ConvertPage inherits VerticalLayout {
         Chip { label: "Batalkan"; clicked => { root.cancel(); } }
         Chip { label: "Buka folder hasil"; clicked => { root.reveal(); } }
     }
-    Rectangle { visible: root.active-tab == "features";
+    Rectangle {
         height: 7px;
         border-radius: 4px;
         background: Theme.track;
@@ -4124,13 +4116,13 @@ component ConvertPage inherits VerticalLayout {
             animate width { duration: 180ms; easing: ease-out; }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         Text { text: root.eta-text; color: Theme.text-faint; font-size: 9px; horizontal-stretch: 1; }
         Text { text: root.progress-text; color: Theme.accent; font-size: 10px; }
     }
-    Text { visible: root.active-tab == "features"; text: root.queue-text; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-    Text { visible: root.active-tab == "features"; text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
-    Rectangle { visible: root.active-tab == "features";
+    Text { text: root.queue-text; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+    Text { text: root.status; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
+    Rectangle {
         background: #ffffff08;
         border-radius: 9px;
         border-width: 1px;
@@ -4176,7 +4168,7 @@ component ConvertPage inherits VerticalLayout {
             Text { text: root.preview-status; color: #ffb36b; font-size: 9px; wrap: word-wrap; }
         }
     }
-    Rectangle { visible: root.active-tab == "features";
+    Rectangle {
         background: #ffffff08;
         border-radius: 9px;
         border-width: 1px;
@@ -4188,7 +4180,7 @@ component ConvertPage inherits VerticalLayout {
             Text { text: root.files-text; color: Theme.text-faint; font-size: 10px; wrap: word-wrap; }
         }
     }
-    Rectangle { visible: root.active-tab == "features";
+    Rectangle {
         background: #ffffff08;
         border-radius: 9px;
         border-width: 1px;
@@ -4218,9 +4210,9 @@ component TransferPage inherits VerticalLayout {
     padding-left: 14px;
     padding-right: 14px;
     spacing: 8px;
-    Text { visible: root.active-tab == "features"; text: "File Transfer"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "Berbagi file melalui jaringan lokal"; color: Theme.accent; font-size: 11px; font-weight: 700; }
-    Rectangle { visible: root.active-tab == "features";
+    Text { text: "File Transfer"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "Berbagi file melalui jaringan lokal"; color: Theme.accent; font-size: 11px; font-weight: 700; }
+    Rectangle {
         background: #ffffff0b;
         border-radius: 10px;
         border-width: 1px;
@@ -4233,17 +4225,17 @@ component TransferPage inherits VerticalLayout {
             Text { text: "File dibagikan: " + root.shared-count-text; color: Theme.text-faint; font-size: 10px; }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: start;
         Chip { label: "Mulai server"; clicked => { root.start-server(); } }
         Chip { label: "Hentikan"; clicked => { root.stop(); } }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: start;
         Chip { label: "Tambah file"; clicked => { root.add-files(); } }
         Chip { label: "Folder masuk"; clicked => { root.open-inbox(); } }
     }
-    Text { visible: root.active-tab == "features"; text: "Perangkat lain yang satu jaringan dapat membuka alamat di atas untuk mengunduh atau mengirim file."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+    Text { text: "Perangkat lain yang satu jaringan dapat membuka alamat di atas untuk mengunduh atau mengirim file."; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
 }
 component AndroidPage inherits VerticalLayout {
     in property <string> status: "Periksa perangkat Android";
@@ -4262,9 +4254,9 @@ component AndroidPage inherits VerticalLayout {
     padding-left: 12px;
     padding-right: 12px;
     spacing: 6px;
-    Text { visible: root.active-tab == "features"; text: "Android"; color: Theme.text; font-size: 17px; font-weight: 700; }
-    Text { visible: root.active-tab == "features"; text: "ADB · USB / Wireless debugging"; color: Theme.accent; font-size: 10px; font-weight: 700; }
-    Rectangle { visible: root.active-tab == "features";
+    Text { text: "Android"; color: Theme.text; font-size: 17px; font-weight: 700; }
+    Text { text: "ADB · USB / Wireless debugging"; color: Theme.accent; font-size: 10px; font-weight: 700; }
+    Rectangle {
         background: #ffffff0b;
         border-radius: 9px;
         border-width: 1px;
@@ -4278,12 +4270,12 @@ component AndroidPage inherits VerticalLayout {
             serial-input := TextInput { text: root.selected-serial; color: Theme.text; font-size: 10px; single-line: true; }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: start;
         Chip { label: "Deteksi"; clicked => { root.refresh(); } }
         Chip { label: "Pilih"; clicked => { root.select-device(serial-input.text); } }
     }
-    Rectangle { visible: root.active-tab == "features";
+    Rectangle {
         background: #ffffff0b;
         border-radius: 9px;
         VerticalLayout {
@@ -4295,7 +4287,7 @@ component AndroidPage inherits VerticalLayout {
             Text { text: root.entries; color: Theme.text; font-size: 9px; wrap: word-wrap; }
         }
     }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: start;
         Chip { label: "Kirim file ke HP"; clicked => { root.push(serial-input.text, path-input.text); } }
         Chip { label: "Ambil file dari HP"; clicked => { root.pull(path-input.text); } }
@@ -4315,7 +4307,7 @@ component PrivacyBadge inherits Rectangle {
     height: root.size;
     border-radius: root.size / 2;
     background: root.tone;
-    Rectangle { visible: root.active-tab == "features";
+    Rectangle {
         x: -(2px + 2.5px * root.pulse);
         y: -(2px + 2.5px * root.pulse);
         width: root.size + 2 * (2px + 2.5px * root.pulse);
@@ -4383,7 +4375,7 @@ component PrivacySensor inherits Rectangle {
     border-color: root.on ? root.tone.with-alpha(0.5) : #ffffff14;
     animate background { duration: 220ms; }
     animate border-color { duration: 220ms; }
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         padding-left: 10px;
         padding-right: 10px;
         spacing: 10px;
@@ -4453,7 +4445,7 @@ component PrivacyPage inherits Rectangle {
     // Hanya berjalan saat aktif, jadi tidak membuat render terus-menerus ketika aman.
     property <float> phase: Math.mod(animation-tick() / 1ms, 1800.0) / 1800.0;
 
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         padding-left: 18px;
         padding-right: 18px;
         padding-top: 4px;
@@ -4678,7 +4670,7 @@ component PrayerPage inherits VerticalLayout {
     padding-bottom: 12px;
     spacing: 10px;
 
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         spacing: 14px;
         vertical-stretch: root.ramadan ? 0 : 1;
         min-height: 104px;
@@ -5023,8 +5015,8 @@ component PlaceholderPage inherits VerticalLayout {
     in property <string> name;
     alignment: center;
     spacing: 4px;
-    Text { visible: root.active-tab == "features"; text: root.name; color: Theme.text; font-size: 16px; font-weight: 700; horizontal-alignment: center; }
-    Text { visible: root.active-tab == "features"; text: "Belum tersedia di versi Slint"; color: Theme.text-faint; font-size: 12px; horizontal-alignment: center; }
+    Text { text: root.name; color: Theme.text; font-size: 16px; font-weight: 700; horizontal-alignment: center; }
+    Text { text: "Belum tersedia di versi Slint"; color: Theme.text-faint; font-size: 12px; horizontal-alignment: center; }
 }
 
 // Halaman uji render: teks Arab (teks asli) dan emoji (gambar). Muncul jika "uji" ada di `pages`.
@@ -5034,14 +5026,14 @@ component RenderTestPage inherits VerticalLayout {
     in property <image> moon;
     alignment: center;
     spacing: 8px;
-    HorizontalLayout { visible: root.active-tab == "features";
+    HorizontalLayout {
         alignment: center;
         spacing: 10px;
         Image { source: root.coffee; width: 28px; height: 28px; image-fit: contain; }
         Image { source: root.tomato; width: 28px; height: 28px; image-fit: contain; }
         Image { source: root.moon; width: 28px; height: 28px; image-fit: contain; }
     }
-    Text { visible: root.active-tab == "features";
+    Text {
         text: "بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ";
         color: Theme.ok;
         font-size: 22px;
