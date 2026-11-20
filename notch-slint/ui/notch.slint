@@ -2902,7 +2902,8 @@ component SettingsChoiceCard inherits Rectangle {
             y: 0px;
             width: 88px;
             height: 31px;
-            border-radius: 0px 0px 11px 11px;
+            border-bottom-left-radius: 11px;
+            border-bottom-right-radius: 11px;
             background: #03050b;
             HorizontalLayout {
                 alignment: center;
@@ -2975,7 +2976,7 @@ export component SettingsWindow inherits Window {
     in property <string> pomodoro-long-break: "15";
     in property <string> pomodoro-rounds: "4";
     in property <string> behavior-scale: "1.00";
-    in property <float> behavior-scale-value: 1.0;
+    in-out property <float> behavior-scale-value: 1.0;
     in property <string> behavior-hover-open: "150";
     in property <string> behavior-hover-close: "450";
     in property <string> behavior-sleep-after: "60";
@@ -3161,7 +3162,8 @@ export component SettingsWindow inherits Window {
                                 y: 0px;
                                 width: 184px;
                                 height: 39px;
-                                border-radius: 0px 0px 15px 15px;
+                                border-bottom-left-radius: 15px;
+                                border-bottom-right-radius: 15px;
                                 background: #03050b;
                                 HorizontalLayout {
                                     alignment: center;
