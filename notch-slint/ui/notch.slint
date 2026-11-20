@@ -5426,6 +5426,9 @@ export component NotchWindow inherits Window {
     in property <int> dock: 0;
     in property <bool> play-interaction-active: false;
     in property <bool> dragging: false;
+    // True sesaat saat Rust mengubah ukuran jendela native: notch disembunyikan agar frame basi (isi lama di
+    // posisi/ukuran jendela yang baru) tidak sempat tampil sebagai bentuk ganda.
+    in property <bool> geometry-hold: false;
     in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
@@ -5868,6 +5871,7 @@ export component NotchWindow inherits Window {
     }
 
     pill := Rectangle {
+        visible: !root.geometry-hold;
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         // Bentuk compact meniru Tauri: setengah lingkaran menghadap ke dalam layar.
         // Dock bawah 80x44, dock samping 60x120; hub terbuka tetap memakai ukuran landscape.
@@ -6541,7 +6545,7 @@ export component NotchWindow inherits Window {
     }
 
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
-    if root.dock >= 2 && !root.expanded && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
+    if root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
         width: root.dock >= 3 ? 200px : 224px;
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
@@ -6554,10 +6558,10 @@ export component NotchWindow inherits Window {
     }
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
-    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
-    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
-    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
-    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
+    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 0 || root.dock == 2); kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 0 || root.dock == 2); kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
+    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
 }
 
 // Jendela detail catatan (setara note-detail.html di Tauri): toolbar, editor, status bar, toast.

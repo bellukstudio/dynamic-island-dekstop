@@ -644,6 +644,38 @@ mod platform {
         let _ = window;
     }
 
+    /// Atur posisi DAN ukuran jendela dalam satu panggilan (piksel fisik). `set_size` lalu `set_position` terpisah
+    /// menyisakan satu frame saat jendela sudah berukuran baru tetapi masih di posisi lama, sehingga notch yang
+    /// ditengahkan di dalamnya terlihat melompat/berkedip saat hub membuka atau menutup. Mengembalikan false bila
+    /// jendela native belum ada (atau bukan Windows); pemanggil lalu memakai API Slint biasa.
+    pub fn set_bounds(window: &slint::Window, x: i32, y: i32, w: u32, h: u32) -> bool {
+        #[cfg(windows)]
+        {
+            use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            use slint::winit_030::WinitWindowAccessor;
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOZORDER};
+            let raw = window
+                .with_winit_window(|win| match win.window_handle().map(|h| h.as_raw()) {
+                    Ok(RawWindowHandle::Win32(h)) => Some(h.hwnd.get()),
+                    _ => None,
+                })
+                .flatten();
+            if let Some(raw) = raw {
+                unsafe {
+                    let hwnd = HWND(raw as *mut core::ffi::c_void);
+                    return SetWindowPos(hwnd, None, x, y, w as i32, h as i32, SWP_NOZORDER | SWP_NOACTIVATE).is_ok();
+                }
+            }
+            false
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (window, x, y, w, h);
+            false
+        }
+    }
+
     /// Area kerja monitor (di luar taskbar) tempat notch berada, dalam piksel fisik: lebar penuh monitor,
     /// vertikal mengikuti area kerja (sama dengan `monitor_work_area` di src-tauri/src/lib.rs).
     /// `near` = titik (mis. tengah posisi kustom) untuk memilih monitor; `None` = monitor utama.
@@ -1557,8 +1589,13 @@ impl Shell {
             self.rebuild_decor(win, dock, sf);
         }
         let w = win.window();
-        w.set_size(PhysicalSize::new(size.0, size.1));
-        w.set_position(PhysicalPosition::new(origin.0, origin.1));
+        if platform::set_bounds(w, origin.0, origin.1, size.0, size.1) {
+            // Selaraskan layout Slint dengan ukuran native saat itu juga, bukan menunggu event Resized.
+            w.set_size(PhysicalSize::new(size.0, size.1));
+        } else {
+            w.set_size(PhysicalSize::new(size.0, size.1));
+            w.set_position(PhysicalPosition::new(origin.0, origin.1));
+        }
     }
 
     fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
@@ -1600,6 +1637,28 @@ fn settle_expanded_geometry(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>, tr
             shell.place(&w, (lw, lh));
             settle_expanded_geometry(weak.clone(), shell.clone(), tries_left - 1);
         }
+    });
+}
+
+/// Perkecil jendela ke ukuran menciut tanpa menampilkan frame basi. Saat jendela native berubah ukuran/posisi,
+/// Windows sempat menampilkan frame terakhir yang sudah tergambar pada koordinat jendela yang baru (pil tampak
+/// bergeser atau muncul sebagai bentuk ganda). Karena itu notch disembunyikan dan frame kosong itu dibiarkan
+/// tergambar dulu; frame basi yang tampil sesudah resize jadi transparan. Notch langsung ditampilkan lagi pada
+/// panggilan yang sama dengan resize, sehingga frame pertama di ukuran baru sudah memuat notch (hilang sekitar 2 frame).
+fn shrink_window_hidden(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
+    let Some(w) = weak.upgrade() else { return };
+    if w.get_expanded() {
+        return;
+    }
+    w.set_geometry_hold(true);
+    Timer::single_shot(Duration::from_millis(24), move || {
+        let Some(w) = weak.upgrade() else { return };
+        if !w.get_expanded() {
+            // Greeting inline (385 px) masih tampil: jangan potong ke 300 px.
+            let size = if w.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED };
+            shell.place(&w, size);
+        }
+        w.set_geometry_hold(false);
     });
 }
 
@@ -3907,6 +3966,10 @@ fn main() -> Result<(), slint::PlatformError> {
             if w.get_idle_clock() {
                 w.set_page_id("clock".into());
             }
+            // Hover saat greeting tampil: hub menggantikan greeting. Flag harus dibersihkan, kalau tidak kartu 385 px
+            // muncul lagi di jendela 300 px begitu hub menciut.
+            w.set_greeting_inline_visible(false);
+            w.set_geometry_hold(false);
             let size = expanded_size(&w);
             shell.place(&w, size);
             w.set_expanded(true);
@@ -3939,11 +4002,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let weak2 = weak.clone();
             let shell = shell.clone();
             shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
-                if let Some(w) = weak2.upgrade() {
-                    if !w.get_expanded() {
-                        shell.place(&w, COLLAPSED);
-                    }
-                }
+                shrink_window_hidden(weak2.clone(), shell.clone());
             });
         })
     };
@@ -5633,7 +5692,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let shell_hide = shell.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                 if let Some(w) = weak.upgrade() {
-                    if w.get_greeting_inline_visible() {
+                    if w.get_greeting_inline_visible() && !w.get_expanded() {
                         shell_hide.place(&w, COLLAPSED);
                     }
                     w.set_greeting_inline_visible(false);
@@ -6817,7 +6876,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let voice = cfg.greeting.voice.clone();
         startup_greeting_timer.start(TimerMode::SingleShot, Duration::from_millis(1_800), move || {
             let Some(w) = weak.upgrade() else { return };
-            if w.get_meeting_active() || w.get_adhan_active() { return; }
+            if w.get_meeting_active() || w.get_adhan_active() || w.get_expanded() { return; }
             if let Some(greeting) = greeting.as_ref() {
                 w.set_greeting_message(greeting.message.clone().into());
                 w.set_greeting_detail(greeting.detail.clone().into());
@@ -6839,7 +6898,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 let shell_hide = shell.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                     if let Some(w) = weak_hide.upgrade() {
-                        if w.get_greeting_inline_visible() {
+                        if w.get_greeting_inline_visible() && !w.get_expanded() {
                             shell_hide.place(&w, COLLAPSED);
                         }
                         w.set_greeting_inline_visible(false);
