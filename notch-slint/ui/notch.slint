@@ -3090,12 +3090,10 @@ export component SettingsWindow inherits Window {
                 padding-right: 12px;
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "features";
         height: root.active-tab == "features" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-shortcuts := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Pintasan global"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle {
@@ -3204,118 +3202,132 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "appearance" || root.active-tab == "eyes";
         height: root.active-tab == "appearance" || root.active-tab == "eyes" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-appearance := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: root.active-tab == "eyes" ? "Mata" : "Tampilan"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
         Text { text: root.active-tab == "eyes" ? "Ekspresi mata dan skin Notch." : "Warna, tema, dan ukuran notch."; color: Theme.text-dim; font-size: 10px; }
         appearance-card := Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
             VerticalLayout { padding: 9px; spacing: 5px;
-                Text { visible: root.active-tab == "appearance"; text: "Warna & tema"; color: Theme.text; font-size: 11px; font-weight: 700; }
-                Rectangle { visible: false; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout { visible: root.active-tab == "appearance";
-                    spacing: 6px;
-                    SettingsSegmentButton { label: "Ikuti OS"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
-                    SettingsSegmentButton { label: "Gelap"; selected: theme-input.text == "dark"; clicked => { theme-input.text = "dark"; } }
+                Rectangle {
+                    visible: root.active-tab == "appearance";
+                    height: root.active-tab == "appearance" ? self.preferred-height : 0px;
+                    min-height: 0px;
+                    VerticalLayout {
+                        spacing: 5px;
+                        Text { visible: root.active-tab == "appearance"; text: "Warna & tema"; color: Theme.text; font-size: 11px; font-weight: 700; }
+                        Rectangle { visible: false; height: 0px; min-height: 0px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; theme-input := TextInput { vertical-alignment: center; text: root.appearance-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        HorizontalLayout { visible: root.active-tab == "appearance";
+                        spacing: 6px;
+                        SettingsSegmentButton { label: "Ikuti OS"; selected: theme-input.text == "auto"; clicked => { theme-input.text = "auto"; } }
+                        SettingsSegmentButton { label: "Gelap"; selected: theme-input.text == "dark"; clicked => { theme-input.text = "dark"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "appearance";
+                        spacing: 6px;
+                        SettingsSegmentButton { label: "Terang"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
+                        SettingsSegmentButton { label: "Kustom"; selected: theme-input.text == "custom"; clicked => { theme-input.text = "custom"; } }
+                        }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna aksen (HEX)"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; accent-input := TextInput { vertical-alignment: center; text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
+                        HorizontalLayout { visible: root.active-tab == "appearance";
+                        spacing: 4px;
+                        Chip { label: "Biru"; selected: accent-input.text == "#6C8CFF"; clicked => { accent-input.text = "#6C8CFF"; } }
+                        Chip { label: "Ungu"; selected: accent-input.text == "#A78BFA"; clicked => { accent-input.text = "#A78BFA"; } }
+                        Chip { label: "Pink"; selected: accent-input.text == "#F472B6"; clicked => { accent-input.text = "#F472B6"; } }
+                        Chip { label: "Hijau"; selected: accent-input.text == "#34D399"; clicked => { accent-input.text = "#34D399"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "appearance";
+                        spacing: 4px;
+                        Chip { label: "Oranye"; selected: accent-input.text == "#FB923C"; clicked => { accent-input.text = "#FB923C"; } }
+                        Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
+                        Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
+                        }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna notch (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-bg-input := TextInput { vertical-alignment: center; text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna teks (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-text-input := TextInput { vertical-alignment: center; text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema gelap"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dark-bg-input := TextInput { vertical-alignment: center; text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema terang"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; light-bg-input := TextInput { vertical-alignment: center; text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
+                    }
                 }
-                HorizontalLayout { visible: root.active-tab == "appearance";
-                    spacing: 6px;
-                    SettingsSegmentButton { label: "Terang"; selected: theme-input.text == "light"; clicked => { theme-input.text = "light"; } }
-                    SettingsSegmentButton { label: "Kustom"; selected: theme-input.text == "custom"; clicked => { theme-input.text = "custom"; } }
+                Rectangle {
+                    visible: root.active-tab == "eyes";
+                    height: root.active-tab == "eyes" ? self.preferred-height : 0px;
+                    min-height: 0px;
+                    VerticalLayout {
+                        spacing: 5px;
+                        Text { visible: root.active-tab == "eyes"; text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
+                        Text { visible: root.active-tab == "eyes"; text: "Tema badan notch"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                        Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: notch-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; notch-theme-input := TextInput { vertical-alignment: center; text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Default"; selected: notch-theme-input.text == "default"; clicked => { notch-theme-input.text = "default"; } }
+                        Chip { label: "Aurora"; selected: notch-theme-input.text == "aurora"; clicked => { notch-theme-input.text = "aurora"; } }
+                        Chip { label: "Obsidian"; selected: notch-theme-input.text == "obsidian"; clicked => { notch-theme-input.text = "obsidian"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Neon"; selected: notch-theme-input.text == "neon"; clicked => { notch-theme-input.text = "neon"; } }
+                        Chip { label: "Sakura"; selected: notch-theme-input.text == "sakura"; clicked => { notch-theme-input.text = "sakura"; } }
+                        Chip { label: "Matcha"; selected: notch-theme-input.text == "matcha"; clicked => { notch-theme-input.text = "matcha"; } }
+                        }
+                        Text { visible: root.active-tab == "eyes"; text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                        Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; mood-input := TextInput { vertical-alignment: center; text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Normal"; selected: mood-input.text == "normal"; clicked => { mood-input.text = "normal"; } }
+                        Chip { label: "Happy"; selected: mood-input.text == "happy"; clicked => { mood-input.text = "happy"; } }
+                        Chip { label: "Sleepy"; selected: mood-input.text == "sleepy"; clicked => { mood-input.text = "sleepy"; } }
+                        Chip { label: "Love"; selected: mood-input.text == "love"; clicked => { mood-input.text = "love"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Surprised"; selected: mood-input.text == "surprised"; clicked => { mood-input.text = "surprised"; } }
+                        Chip { label: "Angry"; selected: mood-input.text == "angry"; clicked => { mood-input.text = "angry"; } }
+                        Chip { label: "Sad"; selected: mood-input.text == "sad"; clicked => { mood-input.text = "sad"; } }
+                        Chip { label: "Suspicious"; selected: mood-input.text == "suspicious"; clicked => { mood-input.text = "suspicious"; } }
+                        }
+                        Text { visible: root.active-tab == "eyes"; text: "Skin mata (20 pilihan tersedia)"; color: Theme.text-faint; font-size: 9px; }
+                        Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: eye-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; eye-theme-input := TextInput { vertical-alignment: center; text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Aurora"; selected: eye-theme-input.text == "aurora"; clicked => { eye-theme-input.text = "aurora"; } }
+                        Chip { label: "Neon"; selected: eye-theme-input.text == "neon"; clicked => { eye-theme-input.text = "neon"; } }
+                        Chip { label: "Pastel"; selected: eye-theme-input.text == "pastel"; clicked => { eye-theme-input.text = "pastel"; } }
+                        Chip { label: "Pixel"; selected: eye-theme-input.text == "pixel"; clicked => { eye-theme-input.text = "pixel"; } }
+                        Chip { label: "Holo"; selected: eye-theme-input.text == "holo"; clicked => { eye-theme-input.text = "holo"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Ember"; selected: eye-theme-input.text == "ember"; clicked => { eye-theme-input.text = "ember"; } }
+                        Chip { label: "Ocean"; selected: eye-theme-input.text == "ocean"; clicked => { eye-theme-input.text = "ocean"; } }
+                        Chip { label: "Sakura"; selected: eye-theme-input.text == "sakura"; clicked => { eye-theme-input.text = "sakura"; } }
+                        Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
+                        Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Kawaii"; selected: eye-theme-input.text == "kawaii"; clicked => { eye-theme-input.text = "kawaii"; } }
+                        Chip { label: "Boba"; selected: eye-theme-input.text == "boba"; clicked => { eye-theme-input.text = "boba"; } }
+                        Chip { label: "Galaxy"; selected: eye-theme-input.text == "galaxy"; clicked => { eye-theme-input.text = "galaxy"; } }
+                        Chip { label: "Matcha"; selected: eye-theme-input.text == "matcha"; clicked => { eye-theme-input.text = "matcha"; } }
+                        Chip { label: "Candy"; selected: eye-theme-input.text == "candy"; clicked => { eye-theme-input.text = "candy"; } }
+                        }
+                        HorizontalLayout { visible: root.active-tab == "eyes";
+                        spacing: 4px;
+                        Chip { label: "Synthwave"; selected: eye-theme-input.text == "synthwave"; clicked => { eye-theme-input.text = "synthwave"; } }
+                        Chip { label: "Slime"; selected: eye-theme-input.text == "slime"; clicked => { eye-theme-input.text = "slime"; } }
+                        Chip { label: "Cotton"; selected: eye-theme-input.text == "cotton"; clicked => { eye-theme-input.text = "cotton"; } }
+                        Chip { label: "Pumpkin"; selected: eye-theme-input.text == "pumpkin"; clicked => { eye-theme-input.text = "pumpkin"; } }
+                        Chip { label: "Frost"; selected: eye-theme-input.text == "frost"; clicked => { eye-theme-input.text = "frost"; } }
+                        }
+                    }
                 }
-                Text { visible: root.active-tab == "eyes"; text: "Skin mata dipilih pada bagian ekspresi di bawah"; color: Theme.text-faint; font-size: 9px; }
-                Text { visible: root.active-tab == "eyes"; text: "Tema badan notch"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: notch-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; notch-theme-input := TextInput { vertical-alignment: center; text: root.appearance-notch-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Default"; selected: notch-theme-input.text == "default"; clicked => { notch-theme-input.text = "default"; } }
-                    Chip { label: "Aurora"; selected: notch-theme-input.text == "aurora"; clicked => { notch-theme-input.text = "aurora"; } }
-                    Chip { label: "Obsidian"; selected: notch-theme-input.text == "obsidian"; clicked => { notch-theme-input.text = "obsidian"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Neon"; selected: notch-theme-input.text == "neon"; clicked => { notch-theme-input.text = "neon"; } }
-                    Chip { label: "Sakura"; selected: notch-theme-input.text == "sakura"; clicked => { notch-theme-input.text = "sakura"; } }
-                    Chip { label: "Matcha"; selected: notch-theme-input.text == "matcha"; clicked => { notch-theme-input.text = "matcha"; } }
-                }
-                Text { visible: root.active-tab == "eyes"; text: "Ekspresi mata bawaan saat idle"; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: mood-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; mood-input := TextInput { vertical-alignment: center; text: root.appearance-mood; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Normal"; selected: mood-input.text == "normal"; clicked => { mood-input.text = "normal"; } }
-                    Chip { label: "Happy"; selected: mood-input.text == "happy"; clicked => { mood-input.text = "happy"; } }
-                    Chip { label: "Sleepy"; selected: mood-input.text == "sleepy"; clicked => { mood-input.text = "sleepy"; } }
-                    Chip { label: "Love"; selected: mood-input.text == "love"; clicked => { mood-input.text = "love"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Surprised"; selected: mood-input.text == "surprised"; clicked => { mood-input.text = "surprised"; } }
-                    Chip { label: "Angry"; selected: mood-input.text == "angry"; clicked => { mood-input.text = "angry"; } }
-                    Chip { label: "Sad"; selected: mood-input.text == "sad"; clicked => { mood-input.text = "sad"; } }
-                    Chip { label: "Suspicious"; selected: mood-input.text == "suspicious"; clicked => { mood-input.text = "suspicious"; } }
-                }
-                Text { visible: root.active-tab == "eyes"; text: "Skin mata (20 pilihan tersedia)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "eyes"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: eye-theme-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; eye-theme-input := TextInput { vertical-alignment: center; text: root.appearance-eye-theme; color: Theme.text; font-size: 11px; single-line: true; } } }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Aurora"; selected: eye-theme-input.text == "aurora"; clicked => { eye-theme-input.text = "aurora"; } }
-                    Chip { label: "Neon"; selected: eye-theme-input.text == "neon"; clicked => { eye-theme-input.text = "neon"; } }
-                    Chip { label: "Pastel"; selected: eye-theme-input.text == "pastel"; clicked => { eye-theme-input.text = "pastel"; } }
-                    Chip { label: "Pixel"; selected: eye-theme-input.text == "pixel"; clicked => { eye-theme-input.text = "pixel"; } }
-                    Chip { label: "Holo"; selected: eye-theme-input.text == "holo"; clicked => { eye-theme-input.text = "holo"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Ember"; selected: eye-theme-input.text == "ember"; clicked => { eye-theme-input.text = "ember"; } }
-                    Chip { label: "Ocean"; selected: eye-theme-input.text == "ocean"; clicked => { eye-theme-input.text = "ocean"; } }
-                    Chip { label: "Sakura"; selected: eye-theme-input.text == "sakura"; clicked => { eye-theme-input.text = "sakura"; } }
-                    Chip { label: "Cyber"; selected: eye-theme-input.text == "cyber"; clicked => { eye-theme-input.text = "cyber"; } }
-                    Chip { label: "Mono"; selected: eye-theme-input.text == "monochrome"; clicked => { eye-theme-input.text = "monochrome"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Kawaii"; selected: eye-theme-input.text == "kawaii"; clicked => { eye-theme-input.text = "kawaii"; } }
-                    Chip { label: "Boba"; selected: eye-theme-input.text == "boba"; clicked => { eye-theme-input.text = "boba"; } }
-                    Chip { label: "Galaxy"; selected: eye-theme-input.text == "galaxy"; clicked => { eye-theme-input.text = "galaxy"; } }
-                    Chip { label: "Matcha"; selected: eye-theme-input.text == "matcha"; clicked => { eye-theme-input.text = "matcha"; } }
-                    Chip { label: "Candy"; selected: eye-theme-input.text == "candy"; clicked => { eye-theme-input.text = "candy"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "eyes";
-                    spacing: 4px;
-                    Chip { label: "Synthwave"; selected: eye-theme-input.text == "synthwave"; clicked => { eye-theme-input.text = "synthwave"; } }
-                    Chip { label: "Slime"; selected: eye-theme-input.text == "slime"; clicked => { eye-theme-input.text = "slime"; } }
-                    Chip { label: "Cotton"; selected: eye-theme-input.text == "cotton"; clicked => { eye-theme-input.text = "cotton"; } }
-                    Chip { label: "Pumpkin"; selected: eye-theme-input.text == "pumpkin"; clicked => { eye-theme-input.text = "pumpkin"; } }
-                    Chip { label: "Frost"; selected: eye-theme-input.text == "frost"; clicked => { eye-theme-input.text = "frost"; } }
-                }
-                Text { visible: root.active-tab == "appearance"; text: "Warna aksen (HEX)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: accent-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; accent-input := TextInput { vertical-alignment: center; text: root.appearance-accent; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { visible: root.active-tab == "appearance"; text: "Warna aksen cepat"; color: Theme.text-faint; font-size: 9px; }
-                HorizontalLayout { visible: root.active-tab == "appearance";
-                    spacing: 4px;
-                    Chip { label: "Biru"; selected: accent-input.text == "#6C8CFF"; clicked => { accent-input.text = "#6C8CFF"; } }
-                    Chip { label: "Ungu"; selected: accent-input.text == "#A78BFA"; clicked => { accent-input.text = "#A78BFA"; } }
-                    Chip { label: "Pink"; selected: accent-input.text == "#F472B6"; clicked => { accent-input.text = "#F472B6"; } }
-                    Chip { label: "Hijau"; selected: accent-input.text == "#34D399"; clicked => { accent-input.text = "#34D399"; } }
-                }
-                HorizontalLayout { visible: root.active-tab == "appearance";
-                    spacing: 4px;
-                    Chip { label: "Oranye"; selected: accent-input.text == "#FB923C"; clicked => { accent-input.text = "#FB923C"; } }
-                    Chip { label: "Cyan"; selected: accent-input.text == "#22D3EE"; clicked => { accent-input.text = "#22D3EE"; } }
-                    Chip { label: "Default"; selected: accent-input.text == ""; clicked => { accent-input.text = ""; } }
-                }
-                Text { visible: root.active-tab == "appearance"; text: "Warna notch (HEX #RRGGBB)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-bg-input := TextInput { vertical-alignment: center; text: root.appearance-custom-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { visible: root.active-tab == "appearance"; text: "Warna teks (kosong = otomatis)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: custom-text-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; custom-text-input := TextInput { vertical-alignment: center; text: root.appearance-custom-text; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema gelap"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: dark-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; dark-bg-input := TextInput { vertical-alignment: center; text: root.appearance-dark-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { visible: root.active-tab == "appearance"; text: "Warna notch di tema terang"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { visible: root.active-tab == "appearance"; height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: light-bg-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; light-bg-input := TextInput { vertical-alignment: center; text: root.appearance-light-bg; color: Theme.text; font-size: 11px; single-line: true; } } }
                 HorizontalLayout { visible: root.active-tab == "appearance" || root.active-tab == "eyes";
                     spacing: 5px;
                     Chip {
@@ -3341,12 +3353,10 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "weather";
         height: root.active-tab == "weather" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-weather := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Lokasi cuaca"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
@@ -3396,12 +3406,10 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "behavior";
         height: root.active-tab == "behavior" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi notch"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
@@ -3503,12 +3511,10 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "nudge";
         height: root.active-tab == "nudge" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-nudge := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Notifikasi & perilaku otomatis"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
@@ -3730,12 +3736,10 @@ export component SettingsWindow inherits Window {
     }
 
     Rectangle {
-        width: parent.width;
         visible: root.active-tab == "features";
         height: root.active-tab == "features" ? self.preferred-height : 0px;
         min-height: 0px;
         VerticalLayout {
-            width: parent.width;
             spacing: 8px;
         sec-prayer := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Jadwal shalat"; color: Theme.text; font-size: 15px; font-weight: 700; vertical-alignment: bottom; } }
         Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
