@@ -464,12 +464,17 @@ const EXPANDED_REMINDER: (u32, u32) = (812, 430);
 /// Hub catatan yang diperluas (300 px) + jalur Pusatkan di bawahnya.
 const EXPANDED_TALL: (u32, u32) = (612, 338);
 
+/// Halaman Pengaturan (580 x 520) + jalur Pusatkan dan telinga. Formulirnya panjang, jadi tidak muat di hub 202 px.
+const EXPANDED_SETTINGS: (u32, u32) = (612, 558);
+
 /// Hub Ramadan (780 x 540) + jalur Pusatkan dan telinga.
 const EXPANDED_RAMADAN: (u32, u32) = (812, 578);
 
 fn expanded_size(w: &NotchWindow) -> (u32, u32) {
     if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
         EXPANDED_RAMADAN
+    } else if w.get_page_id() == "settings" {
+        EXPANDED_SETTINGS
     } else if w.get_page_id() == "currency" {
         EXPANDED_CURRENCY
     } else if w.get_page_id() == "reminder" {
@@ -1605,6 +1610,50 @@ fn show_calendar(w: &NotchWindow, model: &VecModel<CalCell>, view: &CalView, hol
     w.set_cal_foot_date(date.into());
     w.set_cal_foot_name(name.into());
     w.set_cal_foot_kind(kind);
+}
+
+/// Diset oleh tombol "Mulai ulang Notch" di Pengaturan; `main` menjalankan proses baru setelah event loop berhenti.
+static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+fn percent_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() * 3);
+    for byte in text.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(byte as char),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Cari kota lewat Open-Meteo geocoding, sama dengan kolom "Cari kota" di Pengaturan Tauri.
+/// Blokir sampai selesai: panggil dari thread latar. Hasil: (label, nama, lat, lon).
+fn search_cities(query: &str) -> Result<Vec<(String, String, String, String)>, String> {
+    let url = format!(
+        "https://geocoding-api.open-meteo.com/v1/search?name={}&count=6&language=id&format=json",
+        percent_encode(query)
+    );
+    let body = notch_core::http::get_text(&url, 8)?;
+    let json: serde_json::Value = serde_json::from_str(&body).map_err(|e| e.to_string())?;
+    let mut hits = Vec::new();
+    for item in json.get("results").and_then(|r| r.as_array()).into_iter().flatten() {
+        let (Some(name), Some(lat), Some(lon)) = (
+            item.get("name").and_then(|v| v.as_str()),
+            item.get("latitude").and_then(|v| v.as_f64()),
+            item.get("longitude").and_then(|v| v.as_f64()),
+        ) else {
+            continue;
+        };
+        let mut label = name.to_string();
+        for key in ["admin1", "country"] {
+            if let Some(part) = item.get(key).and_then(|v| v.as_str()).filter(|v| !v.is_empty() && *v != name) {
+                label.push_str(", ");
+                label.push_str(part);
+            }
+        }
+        hits.push((label, name.chars().take(80).collect(), lat.to_string(), lon.to_string()));
+    }
+    Ok(hits)
 }
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -6402,6 +6451,50 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
+    // --- Pengaturan: cari kota, tes adzan, mulai ulang (setara jendela Pengaturan Tauri) ---
+    {
+        let weak = win.as_weak();
+        win.on_settings_search_city(move |query| {
+            let query = query.trim().to_string();
+            let Some(w) = weak.upgrade() else { return };
+            if query.chars().count() < 2 {
+                w.set_weather_hits(ModelRc::new(VecModel::<CityHit>::default()));
+                w.set_weather_search_status("Ketik minimal 2 huruf nama kota.".into());
+                return;
+            }
+            w.set_weather_search_status("Mencari...".into());
+            let weak = weak.clone();
+            std::thread::spawn(move || {
+                let result = search_cities(&query);
+                let _ = weak.upgrade_in_event_loop(move |w| match result {
+                    Ok(hits) => {
+                        let status = if hits.is_empty() {
+                            "Kota tidak ditemukan. Coba ejaan lain atau isi koordinat manual."
+                        } else {
+                            "Pilih salah satu hasil."
+                        };
+                        let rows: Vec<CityHit> = hits
+                            .into_iter()
+                            .map(|(label, name, lat, lon)| CityHit { label: label.into(), name: name.into(), lat: lat.into(), lon: lon.into() })
+                            .collect();
+                        w.set_weather_hits(ModelRc::new(VecModel::from(rows)));
+                        w.set_weather_search_status(status.into());
+                    }
+                    Err(error) => {
+                        w.set_weather_hits(ModelRc::new(VecModel::<CityHit>::default()));
+                        w.set_weather_search_status(format!("Pencarian gagal: {error}").into());
+                    }
+                });
+            });
+        });
+        let weak = win.as_weak();
+        win.on_settings_test_adhan(move || media::play_adhan(weak.clone(), "Tes".to_string()));
+        win.on_settings_restart(|| {
+            RESTART_REQUESTED.store(true, Ordering::SeqCst);
+            let _ = slint::quit_event_loop();
+        });
+    }
+
     // --- Tray: Pengaturan, Pusatkan Notch, Keluar (sama dengan tray versi Tauri) ---
     let tray_handle: Rc<RefCell<Option<tray::Tray>>> = Rc::new(RefCell::new(None));
     let tray_retry = Rc::new(Timer::default());
@@ -6464,7 +6557,17 @@ fn main() -> Result<(), slint::PlatformError> {
         }
     }
 
-    win.run()
+    let result = win.run();
+    if RESTART_REQUESTED.load(Ordering::SeqCst) {
+        // Lepas jendela dan tray lebih dulu supaya hotkey/ikon lama tidak bentrok dengan proses baru.
+        drop(win);
+        tray_handle.borrow_mut().take();
+        match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).spawn()) {
+            Ok(_) => {}
+            Err(error) => eprintln!("gagal memulai ulang Notch: {error}"),
+        }
+    }
+    result
 }
 
 #[cfg(test)]
