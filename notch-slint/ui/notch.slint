@@ -2853,6 +2853,23 @@ component SettingsFooterButton inherits Rectangle {
     footer-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
+component SettingsEmojiButton inherits Rectangle {
+    in property <string> emoji;
+    callback clicked;
+    width: 30px;
+    height: 28px;
+    border-radius: 8px;
+    background: emoji-ta.has-hover ? Theme.chip-hover : Theme.chip;
+    Text {
+        text: root.emoji;
+        color: Theme.text;
+        font-size: 14px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    emoji-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
 component SettingsChoiceCard inherits Rectangle {
     in property <string> label;
     in property <string> detail;
@@ -3903,13 +3920,13 @@ export component SettingsWindow inherits Window {
                     }
                     HorizontalLayout {
                         spacing: 5px;
-                        Chip { label: "🥺"; clicked => { nudge-emoji-input.text = "🥺"; } }
-                        Chip { label: "😳"; clicked => { nudge-emoji-input.text = "😳"; } }
-                        Chip { label: "😴"; clicked => { nudge-emoji-input.text = "😴"; } }
-                        Chip { label: "😿"; clicked => { nudge-emoji-input.text = "😿"; } }
-                        Chip { label: "😺"; clicked => { nudge-emoji-input.text = "😺"; } }
-                        Chip { label: "🥰"; clicked => { nudge-emoji-input.text = "🥰"; } }
-                        Chip { label: "🤔"; clicked => { nudge-emoji-input.text = "🤔"; } }
+                        SettingsEmojiButton { emoji: "🥺"; clicked => { nudge-emoji-input.text = "🥺"; } }
+                        SettingsEmojiButton { emoji: "😳"; clicked => { nudge-emoji-input.text = "😳"; } }
+                        SettingsEmojiButton { emoji: "😴"; clicked => { nudge-emoji-input.text = "😴"; } }
+                        SettingsEmojiButton { emoji: "😿"; clicked => { nudge-emoji-input.text = "😿"; } }
+                        SettingsEmojiButton { emoji: "😺"; clicked => { nudge-emoji-input.text = "😺"; } }
+                        SettingsEmojiButton { emoji: "🥰"; clicked => { nudge-emoji-input.text = "🥰"; } }
+                        SettingsEmojiButton { emoji: "🤔"; clicked => { nudge-emoji-input.text = "🤔"; } }
                     }
                     Text { text: "Ekspresi mata"; color: Theme.text-faint; font-size: 9px; }
                     Rectangle { height: 0px; nudge-mood-input := TextInput { text: root.nudge-mood; visible: false; } }
