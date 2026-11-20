@@ -2005,7 +2005,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let shell = shell.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         let mut was_down = false;
         let mut drag: Option<((i32, i32), (i32, i32), bool, (i32, i32))> = None;
         // Tekan di dalam jendela yang belum "armed": event press Slint bisa tiba beberapa milidetik
@@ -2139,14 +2138,14 @@ fn main() -> Result<(), slint::PlatformError> {
                             shell.monitor_hint.set(Some(monitor_center));
                             shell.memo.set((None, 0));
                             shell.place(&w, COLLAPSED);
-                            let mut next = updated_config.clone();
+                            let mut next = Config::load_readonly(&config_path);
                             next.position.custom = true;
                             next.position.x = pos.0;
                             next.position.y = pos.1;
                             next.position.monitor_center_x = monitor_center.0;
                             next.position.monitor_center_y = monitor_center.1;
                             if next.save(&config_path).is_ok() {
-                                updated_config = next;
+
                             }
                             w.set_position_mode(mode.into());
                             w.set_dragging(false);
@@ -2377,7 +2376,6 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_pages(move |value| {
             let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
             let mut pages = Vec::<String>::new();
@@ -2398,12 +2396,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 return;
             }
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.pages = pages.clone();
             next.pages_version = notch_core::config::PAGES_VERSION;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next;
+
                     let tabs: Vec<String> = pages.iter().filter(|p| p.as_str() != "lyrics").cloned().collect();
                     let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
                     if let Some(w) = weak.upgrade() {
@@ -2439,7 +2437,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let shell = shell.clone();
         let move_state = dock_move_state.clone();
         let move_timer = dock_move_timer.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_position(move |mode| {
             let mode = mode.to_string();
             if !["top", "floating", "bottom", "left", "right"].contains(&mode.as_str()) {
@@ -2466,7 +2463,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 "right" => Some((notch_core::layout::RIGHT_TX, center_y)),
                 _ => None,
             };
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             match next_pos {
                 Some((x, y)) => {
                     next.position.custom = true;
@@ -2487,7 +2484,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next;
+
                     shell.pos.set(next_pos);
                     shell.monitor_hint.set(next_pos.map(|_| (center_x, center_y)));
                     if let Some(w) = weak.upgrade() {
@@ -2535,12 +2532,11 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_toggle_page(move |id, enabled| {
             let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
             let id = id.to_string();
             if !allowed.contains(&id.as_str()) { return; }
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             if enabled { if !next.pages.iter().any(|page| page == &id) { next.pages.push(id.clone()); } }
             else {
                 if id == "media" { if let Some(w) = weak.upgrade() { w.set_pages_save_status("Halaman Musik wajib tetap aktif.".into()); } return; }
@@ -2549,7 +2545,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.pages_version = notch_core::config::PAGES_VERSION;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     let tabs = next.pages.iter().filter(|page| page.as_str() != "lyrics").cloned().collect::<Vec<_>>();
                     let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
                     if let Some(w) = weak.upgrade() {
@@ -2569,9 +2565,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let hotkey_config_tx = hotkey_config_tx.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_shortcuts(move |hub, settings, pomo, prayer| {
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.shortcuts.toggle_hub = hub.to_string();
             next.shortcuts.open_settings = settings.to_string();
             next.shortcuts.toggle_pomodoro = pomo.to_string();
@@ -2585,7 +2580,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     let _ = hotkey_config_tx.send(next.shortcuts.clone());
                     if let Some(w) = weak.upgrade() {
                         w.set_shortcut_hub(next.shortcuts.toggle_hub.clone().into());
@@ -5345,7 +5340,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let runtime_config = nudge_runtime_config.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent, until_move| {
             let idle = idle.to_string().trim().parse::<u32>().ok().filter(|v| (1..=240).contains(v));
             let show = show.to_string().trim().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v));
@@ -5361,7 +5355,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Pesan wajib 1–80 karakter, emoji 1–12 karakter, dan ekspresi harus valid.".into()); }
                 return;
             }
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.nudge.enabled = enabled;
             next.nudge.idle_min = idle;
             next.nudge.message = message;
@@ -5373,7 +5367,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.nudge.sanitize();
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     *runtime_config.borrow_mut() = next.nudge.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_nudge_enabled(next.nudge.enabled);
@@ -5398,7 +5392,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let greeting_voice_runtime = greeting_voice_runtime.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_greeting(move |enabled, mode, voice, custom_text| {
             let mode = mode.to_string();
             let voice = voice.to_string();
@@ -5415,7 +5408,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_greeting_save_status("Teks greeting kustom wajib diisi dan maksimal 120 karakter.".into()); }
                 return;
             }
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.greeting.enabled = enabled;
             next.greeting.mode = mode;
             next.greeting.voice = voice;
@@ -5423,7 +5416,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.greeting.sanitize();
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     *greeting_voice_runtime.borrow_mut() = next.greeting.voice.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_greeting_enabled(next.greeting.enabled);
@@ -5444,7 +5437,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let runtime = conversation_runtime.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_conversation(move |enabled, on_play, on_track_change, on_pause, on_return, on_weather_change, on_rain_soon, on_low_battery, on_charging, return_after, cooldown| {
             let return_after = return_after.parse::<u32>().ok().filter(|v| (5..=120).contains(v));
             let cooldown = cooldown.parse::<u32>().ok().filter(|v| (1..=60).contains(v));
@@ -5452,7 +5444,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_conversation_save_status("Durasi kembali harus 5–120 menit dan jeda komentar 1–60 menit.".into()); }
                 return;
             };
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.conversation_moments.enabled = enabled;
             next.conversation_moments.on_play = on_play;
             next.conversation_moments.on_track_change = on_track_change;
@@ -5467,7 +5459,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.conversation_moments.sanitize();
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     *runtime.borrow_mut() = next.conversation_moments.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_conversation_enabled(next.conversation_moments.enabled);
@@ -5495,9 +5487,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let runtime = focus_companion_runtime.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_focus_companion(move |enabled, on_start, on_halfway, on_focus_complete, on_break_end| {
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.focus_companion.enabled = enabled;
             next.focus_companion.on_start = on_start;
             next.focus_companion.on_halfway = on_halfway;
@@ -5505,7 +5496,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.focus_companion.on_break_end = on_break_end;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     *runtime.borrow_mut() = next.focus_companion.clone();
                     if let Some(w) = weak.upgrade() {
                         w.set_focus_companion_enabled(next.focus_companion.enabled);
@@ -5672,7 +5663,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let location = weather_location.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_weather(move |city, lat, lon| {
             let city = city.to_string().trim().to_string();
             let Some(lat) = lat.to_string().trim().parse::<f64>().ok().filter(|v| v.is_finite() && (-90.0..=90.0).contains(v)) else {
@@ -5687,13 +5677,13 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_weather_save_status("Nama kota wajib diisi (maksimal 80 karakter).".into()); }
                 return;
             }
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.weather.city = city.clone();
             next.weather.lat = lat;
             next.weather.lon = lon;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next;
+
                     *location.borrow_mut() = (lat, lon, city.clone());
                     if let Some(w) = weak.upgrade() {
                         w.set_weather_city(city.clone().into());
@@ -5715,9 +5705,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let eye_runtime = appearance_eye.clone();
         let sleep_after_s = sleep_after_s.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_appearance(move |theme, eye, notch, mood, accent, custom_bg, custom_text, dark, light, scale| {
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             let scale = f64::from(scale);
             if !(0.5..=1.5).contains(&scale) {
                 if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Skala notch harus berada di antara 0.50× dan 1.50×".into()); }
@@ -5739,7 +5728,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if !valid_hex(&next.appearance.accent) || !valid_hex(&next.appearance.background) || !valid_hex(&next.appearance.text) || !valid_hex(&next.appearance.dark_bg) || !valid_hex(&next.appearance.light_bg) { if let Some(w) = weak.upgrade() { w.set_appearance_save_status("Warna harus memakai format HEX #RRGGBB".into()); } return; }
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     let palette = Palette::from_appearance(&next.appearance, platform::os_light());
                     *shell.theme.borrow_mut() = next.appearance.notch_theme.clone();
                     *shell.body.borrow_mut() = palette.body;
@@ -5878,7 +5867,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let runtime = motion_runtime.clone();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_motion(move |enabled, interval, maximum, dock_play_enabled| {
             let interval = interval.parse::<u32>().ok().filter(|v| (60..=3600).contains(v));
             let maximum = maximum.parse::<u32>().ok().filter(|v| (1..=10).contains(v));
@@ -5888,14 +5876,14 @@ fn main() -> Result<(), slint::PlatformError> {
                 }
                 return;
             };
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             next.motion.enabled = enabled;
             next.motion.interval_secs = interval;
             next.motion.max_moves = maximum;
             next.motion.dock_play_enabled = dock_play_enabled;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next;
+
                     runtime.0.set(enabled);
                     runtime.1.set(interval);
                     runtime.2.set(maximum);
@@ -5932,9 +5920,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let hide_fullscreen = hide_fullscreen.clone();
         let eye_runtime = appearance_eye.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_behavior(move |scale, hover_open, hover_close, sleep_after, hide_fullscreen_enabled| {
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             let scale = scale.parse::<f64>().ok().filter(|v| (0.5..=1.5).contains(v));
             let hover_open = hover_open.parse::<u32>().ok().filter(|v| *v <= 2000);
             let hover_close = hover_close.parse::<u32>().ok().filter(|v| *v <= 5000);
@@ -5953,7 +5940,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.hide_fullscreen = hide_fullscreen_enabled;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     open_ms.set(u64::from(hover_open));
                     close_ms.set(u64::from(hover_close));
                     sleep_after_s.set(sleep_after);
@@ -5990,9 +5977,8 @@ fn main() -> Result<(), slint::PlatformError> {
         let pomo = pomo.clone();
         let fetch_prayer = fetch_prayer.clone();
         let config_path = notch_core::paths::config_path();
-        let mut updated_config = cfg.clone();
         win.on_settings_save_routines(move |mode, remind, minutes, focus, rest, long, rounds, province, city| {
-            let mut next = updated_config.clone();
+            let mut next = Config::load_readonly(&config_path);
             let mode = mode.to_string();
             if !["tone", "adzan", "silent"].contains(&mode.as_str()) { if let Some(w) = weak.upgrade() { w.set_settings_save_status("Mode shalat harus tone, adzan, atau silent".into()); } return; }
             let remind = remind.to_string();
@@ -6015,7 +6001,7 @@ fn main() -> Result<(), slint::PlatformError> {
             next.pomodoro.focus_min = focus; next.pomodoro.break_min = rest; next.pomodoro.long_break_min = long; next.pomodoro.rounds = rounds;
             match next.save(&config_path) {
                 Ok(()) => {
-                    updated_config = next.clone();
+
                     *prefs.borrow_mut() = next.prayer.clone();
                     fetch_prayer(true);
                     let mut timer = pomo.borrow_mut();
