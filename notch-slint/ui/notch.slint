@@ -3742,68 +3742,77 @@ export component SettingsWindow inherits Window {
         height: root.active-tab == "behavior" ? self.preferred-height : 0px;
         VerticalLayout {
             spacing: 8px;
-        sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku & posisi"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-            VerticalLayout { padding: 9px; spacing: 6px;
-                Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
-                HorizontalLayout {
-                    Chip { label: "Atas"; selected: root.position-mode == "top"; clicked => { root.save-position("top"); } }
-                    Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
-                    Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
-                }
-                HorizontalLayout {
-                    Chip { label: "Kiri"; selected: root.position-mode == "left"; clicked => { root.save-position("left"); } }
-                    Chip { label: "Kanan"; selected: root.position-mode == "right"; clicked => { root.save-position("right"); } }
-                }
-                Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
-            }
-        }
-        sec-behavior := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku"; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: bottom; } }
-        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
-            VerticalLayout { padding: 9px; spacing: 5px;
-                Rectangle { visible: false; height: 0px; behavior-scale-input := TextInput { text: root.behavior-scale; visible: false; } }
-                Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-open-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-open-input := TextInput { vertical-alignment: center; text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-close-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-close-input := TextInput { vertical-alignment: center; text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-sleep-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-sleep-input := TextInput { vertical-alignment: center; text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; } } }
-                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hide-fullscreen-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hide-fullscreen-input := TextInput { vertical-alignment: center; text: root.behavior-hide-fullscreen ? "true" : "false"; visible: false; } } }
-                HorizontalLayout {
-                    Text { text: "Sembunyikan notch saat aplikasi fullscreen"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                    Chip {
-                        label: hide-fullscreen-input.text == "true" ? "Aktif" : "Nonaktif";
-                        selected: hide-fullscreen-input.text == "true";
-                        clicked => { hide-fullscreen-input.text = hide-fullscreen-input.text == "true" ? "false" : "true"; }
-                    }
-                }
-                HorizontalLayout {
-                    spacing: 5px;
-                    Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true"); } }
-                    Chip {
-                        label: "Reset default";
-                        clicked => {
-                            behavior-scale-input.text = "1.00";
-                            behavior-hover-open-input.text = "150";
-                            behavior-hover-close-input.text = "450";
-                            behavior-sleep-input.text = "60";
-                            hide-fullscreen-input.text = "true";
-                            root.save-behavior("1.00", "150", "450", "60", true);
-                            root.save-autostart(false);
+        HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                        sec-behavior := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Perilaku"; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: bottom; } }
+                        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+                            VerticalLayout { padding: 9px; spacing: 5px;
+                                Rectangle { visible: false; height: 0px; behavior-scale-input := TextInput { text: root.behavior-scale; visible: false; } }
+                                Text { text: "Jeda hover buka (0–2000 ms)"; color: Theme.text-faint; font-size: 9px; }
+                                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-open-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-open-input := TextInput { vertical-alignment: center; text: root.behavior-hover-open; color: Theme.text; font-size: 11px; single-line: true; } } }
+                                Text { text: "Jeda hover tutup (0–5000 ms)"; color: Theme.text-faint; font-size: 9px; }
+                                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-hover-close-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-hover-close-input := TextInput { vertical-alignment: center; text: root.behavior-hover-close; color: Theme.text; font-size: 11px; single-line: true; } } }
+                                Text { text: "Idle sebelum mata mengantuk (10–3600 detik)"; color: Theme.text-faint; font-size: 9px; }
+                                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: behavior-sleep-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; behavior-sleep-input := TextInput { vertical-alignment: center; text: root.behavior-sleep-after; color: Theme.text; font-size: 11px; single-line: true; } } }
+                                Rectangle { height: 34px; border-radius: 8px; background: Theme.text.with-alpha(0.06); border-width: 1px; border-color: hide-fullscreen-input.has-focus ? Theme.accent.with-alpha(0.75) : Theme.text.with-alpha(0.10); animate border-color { duration: 120ms; } HorizontalLayout { padding-left: 10px; padding-right: 10px; hide-fullscreen-input := TextInput { vertical-alignment: center; text: root.behavior-hide-fullscreen ? "true" : "false"; visible: false; } } }
+                                HorizontalLayout {
+                                    Text { text: "Sembunyikan notch saat aplikasi fullscreen"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                                    Chip {
+                                        label: hide-fullscreen-input.text == "true" ? "Aktif" : "Nonaktif";
+                                        selected: hide-fullscreen-input.text == "true";
+                                        clicked => { hide-fullscreen-input.text = hide-fullscreen-input.text == "true" ? "false" : "true"; }
+                                    }
+                                }
+                                HorizontalLayout {
+                                    spacing: 5px;
+                                    Chip { label: "Simpan perilaku"; clicked => { root.save-behavior(behavior-scale-input.text, behavior-hover-open-input.text, behavior-hover-close-input.text, behavior-sleep-input.text, hide-fullscreen-input.text == "true"); } }
+                                    Chip {
+                                        label: "Reset default";
+                                        clicked => {
+                                            behavior-scale-input.text = "1.00";
+                                            behavior-hover-open-input.text = "150";
+                                            behavior-hover-close-input.text = "450";
+                                            behavior-sleep-input.text = "60";
+                                            hide-fullscreen-input.text = "true";
+                                            root.save-behavior("1.00", "150", "450", "60", true);
+                                            root.save-autostart(false);
+                                        }
+                                    }
+                                }
+                                Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                                HorizontalLayout {
+                                    Text { text: "Jalankan otomatis saat komputer login"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
+                                    Chip {
+                                        label: root.autostart-enabled ? "Aktif" : "Nonaktif";
+                                        selected: root.autostart-enabled;
+                                        clicked => { root.save-autostart(!root.autostart-enabled); }
+                                    }
+                                }
+                                Text { text: root.autostart-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
+                                Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+                            }
                         }
-                    }
-                }
-                Text { text: root.behavior-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                HorizontalLayout {
-                    Text { text: "Jalankan otomatis saat komputer login"; color: Theme.text; font-size: 9px; horizontal-stretch: 1; }
-                    Chip {
-                        label: root.autostart-enabled ? "Aktif" : "Nonaktif";
-                        selected: root.autostart-enabled;
-                        clicked => { root.save-autostart(!root.autostart-enabled); }
-                    }
-                }
-                Text { text: root.autostart-save-status; color: Theme.text-faint; font-size: 9px; wrap: word-wrap; }
-                Text { text: "Pengaturan ini tersedia pada build release."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                        sec-position := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Posisi"; color: Theme.text; font-size: 16px; font-weight: 700; vertical-alignment: bottom; } }
+                        Rectangle { background: Theme.text.with-alpha(0.045); border-radius: 12px; border-width: 1px; border-color: Theme.text.with-alpha(0.08);
+                            VerticalLayout { padding: 9px; spacing: 6px;
+                                Text { text: "Pilih posisi docking"; color: Theme.text-faint; font-size: 9px; }
+                                HorizontalLayout {
+                                    Chip { label: "Atas"; selected: root.position-mode == "top"; clicked => { root.save-position("top"); } }
+                                    Chip { label: "Melayang"; selected: root.position-mode == "floating"; clicked => { root.save-position("floating"); } }
+                                    Chip { label: "Bawah"; selected: root.position-mode == "bottom"; clicked => { root.save-position("bottom"); } }
+                                }
+                                HorizontalLayout {
+                                    Chip { label: "Kiri"; selected: root.position-mode == "left"; clicked => { root.save-position("left"); } }
+                                    Chip { label: "Kanan"; selected: root.position-mode == "right"; clicked => { root.save-position("right"); } }
+                                }
+                                Text { text: "Mode samping memakai pil vertikal; hub tetap terbuka ke arah dalam layar."; color: Theme.text-faint; font-size: 8px; wrap: word-wrap; }
+                            }
+                        }
             }
         }
         sec-motion := Rectangle { height: 46px; Text { width: parent.width; height: parent.height - 6px; text: "Gerakan otomatis"; color: Theme.text; font-size: 11px; font-weight: 700; vertical-alignment: bottom; } }
