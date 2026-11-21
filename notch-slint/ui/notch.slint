@@ -5426,9 +5426,11 @@ export component NotchWindow inherits Window {
     in property <int> dock: 0;
     in property <bool> play-interaction-active: false;
     in property <bool> dragging: false;
-    // True sesaat saat Rust mengubah ukuran jendela native: notch disembunyikan agar frame basi (isi lama di
-    // posisi/ukuran jendela yang baru) tidak sempat tampil sebagai bentuk ganda.
+    // True selama notch menciut dan jendela native diperkecil: notch memudar keluar, jendela diubah saat notch
+    // tak terlihat (frame basi di koordinat baru jadi transparan), lalu notch memudar masuk di ukuran baru.
     in property <bool> geometry-hold: false;
+    property <float> pill-fade: root.geometry-hold ? 0.0 : 1.0;
+    animate pill-fade { duration: root.geometry-hold ? 70ms : 110ms; easing: ease-out; }
     in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
@@ -5842,8 +5844,9 @@ export component NotchWindow inherits Window {
             background: pos-zone.has-hover ? #20202af2 : #121216e6;
             border-width: 1px;
             border-color: Theme.accent.with-alpha(pos-zone.has-hover ? 0.9 : 0.5);
-            opacity: root.expanded ? 1 : 0;
-            animate opacity { duration: 180ms; }
+            // Saat menciut chip harus lenyap cepat: kalau memudar 180 ms ia tertinggal di bawah notch.
+            opacity: root.expanded ? root.pill-fade : 0;
+            animate opacity { duration: root.expanded ? 180ms : 90ms; }
             animate background { duration: 120ms; }
             Path {
                 x: 9px;
@@ -5871,7 +5874,7 @@ export component NotchWindow inherits Window {
     }
 
     pill := Rectangle {
-        visible: !root.geometry-hold;
+        opacity: root.pill-fade;
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         // Bentuk compact meniru Tauri: setengah lingkaran menghadap ke dalam layar.
         // Dock bawah 80x44, dock samping 60x120; hub terbuka tetap memakai ukuran landscape.
@@ -5890,10 +5893,12 @@ export component NotchWindow inherits Window {
         border-top-right-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 4) ? 0px : self.r);
         border-bottom-left-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 3) ? 0px : self.r);
         border-bottom-right-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 4) ? 0px : self.r);
-        animate r { duration: 220ms; easing: ease-out-quart; }
+        animate r { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
         clip: true;
-        animate width { duration: 220ms; easing: ease-out-quart; }
-        animate height { duration: 220ms; easing: ease-out-quart; }
+        // Membuka: 220 ms ease-out-quart. Menutup: 300 ms cubic-bezier(.42, 0, .58, 1) seperti transisi #notch di
+        // Tauri (base.css), terlihat terus tanpa disembunyikan.
+        animate width { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
+        animate height { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
 
         // Badan setengah lingkaran menghadap ke dalam layar: bawah 80x44 (radius 40), kiri/kanan 60x120 (radius 60).
         half-body := Path {
@@ -5938,7 +5943,8 @@ export component NotchWindow inherits Window {
                 height: (root.dock == 2 ? 21px : (root.dock >= 3 ? 120px : (root.dock == 0 ? 26px : 34px))) * root.eyes-scale-y;
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
-                animate opacity { duration: 120ms; }
+                // Crossfade seperti Tauri: mata baru muncul setelah isi hub mulai memudar.
+                animate opacity { duration: root.expanded ? 100ms : 180ms; delay: root.expanded ? 0ms : 100ms; }
                 visible: !root.dragging && !root.inline-msg && !root.media-mini && !(root.idle-clock && root.dock < 2);
             }
 
@@ -6205,9 +6211,10 @@ export component NotchWindow inherits Window {
 
             // Hub: tab + halaman
             Rectangle {
-                visible: root.expanded;
+                // Tetap tergambar selama memudar keluar, supaya hub tidak lenyap seketika saat pil menciut.
+                visible: root.expanded || self.opacity > 0.01;
                 opacity: root.expanded ? 1 : 0;
-                animate opacity { duration: 180ms; delay: 80ms; }
+                animate opacity { duration: root.expanded ? 180ms : 120ms; delay: root.expanded ? 80ms : 0ms; }
 
                 HorizontalLayout {
                     x: 15px;
@@ -6558,10 +6565,10 @@ export component NotchWindow inherits Window {
     }
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
-    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 0 || root.dock == 2); kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
-    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 0 || root.dock == 2); kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
-    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
-    Ear { s: root.ui-scale; visible: !root.geometry-hold && (root.dock == 3 || root.dock == 4) && !root.dragging; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
+    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; opacity: root.pill-fade; kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; opacity: root.pill-fade; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; opacity: root.pill-fade; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
+    Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; opacity: root.pill-fade; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
 }
 
 // Jendela detail catatan (setara note-detail.html di Tauri): toolbar, editor, status bar, toast.

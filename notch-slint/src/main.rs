@@ -644,6 +644,15 @@ mod platform {
         let _ = window;
     }
 
+    /// Blok sampai komposisi DWM berikutnya selesai (maksimal satu frame, ±16 ms). Dipakai agar perubahan ukuran
+    /// jendela jatuh tepat setelah vsync. Tidak melakukan apa pun di platform lain.
+    pub fn wait_vsync() {
+        #[cfg(windows)]
+        unsafe {
+            let _ = windows::Win32::Graphics::Dwm::DwmFlush();
+        }
+    }
+
     /// Atur posisi DAN ukuran jendela dalam satu panggilan (piksel fisik). `set_size` lalu `set_position` terpisah
     /// menyisakan satu frame saat jendela sudah berukuran baru tetapi masih di posisi lama, sehingga notch yang
     /// ditengahkan di dalamnya terlihat melompat/berkedip saat hub membuka atau menutup. Mengembalikan false bila
@@ -1640,26 +1649,38 @@ fn settle_expanded_geometry(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>, tr
     });
 }
 
-/// Perkecil jendela ke ukuran menciut tanpa menampilkan frame basi. Saat jendela native berubah ukuran/posisi,
-/// Windows sempat menampilkan frame terakhir yang sudah tergambar pada koordinat jendela yang baru (pil tampak
-/// bergeser atau muncul sebagai bentuk ganda). Karena itu notch disembunyikan dan frame kosong itu dibiarkan
-/// tergambar dulu; frame basi yang tampil sesudah resize jadi transparan. Notch langsung ditampilkan lagi pada
-/// panggilan yang sama dengan resize, sehingga frame pertama di ukuran baru sudah memuat notch (hilang sekitar 2 frame).
-fn shrink_window_hidden(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
+/// Perkecil jendela ke ukuran menciut setelah animasi menciut selesai (notch tetap terlihat, seperti Tauri).
+/// Saat jendela native berubah ukuran/posisi, Windows bisa menampilkan frame terakhir pada koordinat baru sampai
+/// Slint menggambar ulang. Perubahan dijatuhkan tepat setelah vsync DWM supaya gambar ulang (jendela kecil, cepat)
+/// selesai sebelum komposisi berikutnya dan frame basi hampir tidak sempat tampil.
+fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
     let Some(w) = weak.upgrade() else { return };
     if w.get_expanded() {
         return;
     }
-    w.set_geometry_hold(true);
-    Timer::single_shot(Duration::from_millis(24), move || {
-        let Some(w) = weak.upgrade() else { return };
-        if !w.get_expanded() {
-            // Greeting inline (385 px) masih tampil: jangan potong ke 300 px.
-            let size = if w.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED };
-            shell.place(&w, size);
-        }
-        w.set_geometry_hold(false);
-    });
+    // Greeting inline (385 px) masih tampil: jangan potong ke 300 px.
+    let size = if w.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED };
+    platform::wait_vsync();
+    shell.place(&w, size);
+}
+
+/// True bila ukuran jendela native berbeda dari `size` (piksel logis) setelah dikali skala layar.
+fn window_needs_resize(w: &NotchWindow, size: (u32, u32)) -> bool {
+    let sf = w.window().scale_factor();
+    let got = w.window().size();
+    let want = ((size.0 as f32 * sf).round() as i32, (size.1 as f32 * sf).round() as i32);
+    (got.width as i32 - want.0).abs() > 2 || (got.height as i32 - want.1).abs() > 2
+}
+
+/// Bagian akhir `expand()`: besarkan jendela, buka hub, dan tampilkan notch lagi (memudar masuk).
+fn finish_expand(weak: &slint::Weak<NotchWindow>, shell: &Rc<Shell>, sync: &dyn Fn()) {
+    let Some(w) = weak.upgrade() else { return };
+    w.set_geometry_hold(false);
+    let size = expanded_size(&w);
+    shell.place(&w, size);
+    w.set_expanded(true);
+    sync();
+    settle_expanded_geometry(weak.clone(), shell.clone(), 8);
 }
 
 /// Tanggal lokal hari ini.
@@ -3952,16 +3973,20 @@ fn main() -> Result<(), slint::PlatformError> {
     let open_timer = Rc::new(Timer::default());
     let close_timer = Rc::new(Timer::default());
     let shrink_timer = Rc::new(Timer::default());
+    // Pembukaan hub yang ditunda satu frame agar notch sempat disembunyikan sebelum jendela membesar.
+    let expand_pending = Rc::new(Timer::default());
     let open_ms = Rc::new(Cell::new(u64::from(cfg.timing.hover_open_ms)));
     let close_ms = Rc::new(Cell::new(u64::from(cfg.timing.hover_close_ms)));
     let expand: Rc<dyn Fn()> = {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
+        let pending = expand_pending.clone();
         let sync = sync_pages.clone();
         let shell = shell.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
             shrink.stop();
+            pending.stop();
             // Dengan wajah jam, halaman home harus ditetapkan sebelum ukuran native dihitung.
             if w.get_idle_clock() {
                 w.set_page_id("clock".into());
@@ -3969,21 +3994,33 @@ fn main() -> Result<(), slint::PlatformError> {
             // Hover saat greeting tampil: hub menggantikan greeting. Flag harus dibersihkan, kalau tidak kartu 385 px
             // muncul lagi di jendela 300 px begitu hub menciut.
             w.set_greeting_inline_visible(false);
-            w.set_geometry_hold(false);
             let size = expanded_size(&w);
-            shell.place(&w, size);
-            w.set_expanded(true);
-            sync();
-            settle_expanded_geometry(weak.clone(), shell.clone(), 8);
+            if !w.get_expanded() && window_needs_resize(&w, size) {
+                // Jendela akan membesar sementara notch (mata) masih tampak: frame lama akan tampil di koordinat
+                // baru sebagai "mata hantu". Sembunyikan notch dulu, beri satu frame untuk tergambar, baru besarkan.
+                w.set_geometry_hold(true);
+                let (weak, shell, sync) = (weak.clone(), shell.clone(), sync.clone());
+                pending.start(TimerMode::SingleShot, Duration::from_millis(24), move || {
+                    finish_expand(&weak, &shell, &*sync);
+                });
+            } else {
+                finish_expand(&weak, &shell, &*sync);
+            }
         })
     };
     let collapse: Rc<dyn Fn()> = {
         let weak = win.as_weak();
         let shrink = shrink_timer.clone();
+        let pending = expand_pending.clone();
         let sync = sync_pages.clone();
         let shell = shell.clone();
         Rc::new(move || {
             let Some(w) = weak.upgrade() else { return };
+            // Kursor keluar sebelum hub sempat dibuka: batalkan pembukaan yang tertunda dan tampilkan notch lagi.
+            if pending.running() {
+                pending.stop();
+                w.set_geometry_hold(false);
+            }
             // Hub yang ditutup pengguna: bila halaman terakhir adalah Jam, notch berganti dari mata ke jam + tanggal;
             // di halaman lain kembali ke mata (sama dengan collapse() di view-controller.ts Tauri).
             if w.get_expanded() && w.get_active_pages().iter().any(|p| p == "clock") {
@@ -4001,8 +4038,9 @@ fn main() -> Result<(), slint::PlatformError> {
             // jendela baru diperkecil setelah animasi menciut selesai
             let weak2 = weak.clone();
             let shell = shell.clone();
-            shrink.start(TimerMode::SingleShot, Duration::from_millis(260), move || {
-                shrink_window_hidden(weak2.clone(), shell.clone());
+            // 300 ms animasi menciut + sedikit jeda, baru jendela diperkecil.
+            shrink.start(TimerMode::SingleShot, Duration::from_millis(330), move || {
+                shrink_window_synced(weak2.clone(), shell.clone());
             });
         })
     };
