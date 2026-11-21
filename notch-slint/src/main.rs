@@ -4000,7 +4000,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 // baru sebagai "mata hantu". Sembunyikan notch dulu, beri satu frame untuk tergambar, baru besarkan.
                 w.set_geometry_hold(true);
                 let (weak, shell, sync) = (weak.clone(), shell.clone(), sync.clone());
-                pending.start(TimerMode::SingleShot, Duration::from_millis(24), move || {
+                // 40 ms = beberapa frame agar frame tanpa notch sempat tergambar dan sampai ke layar; lalu tunggu
+                // komposisi DWM berikutnya (seperti shrink_window_synced) dan besarkan jendela tepat setelahnya.
+                pending.start(TimerMode::SingleShot, Duration::from_millis(40), move || {
+                    platform::wait_vsync();
                     finish_expand(&weak, &shell, &*sync);
                 });
             } else {

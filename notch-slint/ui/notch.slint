@@ -5430,7 +5430,8 @@ export component NotchWindow inherits Window {
     // tak terlihat (frame basi di koordinat baru jadi transparan), lalu notch memudar masuk di ukuran baru.
     in property <bool> geometry-hold: false;
     property <float> pill-fade: root.geometry-hold ? 0.0 : 1.0;
-    animate pill-fade { duration: root.geometry-hold ? 70ms : 110ms; easing: ease-out; }
+    // Hold: sembunyi seketika (0 ms) agar tidak ada sisa notch setengah transparan saat jendela di-resize.
+    animate pill-fade { duration: root.geometry-hold ? 0ms : 140ms; easing: ease-out; }
     in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
@@ -5893,12 +5894,13 @@ export component NotchWindow inherits Window {
         border-top-right-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 4) ? 0px : self.r);
         border-bottom-left-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 3) ? 0px : self.r);
         border-bottom-right-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 4) ? 0px : self.r);
-        animate r { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
+        animate r { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
         clip: true;
-        // Membuka: 220 ms ease-out-quart. Menutup: 300 ms cubic-bezier(.42, 0, .58, 1) seperti transisi #notch di
-        // Tauri (base.css), terlihat terus tanpa disembunyikan.
-        animate width { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
-        animate height { duration: root.expanded ? 220ms : 300ms; easing: root.expanded ? ease-out-quart : cubic-bezier(0.42, 0, 0.58, 1); }
+        // Membuka dan menutup sama dengan transisi #notch di Tauri (base.css): 300 ms cubic-bezier(.42, 0, .58, 1).
+        // Kurva ease-out (gerak menumpuk di awal) membuat pil tampak melompat karena renderer software hanya
+        // sempat menggambar beberapa frame; ease-in-out menyebar gerak merata seperti di video Tauri.
+        animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
         // Badan setengah lingkaran menghadap ke dalam layar: bawah 80x44 (radius 40), kiri/kanan 60x120 (radius 60).
         half-body := Path {
