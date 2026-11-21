@@ -1659,9 +1659,29 @@ fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
         return;
     }
     // Greeting inline (385 px) masih tampil: jangan potong ke 300 px.
-    let size = if w.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED };
-    platform::wait_vsync();
-    shell.place(&w, size);
+    let target = |w: &NotchWindow| if w.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED };
+    let size = target(&w);
+    if !window_needs_resize(&w, size) {
+        // Ukuran sama (hanya posisi/dekorasi yang bisa berubah): tidak ada frame basi yang perlu disembunyikan.
+        shell.place(&w, size);
+        return;
+    }
+    // Jendela akan mengecil sementara notch (mata) masih tampak: frame lama jendela besar tampil di koordinat baru
+    // sebagai notch/mata ganda ("hantu"), sama seperti sisi expand(). Sembunyikan notch dulu, beri beberapa frame
+    // agar frame kosong sempat sampai ke layar, baru ubah ukuran jendela tepat setelah vsync.
+    w.set_geometry_hold(true);
+    Timer::single_shot(Duration::from_millis(40), move || {
+        let Some(w) = weak.upgrade() else { return };
+        // Hub dibuka lagi selama jeda: expand() yang mengatur ukuran, cukup lepas penahan.
+        if w.get_expanded() {
+            w.set_geometry_hold(false);
+            return;
+        }
+        platform::wait_vsync();
+        // Lepas penahan sebelum place(): fade-in mulai dari transparan, jadi frame pertama di ukuran baru tetap kosong.
+        w.set_geometry_hold(false);
+        shell.place(&w, target(&w));
+    });
 }
 
 /// True bila ukuran jendela native berbeda dari `size` (piksel logis) setelah dikali skala layar.
