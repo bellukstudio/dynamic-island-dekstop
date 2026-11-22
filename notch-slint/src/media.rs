@@ -132,7 +132,11 @@ mod platform {
      let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,None)};
      if code==0{Ok(())}else{Err(format!("MCI error {code} saat {command}"))}
     };
-    run(&open)?;
+    // `nowindow` mencegah jendela ActiveMovie berbingkai (putih, tombol - [] x) yang dibuat driver mpegvideo;
+    // bila ditolak, buka biasa lalu sembunyikan segera.
+    let open_hidden=format!("{open} nowindow");
+    if run(&open_hidden).is_err(){run(&open)?;}
+    let _=run("window notch_adhan state hide");
     let playback=run(&play);
     let _=run(&close);
     playback

@@ -190,7 +190,12 @@ fn play_resource_clips(paths: &[PathBuf]) -> Result<(), String> {
     for (index, path) in paths.iter().enumerate() {
         let alias = format!("notchgreet{index}");
         let file = path.to_string_lossy();
-        mci_send(&format!("open \"{file}\" type mpegvideo alias {alias}"))?;
+        // Driver mpegvideo membuat jendela ActiveMovie berbingkai (tombol - [] x) yang tampak putih karena thread ini
+        // tidak memompa pesan. `nowindow` mencegah jendela dibuat; bila ditolak driver, buka biasa lalu sembunyikan
+        // segera. Hanya audio yang diputar, jadi jendela itu memang tidak diperlukan.
+        mci_send(&format!("open \"{file}\" type mpegvideo alias {alias} nowindow"))
+            .or_else(|_| mci_send(&format!("open \"{file}\" type mpegvideo alias {alias}")))?;
+        let _ = mci_send(&format!("window {alias} state hide"));
         let played = mci_send(&format!("play {alias} wait"));
         let closed = mci_send(&format!("close {alias}"));
         played?;
@@ -234,9 +239,15 @@ try {{
         for unit in script.encode_utf16() { bytes.extend_from_slice(&unit.to_le_bytes()); }
         base64_encode(&bytes)
     };
+    // `-WindowStyle Hidden` baru menyembunyikan konsol SETELAH PowerShell hidup, jadi jendela konsol (judul putih,
+    // tombol - [] x) sempat berkedip saat greeting. CREATE_NO_WINDOW mencegah konsol dibuat sama sekali, seperti
+    // semua pemanggilan proses lain di proyek ini.
+    use std::os::windows::process::CommandExt;
     let mut child = Command::new("powershell.exe")
         .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", &encoded])
-        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn()
+        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+        .creation_flags(0x0800_0000)
+        .spawn()
         .map_err(|error| format!("Tidak dapat memulai audio greeting: {error}"))?;
     child.wait().map_err(|error| format!("Audio greeting gagal: {error}"))?;
     Ok(())
