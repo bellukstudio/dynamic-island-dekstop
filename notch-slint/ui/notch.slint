@@ -175,17 +175,21 @@ component Ear inherits Path {
     // Telinga cekung 10 px x skala. `kind`: 0 = atas-kiri, 1 = atas-kanan, 2 = bawah-kiri, 3 = bawah-kanan
     // (dock atas / bawah), 4 = sisi-kiri atas, 5 = sisi-kiri bawah, 6 = sisi-kanan atas, 7 = sisi-kanan bawah.
     // Sudut terisi selalu yang menyentuh tepi layar dan badan notch; busur memakai pusat di sudut diagonalnya.
+    // Telinga atas/bawah (kind 0..3) melebar 1 unit ke bawah badan pil: tepi pertemuan keduanya sama-sama di-anti-alias,
+    // dan pada posisi/skala pecahan menyisakan celah 1 px berwarna latar. Tumpang-tindih (warna sama) menutupnya.
+    // Telinga kanan (kind 1, 3) menggeser x induknya 1 unit ke kiri (lihat pemakaian di NotchWindow).
     in property <int> kind: 0;
     in property <float> s: 1.0;      // skala dari config (telinga 10 px x scale)
-    width: 10px * s;
+    property <bool> overlaps: kind <= 3;
+    width: (overlaps ? 11px : 10px) * s;
     height: 10px * s;
-    viewbox-width: 10;
+    viewbox-width: overlaps ? 11 : 10;
     viewbox-height: 10;
     fill: Theme.body;
-    commands: kind == 0 ? "M 0 0 L 10 0 L 10 10 A 10 10 0 0 0 0 0 Z"
-            : kind == 1 ? "M 10 0 L 0 0 L 0 10 A 10 10 0 0 1 10 0 Z"
-            : kind == 2 ? "M 0 10 L 10 10 L 10 0 A 10 10 0 0 1 0 10 Z"
-            : kind == 3 ? "M 10 10 L 0 10 L 0 0 A 10 10 0 0 0 10 10 Z"
+    commands: kind == 0 ? "M 0 0 L 11 0 L 11 10 L 10 10 A 10 10 0 0 0 0 0 Z"
+            : kind == 1 ? "M 11 0 L 0 0 L 0 10 L 1 10 A 10 10 0 0 1 11 0 Z"
+            : kind == 2 ? "M 0 10 L 11 10 L 11 0 L 10 0 A 10 10 0 0 1 0 10 Z"
+            : kind == 3 ? "M 11 10 L 0 10 L 0 0 L 1 0 A 10 10 0 0 0 11 10 Z"
             : kind == 4 ? "M 0 0 L 0 10 L 10 10 A 10 10 0 0 1 0 0 Z"
             : kind == 5 ? "M 0 0 L 10 0 A 10 10 0 0 0 0 10 Z"
             : kind == 6 ? "M 10 0 L 10 10 L 0 10 A 10 10 0 0 0 10 0 Z"
@@ -5431,7 +5435,9 @@ export component NotchWindow inherits Window {
     in property <bool> geometry-hold: false;
     property <float> pill-fade: root.geometry-hold ? 0.0 : 1.0;
     // Hold: sembunyi seketika (0 ms) agar tidak ada sisa notch setengah transparan saat jendela di-resize.
-    animate pill-fade { duration: root.geometry-hold ? 0ms : 140ms; easing: ease-out; }
+    // Setelah menciut, notch tampil seketika (tanpa memudar) agar kedipan hanya selama jendela diubah ukurannya.
+    in property <bool> hold-instant: false;
+    animate pill-fade { duration: (root.geometry-hold || root.hold-instant) ? 0ms : 140ms; easing: ease-out; }
     in property <bool> suppress-next-pill-click: false;
     in property <bool> dock-play-enabled: true;
     in property <bool> play-test-request: false;
@@ -6568,7 +6574,7 @@ export component NotchWindow inherits Window {
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
     Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; opacity: root.pill-fade; kind: root.dock == 2 ? 2 : 0; x: pill.x - 10px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
-    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; opacity: root.pill-fade; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
+    Ear { s: root.ui-scale; visible: root.dock == 0 || root.dock == 2; opacity: root.pill-fade; kind: root.dock == 2 ? 3 : 1; x: pill.x + pill.width - 1px * root.ui-scale; y: root.dock == 2 ? root.height - 10px * root.ui-scale : 0px; }
     Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; opacity: root.pill-fade; kind: root.dock == 3 ? 4 : 6; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y - 10px * root.ui-scale; }
     Ear { s: root.ui-scale; visible: (root.dock == 3 || root.dock == 4) && !root.dragging; opacity: root.pill-fade; kind: root.dock == 3 ? 5 : 7; x: root.dock == 3 ? 0px : root.width - 10px * root.ui-scale; y: pill.y + pill.height; }
 }

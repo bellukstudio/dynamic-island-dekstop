@@ -33,6 +33,7 @@ use slint::{
 mod privacy;
 mod shelf;
 mod tray;
+mod clip;
 mod hotkeys;
 mod colorpick;
 mod compress;
@@ -601,6 +602,21 @@ mod platform {
         false
     }
 
+    /// Hilangkan border tipis berwarna aksen yang digambar DWM Windows 11 di tepi jendela (terlihat sebagai bingkai
+    /// biru muda mengelilingi seluruh persegi jendela, bukan hanya notch). Atribut ini menempel pada jendela, jadi
+    /// aman dipanggil berulang. Di Windows 10 atribut tidak dikenal dan panggilan diabaikan.
+    #[cfg(windows)]
+    unsafe fn no_border(hwnd: windows::Win32::Foundation::HWND) {
+        use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR};
+        const DWMWA_COLOR_NONE: u32 = 0xFFFF_FFFE;
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            &DWMWA_COLOR_NONE as *const u32 as *const core::ffi::c_void,
+            core::mem::size_of::<u32>() as u32,
+        );
+    }
+
     /// Sembunyikan jendela dari taskbar Windows (dan Alt+Tab). Idempotent, aman dipanggil berulang.
     /// Tiga lapis karena winit memasang WS_EX_APPWINDOW (memaksa tombol taskbar) dan menimpa style jendela
     /// setiap `show()` ulang: (1) `set_skip_taskbar` (ITaskbarList::DeleteTab), (2) buang WS_EX_APPWINDOW dan
@@ -630,6 +646,7 @@ mod platform {
             if let Some(raw) = raw {
                 unsafe {
                     let hwnd = HWND(raw as *mut core::ffi::c_void);
+                    no_border(hwnd);
                     let ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
                     let want = (ex | WS_EX_TOOLWINDOW.0 as isize) & !(WS_EX_APPWINDOW.0 as isize);
                     if want != ex {
@@ -681,6 +698,47 @@ mod platform {
         #[cfg(not(windows))]
         {
             let _ = (window, x, y, w, h);
+            false
+        }
+    }
+
+    /// Batasi bagian jendela yang tampil dan menerima klik ke persegi `(x, y, lebar, tinggi)` (piksel fisik, relatif
+    /// ke sudut jendela), atau `None` untuk menampilkan seluruh jendela lagi. Dipakai agar jendela tidak perlu
+    /// diperkecil saat notch menciut. Mengembalikan false bila gagal (atau bukan Windows).
+    pub fn set_region(window: &slint::Window, rect: Option<(i32, i32, i32, i32)>) -> bool {
+        #[cfg(windows)]
+        {
+            use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            use slint::winit_030::WinitWindowAccessor;
+            use windows::Win32::Foundation::HWND;
+            use windows::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject, SetWindowRgn};
+            let raw = window
+                .with_winit_window(|win| match win.window_handle().map(|h| h.as_raw()) {
+                    Ok(RawWindowHandle::Win32(h)) => Some(h.hwnd.get()),
+                    _ => None,
+                })
+                .flatten();
+            if let Some(raw) = raw {
+                unsafe {
+                    let hwnd = HWND(raw as *mut core::ffi::c_void);
+                    let region = rect.map(|(x, y, w, h)| CreateRectRgn(x, y, x + w, y + h));
+                    let ok = SetWindowRgn(hwnd, region, true) != 0;
+                    // Mengubah region membuat DWM menggambar ulang bingkai jendela; pastikan border tetap mati.
+                    no_border(hwnd);
+                    // Bila berhasil, sistem memiliki region itu; bila gagal, kita yang harus membebaskannya.
+                    if !ok {
+                        if let Some(region) = region {
+                            let _ = DeleteObject(region.into());
+                        }
+                    }
+                    return ok;
+                }
+            }
+            false
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (window, rect);
             false
         }
     }
@@ -1560,6 +1618,34 @@ struct Shell {
 impl Shell {
     /// Letakkan jendela sesuai posisi config dan atur bentuk tepinya (menempel atas / melayang / bawah).
     fn place(&self, win: &NotchWindow, size: (u32, u32)) {
+        let (origin, dock, size) = self.geometry(win, size);
+        if self.memo.get() != (Some(dock), win.window().scale_factor().to_bits()) {
+            self.memo.set((Some(dock), win.window().scale_factor().to_bits()));
+            win.set_dock(match dock {
+                Dock::Top => 0,
+                Dock::Floating => 1,
+                Dock::Bottom => 2,
+                Dock::Left => 3,
+                Dock::Right => 4,
+            });
+            self.rebuild_decor(win, dock, win.window().scale_factor());
+        }
+        let w = win.window();
+        if platform::set_bounds(w, origin.0, origin.1, size.0, size.1) {
+            // Selaraskan layout Slint dengan ukuran native saat itu juga, bukan menunggu event Resized.
+            w.set_size(PhysicalSize::new(size.0, size.1));
+        } else {
+            w.set_size(PhysicalSize::new(size.0, size.1));
+            w.set_position(PhysicalPosition::new(origin.0, origin.1));
+        }
+        // Region selalu dipasang (persegi penuh seukuran jendela, sejak penempatan pertama) dan TIDAK PERNAH NULL: DWM
+        // menggambar bingkai non-client yang tembus terlihat lewat klien transparan (bingkai biru muda di tepi jendela)
+        // pada jendela tanpa region. Pemotongan notch menciut (clip_to_collapsed) hanya mempersempit region ini.
+        platform::set_region(w, Some((0, 0, size.0 as i32, size.1 as i32)));
+    }
+
+    /// Posisi layar, dock, dan ukuran fisik jendela untuk `size` (piksel logis), tanpa menerapkannya.
+    fn geometry(&self, win: &NotchWindow, size: (u32, u32)) -> ((i32, i32), Dock, (u32, u32)) {
         let pos = self.pos.get();
         // Sentinel sisi bukan koordinat monitor. Saat drag ke sisi, pertahankan monitor
         // tempat jendela sedang berada (posisi fisik sebelum ukuran/docking diterapkan).
@@ -1586,25 +1672,34 @@ impl Shell {
         let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
         let size = ((logical_size.0 as f32 * sf).round() as u32, (logical_size.1 as f32 * sf).round() as u32);
         let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
-        if self.memo.get() != (Some(dock), sf.to_bits()) {
-            self.memo.set((Some(dock), sf.to_bits()));
-            win.set_dock(match dock {
-                Dock::Top => 0,
-                Dock::Floating => 1,
-                Dock::Bottom => 2,
-                Dock::Left => 3,
-                Dock::Right => 4,
-            });
-            self.rebuild_decor(win, dock, sf);
+        (origin, dock, size)
+    }
+
+    /// Tampilkan notch menciut TANPA mengubah ukuran jendela: jendela tetap seukuran hub dan hanya persegi notch
+    /// yang terlihat (lihat `clip`). Mengembalikan false bila notch tidak bisa disejajarkan dengan pasti (dock
+    /// samping, atau jendela besar terjepit tepi layar); pemanggil lalu mengecilkan jendela seperti biasa.
+    fn clip_to_collapsed(&self, win: &NotchWindow, size: (u32, u32)) -> bool {
+        // Saklar uji: jalankan dengan variabel lingkungan NOTCH_NO_CLIP=1 untuk memakai cara lama (jendela diperkecil).
+        static DISABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *DISABLED.get_or_init(|| std::env::var_os("NOTCH_NO_CLIP").is_some()) {
+            return false;
+        }
+        let (origin, dock, csize) = self.geometry(win, size);
+        // Dock samping dan bawah menempel di tepi lain (dan tatapan mata memakai tepi atas jendela): tetap diperkecil.
+        if !matches!(dock, Dock::Top | Dock::Floating) {
+            return false;
         }
         let w = win.window();
-        if platform::set_bounds(w, origin.0, origin.1, size.0, size.1) {
-            // Selaraskan layout Slint dengan ukuran native saat itu juga, bukan menunggu event Resized.
-            w.set_size(PhysicalSize::new(size.0, size.1));
-        } else {
-            w.set_size(PhysicalSize::new(size.0, size.1));
-            w.set_position(PhysicalPosition::new(origin.0, origin.1));
-        }
+        let (bpos, bsize) = (w.position(), w.size());
+        let Some(rect) = clip::collapsed_rect(
+            origin,
+            (csize.0 as i32, csize.1 as i32),
+            (bpos.x, bpos.y),
+            (bsize.width as i32, bsize.height as i32),
+        ) else {
+            return false;
+        };
+        platform::set_region(w, Some(rect))
     }
 
     fn rebuild_decor(&self, win: &NotchWindow, dock: Dock, sf: f32) {
@@ -1666,6 +1761,11 @@ fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
         shell.place(&w, size);
         return;
     }
+    // Cara utama: jendela dibiarkan besar dan hanya persegi notch yang tampil. Tanpa perubahan ukuran tidak ada
+    // frame basi, jadi notch tidak berkedip. Jendela baru benar-benar diperkecil bila ini tidak mungkin.
+    if shell.clip_to_collapsed(&w, size) {
+        return;
+    }
     // Jendela akan mengecil sementara notch (mata) masih tampak: frame lama jendela besar tampil di koordinat baru
     // sebagai notch/mata ganda ("hantu"), sama seperti sisi expand(). Sembunyikan notch dulu, beri beberapa frame
     // agar frame kosong sempat sampai ke layar, baru ubah ukuran jendela tepat setelah vsync.
@@ -1678,9 +1778,17 @@ fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
             return;
         }
         platform::wait_vsync();
-        // Lepas penahan sebelum place(): fade-in mulai dari transparan, jadi frame pertama di ukuran baru tetap kosong.
+        // Jendela sudah berganti ukuran di bawah frame kosong, jadi notch boleh tampil seketika (tanpa fade-in).
+        w.set_hold_instant(true);
         w.set_geometry_hold(false);
         shell.place(&w, target(&w));
+        // Kembalikan fade-in normal (dipakai saat hub membuka) setelah animasi pill sempat dievaluasi.
+        let weak = w.as_weak();
+        Timer::single_shot(Duration::from_millis(200), move || {
+            if let Some(w) = weak.upgrade() {
+                w.set_hold_instant(false);
+            }
+        });
     });
 }
 
