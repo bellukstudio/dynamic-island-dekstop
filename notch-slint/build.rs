@@ -46,7 +46,26 @@ fn copy_greeting_resources() {
     }
 }
 
+/// Stack thread utama Windows hanya 1 MB. Di build debug, membuat `SettingsWindow` saja sudah memakai sekitar 1 MB
+/// (kode Rust hasil generate Slint tanpa optimasi), belum termasuk `main()` dan event loop yang masih ada di stack,
+/// sehingga membuka Pengaturan (tray, tab, atau shortcut) berakhir STATUS_STACK_OVERFLOW (0xc00000fd).
+/// Naikkan stack thread utama lewat linker; berlaku untuk build debug maupun release.
+fn raise_main_thread_stack() {
+    const STACK_BYTES: u32 = 16 * 1024 * 1024;
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    let flag = match env::var("CARGO_CFG_TARGET_ENV").as_deref() {
+        Ok("msvc") => format!("/STACK:{STACK_BYTES}"),
+        Ok("gnu") => format!("-Wl,--stack,{STACK_BYTES}"),
+        _ => return,
+    };
+    println!("cargo:rustc-link-arg-bins={flag}");
+    println!("cargo:rustc-link-arg-examples={flag}");
+}
+
 fn main() {
+    raise_main_thread_stack();
     copy_greeting_resources();
     slint_build::compile("ui/notch.slint").unwrap();
 }
