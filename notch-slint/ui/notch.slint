@@ -1,4 +1,4 @@
-import { Slider } from "std-widgets.slint";
+import { Slider, ComboBox } from "std-widgets.slint";
 
 // Notch (Slint). Hub dengan tab dinamis (mengikuti `pages` di config.toml), bahu melengkung,
 // dan tema dari `[appearance]`. Semua warna berasal dari `Theme`, yang diisi Rust saat start.
@@ -2772,13 +2772,67 @@ component PageToggle inherits Rectangle {
     ta := TouchArea { clicked => { root.toggled(!root.checked); } }
 }
 
+component SettingsCheckRow inherits Rectangle {
+    in property <string> label;
+    in property <string> note: "";
+    in property <bool> checked: false;
+    callback toggled(bool);
+    height: root.note == "" ? 42px : 54px;
+    HorizontalLayout {
+        padding-left: 2px;
+        padding-right: 4px;
+        spacing: 12px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px;
+            Text { text: root.label; color: Theme.text; font-size: 12px; vertical-alignment: center; wrap: word-wrap; }
+            Text { visible: root.note != ""; text: root.note; color: Theme.text-dim; font-size: 10px; wrap: word-wrap; }
+        }
+        Rectangle {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border-width: 1px;
+            border-color: root.checked ? Theme.accent : Theme.text-faint;
+            background: root.checked ? Theme.accent : transparent;
+            Text { text: root.checked ? "✓" : ""; color: Theme.on-accent; font-size: 11px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+    TouchArea { mouse-cursor: pointer; clicked => { root.toggled(!root.checked); } }
+}
+
+component SettingsMiniCheck inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked: false;
+    callback toggled(bool);
+    height: 24px;
+    preferred-width: mini-label.preferred-width + 23px;
+    min-width: 0px;
+    horizontal-stretch: 0;
+    HorizontalLayout {
+        spacing: 6px;
+        Rectangle {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            border-width: 1px;
+            border-color: root.checked ? Theme.accent : Theme.text-faint;
+            background: root.checked ? Theme.accent : transparent;
+            Text { text: root.checked ? "✓" : ""; color: Theme.on-accent; font-size: 10px; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        }
+        mini-label := Text { text: root.label; color: Theme.text-dim; font-size: 10px; vertical-alignment: center; }
+    }
+    TouchArea { mouse-cursor: pointer; clicked => { root.toggled(!root.checked); } }
+}
+
 component SettingsNavItem inherits Rectangle {
     in property <string> label;
     in property <string> commands;
     in property <bool> active: false;
     callback clicked;
-    width: 148px;
-    height: 34px;
+    width: 172px;
+    height: 36px;
     border-radius: 9px;
     background: root.active ? #252d43 : (nav-ta.has-hover ? #ffffff0d : transparent);
     animate background { duration: 130ms; }
@@ -2811,7 +2865,7 @@ component SettingsNavItem inherits Rectangle {
         height: parent.height;
         text: root.label;
         color: root.active ? Theme.accent : Theme.text;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: root.active ? 700 : 500;
         vertical-alignment: center;
         overflow: elide;
@@ -2896,8 +2950,8 @@ component SettingsChoiceCard inherits Rectangle {
     callback clicked;
     horizontal-stretch: 1;
     min-width: 0px;
-    height: 84px;
-    border-radius: 9px;
+    height: 108px;
+    border-radius: 12px;
     background: root.selected ? #252d43 : #1b202b;
     border-width: 1px;
     border-color: root.selected ? Theme.accent : #2c3442;
@@ -2905,8 +2959,8 @@ component SettingsChoiceCard inherits Rectangle {
         x: 6px;
         y: 6px;
         width: parent.width - 12px;
-        height: 48px;
-        border-radius: 7px;
+        height: 62px;
+        border-radius: 9px;
         background: #0c0f16;
         if root.preview-kind == "eyes": HorizontalLayout {
             alignment: center;
@@ -2931,8 +2985,15 @@ component SettingsChoiceCard inherits Rectangle {
             }
         }
     }
-    Text { x: 8px; y: 56px; width: parent.width - 16px; text: root.label; color: Theme.text; font-size: 9px; font-weight: 700; overflow: elide; }
-    Text { x: 8px; y: 69px; width: parent.width - 16px; text: root.detail; color: Theme.text-dim; font-size: 8px; overflow: elide; }
+    HorizontalLayout {
+        x: 8px;
+        y: 76px;
+        width: parent.width - 16px;
+        height: 20px;
+        spacing: 4px;
+        Text { text: root.label; color: Theme.text; font-size: 10px; font-weight: 700; horizontal-stretch: 1; vertical-alignment: center; overflow: elide; }
+        Text { text: root.detail; color: Theme.text-dim; font-size: 8px; vertical-alignment: center; overflow: elide; }
+    }
     TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
@@ -3110,12 +3171,12 @@ export component SettingsWindow inherits Window {
 
     HorizontalLayout {
         Rectangle {
-            width: 170px;
+            width: 196px;
             background: #141821;
             VerticalLayout {
                 alignment: start;
-                padding-left: 10px;
-                padding-right: 10px;
+                padding-left: 12px;
+                padding-right: 12px;
                 padding-top: 18px;
                 spacing: 7px;
                 HorizontalLayout {
@@ -3160,10 +3221,10 @@ export component SettingsWindow inherits Window {
                 height: (root.active-tab == "appearance" || root.active-tab == "eyes") ? 108px : 0px;
                 background: Theme.body;
                 Rectangle {
-                    x: max(12px, (parent.width - min(parent.width - 24px, 820px)) / 2);
+                    x: max(24px, (parent.width - min(parent.width - 48px, 940px)) / 2);
                     y: 8px;
-                    width: min(parent.width - 24px, 820px);
-                    height: 84px;
+                    width: min(parent.width - 48px, 940px);
+                    height: 104px;
                     border-radius: 12px;
                     background: #191e29;
                     border-width: 1px;
@@ -3173,16 +3234,16 @@ export component SettingsWindow inherits Window {
                         spacing: 9px;
                         stage := Rectangle {
                             horizontal-stretch: 1;
-                            height: 66px;
+                            height: 84px;
                             border-radius: 9px;
                             background: #aeb8c8;
                             preview-pill := Rectangle {
                                 x: (parent.width - self.width) / 2;
                                 y: 0px;
-                                width: 184px;
-                                height: 39px;
-                                border-bottom-left-radius: 15px;
-                                border-bottom-right-radius: 15px;
+                                width: 210px;
+                                height: 44px;
+                                border-bottom-left-radius: 18px;
+                                border-bottom-right-radius: 18px;
                                 background: #03050b;
                                 HorizontalLayout {
                                     alignment: center;
@@ -3193,15 +3254,15 @@ export component SettingsWindow inherits Window {
                                 }
                             }
                             Rectangle {
-                                x: preview-pill.x + 26px;
-                                y: 32px;
-                                width: preview-pill.width - 52px;
+                                x: preview-pill.x + 29px;
+                                y: 41px;
+                                width: preview-pill.width - 58px;
                                 height: 2px;
                                 background: Theme.accent;
                             }
                         }
                         VerticalLayout {
-                            width: 154px;
+                            width: 190px;
                             spacing: 4px;
                             alignment: center;
                             Text { text: "Pratinjau"; color: Theme.text; font-size: 10px; font-weight: 700; }
@@ -3222,13 +3283,13 @@ export component SettingsWindow inherits Window {
             content-height: max(self.height, form.preferred-height + 24px);
             form := VerticalLayout {
                 // Konten utama mengikuti lebar Tauri dan tetap terpusat pada jendela lebar.
-                width: min(parent.width, 820px);
+                width: min(parent.width, 940px);
                 x: max(0px, (parent.width - self.width) / 2);
-                y: 10px;
+                y: 22px;
                 alignment: start;
-                spacing: 8px;
-                padding-left: 12px;
-                padding-right: 12px;
+                spacing: 12px;
+                padding-left: 24px;
+                padding-right: 24px;
 
     Rectangle {
         visible: root.active-tab == "features";
