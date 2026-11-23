@@ -3002,10 +3002,11 @@ component SettingsChoiceCard inherits Rectangle {
 export component SettingsWindow inherits Window {
     title: "Notch — Pengaturan";
     icon: @image-url("../assets/tray.png");
-    preferred-width: 1100px;
-    preferred-height: 820px;
-    min-width: 900px;
-    min-height: 650px;
+    // Ruang kerja sedikit lebih lega agar grid kartu dan preview seimbang seperti referensi Tauri.
+    preferred-width: 1240px;
+    preferred-height: 860px;
+    min-width: 1080px;
+    min-height: 700px;
     // Theme diisi Rust (tiap jendela punya instance global sendiri). Latar sedikit lebih terang dari badan notch agar kartu tetap terbaca.
     background: Theme.body;
     default-font-size: 12px;
@@ -3283,7 +3284,8 @@ export component SettingsWindow inherits Window {
             content-height: max(self.height, form.preferred-height + 24px);
             form := VerticalLayout {
                 // Konten utama mengikuti lebar Tauri dan tetap terpusat pada jendela lebar.
-                width: min(parent.width, 940px);
+                // Lebar form mencakup padding 24px di kedua sisi; area isi efektif 940px.
+                width: min(parent.width, 988px);
                 x: max(0px, (parent.width - self.width) / 2);
                 y: 22px;
                 alignment: start;
