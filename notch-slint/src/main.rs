@@ -602,12 +602,15 @@ mod platform {
         false
     }
 
-    /// Hilangkan border tipis berwarna aksen yang digambar DWM Windows 11 di tepi jendela (terlihat sebagai bingkai
-    /// biru muda mengelilingi seluruh persegi jendela, bukan hanya notch). Atribut ini menempel pada jendela, jadi
-    /// aman dipanggil berulang. Di Windows 10 atribut tidak dikenal dan panggilan diabaikan.
+    /// Cegah Windows menggambar bingkai klasik (caption biru muda "Notch" + tombol x, atau kotak putih seukuran jendela)
+    /// di atas notch. winit selalu memberi jendela style WS_CAPTION (agar Aero Snap jalan) dan menyembunyikannya lewat
+    /// WM_NCCALCSIZE; tetapi pada jendela dengan region (SetWindowRgn) bingkai tidak lagi digambar DWM melainkan USER,
+    /// tepat di dalam persegi jendela, setiap kali ada WM_NCPAINT atau pergantian aktivasi (klik tray, buka Pengaturan).
+    /// Subclass ini menahan keduanya. Aman dipanggil berulang (id subclass sama hanya memperbarui yang lama).
     #[cfg(windows)]
     unsafe fn no_border(hwnd: windows::Win32::Foundation::HWND) {
         use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR};
+        use windows::Win32::UI::Shell::SetWindowSubclass;
         const DWMWA_COLOR_NONE: u32 = 0xFFFF_FFFE;
         let _ = DwmSetWindowAttribute(
             hwnd,
@@ -615,6 +618,31 @@ mod platform {
             &DWMWA_COLOR_NONE as *const u32 as *const core::ffi::c_void,
             core::mem::size_of::<u32>() as u32,
         );
+        let _ = SetWindowSubclass(hwnd, Some(nc_guard), NC_GUARD_ID, 0);
+    }
+
+    #[cfg(windows)]
+    const NC_GUARD_ID: usize = 0x4E43; // "NC"
+
+    #[cfg(windows)]
+    unsafe extern "system" fn nc_guard(
+        hwnd: windows::Win32::Foundation::HWND,
+        msg: u32,
+        wparam: windows::Win32::Foundation::WPARAM,
+        lparam: windows::Win32::Foundation::LPARAM,
+        _id: usize,
+        _data: usize,
+    ) -> windows::Win32::Foundation::LRESULT {
+        use windows::Win32::Foundation::{LPARAM, LRESULT};
+        use windows::Win32::UI::Shell::DefSubclassProc;
+        use windows::Win32::UI::WindowsAndMessaging::{WM_NCACTIVATE, WM_NCPAINT};
+        match msg {
+            // Jangan menggambar area non-client sama sekali.
+            WM_NCPAINT => LRESULT(0),
+            // lParam = -1: winit tetap menerima perubahan aktivasi, tetapi DefWindowProc tidak menggambar ulang bingkai.
+            WM_NCACTIVATE => DefSubclassProc(hwnd, msg, wparam, LPARAM(-1)),
+            _ => DefSubclassProc(hwnd, msg, wparam, lparam),
+        }
     }
 
     /// Sembunyikan jendela dari taskbar Windows (dan Alt+Tab). Idempotent, aman dipanggil berulang.
@@ -721,10 +749,10 @@ mod platform {
             if let Some(raw) = raw {
                 unsafe {
                     let hwnd = HWND(raw as *mut core::ffi::c_void);
+                    // Pasang penahan bingkai SEBELUM region berubah: SetWindowRgn memicu repaint non-client.
+                    no_border(hwnd);
                     let region = rect.map(|(x, y, w, h)| CreateRectRgn(x, y, x + w, y + h));
                     let ok = SetWindowRgn(hwnd, region, true) != 0;
-                    // Mengubah region membuat DWM menggambar ulang bingkai jendela; pastikan border tetap mati.
-                    no_border(hwnd);
                     // Bila berhasil, sistem memiliki region itu; bila gagal, kita yang harus membebaskannya.
                     if !ok {
                         if let Some(region) = region {
