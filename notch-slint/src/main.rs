@@ -806,10 +806,42 @@ mod platform {
             use windows::Win32::Graphics::Gdi::{
                 GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
             };
-            use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect};
+            use windows::Win32::UI::WindowsAndMessaging::{
+                GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowThreadProcessId,
+            };
 
             let hwnd = GetForegroundWindow();
             if hwnd.0.is_null() {
+                return false;
+            }
+            // Jendela milik proses ini (menu tray, jendela Pengaturan) dan jendela shell Windows (taskbar, flyout tray,
+            // Start, Alt+Tab) sering seukuran monitor atau dibuat transparan, tetapi bukan aplikasi fullscreen.
+            // Tanpa pengecualian ini notch ikut disembunyikan lalu ditampilkan ulang (tampil putih) tiap tray dibuka.
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid == std::process::id() {
+                return false;
+            }
+            let mut class = [0u16; 64];
+            let class_len = GetClassNameW(hwnd, &mut class).max(0) as usize;
+            let class = String::from_utf16_lossy(&class[..class_len.min(class.len())]);
+            const SHELL_CLASSES: [&str; 14] = [
+                "Progman",
+                "WorkerW",
+                "Shell_TrayWnd",
+                "Shell_SecondaryTrayWnd",
+                "NotifyIconOverflowWindow",
+                "TopLevelWindowForOverflowXamlIsland",
+                "XamlExplorerHostIslandWindow",
+                "Windows.UI.Core.CoreWindow",
+                "ForegroundStaging",
+                "MultitaskingViewFrame",
+                "TaskSwitcherWnd",
+                "TaskListThumbnailWnd",
+                "#32768",
+                "tray_icon_app",
+            ];
+            if SHELL_CLASSES.contains(&class.as_str()) {
                 return false;
             }
             let mut window_rect = RECT::default();
@@ -1792,6 +1824,42 @@ fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
     });
 }
 
+/// Tampilkan kartu greeting inline (dock atas) dengan aman. Jendela harus membesar 300 -> 385 px; bila itu dilakukan
+/// saat notch masih tampak, frame lama muncul di koordinat baru sebagai notch ganda ("hantu"), sama seperti pada
+/// `expand()`. Karena itu notch disembunyikan dulu, beberapa frame diberi waktu sampai ke layar, jendela dibesarkan
+/// tepat setelah vsync, lalu kartu ditampilkan di jendela yang sudah berukuran benar.
+fn show_greeting_inline(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
+    let Some(w) = weak.upgrade() else { return };
+    if w.get_expanded() {
+        return;
+    }
+    if !window_needs_resize(&w, GREETING_INLINE) {
+        shell.place(&w, GREETING_INLINE);
+        w.set_greeting_inline_visible(true);
+        return;
+    }
+    w.set_geometry_hold(true);
+    Timer::single_shot(Duration::from_millis(40), move || {
+        let Some(w) = weak.upgrade() else { return };
+        // Hub dibuka selama jeda: expand() yang mengatur ukuran, cukup lepas penahan.
+        if w.get_expanded() {
+            w.set_geometry_hold(false);
+            return;
+        }
+        platform::wait_vsync();
+        w.set_hold_instant(true);
+        shell.place(&w, GREETING_INLINE);
+        w.set_greeting_inline_visible(true);
+        w.set_geometry_hold(false);
+        let weak = w.as_weak();
+        Timer::single_shot(Duration::from_millis(200), move || {
+            if let Some(w) = weak.upgrade() {
+                w.set_hold_instant(false);
+            }
+        });
+    });
+}
+
 /// True bila ukuran jendela native berbeda dari `size` (piksel logis) setelah dikali skala layar.
 fn window_needs_resize(w: &NotchWindow, size: (u32, u32)) -> bool {
     let sf = w.window().scale_factor();
@@ -2002,6 +2070,10 @@ fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     {
         let weak = m.as_weak();
         s.on_test_adhan(move || { if let Some(m) = weak.upgrade() { m.invoke_settings_test_adhan(); } });
+    }
+    {
+        let weak = m.as_weak();
+        s.on_pause_adhan(move |a0| { if let Some(m) = weak.upgrade() { m.invoke_settings_pause_adhan(a0); } });
     }
     {
         let weak = m.as_weak();
@@ -2256,6 +2328,7 @@ fn main() -> Result<(), slint::PlatformError> {
     let fullscreen_hidden = Rc::new(Cell::new(false));
     {
         let weak = win.as_weak();
+        let shell = shell.clone();
         let enabled = hide_fullscreen.clone();
         let hidden = fullscreen_hidden.clone();
         fullscreen_timer.start(TimerMode::Repeated, Duration::from_millis(500), move || {
@@ -2268,6 +2341,11 @@ fn main() -> Result<(), slint::PlatformError> {
             } else if !should_hide && hidden.get() {
                 if w.show().is_ok() {
                     platform::hide_from_taskbar(w.window());
+                    // Jendela transparan yang baru di-show bisa tampil putih (tanpa alpha) sampai ada gambar ulang:
+                    // pasang ulang ukuran, posisi, dan region lalu paksa redraw.
+                    let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
+                    shell.place(&w, size);
+                    w.window().request_redraw();
                     hidden.set(false);
                 }
             }
@@ -2611,7 +2689,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_nudge_message(cfg.nudge.message.clone().into());
     win.set_nudge_emoji(cfg.nudge.emoji.clone().into());
     win.set_nudge_mood(cfg.nudge.mood.clone().into());
-    win.set_nudge_show_ms(cfg.nudge.show_ms.to_string().into());
+    win.set_nudge_show_ms((cfg.nudge.show_ms / 1_000).to_string().into());
     win.set_nudge_only_silent(cfg.nudge.only_silent);
     win.set_nudge_until_move(cfg.nudge.until_move);
     win.set_greeting_enabled(cfg.greeting.enabled);
@@ -5640,13 +5718,13 @@ fn main() -> Result<(), slint::PlatformError> {
         let config_path = notch_core::paths::config_path();
         win.on_settings_save_nudge(move |enabled, idle, message, emoji, mood, show, only_silent, until_move| {
             let idle = idle.to_string().trim().parse::<u32>().ok().filter(|v| (1..=240).contains(v));
-            let show = show.to_string().trim().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v));
+            let show = show.to_string().trim().parse::<u32>().ok().filter(|v| (2..=30).contains(v)).map(|seconds| seconds * 1_000);
             let message = message.to_string().trim().to_string();
             let emoji = emoji.to_string().trim().to_string();
             let mood = mood.to_string().trim().to_ascii_lowercase();
             let allowed_moods = ["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"];
             let (Some(idle), Some(show)) = (idle, show) else {
-                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Idle harus 1–240 menit dan durasi 2000–30000 ms.".into()); }
+                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Idle harus 1–240 menit dan durasi 2–30 detik.".into()); }
                 return;
             };
             if message.is_empty() || message.chars().count() > 80 || emoji.is_empty() || emoji.chars().count() > 12 || !allowed_moods.contains(&mood.as_str()) {
@@ -5673,7 +5751,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_nudge_message(next.nudge.message.clone().into());
                         w.set_nudge_emoji(next.nudge.emoji.clone().into());
                         w.set_nudge_mood(next.nudge.mood.clone().into());
-                        w.set_nudge_show_ms(next.nudge.show_ms.to_string().into());
+                        w.set_nudge_show_ms((next.nudge.show_ms / 1_000).to_string().into());
                         w.set_nudge_only_silent(next.nudge.only_silent);
                         w.set_nudge_until_move(next.nudge.until_move);
                         w.set_nudge_save_status("Pengaturan sapaan otomatis tersimpan.".into());
@@ -5845,8 +5923,7 @@ fn main() -> Result<(), slint::PlatformError> {
             if w.get_dock() < 2 {
                 w.set_greeting_speech_visible(false);
                 w.set_nudge_visible(false);
-                shell.place(&w, GREETING_INLINE);
-                w.set_greeting_inline_visible(true);
+                show_greeting_inline(weak.clone(), shell.clone());
             } else {
                 w.set_greeting_inline_visible(false);
                 w.set_nudge_visible(false);
@@ -5861,10 +5938,11 @@ fn main() -> Result<(), slint::PlatformError> {
             let shell_hide = shell.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                 if let Some(w) = weak.upgrade() {
-                    if w.get_greeting_inline_visible() && !w.get_expanded() {
-                        shell_hide.place(&w, COLLAPSED);
-                    }
+                    let was_inline = w.get_greeting_inline_visible() && !w.get_expanded();
                     w.set_greeting_inline_visible(false);
+                    if was_inline {
+                        shrink_window_synced(weak.clone(), shell_hide.clone());
+                    }
                     w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
                 }
@@ -7053,8 +7131,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if w.get_dock() < 2 {
                     w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
-                    shell.place(&w, GREETING_INLINE);
-                    w.set_greeting_inline_visible(true);
+                    show_greeting_inline(weak.clone(), shell.clone());
                 } else {
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(false);
@@ -7067,10 +7144,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 let shell_hide = shell.clone();
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                     if let Some(w) = weak_hide.upgrade() {
-                        if w.get_greeting_inline_visible() && !w.get_expanded() {
-                            shell_hide.place(&w, COLLAPSED);
-                        }
+                        let was_inline = w.get_greeting_inline_visible() && !w.get_expanded();
                         w.set_greeting_inline_visible(false);
+                        if was_inline {
+                            shrink_window_synced(weak_hide.clone(), shell_hide.clone());
+                        }
                         w.set_greeting_speech_visible(false);
                         w.set_nudge_visible(false);
                     }
@@ -7142,6 +7220,7 @@ fn main() -> Result<(), slint::PlatformError> {
         });
         let weak = win.as_weak();
         win.on_settings_test_adhan(move || media::play_adhan(weak.clone(), "Tes".to_string()));
+        win.on_settings_pause_adhan(|pause| media::pause_adhan(pause));
         win.on_settings_restart(|| {
             RESTART_REQUESTED.store(true, Ordering::SeqCst);
             let _ = slint::quit_event_loop();

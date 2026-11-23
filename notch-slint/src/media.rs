@@ -113,6 +113,13 @@ mod platform {
   let command:Vec<u16>="stop notch_adhan".encode_utf16().chain(std::iter::once(0)).collect();
   unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
  }
+ /// Jeda atau lanjutkan tes adzan (MCI `pause`/`resume` pada alias yang sama dengan pemutaran).
+ pub fn pause_adhan(pause:bool){
+  use windows::core::PCWSTR;
+  use windows::Win32::Media::Multimedia::mciSendStringW;
+  let command:Vec<u16>=(if pause{"pause notch_adhan"}else{"resume notch_adhan"}).encode_utf16().chain(std::iter::once(0)).collect();
+  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
+ }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
   let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);}});
   std::thread::spawn(move||{
@@ -154,7 +161,7 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){}}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
 pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
@@ -166,6 +173,7 @@ pub fn resume_paused(){platform::resume_paused();}
 pub fn play_adhan(w:Weak<NotchWindow>,name:String){platform::play_adhan(w,name);}
 /// Hentikan audio adzan yang sedang berjalan.
 pub fn stop_adhan(){platform::stop_adhan();}
+pub fn pause_adhan(pause:bool){platform::pause_adhan(pause);}
 
 #[cfg(test)]
 mod tests {
