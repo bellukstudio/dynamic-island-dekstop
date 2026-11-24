@@ -116,6 +116,12 @@ pub(crate) fn sync_settings_live_state(m: &NotchWindow, s: &SettingsWindow) {
 /// Teruskan tombol Simpan/Tes di jendela Pengaturan ke handler yang sudah ada di NotchWindow.
 pub(crate) fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     {
+        let window = s.window();
+        s.on_begin_drag(move || {
+            let _ = platform::begin_window_drag(&window);
+        });
+    }
+    {
         let weak = m.as_weak();
         s.on_save_weather(move |a0, a1, a2| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_weather(a0, a1, a2); } });
     }
@@ -310,5 +316,12 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
         eprintln!("[Settings] Gagal menampilkan jendela: {error}");
         return;
     }
+    // Posisikan jendela Pengaturan di tengah monitor pertama kali dibuat.
+    // Ukuran Window Slint sudah berupa piksel fisik setelah show().
+    let area = platform::work_area(None);
+    let size = win.window().size();
+    let x = area.x + (area.w - size.width as i32).max(0) / 2;
+    let y = area.y + (area.h - size.height as i32).max(0) / 2;
+    win.window().set_position(PhysicalPosition::new(x, y));
     *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync });
 }
