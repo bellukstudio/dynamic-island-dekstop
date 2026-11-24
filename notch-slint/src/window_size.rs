@@ -20,6 +20,17 @@ pub(crate) const EXPANDED_TALL: (u32, u32) = (612, 338);
 /// Hub Ramadan (780 x 540) + jalur Pusatkan dan telinga.
 pub(crate) const EXPANDED_RAMADAN: (u32, u32) = (812, 578);
 
+/// Ukuran native untuk mode notch menciut mengikuti skala UI. Isi Slint sudah memakai
+/// ui-scale; tanpa ukuran window yang sama-sama diskalakan, badan/telinga terpotong
+/// pada skala besar (terutama mini-player 220 px dan greeting inline 385 px).
+pub(crate) fn scaled_window_size(w: &NotchWindow, size: (u32, u32)) -> (u32, u32) {
+    let scale = w.get_ui_scale().clamp(0.5, 1.5);
+    (
+        (size.0 as f32 * scale).round() as u32,
+        (size.1 as f32 * scale).round() as u32,
+    )
+}
+
 pub(crate) fn expanded_size(w: &NotchWindow) -> (u32, u32) {
     if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
         EXPANDED_RAMADAN
