@@ -516,26 +516,29 @@ component ClockPage inherits HorizontalLayout {
     }
 }
 
+// Satu hari di kisi kalender. Warna: hari ini = isi aksen, libur = merah, cuti bersama = oranye,
+// hari peringatan = titik kecil aksen. Hari yang dipilih diberi cincin.
 component CalDay inherits Rectangle {
     in property <CalCell> c;
     callback clicked;
-    width: 40px;
-    height: 18px;
-    border-radius: 9px;
+    width: 36px;
+    height: 20px;
+    border-radius: 10px;
     // jenis terpenting menentukan warna: libur > cuti > peringatan
     background: c.today ? Theme.accent
-        : c.kind == 1 && c.in-month ? #ff6b6b29
-        : c.kind == 2 && c.in-month ? #ffb34029
+        : c.in-month && c.kind == 1 ? #ff6b6b26
+        : c.in-month && c.kind == 2 ? #ffb34026
         : (ta.has-hover && c.in-month ? Theme.chip : transparent);
     border-width: c.sel ? 1.5px : 0px;
-    border-color: Theme.text.with-alpha(0.7);
+    border-color: c.today ? Theme.text : Theme.accent;
+    animate background { duration: 100ms; }
     Text {
         text: "\{c.day}";
-        font-size: 11px;
-        font-weight: c.today || (c.in-month && (c.kind == 1 || c.kind == 2)) ? 700 : 400;
+        font-size: 12px;
+        font-weight: c.today || c.sel || (c.in-month && (c.kind == 1 || c.kind == 2)) ? 700 : 400;
         horizontal-alignment: center;
         vertical-alignment: center;
-        color: c.today ? #000000
+        color: c.today ? Theme.on-accent
             : !c.in-month ? Theme.text-faint
             : c.kind == 1 ? #ff6b6b
             : c.kind == 2 ? #ffb340
@@ -547,13 +550,15 @@ component CalDay inherits Rectangle {
         width: 3px;
         height: 3px;
         border-radius: 1.5px;
-        background: c.today ? #000000 : Theme.accent;
+        background: c.today ? Theme.on-accent : Theme.accent;
         x: (parent.width - self.width) / 2;
         y: parent.height - 4px;
     }
     ta := TouchArea { clicked => { root.clicked(); } }
 }
 
+// Kalender bulanan: kisi 7 x 6 di kiri, kartu ringkasan (bulan, navigasi, keterangan tanggal) di kanan.
+// Area halaman hub 580 x 148 px, jadi kisi memakai baris 21 px agar seluruh 6 minggu muat.
 component CalendarPage inherits Rectangle {
     in property <[CalCell]> cells;
     in property <[string]> weekdays;
@@ -567,56 +572,80 @@ component CalendarPage inherits Rectangle {
     callback select(int);
     callback close;
 
-    // Kisi 7 x 6 di kiri
+    property <length> grid-x: 20px;
+    property <length> pitch-x: 38px;
+    property <length> pitch-y: 21px;
+    property <length> card-x: 308px;
+    property <color> kind-color: root.foot-kind == 1 ? #ff6b6b
+        : root.foot-kind == 2 ? #ffb340
+        : root.foot-kind == 3 ? Theme.accent : Theme.text-faint;
+
+    // Nama hari + garis pemisah
     for wd[i] in root.weekdays: Text {
-        x: 24px + i * 40px;
+        x: root.grid-x + i * root.pitch-x;
         y: 0px;
-        width: 40px;
+        width: 36px;
         height: 14px;
         text: wd;
         font-size: 10px;
+        font-weight: 700;
         horizontal-alignment: center;
+        vertical-alignment: center;
         color: i == 0 ? #ff7a7a : Theme.text-faint;
     }
+    Rectangle {
+        x: root.grid-x;
+        y: 15px;
+        width: 6 * root.pitch-x + 36px;
+        height: 1px;
+        background: Theme.track;
+    }
     for cell[i] in root.cells: CalDay {
-        x: 24px + Math.mod(i, 7) * 40px;
-        y: 16px + Math.floor(i / 7) * 19px;
+        x: root.grid-x + Math.mod(i, 7) * root.pitch-x;
+        y: 19px + Math.floor(i / 7) * root.pitch-y;
         c: cell;
         clicked => { root.select(i); }
     }
 
-    // Judul, navigasi, dan keterangan di kanan
-    VerticalLayout {
-        x: 330px;
+    // Kartu ringkasan di kanan
+    Rectangle {
+        x: root.card-x;
         y: 0px;
-        width: parent.width - 330px - 20px;
-        spacing: 10px;
-        Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; height: 24px; overflow: elide; }
-        HorizontalLayout {
-            spacing: 6px;
-            height: 26px;
-            alignment: start;
-            RoundButton { size: 26px; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.prev(); } }
-            RoundButton { size: 26px; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.next(); } }
-            Chip { label: "Hari ini"; height: 26px; clicked => { root.today(); } }
-            RoundButton { size: 26px; outline: true; commands: Icons.close; clicked => { root.close(); } }
-        }
-        HorizontalLayout {
-            spacing: 10px;
-            alignment: start;
-            Rectangle {
-                width: 10px;
-                height: 10px;
-                y: 3px;
-                border-radius: 5px;
-                background: root.foot-kind == 1 ? #ff6b6b
-                    : root.foot-kind == 2 ? #ffb340
-                    : root.foot-kind == 3 ? Theme.accent : Theme.text-faint;
+        width: parent.width - root.card-x - 20px;
+        height: 144px;
+        border-radius: 14px;
+        background: Theme.text.with-alpha(0.06);
+        VerticalLayout {
+            padding: 10px;
+            padding-left: 14px;
+            spacing: 4px;
+            HorizontalLayout {
+                height: 24px;
+                spacing: 6px;
+                Text { text: root.title; color: Theme.text; font-size: 17px; font-weight: 700; vertical-alignment: center; horizontal-stretch: 1; overflow: elide; }
+                RoundButton { size: 24px; outline: true; commands: Icons.close; clicked => { root.close(); } }
             }
-            VerticalLayout {
-                spacing: 2px;
-                Text { text: root.foot-date; color: Theme.text-dim; font-size: 11px; }
-                Text { text: root.foot-name; color: Theme.text; font-size: 13px; wrap: word-wrap; max-height: 44px; overflow: elide; }
+            HorizontalLayout {
+                height: 26px;
+                spacing: 6px;
+                alignment: start;
+                RoundButton { size: 26px; outline: true; commands: "M 15 5 L 8 12 L 15 19"; clicked => { root.prev(); } }
+                RoundButton { size: 26px; outline: true; commands: "M 9 5 L 16 12 L 9 19"; clicked => { root.next(); } }
+                Chip { label: "Hari ini"; height: 26px; selected: true; clicked => { root.today(); } }
+            }
+            Rectangle { height: 1px; background: Theme.track; }
+            HorizontalLayout {
+                vertical-stretch: 1;
+                spacing: 10px;
+                padding-top: 4px;
+                Rectangle { width: 3px; border-radius: 1.5px; background: root.kind-color; }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 2px;
+                    alignment: start;
+                    Text { text: root.foot-date; color: Theme.text-dim; font-size: 11px; overflow: elide; }
+                    Text { text: root.foot-name; color: Theme.text; font-size: 13px; font-weight: 600; wrap: word-wrap; max-height: 36px; overflow: elide; }
+                }
             }
         }
     }
@@ -5568,6 +5597,94 @@ component RenderTestPage inherits VerticalLayout {
     }
 }
 
+// Equalizer 3 batang adzan. Batang diposisikan manual (bukan HorizontalLayout) supaya tengah secara vertikal.
+component AdhanBars inherits Rectangle {
+    in property <float> s: 1.0;
+    in property <int> phase: 0;
+    width: 17px * root.s;
+    height: 18px * root.s;
+    for i in 3: Rectangle {
+        property <bool> hot: Math.mod(root.phase, 3) == i;
+        width: 3px * root.s;
+        height: (i == 0 ? (self.hot ? 13px : 5px) : (i == 1 ? (self.hot ? 15px : 6px) : (self.hot ? 12px : 4px))) * root.s;
+        x: i * 7px * root.s;
+        y: (root.height - self.height) / 2;
+        background: Theme.accent;
+        border-radius: 1.5px * root.s;
+        animate height { duration: 110ms; }
+    }
+}
+
+component AdhanStopButton inherits Rectangle {
+    in property <float> s: 1.0;
+    callback clicked;
+    width: 22px * root.s;
+    height: 22px * root.s;
+    border-radius: self.width / 2;
+    background: ta.has-hover ? #ffffff30 : #ffffff18;
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: "■";
+        color: #ff8b8b;
+        font-size: 10px * root.s;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+}
+
+// Isi notch saat adzan diputar. Semua ukuran dikali `ui-scale` sehingga ikut skala yang diatur di pengaturan.
+// Dock atas/melayang: equalizer + label "ADZAN"/nama shalat + tombol berhenti.
+// Dock bawah/samping: hanya equalizer + tombol berhenti (teks tampil di SpeechBubble).
+component AdhanOverlay inherits Rectangle {
+    in property <int> dock: 0;
+    in property <float> ui-scale: 1.0;
+    in property <string> prayer;
+    in property <int> phase: 0;
+    callback stop();
+
+    if root.dock < 2: HorizontalLayout {
+        padding-left: 12px * root.ui-scale;
+        padding-right: 8px * root.ui-scale;
+        spacing: 8px * root.ui-scale;
+        VerticalLayout {
+            alignment: center;
+            AdhanBars { s: root.ui-scale; phase: root.phase; }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 1px * root.ui-scale;
+            Text { text: "ADZAN"; color: Theme.accent; font-size: 8px * root.ui-scale; font-weight: 800; overflow: elide; }
+            Text { text: root.prayer; color: Theme.text; font-size: 12px * root.ui-scale; font-weight: 700; overflow: elide; }
+        }
+        VerticalLayout {
+            alignment: center;
+            AdhanStopButton { s: root.ui-scale; clicked => { root.stop(); } }
+        }
+    }
+
+    // Kubah bawah 80x44: ruang terlebar ada di bagian bawah, jadi konten diturunkan sedikit.
+    if root.dock == 2: Rectangle {
+        y: 15px * root.ui-scale;
+        width: parent.width;
+        height: 24px * root.ui-scale;
+        AdhanBars { s: root.ui-scale; phase: root.phase; x: (parent.width - 47px * root.ui-scale) / 2; y: (parent.height - self.height) / 2; }
+        AdhanStopButton { s: root.ui-scale; x: (parent.width - 47px * root.ui-scale) / 2 + 25px * root.ui-scale; y: (parent.height - self.height) / 2; clicked => { root.stop(); } }
+    }
+
+    // Kubah samping 60x120: tersusun vertikal, dipusatkan pada bagian yang tebal.
+    if root.dock >= 3: Rectangle {
+        x: root.dock == 3 ? 6px * root.ui-scale : 18px * root.ui-scale;
+        y: (parent.height - 50px * root.ui-scale) / 2;
+        width: 36px * root.ui-scale;
+        height: 50px * root.ui-scale;
+        AdhanBars { s: root.ui-scale; phase: root.phase; x: (parent.width - self.width) / 2; y: 0px; }
+        AdhanStopButton { s: root.ui-scale; x: (parent.width - self.width) / 2; y: 28px * root.ui-scale; clicked => { root.stop(); } }
+    }
+}
+
 export component NotchWindow inherits Window {
     no-frame: true;
     always-on-top: true;
@@ -5627,10 +5744,12 @@ export component NotchWindow inherits Window {
     // Dock bawah/samping memakai SpeechBubble.
     property <bool> nudge-inline: root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible
         && !root.meeting-active && !root.adhan-active && (root.nudge-visible || root.reminder-alert-visible);
-    property <bool> inline-msg: root.greeting-inline-visible || root.nudge-inline;
+    // Adzan tampil di dalam badan notch (dock atas/melayang): pil melebar supaya teks dan tombol berhenti muat.
+    property <bool> adhan-inline: root.adhan-active && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible;
+    property <bool> inline-msg: root.greeting-inline-visible || root.nudge-inline || root.adhan-inline;
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
-    property <bool> media-mini: root.media-playing && !root.expanded && !root.dragging && !root.inline-msg;
+    property <bool> media-mini: root.media-playing && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active;
     in property <string> day-text: "";
     in property <StatsView> stats;
     in property <CurrencyView> currency;
@@ -5884,6 +6003,8 @@ export component NotchWindow inherits Window {
     callback media-control(string);
     callback adhan-stop();
     callback adhan-finished();
+    // Dipanggil saat adzan mulai/berhenti agar Rust memperbarui area klik notch sesuai lebar pil.
+    callback adhan-layout-changed();
     callback media-seek(float);
     callback hover-changed(bool);
     callback pill-clicked();
@@ -5984,6 +6105,7 @@ export component NotchWindow inherits Window {
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
     out property <bool> drag-armed: hover.pressed;
     changed any-hover => { root.hover-changed(root.any-hover); }
+    changed adhan-active => { root.adhan-layout-changed(); }
 
     // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
     // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
@@ -6042,12 +6164,12 @@ export component NotchWindow inherits Window {
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         // Bentuk compact meniru Tauri: setengah lingkaran menghadap ke dalam layar.
         // Dock bawah 80x44, dock samping 60x120; hub terbuka tetap memakai ukuran landscape.
-        property <length> r: root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale
-            : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px))))) * root.ui-scale;
+        property <length> r: root.adhan-inline ? 17px * root.ui-scale : (root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale
+            : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 60px : 17px))))) * root.ui-scale);
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: (root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? 288px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x)))) * (root.expanded ? 1.0 : root.ui-scale);
-        height: (root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)))) * (root.expanded ? 1.0 : root.ui-scale);
+        width: root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? 288px : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 60px : ((root.idle-clock || root.media-mini) ? 220px : 130px))) * root.play-body-scale-x)))) * (root.expanded ? 1.0 : root.ui-scale));
+        height: root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? 68px : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 120px : 34px))) * root.play-body-scale-y)))) * (root.expanded ? 1.0 : root.ui-scale));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
@@ -6110,7 +6232,7 @@ export component NotchWindow inherits Window {
                 opacity: root.expanded ? 0 : 1;
                 // Crossfade seperti Tauri: mata baru muncul setelah isi hub mulai memudar.
                 animate opacity { duration: root.expanded ? 100ms : 180ms; delay: root.expanded ? 0ms : 100ms; }
-                visible: !root.dragging && !root.inline-msg && !root.media-mini && !(root.idle-clock && root.dock < 2);
+                visible: !root.dragging && !root.inline-msg && !root.media-mini && !root.adhan-active && !(root.idle-clock && root.dock < 2);
             }
 
             // Wajah jam: jam + detik di kiri, tanggal pendek di kanan; tengah dikosongkan untuk titik privasi.
@@ -6269,7 +6391,7 @@ export component NotchWindow inherits Window {
 
             // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
             Rectangle {
-                visible: !root.dragging && !root.expanded && !root.greeting-inline-visible && !root.media-mini && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
+                visible: !root.dragging && !root.expanded && !root.greeting-inline-visible && !root.media-mini && !root.adhan-active && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
                 x: (root.dock >= 3 ? 23px : (parent.width - self.width) / 2) + root.eyes-offset-x * 1px;
                 y: (root.dock >= 3 ? 105px : (root.dock == 2 ? 27px : 27px)) + root.eyes-offset-y * 1px;
                 width: (root.eyes-mood == "happy" ? 14px
@@ -6334,66 +6456,17 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Overlay Adzan saat notch menciut: status jelas dan kontrol berhenti.
-            Rectangle {
-                visible: root.adhan-active && !root.expanded;
-                x: (parent.width - 130px) / 2;
+            // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
+            if root.adhan-active && !root.expanded && !root.dragging: AdhanOverlay {
+                x: 0px;
                 y: 0px;
-                width: 130px;
-                height: 34px;
-                border-radius: 17px;
-                background: #171923f5;
-                border-width: 1px;
-                border-color: Theme.accent.with-alpha(0.8);
-                HorizontalLayout {
-                    x: 10px;
-                    width: parent.width - 20px;
-                    height: parent.height;
-                    spacing: 6px;
-                    HorizontalLayout {
-                        width: 20px;
-                        height: 18px;
-                        spacing: 2px;
-                        alignment: center;
-                        Rectangle {
-                            width: 3px;
-                            height: Math.mod(root.adhan-phase, 3) == 0 ? 13px : 5px;
-                            background: Theme.accent;
-                            border-radius: 2px;
-                            animate height { duration: 110ms; }
-                        }
-                        Rectangle {
-                            width: 3px;
-                            height: Math.mod(root.adhan-phase, 3) == 1 ? 15px : 6px;
-                            background: Theme.accent;
-                            border-radius: 2px;
-                            animate height { duration: 110ms; }
-                        }
-                        Rectangle {
-                            width: 3px;
-                            height: Math.mod(root.adhan-phase, 3) == 2 ? 12px : 4px;
-                            background: Theme.accent;
-                            border-radius: 2px;
-                            animate height { duration: 110ms; }
-                        }
-                    }
-                    Text {
-                        text: "ADZAN  " + root.adhan-prayer;
-                        color: Theme.text;
-                        font-size: 10px;
-                        font-weight: 700;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-                    stop-touch := TouchArea {
-                        width: 22px;
-                        height: 22px;
-                        mouse-cursor: pointer;
-                        clicked => { root.adhan-stop(); }
-                        Rectangle { background: stop-touch.has-hover ? #ffffff30 : #ffffff18; border-radius: 11px; }
-                        Text { text: "■"; color: #ff8b8b; font-size: 10px; horizontal-alignment: center; vertical-alignment: center; }
-                    }
-                }
+                width: parent.width;
+                height: parent.height;
+                dock: root.dock;
+                ui-scale: root.ui-scale;
+                prayer: root.adhan-prayer;
+                phase: root.adhan-phase;
+                stop => { root.adhan-stop(); }
             }
 
             // Hub: tab + halaman
