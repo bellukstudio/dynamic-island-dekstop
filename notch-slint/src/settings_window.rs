@@ -77,6 +77,9 @@ pub(crate) fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_position_mode(m.get_position_mode());
     s.set_active_pages(m.get_active_pages());
     s.set_hub_pages(m.get_hub_pages());
+    // Posisi dapat berubah lewat preset, tray, atau aksi pusatkan; cerminkan pilihan terbaru
+    // ke SettingsWindow agar indikator pilihan tidak tertinggal dari posisi notch sebenarnya.
+    s.set_position_mode(m.get_position_mode());
     s.set_pages_save_status(m.get_pages_save_status());
     s.set_prayer_province(m.get_prayer_province());
     s.set_prayer_city(m.get_prayer_city());
