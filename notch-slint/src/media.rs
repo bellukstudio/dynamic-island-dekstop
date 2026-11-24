@@ -1,5 +1,5 @@
 //! Native Windows media session integration.
-use slint::{ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer, Weak};
+use slint::{ComponentHandle, Global, Image, Rgba8Pixel, SharedPixelBuffer, Weak};
 use crate::{NotchWindow, Theme};
 use std::time::Duration;
 use notch_core::lyrics::{self, Line};
@@ -73,7 +73,7 @@ mod platform {
   let(ow,oh)=out.dimensions();(out.into_raw(),ow,oh)
  }
  fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32,[u8;3])>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let accent=dominant_color(&decoded);let(rgba,width,height)=round_cover(decoded);Some((rgba,width,height,accent))}
- pub fn poll(weak:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color){std::thread::spawn(move||{
+ pub fn poll(weak:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color,fallback_on_accent:slint::Color){std::thread::spawn(move||{
  init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
  loop{
   let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32)>>=None;
@@ -97,7 +97,7 @@ mod platform {
    w.set_media_pos_text(time_text(snapshot.position).into());w.set_media_dur_text(time_text(snapshot.length).into());
    w.set_lyric_lines(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lyric_lines))));
    w.set_lyric_active(lyric_active);
-   if let Some(a)=art_update{if let Some((rgba,width,height,rgb))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);if auto_accent{let accent=slint::Color::from_rgb_u8(rgb[0],rgb[1],rgb[2]);Theme::get(&w).set_accent(accent);let luma=0.2126*rgb[0]as f32+0.7152*rgb[1]as f32+0.0722*rgb[2]as f32;Theme::get(&w).set_on_accent(if luma>145.0{slint::Color::from_rgb_u8(0,0,0)}else{slint::Color::from_rgb_u8(255,255,255)});}}else{w.set_media_has_art(false);if auto_accent{Theme::get(&w).set_accent(fallback_accent);Theme::get(&w).set_on_accent(slint::Color::from_rgb_u8(255,255,255));}}}
+   if let Some(a)=art_update{if let Some((rgba,width,height,rgb))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);if auto_accent{let accent=slint::Color::from_rgb_u8(rgb[0],rgb[1],rgb[2]);Theme::get(&w).set_accent(accent);let luma=0.2126*rgb[0]as f32+0.7152*rgb[1]as f32+0.0722*rgb[2]as f32;Theme::get(&w).set_on_accent(if luma>145.0{slint::Color::from_rgb_u8(0,0,0)}else{slint::Color::from_rgb_u8(255,255,255)});}}else{w.set_media_has_art(false);if auto_accent{Theme::get(&w).set_accent(fallback_accent);Theme::get(&w).set_on_accent(fallback_on_accent);}}}
   });
   std::thread::sleep(Duration::from_millis(if state.active{1000}else{2000}));
  }
@@ -218,8 +218,8 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>,_:bool,_:slint::Color){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
-pub fn start(w:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color){platform::poll(w,auto_accent,fallback_accent);}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>,_:bool,_:slint::Color,_:slint::Color){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
+pub fn start(w:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color,fallback_on_accent:slint::Color){platform::poll(w,auto_accent,fallback_accent,fallback_on_accent);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
 /// Jeda sesi media pengguna sebelum audio prioritas (mis. adzan) diputar.
