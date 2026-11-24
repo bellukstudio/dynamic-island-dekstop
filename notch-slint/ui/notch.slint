@@ -4014,11 +4014,11 @@ export component SettingsWindow inherits Window {
                                     horizontal-stretch: 1;
                                     spacing: 8px;
                                     PageToggle { label: "Lirik lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
-                                    PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 8px;
+                                    PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
                                 }
                             }
                         }
