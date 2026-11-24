@@ -12,6 +12,7 @@ software = ["slint/renderer-software"]
 femtovg = ["slint/renderer-femtovg"]
 
 [dependencies]
+rodio = "0.20"
 notch-core = { path = "../notch-core", features = ["net"] }
 notch-tools = { path = "../notch-tools" }
 png = { version = "0.17", default-features = false }   # hanya untuk 3 gambar emoji kecil
