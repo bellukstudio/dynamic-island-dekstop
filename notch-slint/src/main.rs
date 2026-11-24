@@ -106,6 +106,13 @@ fn main() -> Result<(), slint::PlatformError> {
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
+    // Pulihkan wajah idle sebelum geometri dan hit-test awal dipasang.
+    // Jika dibaca setelah Shell::place, region native masih selebar mode mata (130 px)
+    // sementara isi Slint sudah menggambar jam (220 px), sehingga jam terpotong saat startup.
+    let idle_clock = std::fs::read_to_string(notch_core::paths::data_file("idle_face.txt"))
+        .map(|value| value.trim() == "clock")
+        .unwrap_or(false);
+    win.set_idle_clock(idle_clock);
     // Pengaturan dibuka sebagai jendela terpisah (bukan halaman di dalam notch): tab Pengaturan, tray, dan shortcut memakai jalur ini.
     let settings_slot: SettingsSlot = Rc::default();
     let open_settings: Rc<dyn Fn()> = {
@@ -699,11 +706,6 @@ fn main() -> Result<(), slint::PlatformError> {
     let notes_store: Rc<RefCell<Option<NotesStore>>> = Rc::new(RefCell::new(None));
     let notes_model = Rc::new(VecModel::<NoteItem>::default());
     win.set_notes(ModelRc::from(notes_model.clone()));
-
-    // Wajah idle terakhir (mata / jam) diingat antar sesi.
-    if std::fs::read_to_string(notch_core::paths::data_file("idle_face.txt")).map(|t| t.trim() == "clock").unwrap_or(false) {
-        win.set_idle_clock(true);
-    }
 
     // ----- Currency -----
     let currency_path = notch_core::paths::data_file("currency_alerts.json");
