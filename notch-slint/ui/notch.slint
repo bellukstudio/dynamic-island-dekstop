@@ -196,7 +196,7 @@ component Ear inherits Path {
             : "M 10 0 L 0 0 A 10 10 0 0 1 10 10 Z";
 }
 
-component StatBar inherits VerticalLayout {
+export component StatBar inherits VerticalLayout {
     in property <string> label;
     in property <float> value;   // 0..100
     in property <string> text;
@@ -6144,8 +6144,8 @@ export component NotchWindow inherits Window {
                     clip: true;
                     if root.media-has-art: Image {
                         source: root.media-art;
-                        width: 22px * parent.media-scale;
-                        height: 22px * parent.media-scale;
+                        width: 22px * root.ui-scale;
+                        height: 22px * root.ui-scale;
                         image-fit: cover;
                     }
                 }
