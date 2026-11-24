@@ -3441,6 +3441,7 @@ export component SettingsWindow inherits Window {
     callback pause-adhan(bool);
     property <bool> adhan-paused: false;
     callback restart-app();
+    callback begin-drag();
     callback save-shortcuts(string, string, string, string);
 
 
@@ -3676,6 +3677,17 @@ export component SettingsWindow inherits Window {
                         spacing: 1px;
                         Text { text: "Notch"; color: Theme.text; font-size: 15px; font-weight: 700; }
                         Text { text: "Pengaturan"; color: Theme.text-dim; font-size: 11px; }
+                    }
+                    // Area judul kustom: mulai native window drag saat mouse ditekan,
+                    // tanpa menunggu maximize/minimize untuk mengaktifkan hit-test Windows.
+                    TouchArea {
+                        width: parent.width;
+                        height: parent.height;
+                        pointer-event(event) => {
+                            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
+                                root.begin-drag();
+                            }
+                        }
                     }
                 }
                 Rectangle { height: 8px; }
