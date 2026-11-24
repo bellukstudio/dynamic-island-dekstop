@@ -2932,7 +2932,16 @@ component SSegItem inherits Rectangle {
         vertical-alignment: center;
         overflow: elide;
     }
-    seg-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    // Area klik harus eksplisit memenuhi seluruh segmen. Tanpa ukuran eksplisit,
+    // TouchArea dapat mewarisi ukuran intrinsik kecil dan klik di sisi label tidak diterima.
+    seg-ta := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
 }
 
 component SSeg inherits Rectangle {
