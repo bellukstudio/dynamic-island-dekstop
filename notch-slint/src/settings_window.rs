@@ -100,6 +100,7 @@ pub(crate) fn sync_settings_live_state(m: &NotchWindow, s: &SettingsWindow) {
     s.set_weather_hits(m.get_weather_hits());
     s.set_weather_search_status(m.get_weather_search_status());
     s.set_adhan_active(m.get_adhan_active());
+    s.set_adhan_status(m.get_prayer_status());
     s.set_appearance_save_status(m.get_appearance_save_status());
     s.set_autostart_save_status(m.get_autostart_save_status());
     s.set_behavior_save_status(m.get_behavior_save_status());
