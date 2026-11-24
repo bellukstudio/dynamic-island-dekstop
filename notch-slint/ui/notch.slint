@@ -252,13 +252,16 @@ component RoundButton inherits Rectangle {
 component EqBars inherits HorizontalLayout {
     // Equalizer 4 batang (`.bars` di media.css): hanya bergerak saat media diputar.
     in property <bool> playing: false;
-    spacing: 3px;
+    in property <float> scale: 1.0;
+    spacing: 3px * root.scale;
     alignment: end;
     for i in 4: Rectangle {
-        width: 3px;
+        width: 3px * root.scale;
         y: parent.height - self.height;
-        height: root.playing ? 4px + 10px * Math.abs(Math.sin((animation-tick() / 520ms * 360 + i * 70) * 1deg)) : 4px;
-        border-radius: 1.5px;
+        height: root.playing
+            ? (4px + 10px * Math.abs(Math.sin((animation-tick() / 520ms * 360 + i * 70) * 1deg))) * root.scale
+            : 4px * root.scale;
+        border-radius: 1.5px * root.scale;
         background: Theme.accent;
     }
 }
@@ -6151,6 +6154,7 @@ export component NotchWindow inherits Window {
                     y: (root.dock == 0 ? 6px : 10px) * parent.media-scale;
                     width: 18px * parent.media-scale;
                     height: 14px * parent.media-scale;
+                    scale: parent.media-scale;
                     playing: true;
                 }
             }
@@ -6186,6 +6190,7 @@ export component NotchWindow inherits Window {
                     y: (parent.height - 14px * parent.media-scale) / 2;
                     width: 18px * parent.media-scale;
                     height: 14px * parent.media-scale;
+                    scale: parent.media-scale;
                     playing: true;
                 }
             }
