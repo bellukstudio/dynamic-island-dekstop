@@ -219,6 +219,35 @@ pub fn set_region(window: &slint::Window, rect: Option<(i32, i32, i32, i32)>) ->
     }
 }
 
+/// Mulai drag jendela native dari area judul kustom. Dipakai jendela Pengaturan tanpa title bar Windows.
+pub fn begin_window_drag(window: &slint::Window) -> bool {
+    #[cfg(windows)]
+    {
+        use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use slint::winit_030::WinitWindowAccessor;
+        use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+        use windows::Win32::UI::WindowsAndMessaging::{ReleaseCapture, SendMessageW, WM_NCLBUTTONDOWN};
+        let raw = window.with_winit_window(|w| match w.window_handle().map(|h| h.as_raw()) {
+            Ok(RawWindowHandle::Win32(handle)) => Some(handle.hwnd.get()),
+            _ => None,
+        }).flatten();
+        if let Some(raw) = raw {
+            unsafe {
+                let hwnd = HWND(raw as *mut core::ffi::c_void);
+                let _ = ReleaseCapture();
+                let _ = SendMessageW(hwnd, WM_NCLBUTTONDOWN, WPARAM(2), LPARAM(0));
+            }
+            return true;
+        }
+        false
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        false
+    }
+}
+
 /// Area kerja monitor (di luar taskbar) tempat notch berada, dalam piksel fisik: lebar penuh monitor,
 /// vertikal mengikuti area kerja (sama dengan `monitor_work_area` di src-tauri/src/lib.rs).
 /// `near` = titik (mis. tengah posisi kustom) untuk memilih monitor; `None` = monitor utama.
