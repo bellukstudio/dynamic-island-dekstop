@@ -14,6 +14,7 @@ pub(crate) fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_weather_hits(m.get_weather_hits());
     s.set_weather_search_status(m.get_weather_search_status());
     s.set_adhan_active(m.get_adhan_active());
+    s.set_adhan_status(m.get_prayer_status());
     s.set_shortcut_hub(m.get_shortcut_hub());
     s.set_shortcut_settings(m.get_shortcut_settings());
     s.set_shortcut_pomodoro(m.get_shortcut_pomodoro());
