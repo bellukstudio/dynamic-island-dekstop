@@ -76,7 +76,7 @@ mod platform {
  pub fn poll(weak:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color,fallback_on_accent:slint::Color){std::thread::spawn(move||{
  init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
  loop{
-  let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32)>>=None;
+  let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32,[u8;3])>>=None;
   if let Ok(s)=session(){if let Ok(v)=read(&s){
    let key=format!("{}|{}",v.title,v.artist);
    if key!=last{
