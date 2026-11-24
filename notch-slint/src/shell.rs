@@ -50,7 +50,7 @@ impl Shell {
             let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
             // Adzan memakai pil 220 x 34 (lihat `adhan-inline` di notch.slint); area klik harus mencakup tombol berhenti.
             let adhan = win.get_adhan_active();
-            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_media_playing() || win.get_idle_clock() { 220.0 } else { 130.0 };
+            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_idle_clock() { 300.0 } else if win.get_media_playing() { 220.0 } else { 130.0 };
             let body_h = if greeting { 75.0 } else if adhan || dock != Dock::Top { 34.0 } else { 26.0 };
             let hit_w = ((body_w + 20.0) * sf).round() as i32;
             let hit_h = ((body_h + 10.0) * sf).round() as i32;
@@ -87,7 +87,7 @@ impl Shell {
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
         let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
-        let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
+        let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else if size == COLLAPSED && win.get_idle_clock() && !side { COLLAPSED_CLOCK } else { size };
         // Skala notch berlaku pada semua geometri menciut, termasuk mode mini-player,
         // greeting inline, dan dock samping. Ukuran native harus sama dengan ukuran isi Slint.
         let logical_size = if size == COLLAPSED || size == GREETING_INLINE {
