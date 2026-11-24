@@ -6130,7 +6130,7 @@ export component NotchWindow inherits Window {
                 width: parent.width;
                 height: parent.height;
                 // Seluruh kontrol mini mengikuti skala Notch, bukan hanya badan pil.
-                property <length> media-scale: root.ui-scale;
+                property <float> media-scale: root.ui-scale;
                 Rectangle {
                     x: 14px * parent.media-scale;
                     y: (root.dock == 0 ? 2px : 6px) * parent.media-scale;
@@ -6157,7 +6157,7 @@ export component NotchWindow inherits Window {
 
             // Media mini, dock bawah/samping: cover bulat bercincin aksen di tengah kubah.
             if root.media-mini && root.dock >= 2: Rectangle {
-                property <length> media-scale: root.ui-scale;
+                property <float> media-scale: root.ui-scale;
                 property <length> d: (root.dock == 2 ? 30px : 38px) * self.media-scale;
                 x: root.dock == 2 ? (parent.width - self.width) / 2 : (root.dock == 3 ? 8px * self.media-scale : parent.width - self.width - 8px * self.media-scale);
                 y: root.dock == 2 ? 9px * self.media-scale : (parent.height - self.height) / 2;
