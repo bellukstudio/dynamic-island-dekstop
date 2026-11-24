@@ -2659,6 +2659,9 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
+                    if w.get_dock() >= 2 && !w.get_expanded() {
+                        shell_hide.place(&w, COLLAPSED);
+                    }
                 }
             });
         });
@@ -3865,6 +3868,9 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                         w.set_greeting_speech_visible(false);
                         w.set_nudge_visible(false);
+                        if w.get_dock() >= 2 && !w.get_expanded() {
+                            shell_hide.place(&w, COLLAPSED);
+                        }
                     }
                 });
             }
