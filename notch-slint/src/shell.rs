@@ -90,11 +90,19 @@ impl Shell {
         let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else if size == COLLAPSED && win.get_idle_clock() && !side { COLLAPSED_CLOCK } else { size };
         // Skala notch berlaku pada semua geometri menciut, termasuk mode mini-player,
         // greeting inline, dan dock samping. Ukuran native harus sama dengan ukuran isi Slint.
-        let logical_size = if size == COLLAPSED || size == GREETING_INLINE {
+        let mut logical_size = if size == COLLAPSED || size == GREETING_INLINE {
             scaled_window_size(win, logical_size)
         } else {
             logical_size
         };
+        // SpeechBubble memakai lebar tetap (224 px untuk dock bawah, 200 px untuk sisi),
+        // sedangkan ukuran jendela mengikuti ui-scale. Sisakan ruang agar balon dan teks
+        // tidak terpotong ketika skala notch di bawah 100%.
+        if size == COLLAPSED && win.get_greeting_speech_visible() {
+            let ui_scale = win.get_ui_scale().clamp(0.5, 1.5);
+            let side_bubble_width = (60.0 * ui_scale + 11.0 + 200.0 + 12.0).ceil() as u32;
+            logical_size.0 = logical_size.0.max(if side { side_bubble_width } else { 224 });
+        }
         let size = ((logical_size.0 as f32 * sf).round() as u32, (logical_size.1 as f32 * sf).round() as u32);
         let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
         (origin, dock, size)
