@@ -6129,33 +6129,47 @@ export component NotchWindow inherits Window {
                 y: 0px;
                 width: parent.width;
                 height: parent.height;
+                // Seluruh kontrol mini mengikuti skala Notch, bukan hanya badan pil.
+                property <length> media-scale: root.ui-scale;
                 Rectangle {
-                    x: 14px;
-                    y: root.dock == 0 ? 2px : 6px;
-                    width: 22px;
-                    height: 22px;
-                    border-radius: 4.4px;
+                    x: 14px * parent.media-scale;
+                    y: (root.dock == 0 ? 2px : 6px) * parent.media-scale;
+                    width: 22px * parent.media-scale;
+                    height: 22px * parent.media-scale;
+                    border-radius: 4.4px * parent.media-scale;
                     background: Theme.chip;
                     clip: true;
-                    if root.media-has-art: Image { source: root.media-art; width: 22px; height: 22px; image-fit: cover; }
+                    if root.media-has-art: Image {
+                        source: root.media-art;
+                        width: 22px * parent.media-scale;
+                        height: 22px * parent.media-scale;
+                        image-fit: cover;
+                    }
                 }
-                EqBars { x: parent.width - 16px - 18px; y: root.dock == 0 ? 6px : 10px; width: 18px; height: 14px; playing: true; }
+                EqBars {
+                    x: parent.width - (16px + 18px) * parent.media-scale;
+                    y: (root.dock == 0 ? 6px : 10px) * parent.media-scale;
+                    width: 18px * parent.media-scale;
+                    height: 14px * parent.media-scale;
+                    playing: true;
+                }
             }
 
-            // Media mini, dock bawah/samping (gambar 1): cover bulat bercincin aksen di tengah kubah.
+            // Media mini, dock bawah/samping: cover bulat bercincin aksen di tengah kubah.
             if root.media-mini && root.dock >= 2: Rectangle {
-                property <length> d: root.dock == 2 ? 30px : 38px;
-                x: root.dock == 2 ? (parent.width - self.width) / 2 : (root.dock == 3 ? 8px : parent.width - self.width - 8px);
-                y: root.dock == 2 ? 9px : (parent.height - self.height) / 2;
+                property <length> media-scale: root.ui-scale;
+                property <length> d: (root.dock == 2 ? 30px : 38px) * self.media-scale;
+                x: root.dock == 2 ? (parent.width - self.width) / 2 : (root.dock == 3 ? 8px * self.media-scale : parent.width - self.width - 8px * self.media-scale);
+                y: root.dock == 2 ? 9px * self.media-scale : (parent.height - self.height) / 2;
                 width: self.d;
                 height: self.d;
                 border-radius: self.d / 2;
                 background: Theme.chip;
-                border-width: 2px;
+                border-width: 2px * self.media-scale;
                 border-color: Theme.accent;
                 clip: true;
                 if root.media-has-art: Image { source: root.media-art; width: parent.width; height: parent.height; image-fit: cover; }
-                // Renderer software tidak memotong gambar mengikuti radius: sudut ditutup warna badan lewat Path even-odd (persegi dikurangi lingkaran).
+                // Renderer software tidak memotong gambar mengikuti radius: sudut ditutup warna badan lewat Path even-odd.
                 if root.media-has-art: Path {
                     x: 0px;
                     y: 0px;
@@ -6167,7 +6181,13 @@ export component NotchWindow inherits Window {
                     fill: Theme.body;
                     commands: "M 0 0 H 100 V 100 H 0 Z M 0 50 A 50 50 0 1 0 100 50 A 50 50 0 1 0 0 50 Z";
                 }
-                if !root.media-has-art: EqBars { x: (parent.width - 18px) / 2; y: (parent.height - 14px) / 2; width: 18px; height: 14px; playing: true; }
+                if !root.media-has-art: EqBars {
+                    x: (parent.width - 18px * parent.media-scale) / 2;
+                    y: (parent.height - 14px * parent.media-scale) / 2;
+                    width: 18px * parent.media-scale;
+                    height: 14px * parent.media-scale;
+                    playing: true;
+                }
             }
 
             // Greeting tampil sebagai companion inline di badan notch, bukan speech bubble terpisah.
