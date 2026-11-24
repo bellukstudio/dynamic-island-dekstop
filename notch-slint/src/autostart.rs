@@ -46,7 +46,11 @@ mod imp {
         match output {
             Some(output) if output.status.success() => Ok(()),
             Some(_) if !enabled && reg(&["query", KEY, "/v", NAME]).map(|o| !o.status.success()).unwrap_or(false) => Ok(()),
-            Some(output) => Err(String::from_utf8_lossy(&output.stderr).trim().to_string()),
+            Some(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                Err(if !stderr.is_empty() { stderr } else if !stdout.is_empty() { stdout } else { format!("reg keluar dengan kode {:?}", output.status.code()) })
+            },
             None => Err("perintah reg gagal dijalankan".into()),
         }
     }
@@ -103,9 +107,8 @@ pub fn is_enabled() -> bool {
 }
 
 pub fn set(enabled: bool) -> Result<bool, String> {
-    if cfg!(debug_assertions) {
-        return Err("hanya tersedia di build release.".into());
-    }
+    // Debug dan release sama-sama boleh menguji autostart. Nilai Run selalu menunjuk
+    // executable yang sedang berjalan; build release tetap disarankan untuk pemakaian harian.
     let exe = target_exe()?;
     imp::set(enabled, &exe)?;
     Ok(imp::is_enabled(&exe))
