@@ -226,7 +226,7 @@ pub fn begin_window_drag(window: &slint::Window) -> bool {
         use slint::winit_030::winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
         use slint::winit_030::WinitWindowAccessor;
         use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
-        use windows::Win32::UI::WindowsAndMessaging::{ReleaseCapture, SendMessageW, WM_NCLBUTTONDOWN};
+        use windows::Win32::UI::WindowsAndMessaging::{SendMessageW, WM_NCLBUTTONDOWN};
         let raw = window.with_winit_window(|w| match w.window_handle().map(|h| h.as_raw()) {
             Ok(RawWindowHandle::Win32(handle)) => Some(handle.hwnd.get()),
             _ => None,
@@ -234,8 +234,7 @@ pub fn begin_window_drag(window: &slint::Window) -> bool {
         if let Some(raw) = raw {
             unsafe {
                 let hwnd = HWND(raw as *mut core::ffi::c_void);
-                let _ = ReleaseCapture();
-                let _ = SendMessageW(hwnd, WM_NCLBUTTONDOWN, WPARAM(2), LPARAM(0));
+                let _ = SendMessageW(hwnd, WM_NCLBUTTONDOWN, Some(WPARAM(2)), Some(LPARAM(0)));
             }
             return true;
         }
