@@ -113,6 +113,12 @@ fn main() -> Result<(), slint::PlatformError> {
         .map(|value| value.trim() == "clock")
         .unwrap_or(false);
     win.set_idle_clock(idle_clock);
+    if idle_clock {
+        // Samakan state halaman dengan wajah jam yang dipulihkan, dan tahan render pertama
+        // sampai native window selesai dipasang pada ukuran 360 px (hindari frame jam terpotong).
+        win.set_page_id("clock".into());
+        win.set_geometry_hold(true);
+    }
     // Pengaturan dibuka sebagai jendela terpisah (bukan halaman di dalam notch): tab Pengaturan, tray, dan shortcut memakai jalur ini.
     let settings_slot: SettingsSlot = Rc::default();
     let open_settings: Rc<dyn Fn()> = {
@@ -158,6 +164,9 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(w) = weak.upgrade() {
                 shell.memo.set((None, 0));
                 shell.place(&w, COLLAPSED);
+                if w.get_idle_clock() {
+                    w.set_geometry_hold(false);
+                }
                 platform::hide_from_taskbar(w.window());
                 w.window().request_redraw();
             }
@@ -3867,6 +3876,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 shell.memo.set((None, 0));
                 let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                 shell.place(&w, size);
+                if w.get_idle_clock() && !w.get_expanded() {
+                    w.set_geometry_hold(false);
+                }
                 platform::hide_from_taskbar(w.window());
             }
         });
