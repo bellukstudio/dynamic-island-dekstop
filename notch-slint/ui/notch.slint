@@ -6105,7 +6105,10 @@ export component NotchWindow inherits Window {
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
     out property <bool> drag-armed: hover.pressed;
     changed any-hover => { root.hover-changed(root.any-hover); }
+    // Lebar badan notch menciut (adzan 220, musik/jam 220, biasa 130) menentukan area klik di Rust; hitung ulang tiap berubah.
     changed adhan-active => { root.adhan-layout-changed(); }
+    changed idle-clock => { root.adhan-layout-changed(); }
+    changed media-playing => { root.adhan-layout-changed(); }
 
     // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
     // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
