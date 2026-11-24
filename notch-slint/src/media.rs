@@ -1,6 +1,6 @@
 //! Native Windows media session integration.
 use slint::{ComponentHandle, Image, Rgba8Pixel, SharedPixelBuffer, Weak};
-use crate::NotchWindow;
+use crate::{NotchWindow, Theme};
 use std::time::Duration;
 use notch_core::lyrics::{self, Line};
 
@@ -29,6 +29,36 @@ mod platform {
  fn read(s:&Session)->windows::core::Result<State>{let p=s.TryGetMediaPropertiesAsync()?.get()?;let t=s.GetTimelineProperties()?;let playing=s.GetPlaybackInfo()?.PlaybackStatus()?==Status::Playing;let length=t.EndTime()?.Duration as f64/10_000_000.0;let mut position=t.Position()?.Duration as f64/10_000_000.0;if playing{let updated=t.LastUpdatedTime()?.UniversalTime as f64/10_000_000.0;let now=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d|d.as_secs_f64()).unwrap_or(0.0)+11_644_473_600.0;let elapsed=now-updated;if elapsed>0.0&&elapsed<21_600.0{position+=elapsed;}}if length>0.0{position=position.min(length);}Ok(State{active:true,title:p.Title()?.to_string(),artist:p.Artist()?.to_string(),playing,position,length})}
  /// Renderer software Slint tidak memotong gambar mengikuti `border-radius`, jadi sudut cover dibulatkan
  /// langsung di piksel: potong persegi di tengah lalu kurangi alpha di sudut (radius 20% sisi, setara 16 px pada 80 px di Tauri).
+ /// Pilih warna aksen dari warna dominan artwork. Warna netral/terlalu gelap/terang
+ /// diberi bobot lebih rendah agar aksen tetap terlihat jelas di atas UI.
+ fn dominant_color(img:&image::RgbaImage)->[u8;3]{
+  use std::collections::HashMap;
+  let mut buckets:HashMap<u16,(u32,u64,u64,u64,f32)>=HashMap::new();
+  for(_,_,p)in img.enumerate_pixels(){
+   let [r,g,b,a]=p.0;
+   if a<180{continue;}
+   let rf=r as f32/255.0;let gf=g as f32/255.0;let bf=b as f32/255.0;
+   let max=rf.max(gf).max(bf);let min=rf.min(gf).min(bf);
+   let saturation=if max<=0.0{0.0}else{(max-min)/max};
+   let brightness=(0.2126*rf+0.7152*gf+0.0722*bf);
+   if brightness<0.12||brightness>0.96||saturation<0.12{continue;}
+   let key=(((r>>3)as u16)<<10)|(((g>>3)as u16)<<5)|((b>>3)as u16);
+   let e=buckets.entry(key).or_insert((0,0,0,0,0.0));
+   e.0+=1;e.1+=r as u64;e.2+=g as u64;e.3+=b as u64;
+   e.4+=saturation*(0.55+0.45*(1.0-(brightness-0.55).abs()));
+  }
+  if let Some((_,(count,sr,sg,sb,_)))=buckets.iter().max_by(|a,b|{
+   let score=|v:&(u32,u64,u64,u64,f32)|v.4*(v.0 as f32).sqrt();
+   score(a.1).total_cmp(&score(b.1))
+  }){
+   let n=*count as u64;
+   if n>0{return [(*sr/n)as u8,(*sg/n)as u8,(*sb/n)as u8];}
+  }
+  // Fallback: warna rata-rata seluruh piksel yang tidak transparan.
+  let(mut n,mut r,mut g,mut b)=(0u64,0u64,0u64,0u64);
+  for(_,_,p)in img.enumerate_pixels(){if p.0[3]>=180{n+=1;r+=p.0[0]as u64;g+=p.0[1]as u64;b+=p.0[2]as u64;}}
+  if n==0{[120,140,255]}else{[(r/n)as u8,(g/n)as u8,(b/n)as u8]}
+ }
  fn round_cover(img:image::RgbaImage)->(Vec<u8>,u32,u32){
   let(w,h)=img.dimensions();let side=w.min(h);
   let mut out=image::imageops::crop_imm(&img,(w-side)/2,(h-side)/2,side,side).to_image();
@@ -42,8 +72,8 @@ mod platform {
   }
   let(ow,oh)=out.dimensions();(out.into_raw(),ow,oh)
  }
- fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32)>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();Some(round_cover(decoded))}
- pub fn poll(weak:Weak<NotchWindow>){std::thread::spawn(move||{
+ fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32,[u8;3])>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let accent=dominant_color(&decoded);let(rgba,width,height)=round_cover(decoded);Some((rgba,width,height,accent))}
+ pub fn poll(weak:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color){std::thread::spawn(move||{
  init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
  loop{
   let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32)>>=None;
@@ -67,7 +97,7 @@ mod platform {
    w.set_media_pos_text(time_text(snapshot.position).into());w.set_media_dur_text(time_text(snapshot.length).into());
    w.set_lyric_lines(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lyric_lines))));
    w.set_lyric_active(lyric_active);
-   if let Some(a)=art_update{if let Some((rgba,width,height))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);}else{w.set_media_has_art(false);}}
+   if let Some(a)=art_update{if let Some((rgba,width,height,rgb))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);if auto_accent{let accent=slint::Color::from_rgb_u8(rgb[0],rgb[1],rgb[2]);Theme::get(&w).set_accent(accent);let luma=0.2126*rgb[0]as f32+0.7152*rgb[1]as f32+0.0722*rgb[2]as f32;Theme::get(&w).set_on_accent(if luma>145.0{slint::Color::from_rgb_u8(0,0,0)}else{slint::Color::from_rgb_u8(255,255,255)});}}else{w.set_media_has_art(false);if auto_accent{Theme::get(&w).set_accent(fallback_accent);Theme::get(&w).set_on_accent(slint::Color::from_rgb_u8(255,255,255));}}}
   });
   std::thread::sleep(Duration::from_millis(if state.active{1000}else{2000}));
  }
@@ -188,8 +218,8 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
-pub fn start(w:Weak<NotchWindow>){platform::poll(w);}
+mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>,_:bool,_:slint::Color){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
+pub fn start(w:Weak<NotchWindow>,auto_accent:bool,fallback_accent:slint::Color){platform::poll(w,auto_accent,fallback_accent);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
 /// Jeda sesi media pengguna sebelum audio prioritas (mis. adzan) diputar.
