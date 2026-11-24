@@ -41,10 +41,26 @@ impl Shell {
             w.set_size(PhysicalSize::new(size.0, size.1));
             w.set_position(PhysicalPosition::new(origin.0, origin.1));
         }
-        // Region selalu dipasang (persegi penuh seukuran jendela, sejak penempatan pertama) dan TIDAK PERNAH NULL: DWM
-        // menggambar bingkai non-client yang tembus terlihat lewat klien transparan (bingkai biru muda di tepi jendela)
-        // pada jendela tanpa region. Pemotongan notch menciut (clip_to_collapsed) hanya mempersempit region ini.
-        platform::set_region(w, Some((0, 0, size.0 as i32, size.1 as i32)));
+        // Area hit-test harus mengikuti bentuk yang terlihat. Region persegi penuh membuat jendela
+        // transparan tetap menangkap klik editor/aplikasi di bawahnya (terutama area kosong 300x140).
+        // Untuk dock atas/melayang, batasi region ke badan notch + telinga; hub yang terbuka tetap penuh.
+        let region = if size == self.collapsed_size(win) && matches!(dock, Dock::Top | Dock::Floating) {
+            let sf = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
+            let greeting = win.get_greeting_inline_visible();
+            let body_w = if greeting { 385.0 } else if win.get_media_mini() || win.get_idle_clock() { 220.0 } else { 130.0 };
+            let body_h = if greeting { 75.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
+            let hit_w = ((body_w + 20.0) * sf).round() as i32;
+            let hit_h = ((body_h + 10.0) * sf).round() as i32;
+            let x = ((size.0 as i32 - hit_w) / 2).max(0);
+            Some((x, 0, hit_w.min(size.0 as i32 - x), hit_h.min(size.1 as i32)))
+        } else {
+            Some((0, 0, size.0 as i32, size.1 as i32))
+        };
+        platform::set_region(w, region);
+    }
+
+    fn collapsed_size(&self, win: &NotchWindow) -> (u32, u32) {
+        if win.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED }
     }
 
     /// Posisi layar, dock, dan ukuran fisik jendela untuk `size` (piksel logis), tanpa menerapkannya.
