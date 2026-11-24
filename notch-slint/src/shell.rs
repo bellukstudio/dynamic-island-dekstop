@@ -44,9 +44,10 @@ impl Shell {
         // Area hit-test harus mengikuti bentuk yang terlihat. Region persegi penuh membuat jendela
         // transparan tetap menangkap klik editor/aplikasi di bawahnya (terutama area kosong 300x140).
         // Untuk dock atas/melayang, batasi region ke badan notch + telinga; hub yang terbuka tetap penuh.
-        let region = if size == self.collapsed_size(win) && matches!(dock, Dock::Top | Dock::Floating) {
+        let region = if (size == COLLAPSED || size == GREETING_INLINE) && matches!(dock, Dock::Top | Dock::Floating) {
             let sf = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
-            let greeting = win.get_greeting_inline_visible();
+            // show_greeting_inline memasang geometri sebelum flag greeting diubah.
+            let greeting = size == GREETING_INLINE || win.get_greeting_inline_visible();
             let body_w = if greeting { 385.0 } else if win.get_media_mini() || win.get_idle_clock() { 220.0 } else { 130.0 };
             let body_h = if greeting { 75.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
             let hit_w = ((body_w + 20.0) * sf).round() as i32;
@@ -57,10 +58,6 @@ impl Shell {
             Some((0, 0, size.0 as i32, size.1 as i32))
         };
         platform::set_region(w, region);
-    }
-
-    fn collapsed_size(&self, win: &NotchWindow) -> (u32, u32) {
-        if win.get_greeting_inline_visible() { GREETING_INLINE } else { COLLAPSED }
     }
 
     /// Posisi layar, dock, dan ukuran fisik jendela untuk `size` (piksel logis), tanpa menerapkannya.
