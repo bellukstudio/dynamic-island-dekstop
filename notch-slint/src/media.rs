@@ -106,77 +106,85 @@ mod platform {
   }
  }
 
- /// Flag membedakan pemutaran yang selesai alami dengan yang dihentikan pengguna.
- static ADHAN_STOP_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+ /// Kontrol pemutar adzan native. Tidak bergantung pada driver Windows MCI/mpegvideo.
+ use rodio::{Decoder, OutputStream, Sink};
+ use std::fs::File;
+ use std::io::BufReader;
+ use std::sync::{Arc, Mutex};
+ use std::sync::atomic::{AtomicBool, Ordering};
 
- /// Putar adzan dari aset bawaan. MCI menjalankan decoding MP3 secara native di Windows.
+ static ADHAN_STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
+ static ACTIVE_ADHAN: Mutex<Option<Arc<Sink>>> = Mutex::new(None);
+
  pub fn stop_adhan(){
-  use windows::core::PCWSTR;
-  use windows::Win32::Media::Multimedia::mciSendStringW;
-  ADHAN_STOP_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
-  let command:Vec<u16>="stop notch_adhan".encode_utf16().chain(std::iter::once(0)).collect();
-  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
+  ADHAN_STOP_REQUESTED.store(true, Ordering::SeqCst);
+  if let Some(sink)=ACTIVE_ADHAN.lock().unwrap_or_else(|e|e.into_inner()).as_ref(){
+   sink.stop();
+  }
  }
- /// Jeda atau lanjutkan tes adzan (MCI `pause`/`resume` pada alias yang sama dengan pemutaran).
+ /// Jeda atau lanjutkan pemutaran adzan yang sedang aktif.
  pub fn pause_adhan(pause:bool){
-  use windows::core::PCWSTR;
-  use windows::Win32::Media::Multimedia::mciSendStringW;
-  let command:Vec<u16>=(if pause{"pause notch_adhan"}else{"resume notch_adhan"}).encode_utf16().chain(std::iter::once(0)).collect();
-  unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
+  if let Some(sink)=ACTIVE_ADHAN.lock().unwrap_or_else(|e|e.into_inner()).as_ref(){
+   if pause { sink.pause(); } else { sink.play(); }
+  }
  }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
-  ADHAN_STOP_REQUESTED.store(false, std::sync::atomic::Ordering::SeqCst);
-  let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);w.set_prayer_status("Menyiapkan pemutar adzan...".into());}});
+  ADHAN_STOP_REQUESTED.store(false, Ordering::SeqCst);
+  let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{
+   w.set_adhan_prayer(prayer_name.into());
+   w.set_adhan_active(true);
+   w.set_prayer_status("Menyiapkan pemutar adzan...".into());
+  }});
   std::thread::spawn(move||{
    let paused=pause_all();
-   let path=notch_core::paths::data_file("adzan.mp3");
    let result=(||->Result<(),String>{
-    if let Some(parent)=path.parent(){std::fs::create_dir_all(parent).map_err(|e|e.to_string())?;}
-    if !path.exists(){std::fs::write(&path,include_bytes!("../assets/adzan.mp3")).map_err(|e|e.to_string())?;}
-    let file=path.to_string_lossy().replace('"',"");
-    let open=format!("open \"{file}\" type mpegvideo alias notch_adhan");
-    let play="play notch_adhan wait".to_string();
-    let close="close notch_adhan".to_string();
-    let run=|command:&str|->Result<(),String>{
-     use windows::core::PCWSTR;
-     use windows::Win32::Media::Multimedia::mciSendStringW;
-     let wide:Vec<u16>=command.encode_utf16().chain(std::iter::once(0)).collect();
-     let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,None)};
-     if code==0{Ok(())}else{Err(format!("MCI error {code} saat {command}"))}
-    };
-    // Bersihkan alias sisa dari tes sebelumnya sebelum membuka file lagi.
-    let _=run("close notch_adhan");
-    // `nowindow` mencegah jendela ActiveMovie berbingkai (putih, tombol - [] x) yang dibuat driver mpegvideo;
-    // bila ditolak, buka biasa lalu sembunyikan segera.
-    let open_hidden=format!("{open} nowindow");
-    if run(&open_hidden).is_err(){run(&open)?;}
-    let _=run("window notch_adhan state hide");
-    // Paksa volume MCI ke level penuh agar tes tidak senyap akibat volume alias tersimpan nol.
-    let _=run("setaudio notch_adhan volume to 1000");
-    // Jika tombol Stop ditekan saat file masih dibuka, jangan mulai memutarnya setelah open selesai.
-    let playback=if ADHAN_STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
-     run("stop notch_adhan")
-    } else {
-     run(&play)
-    };
-    let _=run(&close);
-    playback
+    let path=notch_core::paths::data_file("adzan.mp3");
+    if let Some(parent)=path.parent(){
+     std::fs::create_dir_all(parent).map_err(|e|format!("Gagal membuat folder audio: {e}"))?;
+    }
+    if !path.exists(){
+     std::fs::write(&path,include_bytes!("../assets/adzan.mp3"))
+      .map_err(|e|format!("Gagal menyalin audio adzan: {e}"))?;
+    }
+    if ADHAN_STOP_REQUESTED.load(Ordering::SeqCst){return Ok(());}
+    let file=File::open(&path).map_err(|e|format!("Tidak dapat membuka {}: {e}",path.display()))?;
+    let decoder=Decoder::new(BufReader::new(file))
+     .map_err(|e|format!("Format audio adzan tidak dapat dibaca: {e}"))?;
+    // Stream harus tetap hidup selama Sink memutar audio.
+    let (_stream,handle)=OutputStream::try_default()
+     .map_err(|e|format!("Perangkat audio Windows tidak tersedia: {e}"))?;
+    let sink=Sink::try_new(&handle)
+     .map_err(|e|format!("Gagal membuat pemutar audio: {e}"))?;
+    sink.set_volume(1.0);
+    sink.append(decoder);
+    let sink=Arc::new(sink);
+    *ACTIVE_ADHAN.lock().unwrap_or_else(|e|e.into_inner())=Some(sink.clone());
+    if ADHAN_STOP_REQUESTED.load(Ordering::SeqCst){sink.stop();}
+    sink.sleep_until_end();
+    let mut active=ACTIVE_ADHAN.lock().unwrap_or_else(|e|e.into_inner());
+    if active.as_ref().is_some_and(|current|Arc::ptr_eq(current,&sink)){*active=None;}
+    Ok(())
    })();
+   // Pastikan state pemutar dibersihkan meskipun perangkat audio atau decoder gagal.
+   ACTIVE_ADHAN.lock().unwrap_or_else(|e|e.into_inner()).take();
    resume_paused();
-   let stopped=ADHAN_STOP_REQUESTED.swap(false, std::sync::atomic::Ordering::SeqCst);
-   let message=if stopped {
+   let stopped=ADHAN_STOP_REQUESTED.swap(false,Ordering::SeqCst);
+   let message=if stopped{
     format!("Adzan {prayer_name} dihentikan")
-   } else {
+   }else{
     match result{
      Ok(())=>format!("Adzan {prayer_name} selesai"),
      Err(e)=>format!("Adzan gagal diputar: {e}"),
     }
    };
-   let _=weak.upgrade_in_event_loop(move|w|{w.set_adhan_active(false);w.set_prayer_status(message.into());w.invoke_adhan_finished();});
+   let _=weak.upgrade_in_event_loop(move|w|{
+    w.set_adhan_active(false);
+    w.set_prayer_status(message.into());
+    w.invoke_adhan_finished();
+   });
    let _=paused;
   });
  }
-
 }
 
 #[cfg(not(windows))]
