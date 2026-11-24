@@ -480,7 +480,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let center_y = work.y + work.h / 2;
             let next_pos = match mode.as_str() {
                 "top" => None,
-                "floating" => Some((center_x, work.y + 100)),
+                // Mode melayang tetap dekat tepi atas, dengan jarak visual sekitar 10 px.
+                "floating" => Some((center_x, work.y + 10)),
                 "bottom" => Some((center_x, notch_core::layout::BOTTOM_TY)),
                 "left" => Some((notch_core::layout::LEFT_TX, center_y)),
                 "right" => Some((notch_core::layout::RIGHT_TX, center_y)),
