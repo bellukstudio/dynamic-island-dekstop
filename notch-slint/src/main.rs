@@ -636,7 +636,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let battery_timer = Rc::new(Timer::default());
     let clipboard_timer = Rc::new(Timer::default());
     let reminder_timer = Timer::default();
-    media::start(win.as_weak());
+    // Aksen otomatis aktif saat nilai accent kosong; nilai manual selalu dipertahankan.
+    media::start(win.as_weak(), cfg.appearance.accent.trim().is_empty(), col(palette.accent));
     let prayer_timer = Timer::default();
     let meeting_timer = Timer::default();
     // Indikator gelombang audio Adzan hanya bergerak selama playback aktif.
