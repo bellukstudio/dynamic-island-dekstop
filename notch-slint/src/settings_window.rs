@@ -118,9 +118,12 @@ pub(crate) fn sync_settings_live_state(m: &NotchWindow, s: &SettingsWindow) {
 /// Teruskan tombol Simpan/Tes di jendela Pengaturan ke handler yang sudah ada di NotchWindow.
 pub(crate) fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     {
-        let window = s.window();
+        // Simpan Weak handle yang owned; jangan menangkap referensi Window dari parameter `s` ke callback 'static.
+        let weak = s.as_weak();
         s.on_begin_drag(move || {
-            let _ = platform::begin_window_drag(&window);
+            if let Some(settings) = weak.upgrade() {
+                let _ = platform::begin_window_drag(settings.window());
+            }
         });
     }
     {
