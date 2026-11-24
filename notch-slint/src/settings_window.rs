@@ -109,6 +109,8 @@ pub(crate) fn sync_settings_live_state(m: &NotchWindow, s: &SettingsWindow) {
     s.set_greeting_save_status(m.get_greeting_save_status());
     s.set_conversation_save_status(m.get_conversation_save_status());
     s.set_focus_companion_save_status(m.get_focus_companion_save_status());
+    // Pilihan docking harus mengikuti posisi terbaru setelah preset diterapkan dari Settings.
+    s.set_position_mode(m.get_position_mode());
     s.set_active_pages(m.get_active_pages());
     s.set_hub_pages(m.get_hub_pages());
     s.set_pages_save_status(m.get_pages_save_status());
