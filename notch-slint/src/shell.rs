@@ -20,8 +20,8 @@ pub(crate) struct Shell {
 
 impl Shell {
     /// Letakkan jendela sesuai posisi config dan atur bentuk tepinya (menempel atas / melayang / bawah).
-    pub(crate) fn place(&self, win: &NotchWindow, size: (u32, u32)) {
-        let (origin, dock, size) = self.geometry(win, size);
+    pub(crate) fn place(&self, win: &NotchWindow, requested_size: (u32, u32)) {
+        let (origin, dock, size) = self.geometry(win, requested_size);
         if self.memo.get() != (Some(dock), win.window().scale_factor().to_bits()) {
             self.memo.set((Some(dock), win.window().scale_factor().to_bits()));
             win.set_dock(match dock {
@@ -44,10 +44,10 @@ impl Shell {
         // Area hit-test harus mengikuti bentuk yang terlihat. Region persegi penuh membuat jendela
         // transparan tetap menangkap klik editor/aplikasi di bawahnya (terutama area kosong 300x140).
         // Untuk dock atas/melayang, batasi region ke badan notch + telinga; hub yang terbuka tetap penuh.
-        let region = if (size == COLLAPSED || size == GREETING_INLINE) && matches!(dock, Dock::Top | Dock::Floating) {
+        let region = if (requested_size == COLLAPSED || requested_size == GREETING_INLINE) && matches!(dock, Dock::Top | Dock::Floating) {
             let sf = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
             // show_greeting_inline memasang geometri sebelum flag greeting diubah.
-            let greeting = size == GREETING_INLINE || win.get_greeting_inline_visible();
+            let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
             let body_w = if greeting { 385.0 } else if win.get_media_playing() || win.get_idle_clock() { 220.0 } else { 130.0 };
             let body_h = if greeting { 75.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
             let hit_w = ((body_w + 20.0) * sf).round() as i32;
