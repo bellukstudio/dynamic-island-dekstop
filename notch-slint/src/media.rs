@@ -106,10 +106,14 @@ mod platform {
   }
  }
 
+ /// Flag membedakan pemutaran yang selesai alami dengan yang dihentikan pengguna.
+ static ADHAN_STOP_REQUESTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
  /// Putar adzan dari aset bawaan. MCI menjalankan decoding MP3 secara native di Windows.
  pub fn stop_adhan(){
   use windows::core::PCWSTR;
   use windows::Win32::Media::Multimedia::mciSendStringW;
+  ADHAN_STOP_REQUESTED.store(true, std::sync::atomic::Ordering::SeqCst);
   let command:Vec<u16>="stop notch_adhan".encode_utf16().chain(std::iter::once(0)).collect();
   unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
  }
@@ -121,6 +125,7 @@ mod platform {
   unsafe{let _=mciSendStringW(PCWSTR(command.as_ptr()),None,None);}
  }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
+  ADHAN_STOP_REQUESTED.store(false, std::sync::atomic::Ordering::SeqCst);
   let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);}});
   std::thread::spawn(move||{
    let paused=pause_all();
@@ -144,14 +149,24 @@ mod platform {
     let open_hidden=format!("{open} nowindow");
     if run(&open_hidden).is_err(){run(&open)?;}
     let _=run("window notch_adhan state hide");
-    let playback=run(&play);
+    // Jika tombol Stop ditekan saat file masih dibuka, jangan mulai memutarnya setelah open selesai.
+    let playback=if ADHAN_STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
+     run("stop notch_adhan")
+    } else {
+     run(&play)
+    };
     let _=run(&close);
     playback
    })();
    resume_paused();
-   let message=match result{
-    Ok(())=>format!("Adzan {prayer_name} selesai"),
-    Err(e)=>format!("Adzan gagal diputar: {e}"),
+   let stopped=ADHAN_STOP_REQUESTED.swap(false, std::sync::atomic::Ordering::SeqCst);
+   let message=if stopped {
+    format!("Adzan {prayer_name} dihentikan")
+   } else {
+    match result{
+     Ok(())=>format!("Adzan {prayer_name} selesai"),
+     Err(e)=>format!("Adzan gagal diputar: {e}"),
+    }
    };
    let _=weak.upgrade_in_event_loop(move|w|{w.set_adhan_active(false);w.set_prayer_status(message.into());w.invoke_adhan_finished();});
    let _=paused;
