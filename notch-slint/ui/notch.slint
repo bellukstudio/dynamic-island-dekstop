@@ -4015,14 +4015,10 @@ export component SettingsWindow inherits Window {
                                     spacing: 8px;
                                     PageToggle { label: "Lirik lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
                                     PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
-                                    PageToggle { label: "Convert"; checked: root.page-enabled("convert"); toggled(v) => { root.toggle-page("convert", v); } }
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 8px;
-                                    PageToggle { label: "Compress"; checked: root.page-enabled("compress"); toggled(v) => { root.toggle-page("compress", v); } }
-                                    PageToggle { label: "Transfer file"; checked: root.page-enabled("transfer"); toggled(v) => { root.toggle-page("transfer", v); } }
-                                    PageToggle { label: "Android & mirroring"; checked: root.page-enabled("android"); toggled(v) => { root.toggle-page("android", v); } }
                                 }
                             }
                         }
