@@ -126,7 +126,7 @@ mod platform {
  }
  pub fn play_adhan(weak:Weak<NotchWindow>,prayer_name:String){
   ADHAN_STOP_REQUESTED.store(false, std::sync::atomic::Ordering::SeqCst);
-  let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);}});
+  let _=weak.upgrade_in_event_loop({let prayer_name=prayer_name.clone();move|w|{w.set_adhan_prayer(prayer_name.into());w.set_adhan_active(true);w.set_prayer_status("Menyiapkan pemutar adzan...".into());}});
   std::thread::spawn(move||{
    let paused=pause_all();
    let path=notch_core::paths::data_file("adzan.mp3");
@@ -144,11 +144,15 @@ mod platform {
      let code=unsafe{mciSendStringW(PCWSTR(wide.as_ptr()),None,None)};
      if code==0{Ok(())}else{Err(format!("MCI error {code} saat {command}"))}
     };
+    // Bersihkan alias sisa dari tes sebelumnya sebelum membuka file lagi.
+    let _=run("close notch_adhan");
     // `nowindow` mencegah jendela ActiveMovie berbingkai (putih, tombol - [] x) yang dibuat driver mpegvideo;
     // bila ditolak, buka biasa lalu sembunyikan segera.
     let open_hidden=format!("{open} nowindow");
     if run(&open_hidden).is_err(){run(&open)?;}
     let _=run("window notch_adhan state hide");
+    // Paksa volume MCI ke level penuh agar tes tidak senyap akibat volume alias tersimpan nol.
+    let _=run("setaudio notch_adhan volume to 1000");
     // Jika tombol Stop ditekan saat file masih dibuka, jangan mulai memutarnya setelah open selesai.
     let playback=if ADHAN_STOP_REQUESTED.load(std::sync::atomic::Ordering::SeqCst) {
      run("stop notch_adhan")
