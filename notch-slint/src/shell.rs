@@ -73,6 +73,13 @@ impl Shell {
         let sf = win.window().scale_factor();
         let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
         let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
+        // Skala notch berlaku pada semua geometri menciut, termasuk mode mini-player,
+        // greeting inline, dan dock samping. Ukuran native harus sama dengan ukuran isi Slint.
+        let logical_size = if size == COLLAPSED || size == GREETING_INLINE {
+            scaled_window_size(win, logical_size)
+        } else {
+            logical_size
+        };
         let size = ((logical_size.0 as f32 * sf).round() as u32, (logical_size.1 as f32 * sf).round() as u32);
         let (origin, dock) = layout::place(&work, size.0 as i32, size.1 as i32, pos);
         (origin, dock, size)
@@ -235,7 +242,14 @@ pub(crate) fn show_greeting_inline(weak: slint::Weak<NotchWindow>, shell: Rc<She
 pub(crate) fn window_needs_resize(w: &NotchWindow, size: (u32, u32)) -> bool {
     let sf = w.window().scale_factor();
     let got = w.window().size();
-    let want = ((size.0 as f32 * sf).round() as i32, (size.1 as f32 * sf).round() as i32);
+    let side = w.get_dock() == 3 || w.get_dock() == 4;
+    let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
+    let logical_size = if size == COLLAPSED || size == GREETING_INLINE {
+        scaled_window_size(w, logical_size)
+    } else {
+        logical_size
+    };
+    let want = ((logical_size.0 as f32 * sf).round() as i32, (logical_size.1 as f32 * sf).round() as i32);
     (got.width as i32 - want.0).abs() > 2 || (got.height as i32 - want.1).abs() > 2
 }
 
