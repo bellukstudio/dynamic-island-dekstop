@@ -142,6 +142,20 @@ fn main() -> Result<(), slint::PlatformError> {
     apply_theme(&win, &palette);
     win.set_ui_scale(cfg.scale as f32);
     shell.place(&win, COLLAPSED);
+    // Shell::place pertama berjalan sebelum event loop Winit membuat HWND.
+    // Ulangi sekali setelah native window siap agar posisi awal (tengah atas monitor) benar-benar diterapkan.
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        Timer::single_shot(Duration::from_millis(350), move || {
+            if let Some(w) = weak.upgrade() {
+                shell.memo.set((None, 0));
+                shell.place(&w, COLLAPSED);
+                platform::hide_from_taskbar(w.window());
+                w.window().request_redraw();
+            }
+        });
+    }
 
     // Sembunyikan notch saat aplikasi foreground benar-benar menutupi seluruh monitor.
     // Timer tetap aktif ketika window disembunyikan agar notch muncul kembali setelah fullscreen berakhir.
