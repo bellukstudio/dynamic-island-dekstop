@@ -309,10 +309,14 @@ fn main() -> Result<(), slint::PlatformError> {
         });
     }
 
-    // Tab mengikuti daftar dan urutan `pages` di config. Halaman yang belum ada di versi Slint
-    // tampil sebagai placeholder, jadi urutan dan jumlah tab sama dengan versi Tauri.
-    // Lirik bukan tab hub: ada di halaman Media (tombol "Lirik"), seperti di Tauri.
-    let pages: Vec<String> = cfg.pages.iter().filter(|p| p.as_str() != "lyrics").cloned().collect();
+    // Hanya halaman hub yang boleh menjadi tab. Convert, Compress, Transfer, dan Android
+    // adalah alat berjendela terpisah yang dibuka melalui pintasan, bukan menu hub.
+    // Lirik tetap berada di halaman Media (tombol "Lirik"), seperti di Tauri.
+    let standalone_tools = ["convert", "compress", "transfer", "android"];
+    let pages: Vec<String> = cfg.pages.iter()
+        .filter(|p| p.as_str() != "lyrics" && !standalone_tools.contains(&p.as_str()))
+        .cloned()
+        .collect();
     let pages = if pages.is_empty() { vec!["media".to_string()] } else { pages };
     win.set_tabs(ModelRc::from(Rc::new(VecModel::from(
         pages.iter().map(|p| SharedString::from(p.as_str())).collect::<Vec<_>>(),
@@ -378,7 +382,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_focus_companion_on_halfway(cfg.focus_companion.on_halfway);
     win.set_focus_companion_on_focus_complete(cfg.focus_companion.on_focus_complete);
     win.set_focus_companion_on_break_end(cfg.focus_companion.on_break_end);
-    win.set_hub_pages(cfg.pages.join(", ").into());
+    win.set_hub_pages(pages.join(", ").into());
     let initial_position_mode = if !cfg.position.custom {
         "top"
     } else if cfg.position.x == notch_core::layout::LEFT_TX {
@@ -391,12 +395,12 @@ fn main() -> Result<(), slint::PlatformError> {
         "floating"
     };
     win.set_position_mode(initial_position_mode.into());
-    win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(cfg.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
+    win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
     {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         win.on_settings_save_pages(move |value| {
-            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
+            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "settings", "currency"];
             let mut pages = Vec::<String>::new();
             for item in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
                 if !allowed.contains(&item) {
@@ -421,7 +425,7 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
 
-                    let tabs: Vec<String> = pages.iter().filter(|p| p.as_str() != "lyrics").cloned().collect();
+                    let tabs: Vec<String> = pages.iter().filter(|p| p.as_str() != "lyrics" && !["convert", "compress", "transfer", "android"].contains(&p.as_str())).cloned().collect();
                     let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
                     if let Some(w) = weak.upgrade() {
                         let current = w.get_page_id().to_string();
@@ -552,7 +556,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         win.on_settings_toggle_page(move |id, enabled| {
-            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "android", "transfer", "convert", "compress", "settings", "currency"];
+            let allowed = ["media", "clock", "weather", "battery", "timer", "quick", "tools", "stats", "reminder", "notes", "clipboard", "shelf", "lyrics", "privacy", "prayer", "settings", "currency"];
             let id = id.to_string();
             if !allowed.contains(&id.as_str()) { return; }
             let mut next = Config::load_readonly(&config_path);
@@ -565,14 +569,14 @@ fn main() -> Result<(), slint::PlatformError> {
             match next.save(&config_path) {
                 Ok(()) => {
 
-                    let tabs = next.pages.iter().filter(|page| page.as_str() != "lyrics").cloned().collect::<Vec<_>>();
+                    let tabs = next.pages.iter().filter(|page| page.as_str() != "lyrics" && !["convert", "compress", "transfer", "android"].contains(&page.as_str())).cloned().collect::<Vec<_>>();
                     let tabs = if tabs.is_empty() { vec!["media".to_string()] } else { tabs };
                     if let Some(w) = weak.upgrade() {
                         let current = w.get_page_id().to_string();
                         w.set_tabs(ModelRc::from(Rc::new(VecModel::from(tabs.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
                         if !tabs.iter().any(|page| page == &current) { w.set_page_id(tabs[0].as_str().into()); }
-                        w.set_hub_pages(next.pages.join(", ").into());
-                        w.set_active_pages(ModelRc::from(Rc::new(VecModel::from(next.pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
+                        w.set_hub_pages(tabs.join(", ").into());
+                        w.set_active_pages(ModelRc::from(Rc::new(VecModel::from(tabs.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
                         w.set_pages_save_status(format!("{} {}", if enabled { "Diaktifkan:" } else { "Dinonaktifkan:" }, id).into());
                     }
                 }
