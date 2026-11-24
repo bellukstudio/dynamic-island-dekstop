@@ -7,13 +7,19 @@ pub struct AndroidState {
     adb: Option<Adb>,
     serial: String,
 }
+fn bundled_resource_dir() -> Option<PathBuf> {
+    std::env::current_exe().ok().and_then(|path| path.parent().map(PathBuf::from))
+}
+
 impl AndroidState {
     pub fn new() -> Self {
-        let path = adb::find(None);
+        let resource_dir = bundled_resource_dir();
+        let path = adb::find(resource_dir.as_deref());
         Self { adb: path.map(Adb::new), serial: String::new() }
     }
     pub fn status(&mut self) -> String {
-        self.adb = adb::find(None).map(Adb::new);
+        let resource_dir = bundled_resource_dir();
+        self.adb = adb::find(resource_dir.as_deref()).map(Adb::new);
         match &self.adb {
             Some(a) => format!("ADB ditemukan: {}", a.path.display()),
             None => "ADB tidak ditemukan. Pasang Android Platform Tools atau atur ADB_PATH.".into(),
