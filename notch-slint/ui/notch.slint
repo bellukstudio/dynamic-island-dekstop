@@ -3436,6 +3436,7 @@ export component SettingsWindow inherits Window {
     callback search-city(string);
     // Tes suara adzan dan mulai ulang, sama seperti kartu "Suara adzan" dan tombol "Simpan & mulai ulang" di Tauri.
     in property <bool> adhan-active: false;
+    in property <string> adhan-status: "";
     callback test-adhan();
     callback stop-adhan();
     callback pause-adhan(bool);
@@ -4089,6 +4090,12 @@ export component SettingsWindow inherits Window {
                                     SButton { label: root.adhan-paused ? "▶ Lanjutkan" : "Ⅱ Jeda"; opacity: root.adhan-active ? 1.0 : 0.4; clicked => { if (root.adhan-active) { root.adhan-paused = !root.adhan-paused; root.pause-adhan(root.adhan-paused); } } }
                                     SButton { label: "Hentikan"; clicked => { root.adhan-paused = false; root.stop-adhan(); } }
                                 }
+                            }
+                            if root.adhan-status != "": Text {
+                                text: root.adhan-status;
+                                color: root.adhan-status.contains("gagal") ? #ff929b : Theme.text-dim;
+                                font-size: 11px;
+                                wrap: word-wrap;
                             }
                         }
                     }
