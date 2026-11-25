@@ -70,7 +70,8 @@ impl Shell {
         } else if requested_size == COLLAPSED && matches!(dock, Dock::Left | Dock::Right) {
             // Side dock memakai window 300x262 untuk menampung bubble, tetapi area transparan
             // selebihnya tidak boleh memblokir klik aplikasi di belakangnya.
-            let scale = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
+            let dpi = win.window().scale_factor();
+            let scale = dpi * win.get_ui_scale().clamp(0.5, 1.5);
             let pill_w = (40.0 * scale).round() as i32;
             let pill_h = (80.0 * scale).round() as i32;
             let ear_h = (10.0 * scale).round() as i32;
@@ -88,11 +89,12 @@ impl Shell {
                     || win.get_meeting_finished() != ""
                     || win.get_greeting_speech_visible());
             if bubble_visible {
-                let bubble_w = ((if win.get_nudge_visible() && win.get_media_playing() { 184.0 } else { 200.0 }) * scale).round() as i32;
+                // SpeechBubble dan jaraknya memakai px UI biasa (hanya DPI), bukan ui-scale badan pill.
+                let bubble_w = ((if win.get_nudge_visible() && win.get_media_playing() { 184.0 } else { 200.0 }) * dpi).round() as i32;
                 // SpeechBubble membatasi teks ke 30 + 25 px, dengan padding vertikal 20 px.
-                let bubble_h = (78.0 * scale).round() as i32;
-                let gap = (11.0 * scale).round() as i32;
-                let tail = (10.0 * scale).round() as i32;
+                let bubble_h = (78.0 * dpi).round() as i32;
+                let gap = (11.0 * dpi).round() as i32;
+                let tail = (10.0 * dpi).round() as i32;
                 let bubble_x = if dock == Dock::Left {
                     pill_x + pill_w + gap
                 } else {
