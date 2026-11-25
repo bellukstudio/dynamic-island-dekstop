@@ -2758,7 +2758,8 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             // Preview harus terlihat walaupun hub sedang terbuka; gunakan jalur collapse yang sama
             // dengan hover-out agar dock samping kembali menyediakan ruang untuk SpeechBubble.
-            if w.get_expanded() {
+            let was_expanded = w.get_expanded();
+            if was_expanded {
                 collapse_preview();
             }
             w.set_nudge_message(message.into());
@@ -2770,7 +2771,7 @@ fn main() -> Result<(), slint::PlatformError> {
             w.set_nudge_visible(true);
             w.set_nudge_save_status("Pratinjau memakai nilai yang sedang diedit; belum menyimpan pengaturan.".into());
             // Refresh region side-dock supaya balon pratinjau ikut menerima hit-test native.
-            if !w.get_expanded() {
+            if !was_expanded && !w.get_expanded() {
                 shell_preview.place(&w, COLLAPSED);
             }
             let weak = weak.clone();
