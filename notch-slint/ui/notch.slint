@@ -6239,6 +6239,11 @@ export component NotchWindow inherits Window {
         animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
         animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
+        // Jangan clip seluruh isi pill ke kotak lokal saat Bottom/Side Play bergerak.
+        // Siluet badan digambar oleh half-body Path; clipping persegi pada parent membuat
+        // anak visual tampak seperti tertahan/terpotong oleh sebuah frame.
+        clip: false;
+
         // Badan setengah lingkaran menghadap ke dalam layar: bawah 80x44 (radius 40), kiri/kanan 60x120 (radius 60).
         half-body := Path {
             visible: pill.half;
