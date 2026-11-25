@@ -50,10 +50,12 @@ impl Shell {
             let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
             // Adzan memakai pil 220 x 34 (lihat `adhan-inline` di notch.slint); area klik harus mencakup tombol berhenti.
             let adhan = win.get_adhan_active();
-            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_idle_clock() { 300.0 } else if win.get_media_playing() { 220.0 } else { 130.0 };
-            let body_h = if greeting { 75.0 } else if adhan || dock != Dock::Top { 34.0 } else { 26.0 };
-            let hit_w = ((body_w + 20.0) * sf).round() as i32;
-            let hit_h = ((body_h + 10.0) * sf).round() as i32;
+            // Hit-test harus persis mengikuti badan yang digambar Slint: tanpa padding transparan.
+            // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
+            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
+            let body_h = if greeting { 75.0 } else if adhan { 34.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
+            let hit_w = (body_w * sf).round() as i32;
+            let hit_h = (body_h * sf).round() as i32;
             let x = ((size.0 as i32 - hit_w) / 2).max(0);
             Some((x, 0, hit_w.min(size.0 as i32 - x), hit_h.min(size.1 as i32)))
         } else {
