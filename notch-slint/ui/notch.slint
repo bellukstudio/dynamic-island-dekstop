@@ -4264,8 +4264,7 @@ export component SettingsWindow inherits Window {
                                 HorizontalLayout {
                                     spacing: 8px;
                                     alignment: start;
-                                    // TextInput tetap bisa dipakai untuk emoji kustom; preview di sebelahnya
-                                    // selalu memakai artwork warna agar glyph monochrome tidak menjadi satu-satunya indikator.
+                                    // Nilai tetap diedit sebagai teks, tetapi glyph disembunyikan dan diganti artwork warna di dalam field.
                                     SInput {
                                         width: 88px;
                                         leading-emoji: root.f-nudge-emoji;
