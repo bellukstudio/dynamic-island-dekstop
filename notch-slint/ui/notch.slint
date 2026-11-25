@@ -4018,10 +4018,6 @@ export component SettingsWindow inherits Window {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 8px;
-                                }
-                                VerticalLayout {
-                                    horizontal-stretch: 1;
-                                    spacing: 8px;
                                     PageToggle { label: "Indikator mic/kamera"; checked: root.page-enabled("privacy"); toggled(v) => { root.toggle-page("privacy", v); } }
                                 }
                             }
