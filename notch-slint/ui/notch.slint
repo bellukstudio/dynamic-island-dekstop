@@ -5817,6 +5817,7 @@ export component NotchWindow inherits Window {
     in property <bool> media-active: false;
     in property <bool> media-playing: false;
     in property <image> media-art;
+    in property <image> media-disc-art;
     in property <bool> media-has-art: false;
     in property <string> clock-text: "00:00";
     in property <string> date-text: "";
@@ -5835,7 +5836,7 @@ export component NotchWindow inherits Window {
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
     // Diekspos sebagai output agar Rust dapat memakai geometri mini-player yang sama dengan UI.
-    out property <bool> media-mini: root.media-playing && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active;
+    out property <bool> media-mini: root.media-active && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active;
     in property <string> day-text: "";
     in property <StatsView> stats;
     in property <CurrencyView> currency;
@@ -6330,25 +6331,31 @@ export component NotchWindow inherits Window {
                     width: 18px * parent.media-scale;
                     height: 14px * parent.media-scale;
                     scale: parent.media-scale;
-                    playing: true;
+                    playing: root.media-playing;
                 }
             }
 
-            // Media mini, dock bawah/samping: cover bulat bercincin aksen di tengah kubah.
+            // Media mini dock bawah/samping: piringan vinyl berputar saat playback aktif.
+            // Lebar side-pill hanya 40 px, maka cover dipusatkan dan diberi margin simetris agar tidak terpotong.
             if root.media-mini && root.dock >= 2: Rectangle {
                 property <float> media-scale: root.ui-scale;
-                property <length> d: (root.dock == 2 ? 30px : 38px) * self.media-scale;
-                x: root.dock == 2 ? (parent.width - self.width) / 2 : (root.dock == 3 ? 8px * self.media-scale : parent.width - self.width - 8px * self.media-scale);
-                y: root.dock == 2 ? 9px * self.media-scale : (parent.height - self.height) / 2;
+                property <length> d: (root.dock == 2 ? 32px : 36px) * self.media-scale;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
                 width: self.d;
                 height: self.d;
                 border-radius: self.d / 2;
                 background: Theme.chip;
-                border-width: 2px * self.media-scale;
+                border-width: 1.5px * self.media-scale;
                 border-color: Theme.accent;
                 clip: true;
-                if root.media-has-art: Image { source: root.media-art; width: parent.width; height: parent.height; image-fit: cover; }
-                // Renderer software tidak memotong gambar mengikuti radius: sudut ditutup warna badan lewat Path even-odd.
+                if root.media-has-art: Image {
+                    source: root.media-disc-art;
+                    width: parent.width;
+                    height: parent.height;
+                    image-fit: fill;
+                }
+                // Renderer software tidak memotong gambar mengikuti radius; sudut luar ditutup warna badan.
                 if root.media-has-art: Path {
                     x: 0px;
                     y: 0px;
@@ -6366,7 +6373,14 @@ export component NotchWindow inherits Window {
                     width: 18px * parent.media-scale;
                     height: 14px * parent.media-scale;
                     scale: parent.media-scale;
-                    playing: true;
+                    playing: root.media-playing;
+                }
+                // Ketuk cover untuk play/pause tanpa harus membuka hub terlebih dahulu.
+                TouchArea {
+                    width: parent.width;
+                    height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => { root.media-control("toggle"); }
                 }
             }
 
