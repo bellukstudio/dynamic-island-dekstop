@@ -221,7 +221,8 @@ fn render_uncached(text: &str, target_size: u32) -> Option<CachedEmoji> {
                 if rendered.data.len() < rgba.len() {
                     continue;
                 }
-                rgba.copy_from_slice(&rendered.data[..rgba.len()]);
+                let copy_len = rgba.len();
+                rgba.copy_from_slice(&rendered.data[..copy_len]);
                 // Swash emits COLR layered outlines as premultiplied RGBA, while
                 // embedded color bitmap strikes (CBDT/sbix) are straight RGBA.
                 if matches!(rendered.source, Source::ColorBitmap(_)) {
