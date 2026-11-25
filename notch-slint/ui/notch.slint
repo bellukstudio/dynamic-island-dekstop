@@ -3247,7 +3247,7 @@ component SettingsEmojiButton inherits Rectangle {
     horizontal-stretch: 0;
     border-radius: 9px;
     background: emoji-ta.has-hover ? SUi.hover : SUi.field;
-    Text { text: root.emoji; color: Theme.text; font-size: 15px; horizontal-alignment: center; vertical-alignment: center; }
+    Text { text: root.emoji; font-family: "Segoe UI Emoji"; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; }
     emoji-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
@@ -4230,7 +4230,7 @@ export component SettingsWindow inherits Window {
                                 title: "Ekspresi mata";
                                 HorizontalLayout {
                                     alignment: start;
-                                    SMoodSeg { value: root.f-nudge-mood; picked(m) => { root.f-nudge-mood = m; } }
+                                    SMoodSeg { value: root.f-nudge-mood; picked(m) => { root.f-nudge-mood = m; root.preview-nudge-mood(m); } }
                                 }
                             }
                         }
@@ -5898,6 +5898,7 @@ export component NotchWindow inherits Window {
     callback settings-save-motion(bool, string, string, bool);
     callback settings-test-dock-play();
     callback settings-save-nudge(bool, string, string, string, string, string, bool, bool);
+    callback settings-preview-nudge-mood(string);
     callback settings-test-nudge(string, string, string, string, bool);
     callback settings-save-greeting(bool, string, string, string);
     callback settings-test-greeting(string, string, string);
