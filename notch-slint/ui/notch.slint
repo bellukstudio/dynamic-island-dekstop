@@ -2901,6 +2901,8 @@ component SSwitch inherits Rectangle {
 
 component SInput inherits Rectangle {
     in-out property <string> text;
+    in property <string> leading-emoji: "";
+    in property <bool> hide-text-when-leading-emoji: false;
     in property <string> placeholder: "";
     in property <string> suffix: "";
     in property <bool> disabled: false;
@@ -2919,6 +2921,11 @@ component SInput inherits Rectangle {
         padding-left: 11px;
         padding-right: 11px;
         spacing: 6px;
+        if root.leading-emoji != "": NudgeEmoji {
+            width: 22px;
+            height: 22px;
+            emoji: root.leading-emoji;
+        }
         Rectangle {
             horizontal-stretch: 1;
             if root.text == "" && root.placeholder != "": Text {
@@ -2934,7 +2941,7 @@ component SInput inherits Rectangle {
                 width: parent.width;
                 height: parent.height;
                 text <=> root.text;
-                color: Theme.text;
+                color: root.hide-text-when-leading-emoji ? #00000000 : Theme.text;
                 font-size: 13px;
                 single-line: true;
                 vertical-alignment: center;
@@ -4259,8 +4266,12 @@ export component SettingsWindow inherits Window {
                                     alignment: start;
                                     // TextInput tetap bisa dipakai untuk emoji kustom; preview di sebelahnya
                                     // selalu memakai artwork warna agar glyph monochrome tidak menjadi satu-satunya indikator.
-                                    SInput { width: 82px; text <=> root.f-nudge-emoji; }
-                                    SettingsEmojiButton { emoji: root.f-nudge-emoji; selected: true; interactive: false; }
+                                    SInput {
+                                        width: 88px;
+                                        leading-emoji: root.f-nudge-emoji;
+                                        hide-text-when-leading-emoji: true;
+                                        text <=> root.f-nudge-emoji;
+                                    }
                                     SettingsEmojiButton { emoji: "🥺"; selected: root.f-nudge-emoji == "🥺"; clicked => { root.f-nudge-emoji = "🥺"; } }
                                     SettingsEmojiButton { emoji: "😳"; selected: root.f-nudge-emoji == "😳"; clicked => { root.f-nudge-emoji = "😳"; } }
                                     SettingsEmojiButton { emoji: "😴"; selected: root.f-nudge-emoji == "😴"; clicked => { root.f-nudge-emoji = "😴"; } }
