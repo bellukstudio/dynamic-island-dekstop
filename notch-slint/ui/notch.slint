@@ -2790,7 +2790,7 @@ component SpeechBubble inherits Rectangle {
         x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
         y: root.compact ? 7px : 10px;
         width: parent.width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px));
-        height: Math.min(self.preferred-height, root.compact ? 40px : 68px);
+        height: Math.min(self.preferred-height, 68px);
         text: root.message;
         color: #ffffff;
         font-size: 11px;
