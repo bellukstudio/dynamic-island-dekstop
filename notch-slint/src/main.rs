@@ -53,6 +53,7 @@ mod appearance;
 mod convert_store;
 mod currency_ui;
 mod eye_state;
+mod emoji_renderer;
 mod formatting;
 mod notes_ui;
 mod panels;
@@ -78,6 +79,17 @@ use window_behavior::*;
 use window_size::*;
 
 slint::include_modules!();
+
+/// Keep the Unicode string as the source of truth and refresh only its cached color image.
+fn update_nudge_emoji_visual(window: &NotchWindow, value: &str) {
+    if let Some(image) = emoji_renderer::render_emoji(value, 64) {
+        window.set_nudge_emoji_image(image);
+        window.set_nudge_emoji_image_available(true);
+    } else {
+        window.set_nudge_emoji_image(Image::default());
+        window.set_nudge_emoji_image_available(false);
+    }
+}
 
 fn main() -> Result<(), slint::PlatformError> {
     if let Some(resource_dir) = std::env::current_exe().ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf)) {
@@ -380,6 +392,7 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_nudge_idle_min(cfg.nudge.idle_min.to_string().into());
     win.set_nudge_message(cfg.nudge.message.clone().into());
     win.set_nudge_emoji(cfg.nudge.emoji.clone().into());
+    update_nudge_emoji_visual(&win, &cfg.nudge.emoji);
     win.set_nudge_mood(cfg.nudge.mood.clone().into());
     win.set_nudge_show_ms((cfg.nudge.show_ms / 1_000).to_string().into());
     win.set_nudge_only_silent(cfg.nudge.only_silent);
@@ -2464,8 +2477,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Idle harus 1–240 menit dan durasi 2–30 detik.".into()); }
                 return;
             };
-            if message.is_empty() || message.chars().count() > 80 || emoji.is_empty() || emoji.chars().count() > 12 || !allowed_moods.contains(&mood.as_str()) {
-                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Pesan wajib 1–80 karakter, emoji 1–12 karakter, dan ekspresi harus valid.".into()); }
+            if message.is_empty() || message.chars().count() > 80 || emoji.is_empty() || emoji.chars().count() > 32 || emoji.len() > 128 || !allowed_moods.contains(&mood.as_str()) {
+                if let Some(w) = weak.upgrade() { w.set_nudge_save_status("Pesan wajib 1–80 karakter, emoji maksimal 32 karakter, dan ekspresi harus valid.".into()); }
                 return;
             }
             let mut next = Config::load_readonly(&config_path);
@@ -2487,6 +2500,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         w.set_nudge_idle_min(next.nudge.idle_min.to_string().into());
                         w.set_nudge_message(next.nudge.message.clone().into());
                         w.set_nudge_emoji(next.nudge.emoji.clone().into());
+                        update_nudge_emoji_visual(&w, &next.nudge.emoji);
                         w.set_nudge_mood(next.nudge.mood.clone().into());
                         w.set_nudge_show_ms((next.nudge.show_ms / 1_000).to_string().into());
                         w.set_nudge_only_silent(next.nudge.only_silent);
@@ -2771,7 +2785,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 return;
             };
             let show_ms = show_seconds * 1_000;
-            if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 12
+            if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 32 || emoji.len() > 128
                 || !["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"].contains(&mood.as_str()) {
                 w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 12), dan ekspresi.".into());
                 return;
@@ -2784,6 +2798,7 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             let saved_emoji = runtime_config.borrow().emoji.clone();
             w.set_nudge_emoji(emoji.clone().into());
+            update_nudge_emoji_visual(&w, &emoji);
             w.set_nudge_message(message.into());
             w.set_nudge_detail("Pratinjau pesan diam".into());
             let eye_state = eye.borrow().clone();
@@ -2797,6 +2812,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 if let Some(w) = weak.upgrade() {
                     w.set_nudge_visible(false);
                     w.set_nudge_emoji(saved_emoji.clone().into());
+                    update_nudge_emoji_visual(&w, &saved_emoji);
                 }
             });
         });
