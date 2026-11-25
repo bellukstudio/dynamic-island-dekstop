@@ -2480,6 +2480,17 @@ fn main() -> Result<(), slint::PlatformError> {
     }
 
     {
+        let eye = appearance_eye.clone();
+        win.on_settings_preview_nudge_mood(move |value| {
+            let mood = value.to_string();
+            let Some(mood) = Mood::parse(&mood) else { return };
+            if let Some(eye_state) = eye.borrow().as_ref() {
+                eye_state.borrow_mut().mood.flash(mood, 2_500, Instant::now());
+            }
+        });
+    }
+
+    {
         let weak = win.as_weak();
         let config_path = notch_core::paths::config_path();
         let greeting_voice_runtime = greeting_voice_runtime.clone();
