@@ -2842,7 +2842,11 @@ component SButton inherits Rectangle {
         vertical-alignment: center;
         overflow: elide;
     }
-    sbtn-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    sbtn-ta := TouchArea {
+        x: 0px; y: 0px; width: parent.width; height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
 }
 
 component SSwitch inherits Rectangle {
@@ -3245,11 +3249,15 @@ component SSlider inherits Rectangle {
 
 component SettingsEmojiButton inherits Rectangle {
     in property <string> emoji;
+    in property <bool> selected: false;
+    in property <bool> interactive: true;
     callback clicked;
     width: 36px;
     height: 34px;
     horizontal-stretch: 0;
     border-radius: 9px;
+    border-width: root.selected ? 1px : 0px;
+    border-color: Theme.accent;
     background: emoji-ta.has-hover ? SUi.hover : SUi.field;
 
     // Jangan memakai glyph font untuk emoji di renderer software: hasilnya monokrom.
@@ -3403,7 +3411,12 @@ component SettingsEmojiButton inherits Rectangle {
         text: "z"; color: #7c9bea; font-size: 10px; font-weight: 800;
     }
 
-    emoji-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
+    emoji-ta := TouchArea {
+        x: 0px; y: 0px; width: parent.width; height: parent.height;
+        enabled: root.interactive;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
 }
 
 component SettingsNavItem inherits Rectangle {
@@ -4367,14 +4380,17 @@ export component SettingsWindow inherits Window {
                                 HorizontalLayout {
                                     spacing: 8px;
                                     alignment: start;
-                                    SInput { width: 96px; text <=> root.f-nudge-emoji; }
-                                    SettingsEmojiButton { emoji: "🥺"; clicked => { root.f-nudge-emoji = "🥺"; } }
-                                    SettingsEmojiButton { emoji: "😳"; clicked => { root.f-nudge-emoji = "😳"; } }
-                                    SettingsEmojiButton { emoji: "😴"; clicked => { root.f-nudge-emoji = "😴"; } }
-                                    SettingsEmojiButton { emoji: "😿"; clicked => { root.f-nudge-emoji = "😿"; } }
-                                    SettingsEmojiButton { emoji: "😺"; clicked => { root.f-nudge-emoji = "😺"; } }
-                                    SettingsEmojiButton { emoji: "🥰"; clicked => { root.f-nudge-emoji = "🥰"; } }
-                                    SettingsEmojiButton { emoji: "🤔"; clicked => { root.f-nudge-emoji = "🤔"; } }
+                                    // TextInput tetap bisa dipakai untuk emoji kustom; preview di sebelahnya
+                                    // selalu memakai artwork warna agar glyph monochrome tidak menjadi satu-satunya indikator.
+                                    SInput { width: 82px; text <=> root.f-nudge-emoji; }
+                                    SettingsEmojiButton { emoji: root.f-nudge-emoji; selected: true; interactive: false; }
+                                    SettingsEmojiButton { emoji: "🥺"; selected: root.f-nudge-emoji == "🥺"; clicked => { root.f-nudge-emoji = "🥺"; } }
+                                    SettingsEmojiButton { emoji: "😳"; selected: root.f-nudge-emoji == "😳"; clicked => { root.f-nudge-emoji = "😳"; } }
+                                    SettingsEmojiButton { emoji: "😴"; selected: root.f-nudge-emoji == "😴"; clicked => { root.f-nudge-emoji = "😴"; } }
+                                    SettingsEmojiButton { emoji: "😿"; selected: root.f-nudge-emoji == "😿"; clicked => { root.f-nudge-emoji = "😿"; } }
+                                    SettingsEmojiButton { emoji: "😺"; selected: root.f-nudge-emoji == "😺"; clicked => { root.f-nudge-emoji = "😺"; } }
+                                    SettingsEmojiButton { emoji: "🥰"; selected: root.f-nudge-emoji == "🥰"; clicked => { root.f-nudge-emoji = "🥰"; } }
+                                    SettingsEmojiButton { emoji: "🤔"; selected: root.f-nudge-emoji == "🤔"; clicked => { root.f-nudge-emoji = "🤔"; } }
                                 }
                             }
                             SBlock {
@@ -4395,7 +4411,7 @@ export component SettingsWindow inherits Window {
                             SRow {
                                 title: "Lama tampil";
                                 desc: "2–30 detik. Dipakai jika opsi \"sampai pointer bergerak\" mati.";
-                                SInput { width: 120px; suffix: "ms"; disabled: root.f-nudge-until; text <=> root.f-nudge-show; }
+                                SInput { width: 120px; suffix: "detik"; disabled: root.f-nudge-until; text <=> root.f-nudge-show; }
                             }
                             SRow {
                                 title: "Jangan muncul saat musik atau video diputar";
