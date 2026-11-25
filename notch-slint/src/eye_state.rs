@@ -7,6 +7,18 @@ pub(crate) const EYES_W: f32 = 130.0;
 pub(crate) const EYES_H: f32 = 34.0;
 pub(crate) const EYES_TOP_H: f32 = 26.0;
 
+/// Offset tatapan yang aman untuk setiap orientasi notch.
+/// Dock samping hanya menyediakan kanvas 36 px; gerak horizontal dibatasi supaya
+/// glow dan badan mata tidak keluar dari area pil saat mengikuti pointer.
+pub(crate) fn eye_look_offset(dx: f32, dy: f32, dock: i32) -> (f32, f32) {
+    let (x, y) = eyes::look_offset(dx, dy);
+    if dock == 3 || dock == 4 {
+        (x.clamp(-2.0, 2.0), y)
+    } else {
+        (x, y)
+    }
+}
+
 pub(crate) fn eye_renderer_for_dock(skin: &str, dock: i32) -> (EyeRenderer, (f32, f32)) {
     let size = match dock {
         0 => (EYES_W, EYES_TOP_H),
