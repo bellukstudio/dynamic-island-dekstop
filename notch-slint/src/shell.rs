@@ -101,8 +101,8 @@ impl Shell {
                     pill_x - gap - bubble_w
                 };
                 let bubble_y = (pill_y + pill_h / 2 - bubble_h / 2).clamp(0, (size.1 as i32 - bubble_h).max(0));
-                left = left.min(bubble_x - if dock == Dock::Left { tail } else { 0 });
-                right = right.max(bubble_x + bubble_w + if dock == Dock::Right { tail } else { 0 });
+                left = left.min(bubble_x - (if dock == Dock::Left { tail } else { 0 }));
+                right = right.max(bubble_x + bubble_w + (if dock == Dock::Right { tail } else { 0 }));
                 top = top.min(bubble_y);
                 bottom = bottom.max(bubble_y + bubble_h);
             }
