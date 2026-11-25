@@ -6215,16 +6215,16 @@ export component NotchWindow inherits Window {
             : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 40px : 17px))))) * root.ui-scale);
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))) * root.play-body-scale-x)))) * (root.expanded ? 1.0 : root.ui-scale));
-        height: root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))) * root.play-body-scale-y)))) * (root.expanded ? 1.0 : root.ui-scale));
+        width: root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))))))) * (root.expanded ? 1.0 : root.ui-scale));
+        height: root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         // Jangan meregangkan Path kubah saat panel masih mengecil dari ukuran hub.
         // Selama transisi gunakan badan rounded biasa seperti dock atas; bentuk setengah lingkaran
         // baru aktif ketika badan sudah mencapai ukuran compact (termasuk skala Bottom/Side Play).
         property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible
-            && self.width <= (root.dock == 2 ? 80px : 40px) * root.ui-scale * root.play-body-scale-x + 1px
-            && self.height <= (root.dock == 2 ? 44px : 80px) * root.ui-scale * root.play-body-scale-y + 1px;
+            && self.width <= (root.dock == 2 ? 80px : 40px) * root.ui-scale + 1px
+            && self.height <= (root.dock == 2 ? 44px : 80px) * root.ui-scale + 1px;
         background: self.half ? transparent : Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
@@ -6280,8 +6280,8 @@ export component NotchWindow inherits Window {
                 // Dock samping memakai gerak pada sumbu vertikal; offset ini sebelumnya belum diterapkan ke gambar mata.
                 y: (root.dock == 2 ? 7px : (root.dock >= 3 ? 31px : root.eyes-offset-y * 1px)) * root.ui-scale
                     + (root.dock >= 3 ? root.eyes-offset-y * root.ui-scale * 1px : 0px);
-                width: (root.dock == 2 ? 80px : (root.dock >= 3 ? 36px : 130px)) * root.eyes-scale-x * root.ui-scale;
-                height: (root.dock == 2 ? 21px : (root.dock >= 3 ? 18px : (root.dock == 0 ? 26px : 34px))) * root.eyes-scale-y * root.ui-scale;
+                width: (root.dock == 2 ? 80px : (root.dock >= 3 ? 36px : 130px)) * root.ui-scale;
+                height: (root.dock == 2 ? 21px : (root.dock >= 3 ? 18px : (root.dock == 0 ? 26px : 34px))) * root.ui-scale;
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 // Crossfade seperti Tauri: mata baru muncul setelah isi hub mulai memudar.
@@ -6469,11 +6469,11 @@ export component NotchWindow inherits Window {
                     : root.eyes-mood == "angry" ? 12px
                     : root.eyes-mood == "love" ? 15px
                     : root.eyes-mood == "suspicious" ? 10px
-                    : root.eyes-mood == "sad" ? 11px : 10px) * root.eyes-scale-x * root.ui-scale;
+                    : root.eyes-mood == "sad" ? 11px : 10px) * root.ui-scale;
                 height: (root.eyes-mood == "happy" || root.eyes-mood == "angry" || root.eyes-mood == "love" || root.eyes-mood == "sad" ? 6px
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "sleepy" ? 2px
-                    : root.eyes-mood == "suspicious" ? 5px : 3px) * root.eyes-scale-y * root.ui-scale;
+                    : root.eyes-mood == "suspicious" ? 5px : 3px) * root.ui-scale;
                 border-radius: (root.eyes-mood == "surprised" ? 4px
                     : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 7px
                     : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px
