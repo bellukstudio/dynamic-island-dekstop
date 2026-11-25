@@ -328,8 +328,6 @@ mod platform {
  use rodio::{Decoder, OutputStream, Sink};
  use std::fs::File;
  use std::io::BufReader;
- use std::sync::Arc;
- use std::sync::atomic::{AtomicBool, Ordering};
 
  static ADHAN_STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
  static ACTIVE_ADHAN: Mutex<Option<Arc<Sink>>> = Mutex::new(None);
