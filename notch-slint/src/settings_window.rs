@@ -297,6 +297,8 @@ pub(crate) fn sync_settings_theme(m: &NotchWindow, s: &SettingsWindow) {
 pub(crate) struct SettingsHandle {
     pub(crate) win: SettingsWindow,
     pub(crate) _sync: Timer,
+    // Mencegah callback close yang tertunda melepas jendela yang sudah dibuka kembali.
+    close_pending: Rc<Cell<bool>>,
 }
 pub(crate) type SettingsSlot = Rc<RefCell<Option<SettingsHandle>>>;
 
@@ -304,10 +306,12 @@ pub(crate) type SettingsSlot = Rc<RefCell<Option<SettingsHandle>>>;
 pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
     // Ambil Weak dalam scope borrow singkat agar operasi show/focus tidak berjalan saat RefCell dipinjam.
     let existing = {
-        slot.borrow().as_ref().map(|handle| handle.win.as_weak())
+        slot.borrow().as_ref().map(|handle| (handle.win.as_weak(), handle.close_pending.clone()))
     };
-    if let Some(existing) = existing {
+    if let Some((existing, close_pending)) = existing {
         if let Some(win) = existing.upgrade() {
+            // Pengguna membuka kembali jendela sebelum timer close lama berjalan.
+            close_pending.set(false);
             sync_settings_theme(main, &win);
             sync_settings_window(main, &win);
             let _ = win.show();
@@ -318,6 +322,8 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
             request_settings_redraw(&win);
             return;
         }
+        // Window lama sudah tidak hidup; batalkan juga timer close miliknya sebelum membuat yang baru.
+        close_pending.set(false);
         slot.borrow_mut().take();
     }
     let win = match SettingsWindow::new() {
@@ -330,13 +336,20 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
     sync_settings_theme(main, &win);
     sync_settings_window(main, &win);
     wire_settings_window(main, &win);
+    let close_pending = Rc::new(Cell::new(false));
     {
         let slot = slot.clone();
+        let pending = close_pending.clone();
         win.window().on_close_requested(move || {
-            // Lepas jendela setelah callback selesai agar tidak membebaskan dirinya sendiri.
+            // Jangan lepas SettingsHandle sebelum callback selesai. Bila jendela dibuka lagi
+            // dalam jeda ini, flag dibatalkan dan timer lama tidak boleh mengambil handle aktif.
+            pending.set(true);
             let slot = slot.clone();
+            let pending = pending.clone();
             Timer::single_shot(Duration::from_millis(50), move || {
-                slot.borrow_mut().take();
+                if pending.get() {
+                    slot.borrow_mut().take();
+                }
             });
             slint::CloseRequestResponse::HideWindow
         });
@@ -363,5 +376,5 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
     let y = area.y + (area.h - size.height as i32).max(0) / 2;
     win.window().set_position(PhysicalPosition::new(x, y));
     request_settings_redraw(&win);
-    *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync });
+    *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync, close_pending });
 }
