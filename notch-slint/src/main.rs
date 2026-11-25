@@ -171,7 +171,11 @@ fn main() -> Result<(), slint::PlatformError> {
             } else {
                 COLLAPSED
             };
-            shell.place(&w, size);
+            // Saat transisi hub -> compact, native window sengaja tetap besar selama 330 ms.
+            // Jangan memotongnya lebih awal; shrink_window_synced akan memasang region setelah animasi.
+            if !window_needs_resize(&w, size) {
+                shell.place(&w, size);
+            }
         });
     }
     // Shell::place pertama berjalan sebelum event loop Winit membuat HWND.
@@ -2753,7 +2757,6 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
         let collapse_preview = collapse.clone();
-        let shell_preview = shell.clone();
         let timer = Timer::default();
         win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
             let Some(w) = weak.upgrade() else { return };
@@ -2786,18 +2789,10 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             w.set_nudge_visible(true);
             w.set_nudge_save_status("Pratinjau memakai nilai yang sedang diedit; belum menyimpan pengaturan.".into());
-            // Refresh region side-dock supaya balon pratinjau ikut menerima hit-test native.
-            if !was_expanded && !w.get_expanded() {
-                shell_preview.place(&w, COLLAPSED);
-            }
             let weak = weak.clone();
-            let shell_hide = shell_preview.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(show_ms as u64), move || {
                 if let Some(w) = weak.upgrade() {
                     w.set_nudge_visible(false);
-                    if !w.get_expanded() {
-                        shell_hide.place(&w, COLLAPSED);
-                    }
                 }
             });
         });
