@@ -166,6 +166,25 @@ pub(crate) fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     }
     {
         let weak = m.as_weak();
+        s.on_preview_nudge_mood(move |mood| {
+            if let Some(m) = weak.upgrade() {
+                m.invoke_settings_preview_appearance(
+                    m.get_appearance_theme(),
+                    m.get_appearance_eye_theme(),
+                    m.get_appearance_notch_theme(),
+                    mood,
+                    m.get_appearance_accent(),
+                    m.get_appearance_custom_bg(),
+                    m.get_appearance_custom_text(),
+                    m.get_appearance_dark_bg(),
+                    m.get_appearance_light_bg(),
+                    m.get_behavior_scale().parse::<f32>().unwrap_or(1.0),
+                );
+            }
+        });
+    }
+    {
+        let weak = m.as_weak();
         s.on_save_nudge(move |a0, a1, a2, a3, a4, a5, a6, a7| { if let Some(m) = weak.upgrade() { m.invoke_settings_save_nudge(a0, a1, a2, a3, a4, a5, a6, a7); } });
     }
     {
