@@ -6346,10 +6346,10 @@ export component NotchWindow inherits Window {
                 height: self.d;
                 border-radius: self.d / 2;
                 background: #0d0f13;
-                // Pinggiran piringan memakai warna metalik netral, bukan Theme.accent
-                // yang mengikuti warna dominan cover dan dapat menjadi halo neon.
-                border-width: 1px * self.media-scale;
-                border-color: #626975;
+                // Jangan gambar outline Rectangle di luar piringan: garis ini sebelumnya
+                // tampak sebagai cincin abu-abu terpisah dari artwork vinyl.
+                // Siluet dan alur piringan sepenuhnya berasal dari bitmap vinyl_frame.
+                border-width: 0px;
                 clip: true;
                 if root.media-has-art: Image {
                     source: root.media-disc-art;
