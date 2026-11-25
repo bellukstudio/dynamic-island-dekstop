@@ -183,7 +183,7 @@ impl Nudge {
         if self.message.is_empty() {
             self.message = d.message;
         }
-        self.emoji = self.emoji.trim().chars().take(12).collect();
+        self.emoji = self.emoji.trim().chars().take(32).collect();
         if self.emoji.is_empty() {
             self.emoji = d.emoji;
         }
