@@ -3463,7 +3463,7 @@ export component SettingsWindow inherits Window {
     callback save-focus-companion(bool, bool, bool, bool, bool);
     callback test-focus-companion(string, string);
     in property <string> position-mode: "top";
-    in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency";
+    in property <string> hub-pages: "media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, privacy, prayer, currency";
     in property <string> pages-save-status: "Pisahkan ID halaman dengan koma";
     callback save-pages(string);
     callback toggle-page(string, bool);
@@ -4018,7 +4018,6 @@ export component SettingsWindow inherits Window {
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 8px;
-                                    PageToggle { label: "Lirik lagu"; checked: root.page-enabled("lyrics"); toggled(v) => { root.toggle-page("lyrics", v); } }
                                 }
                                 VerticalLayout {
                                     horizontal-stretch: 1;
@@ -4029,7 +4028,7 @@ export component SettingsWindow inherits Window {
                         }
                         HorizontalLayout {
                             alignment: start;
-                            SButton { label: "Pulihkan halaman default"; clicked => { root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, lyrics, privacy, prayer, currency"); } }
+                            SButton { label: "Pulihkan halaman default"; clicked => { root.save-pages("media, clock, weather, battery, timer, quick, tools, stats, reminder, notes, clipboard, shelf, privacy, prayer, currency"); } }
                         }
                     }
 
@@ -6187,7 +6186,12 @@ export component NotchWindow inherits Window {
         height: root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))) * root.play-body-scale-y)))) * (root.expanded ? 1.0 : root.ui-scale));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
-        property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible;
+        // Jangan meregangkan Path kubah saat panel masih mengecil dari ukuran hub.
+        // Selama transisi gunakan badan rounded biasa seperti dock atas; bentuk setengah lingkaran
+        // baru aktif ketika badan sudah mencapai ukuran compact (termasuk skala Bottom/Side Play).
+        property <bool> half: !root.expanded && !root.dragging && root.dock >= 2 && !root.greeting-inline-visible
+            && self.width <= (root.dock == 2 ? 80px : 40px) * root.ui-scale * root.play-body-scale-x + 1px
+            && self.height <= (root.dock == 2 ? 44px : 80px) * root.ui-scale * root.play-body-scale-y + 1px;
         background: self.half ? transparent : Theme.body;
         // Sisi yang menempel ke tepi layar dibiarkan rata; selain itu membulat.
         border-top-left-radius: root.dragging ? 29px : ((root.dock == 0 || root.dock == 3) ? 0px : self.r);
