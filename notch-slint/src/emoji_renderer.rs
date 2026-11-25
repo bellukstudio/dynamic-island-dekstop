@@ -5,6 +5,7 @@
 //! never replaced: only its visual representation is rasterized and cached.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use fontdb::Database;
@@ -21,7 +22,6 @@ use swash::{
 
 const MAX_EMOJI_BYTES: usize = 128;
 const MAX_EMOJI_CHARS: usize = 32;
-const DEFAULT_TARGET_SIZE: u32 = 64;
 const MAX_CACHE_ENTRIES: usize = 256;
 
 static FONT_DATA: OnceLock<Option<(Arc<Vec<u8>>, usize)>> = OnceLock::new();
@@ -36,9 +36,25 @@ struct RasterGlyph {
     rgba: Vec<u8>,
 }
 
+#[cfg(windows)]
+fn windows_emoji_font() -> Option<(Arc<Vec<u8>>, usize)> {
+    let windows_dir = std::env::var_os("WINDIR")?;
+    let font_path = PathBuf::from(windows_dir).join("Fonts").join("seguiemj.ttf");
+    let font_data = Arc::new(std::fs::read(font_path).ok()?);
+    FontRef::from_index(font_data.as_slice(), 0)?;
+    Some((font_data, 0))
+}
+
 fn system_emoji_font() -> Option<(Arc<Vec<u8>>, usize)> {
     FONT_DATA
         .get_or_init(|| {
+            // Avoid scanning every installed font on Windows when the standard
+            // Segoe UI Emoji font is present. Keep fontdb as a cross-platform fallback.
+            #[cfg(windows)]
+            if let Some(font) = windows_emoji_font() {
+                return Some(font);
+            }
+
             let mut database = Database::new();
             database.load_system_fonts();
 
@@ -75,7 +91,7 @@ fn system_emoji_font() -> Option<(Arc<Vec<u8>>, usize)> {
         .clone()
 }
 
-fn blend_over(destination: &mut [u8], source: [u8; 4]) {
+fn blend_over_premultiplied(destination: &mut [u8], source: [u8; 4]) {
     let source_alpha = u32::from(source[3]);
     if source_alpha == 0 {
         return;
@@ -85,22 +101,25 @@ fn blend_over(destination: &mut [u8], source: [u8; 4]) {
         return;
     }
 
-    let destination_alpha = u32::from(destination[3]);
     let inverse = 255 - source_alpha;
-    let output_alpha = source_alpha + (destination_alpha * inverse + 127) / 255;
-    if output_alpha == 0 {
-        destination.fill(0);
-        return;
-    }
-
     for channel in 0..3 {
-        let source_part = u32::from(source[channel]) * source_alpha;
-        let destination_part =
-            (u32::from(destination[channel]) * destination_alpha * inverse + 127) / 255;
-        destination[channel] =
-            ((source_part + destination_part + output_alpha / 2) / output_alpha).min(255) as u8;
+        destination[channel] = (u32::from(source[channel])
+            + (u32::from(destination[channel]) * inverse + 127) / 255)
+            .min(255) as u8;
     }
-    destination[3] = output_alpha.min(255) as u8;
+    destination[3] = (source_alpha
+        + (u32::from(destination[3]) * inverse + 127) / 255)
+        .min(255) as u8;
+}
+
+fn premultiply_rgba(rgba: &mut [u8]) {
+    for pixel in rgba.chunks_exact_mut(4) {
+        let alpha = u32::from(pixel[3]);
+        for channel in 0..3 {
+            pixel[channel] =
+                ((u32::from(pixel[channel]) * alpha + 127) / 255).min(255) as u8;
+        }
+    }
 }
 
 fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
@@ -118,14 +137,19 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
     shaper.add_str(text);
 
     let mut shaped_glyphs = Vec::new();
+    let mut has_missing_glyph = false;
     shaper.shape_with(|cluster| {
         for glyph in cluster.glyphs {
-            if glyph.id != 0 {
+            if glyph.id == 0 {
+                has_missing_glyph = true;
+            } else {
                 shaped_glyphs.push((glyph.id, glyph.x, glyph.y));
             }
         }
     });
-    if shaped_glyphs.is_empty() {
+    // Jangan menampilkan pecahan glyph saat font tidak mendukung satu bagian sequence
+    // keluarga/ZWJ/skin-tone. Fallback teks akan lebih jujur daripada urutan yang rusak.
+    if has_missing_glyph || shaped_glyphs.is_empty() {
         return None;
     }
 
@@ -164,6 +188,11 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
                     continue;
                 }
                 rgba.copy_from_slice(&rendered.data[..rgba.len()]);
+                // Swash emits COLR layered outlines as premultiplied RGBA, while
+                // embedded color bitmap strikes (CBDT/sbix) are straight RGBA.
+                if matches!(rendered.source, Source::ColorBitmap(_)) {
+                    premultiply_rgba(&mut rgba);
+                }
             }
             Content::Mask => {
                 if rendered.data.len() < pixels {
@@ -171,10 +200,11 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
                 }
                 for (index, alpha) in rendered.data.iter().take(pixels).enumerate() {
                     let offset = index * 4;
-                    rgba[offset] = 255;
-                    rgba[offset + 1] = 218;
-                    rgba[offset + 2] = 92;
-                    rgba[offset + 3] = *alpha;
+                    let alpha = u32::from(*alpha);
+                    rgba[offset] = ((255 * alpha + 127) / 255) as u8;
+                    rgba[offset + 1] = ((218 * alpha + 127) / 255) as u8;
+                    rgba[offset + 2] = ((92 * alpha + 127) / 255) as u8;
+                    rgba[offset + 3] = *alpha as u8;
                 }
             }
             Content::SubpixelMask => {
@@ -183,10 +213,11 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
                 }
                 for (index, pixel) in rendered.data.chunks_exact(4).take(pixels).enumerate() {
                     let offset = index * 4;
-                    rgba[offset] = 255;
-                    rgba[offset + 1] = 218;
-                    rgba[offset + 2] = 92;
-                    rgba[offset + 3] = pixel[0].max(pixel[1]).max(pixel[2]).max(pixel[3]);
+                    let alpha = u32::from(pixel[0].max(pixel[1]).max(pixel[2]).max(pixel[3]));
+                    rgba[offset] = ((255 * alpha + 127) / 255) as u8;
+                    rgba[offset + 1] = ((218 * alpha + 127) / 255) as u8;
+                    rgba[offset + 2] = ((92 * alpha + 127) / 255) as u8;
+                    rgba[offset + 3] = alpha as u8;
                 }
             }
         }
@@ -245,7 +276,7 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
                     glyph.rgba[source_offset + 2],
                     glyph.rgba[source_offset + 3],
                 ];
-                blend_over(
+                blend_over_premultiplied(
                     &mut canvas[destination_offset..destination_offset + 4],
                     source,
                 );
@@ -286,7 +317,7 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
 
     let buffer =
         SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&output, output_size, output_size);
-    Some(Image::from_rgba8(buffer))
+    Some(Image::from_rgba8_premultiplied(buffer))
 }
 
 /// Render one emoji (or a Unicode emoji sequence) using the installed color emoji font.
