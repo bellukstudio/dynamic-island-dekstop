@@ -54,7 +54,10 @@ impl Shell {
             // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
             let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
             let body_h = if greeting { 75.0 } else if adhan { 34.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
-            let hit_w = (body_w * sf).round() as i32;
+            // Telinga atas menjulur 10 px di kiri dan kanan badan pill.
+            // Masukkan keduanya ke native hit-test region agar hover tidak putus di area telinga.
+            let ear_extension = if dock == Dock::Top { 20.0 } else { 0.0 };
+            let hit_w = ((body_w + ear_extension) * sf).round() as i32;
             let hit_h = (body_h * sf).round() as i32;
             let x = ((size.0 as i32 - hit_w) / 2).max(0);
             Some((x, 0, hit_w.min(size.0 as i32 - x), hit_h.min(size.1 as i32)))
