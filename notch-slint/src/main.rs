@@ -2787,7 +2787,7 @@ fn main() -> Result<(), slint::PlatformError> {
             let show_ms = show_seconds * 1_000;
             if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 32 || emoji.len() > 128
                 || !["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"].contains(&mood.as_str()) {
-                w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 12), dan ekspresi.".into());
+                w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 32 karakter), dan ekspresi.".into());
                 return;
             }
             // Preview harus terlihat walaupun hub sedang terbuka; gunakan jalur collapse yang sama
