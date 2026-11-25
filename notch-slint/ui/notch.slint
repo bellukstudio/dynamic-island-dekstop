@@ -6826,22 +6826,22 @@ export component NotchWindow inherits Window {
             if root.nudge-inline: Rectangle {
                 width: parent.width;
                 height: parent.height;
-                Rectangle {
-                    x: root.media-playing && root.nudge-visible ? 8px : 16px;
-                    y: root.media-playing && root.nudge-visible ? 8px : 17px;
-                    width: root.media-playing && root.nudge-visible ? 24px : 34px;
-                    height: root.media-playing && root.nudge-visible ? 24px : 34px;
+                if root.nudge-visible: NudgeEmoji {
+                    x: root.media-playing ? 8px : 16px;
+                    y: root.media-playing ? 8px : 17px;
+                    width: root.media-playing ? 24px : 34px;
+                    height: root.media-playing ? 24px : 34px;
+                    emoji: root.nudge-emoji;
+                }
+                if !root.nudge-visible: Rectangle {
+                    x: 16px; y: 17px; width: 34px; height: 34px;
                     border-radius: 17px;
                     background: Theme.accent.with-alpha(0.14);
                     border-width: 1px;
                     border-color: Theme.accent.with-alpha(0.62);
                     Rectangle {
-                        x: 12px;
-                        y: 12px;
-                        width: 10px;
-                        height: 10px;
-                        border-radius: 5px;
-                        background: Theme.accent;
+                        x: 12px; y: 12px; width: 10px; height: 10px;
+                        border-radius: 5px; background: Theme.accent;
                     }
                 }
                 Text {
