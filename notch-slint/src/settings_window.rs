@@ -59,6 +59,8 @@ pub(crate) fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_nudge_idle_min(m.get_nudge_idle_min());
     s.set_nudge_message(m.get_nudge_message());
     s.set_nudge_emoji(m.get_nudge_emoji());
+    s.set_nudge_emoji_image(m.get_nudge_emoji_image());
+    s.set_nudge_emoji_image_available(m.get_nudge_emoji_image_available());
     s.set_nudge_mood(m.get_nudge_mood());
     s.set_nudge_show_ms(m.get_nudge_show_ms());
     s.set_nudge_only_silent(m.get_nudge_only_silent());
@@ -192,6 +194,20 @@ pub(crate) fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
                     m.get_appearance_light_bg(),
                     m.get_behavior_scale().parse::<f32>().unwrap_or(1.0),
                 );
+            }
+        });
+    }
+    {
+        let weak = s.as_weak();
+        s.on_render_nudge_emoji(move |value| {
+            if let Some(settings) = weak.upgrade() {
+                if let Some(image) = crate::emoji_renderer::render_emoji(value.as_str(), 64) {
+                    settings.set_nudge_emoji_image(image);
+                    settings.set_nudge_emoji_image_available(true);
+                } else {
+                    settings.set_nudge_emoji_image(Image::default());
+                    settings.set_nudge_emoji_image_available(false);
+                }
             }
         });
     }
