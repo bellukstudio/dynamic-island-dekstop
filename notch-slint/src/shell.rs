@@ -94,7 +94,7 @@ impl Shell {
                 let bubble_w = ((if compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
                 // Awan bisa menampilkan hingga 5 baris pesan + 2 baris detail, padding, dan emoji.
                 // Native region harus setidaknya setinggi visual bubble supaya teks tidak terpotong OS.
-                let bubble_h = ((if compact_bubble { 86.0 } else { 120.0 }) * dpi).round() as i32;
+                let bubble_h = ((if compact_bubble { 86.0 } else { 132.0 }) * dpi).round() as i32;
                 let gap = (11.0 * dpi).round() as i32;
                 let tail = (10.0 * dpi).round() as i32;
                 let bubble_x = if dock == Dock::Left {
