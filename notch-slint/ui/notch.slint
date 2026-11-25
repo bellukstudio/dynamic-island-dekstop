@@ -6179,6 +6179,7 @@ export component NotchWindow inherits Window {
     callback adhan-finished();
     // Dipanggil saat adzan mulai/berhenti agar Rust memperbarui area klik notch sesuai lebar pil.
     callback adhan-layout-changed();
+    callback region-layout-changed();
     callback media-seek(float);
     callback hover-changed(bool);
     callback pill-clicked();
@@ -6280,9 +6281,13 @@ export component NotchWindow inherits Window {
     out property <bool> drag-armed: hover.pressed;
     changed any-hover => { root.hover-changed(root.any-hover); }
     // Lebar badan notch menciut (adzan 220, musik/jam 220, biasa 130) menentukan area klik di Rust; hitung ulang tiap berubah.
-    changed adhan-active => { root.adhan-layout-changed(); }
-    changed idle-clock => { root.adhan-layout-changed(); }
-    changed media-playing => { root.adhan-layout-changed(); }
+    changed adhan-active => { root.adhan-layout-changed(); root.region-layout-changed(); }
+    changed idle-clock => { root.adhan-layout-changed(); root.region-layout-changed(); }
+    changed media-playing => { root.adhan-layout-changed(); root.region-layout-changed(); }
+    changed nudge-visible => { root.region-layout-changed(); }
+    changed reminder-alert-visible => { root.region-layout-changed(); }
+    changed greeting-speech-visible => { root.region-layout-changed(); }
+    changed meeting-finished => { root.region-layout-changed(); }
 
     // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
     // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
