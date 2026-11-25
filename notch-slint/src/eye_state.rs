@@ -10,14 +10,12 @@ pub(crate) const EYES_TOP_H: f32 = 26.0;
 pub(crate) fn eye_renderer_for_dock(skin: &str, dock: i32) -> (EyeRenderer, (f32, f32)) {
     let size = match dock {
         0 => (EYES_W, EYES_TOP_H),
-        3 | 4 => (EYES_H, EYES_W),
+        // Dock samping memakai badan 40 x 80 px; kedua mata tetap berdampingan,
+        // bukan ditumpuk vertikal. Kanvas dibuat cukup lebar untuk sepasang mata.
+        3 | 4 => (36.0, 18.0),
         _ => (EYES_W, EYES_H),
     };
-    let renderer = if matches!(dock, 3 | 4) {
-        EyeRenderer::new_vertical(skin, size.0, size.1)
-    } else {
-        EyeRenderer::new(skin, size.0, size.1)
-    };
+    let renderer = EyeRenderer::new(skin, size.0, size.1);
     (renderer, size)
 }
 
