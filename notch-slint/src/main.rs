@@ -3361,12 +3361,12 @@ fn main() -> Result<(), slint::PlatformError> {
                     // relatif terhadap notch (bukan tengah layar), supaya benar juga untuk posisi kustom
                     let (wp, ws) = (w.window().position(), w.window().size());
                     let mid_x = wp.x + ws.width as i32 / 2;
-                    e.look_target = eyes::look_offset((cx - mid_x) as f32, (cy - wp.y) as f32);
+                    e.look_target = eye_look_offset((cx - mid_x) as f32, (cy - wp.y) as f32, w.get_dock());
                 }
             }
             if ts - e.last_move > 5.0 && ts >= e.next_random_look {
                 e.next_random_look = ts + 2.5;
-                e.look_target = eyes::look_offset((e.rng.next() - 0.5) * 300.0, (e.rng.next() - 0.5) * 60.0);
+                e.look_target = eye_look_offset((e.rng.next() - 0.5) * 300.0, (e.rng.next() - 0.5) * 60.0, w.get_dock());
             }
 
             // Smooth-follow: filter eksponensial yang stabil terhadap variasi frame time.
@@ -3380,6 +3380,11 @@ fn main() -> Result<(), slint::PlatformError> {
             let follow = 1.0 - (-frame_dt / 0.085).exp();
             e.look.0 += (e.look_target.0 - e.look.0) * follow;
             e.look.1 += (e.look_target.1 - e.look.1) * follow;
+            if w.get_dock() == 3 || w.get_dock() == 4 {
+                // Saat berpindah dari dock atas, jangan biarkan offset lama (hingga 6 px)
+                // membuat mata samping keluar dari kanvas 36 px.
+                e.look.0 = e.look.0.clamp(-2.0, 2.0);
+            }
             if (e.look_target.0 - e.look.0).abs() < 0.015 {
                 e.look.0 = e.look_target.0;
             }
