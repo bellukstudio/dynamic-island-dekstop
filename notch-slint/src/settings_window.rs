@@ -5,6 +5,18 @@ use crate::*;
 /// Diset oleh tombol "Mulai ulang Notch" di Pengaturan; `main` menjalankan proses baru setelah event loop berhenti.
 pub(crate) static RESTART_REQUESTED: AtomicBool = AtomicBool::new(false);
 
+/// Minta Slint menggambar ulang setelah jendela pengaturan di-show atau dipulihkan.
+/// Dua frame tertunda membantu mencegah jendela transparan/berlapis tertahan pada frame kosong lama.
+fn request_settings_redraw(win: &SettingsWindow) {
+    win.window().request_redraw();
+    let weak = win.as_weak();
+    Timer::single_shot(Duration::from_millis(90), move || {
+        if let Some(win) = weak.upgrade() {
+            win.window().request_redraw();
+        }
+    });
+}
+
 /// Salin nilai tampilan dari NotchWindow (pemilik state) ke jendela Pengaturan. Property yang nilainya sama tidak memicu render ulang.
 pub(crate) fn sync_settings_window(m: &NotchWindow, s: &SettingsWindow) {
     s.set_weather_city(m.get_weather_city());
@@ -303,6 +315,7 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
                 w.set_minimized(false);
                 w.focus_window();
             });
+            request_settings_redraw(&win);
             return;
         }
         slot.borrow_mut().take();
@@ -349,5 +362,6 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
     let x = area.x + (area.w - size.width as i32).max(0) / 2;
     let y = area.y + (area.h - size.height as i32).max(0) / 2;
     win.window().set_position(PhysicalPosition::new(x, y));
+    request_settings_redraw(&win);
     *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync });
 }
