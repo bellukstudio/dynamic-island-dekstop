@@ -91,6 +91,22 @@ fn update_nudge_emoji_visual(window: &NotchWindow, value: &str) {
     }
 }
 
+/// Convert the current window position back into the persisted anchor format without
+/// losing Bottom/Left/Right docking when Liquid Movement is interrupted.
+fn liquid_motion_anchor(window: &NotchWindow) -> (i32, i32) {
+    let position = window.window().position();
+    let size = window.window().size();
+    let center_x = position.x + size.width as i32 / 2;
+    let center_y = position.y + size.height as i32 / 2;
+
+    match window.get_dock() {
+        2 => (center_x, layout::BOTTOM_TY),
+        3 => (layout::LEFT_TX, center_y),
+        4 => (layout::RIGHT_TX, center_y),
+        _ => (center_x, position.y),
+    }
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     if let Some(resource_dir) = std::env::current_exe().ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf)) {
         notch_tools::pdf::set_resource_dir(resource_dir.clone());
@@ -230,17 +246,16 @@ fn main() -> Result<(), slint::PlatformError> {
         let mut last_move = Instant::now();
         let mut moves = 0u32;
         let mut was_blocked = false;
-        let mut animation: Option<(PhysicalPosition, PhysicalPosition, Instant)> = None;
-        const MOVE_DURATION: Duration = Duration::from_millis(2_800);
+        let mut animation: Option<(PhysicalPosition, PhysicalPosition, Instant, Duration)> = None;
+        const TOP_MOVE_DURATION: Duration = Duration::from_millis(2_800);
+        const EDGE_MOVE_DURATION: Duration = Duration::from_millis(4_800);
 
         liquid_move_timer.start(TimerMode::Repeated, Duration::from_millis(16), move || {
             let Some(w) = weak.upgrade() else { return };
 
             if !runtime.0.get() {
                 if animation.take().is_some() {
-                    let position = w.window().position();
-                    let size = w.window().size();
-                    shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
+                    shell.pos.set(Some(liquid_motion_anchor(&w)));
                 }
                 // Batas perpindahan dihitung ulang setiap kali fitur diaktifkan kembali.
                 moves = 0;
@@ -266,9 +281,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     was_blocked = true;
                 }
                 if animation.take().is_some() {
-                    let position = w.window().position();
-                    let size = w.window().size();
-                    shell.pos.set(Some((position.x + size.width as i32 / 2, position.y)));
+                    shell.pos.set(Some(liquid_motion_anchor(&w)));
                 }
                 return;
             }
@@ -279,8 +292,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 was_blocked = false;
             }
 
-            if let Some((from, to, began)) = animation {
-                let progress = (began.elapsed().as_secs_f32() / MOVE_DURATION.as_secs_f32()).clamp(0.0, 1.0);
+            if let Some((from, to, began, duration)) = animation {
+                let progress = (began.elapsed().as_secs_f32() / duration.as_secs_f32()).clamp(0.0, 1.0);
                 // Smoothstep (ease-in-out): akselerasi dan perlambatan lembut di kedua ujung.
                 let eased = progress * progress * (3.0 - 2.0 * progress);
                 let x = from.x as f32 + (to.x - from.x) as f32 * eased;
@@ -324,13 +337,64 @@ fn main() -> Result<(), slint::PlatformError> {
             let mut value = seed ^ (seed >> 30);
             value = value.wrapping_mul(0xBF58476D1CE4E5B9);
             value ^= value >> 27;
-            let rx = (value % (max_x - min_x + 1).max(1) as u64) as i32;
+
+            // Bawah/melayang bergerak mendatar (kiri/kanan); dock samping mengikuti
+            // sisi layar (naik/turun). Semua target tetap memakai sentinel docking.
+            let dock = w.get_dock();
+            let move_scale = w.window().scale_factor() * w.get_ui_scale().clamp(0.5, 1.5);
+            let direction = if value & 1 == 0 { 1 } else { -1 };
             value = value.wrapping_mul(0x94D049BB133111EB);
-            let ry = (value % (max_y - min_y + 1).max(1) as u64) as i32;
-            let target_pos = (min_x + rx, min_y + ry);
+            let travel = ((130 + (value % 171) as i32) as f32 * move_scale).round() as i32;
+
+            let choose_axis_target = |current_value: i32, minimum: i32, maximum: i32| {
+                let preferred = current_value + direction * travel;
+                if preferred >= minimum && preferred <= maximum {
+                    preferred
+                } else {
+                    let reverse = current_value - direction * travel;
+                    if reverse >= minimum && reverse <= maximum {
+                        reverse
+                    } else {
+                        preferred.clamp(minimum, maximum)
+                    }
+                }
+            };
+
+            let target_pos = match dock {
+                // Dock bawah: geser kanan/kiri tetapi tetap menempel di bawah monitor.
+                2 => {
+                    let center_x = current.x + half_width;
+                    let target_x = choose_axis_target(center_x, min_x, max_x);
+                    (target_x, layout::BOTTOM_TY)
+                }
+                // Dock kiri/kanan: gerak mengikuti sisi vertikal, tidak lepas dari tepi layar.
+                3 | 4 => {
+                    let half_height = size.height as i32 / 2;
+                    let min_center_y = work.y + half_height + margin;
+                    let max_center_y = (work.y + work.h - half_height - margin).max(min_center_y);
+                    let center_y = current.y + half_height;
+                    let target_y = choose_axis_target(center_y, min_center_y, max_center_y);
+                    (if dock == 3 { layout::LEFT_TX } else { layout::RIGHT_TX }, target_y)
+                }
+                // Dock melayang: bergerak mendatar secara acak tanpa mengubah ketinggian.
+                1 => {
+                    let center_x = current.x + half_width;
+                    let target_x = choose_axis_target(center_x, min_x, max_x);
+                    (target_x, current.y)
+                }
+                // Dock atas mempertahankan perilaku random area yang sudah ada.
+                _ => {
+                    let rx = (value % (max_x - min_x + 1).max(1) as u64) as i32;
+                    value = value.wrapping_mul(0x94D049BB133111EB);
+                    let ry = (value % (max_y - min_y + 1).max(1) as u64) as i32;
+                    (min_x + rx, min_y + ry)
+                }
+            };
+
             let target = layout::place(&work, size.width as i32, size.height as i32, Some(target_pos)).0;
             let from = PhysicalPosition::new(current.x, current.y);
             let to = PhysicalPosition::new(target.0, target.1);
+            let duration = if dock == 0 { TOP_MOVE_DURATION } else { EDGE_MOVE_DURATION };
 
             shell.pos.set(Some(target_pos));
             if from == to {
@@ -338,7 +402,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 last_move = Instant::now();
                 moves = moves.saturating_add(1);
             } else {
-                animation = Some((from, to, Instant::now()));
+                animation = Some((from, to, Instant::now(), duration));
             }
         });
     }
