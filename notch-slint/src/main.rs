@@ -158,6 +158,22 @@ fn main() -> Result<(), slint::PlatformError> {
     apply_theme(&win, &palette);
     win.set_ui_scale(cfg.scale as f32);
     shell.place(&win, COLLAPSED);
+    // Perubahan pesan inline harus memperbarui native hit-test region: dock samping hanya memakai
+    // bounding box notch + SpeechBubble, bukan seluruh window transparan 300x262.
+    {
+        let weak = win.as_weak();
+        let shell = shell.clone();
+        win.on_region_layout_changed(move || {
+            let Some(w) = weak.upgrade() else { return };
+            if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() { return; }
+            let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
+                GREETING_INLINE
+            } else {
+                COLLAPSED
+            };
+            shell.place(&w, size);
+        });
+    }
     // Shell::place pertama berjalan sebelum event loop Winit membuat HWND.
     // Ulangi sekali setelah native window siap agar posisi awal (tengah atas monitor) benar-benar diterapkan.
     {
