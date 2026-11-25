@@ -90,9 +90,11 @@ impl Shell {
                     || win.get_greeting_speech_visible());
             if bubble_visible {
                 // SpeechBubble dan jaraknya memakai px UI biasa (hanya DPI), bukan ui-scale badan pill.
-                let bubble_w = ((if win.get_nudge_visible() && win.get_media_playing() { 184.0 } else { 200.0 }) * dpi).round() as i32;
-                // SpeechBubble membatasi teks ke 30 + 25 px, dengan padding vertikal 20 px.
-                let bubble_h = (78.0 * dpi).round() as i32;
+                let compact_bubble = win.get_nudge_visible() && win.get_media_playing();
+                let bubble_w = ((if compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
+                // Awan bisa menampilkan hingga 5 baris pesan + 2 baris detail, padding, dan emoji.
+                // Native region harus setidaknya setinggi visual bubble supaya teks tidak terpotong OS.
+                let bubble_h = ((if compact_bubble { 58.0 } else { 120.0 }) * dpi).round() as i32;
                 let gap = (11.0 * dpi).round() as i32;
                 let tail = (10.0 * dpi).round() as i32;
                 let bubble_x = if dock == Dock::Left {
