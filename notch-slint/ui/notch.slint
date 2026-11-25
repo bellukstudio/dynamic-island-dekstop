@@ -2740,23 +2740,29 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
-// Emoji dipakai sebagai gambar berwarna, bukan glyph font (renderer software Slint
-// merender emoji Unicode sebagai simbol monokrom). Artwork ini juga dipakai di pemilih Pengaturan.
+// Gambar hasil renderer font warna sistem. Teks Unicode tetap menjadi sumber data;
+// image hanya cache visual untuk renderer software Slint.
 component NudgeEmoji inherits Rectangle {
     in property <string> emoji;
+    in property <image> rendered-image;
+    in property <bool> rendered-image-available: false;
     width: 24px;
     height: 24px;
     background: transparent;
-    if root.emoji == "🥺": Image { source: @image-url("../assets/emoji/nudge/1f97a.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "😳": Image { source: @image-url("../assets/emoji/nudge/1f633.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "😴": Image { source: @image-url("../assets/emoji/nudge/1f634.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "😿": Image { source: @image-url("../assets/emoji/nudge/1f63f.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "😺": Image { source: @image-url("../assets/emoji/nudge/1f63a.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "🥰": Image { source: @image-url("../assets/emoji/nudge/1f970.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji == "🤔": Image { source: @image-url("../assets/emoji/nudge/1f914.svg"); width: parent.width; height: parent.height; image-fit: contain; }
-    if root.emoji != "🥺" && root.emoji != "😳" && root.emoji != "😴" && root.emoji != "😿" && root.emoji != "😺" && root.emoji != "🥰" && root.emoji != "🤔": Text {
-        width: parent.width; height: parent.height; text: root.emoji; color: Theme.text;
-        font-size: 18px; horizontal-alignment: center; vertical-alignment: center;
+    if root.rendered-image-available: Image {
+        source: root.rendered-image;
+        width: parent.width;
+        height: parent.height;
+        image-fit: contain;
+    }
+    if !root.rendered-image-available: Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.emoji;
+        color: Theme.text;
+        font-size: 18px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
 }
 
@@ -2767,6 +2773,8 @@ component SpeechBubble inherits Rectangle {
     in property <string> message;
     in property <string> detail;
     in property <string> emoji: "";
+    in property <image> emoji-image;
+    in property <bool> emoji-image-available: false;
     in property <bool> side: false;
     in property <bool> side-right: false;
     in property <length> tail-pos: -1px;
@@ -2785,6 +2793,8 @@ component SpeechBubble inherits Rectangle {
         width: root.compact ? 22px : 24px;
         height: root.compact ? 22px : 24px;
         emoji: root.emoji;
+        rendered-image: root.emoji-image;
+        rendered-image-available: root.emoji-image-available;
     }
     msg := Text {
         x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
@@ -2902,6 +2912,8 @@ component SSwitch inherits Rectangle {
 component SInput inherits Rectangle {
     in-out property <string> text;
     in property <string> leading-emoji: "";
+    in property <image> leading-emoji-image;
+    in property <bool> leading-emoji-image-available: false;
     in property <bool> hide-text-when-leading-emoji: false;
     in property <string> placeholder: "";
     in property <string> suffix: "";
@@ -2925,6 +2937,8 @@ component SInput inherits Rectangle {
             width: 22px;
             height: 22px;
             emoji: root.leading-emoji;
+            rendered-image: root.leading-emoji-image;
+            rendered-image-available: root.leading-emoji-image-available;
         }
         Rectangle {
             horizontal-stretch: 1;
@@ -3284,6 +3298,7 @@ component SSlider inherits Rectangle {
 
 component SettingsEmojiButton inherits Rectangle {
     in property <string> emoji;
+    in property <image> emoji-image;
     in property <bool> selected: false;
     in property <bool> interactive: true;
     callback clicked;
@@ -3294,7 +3309,7 @@ component SettingsEmojiButton inherits Rectangle {
     border-width: root.selected ? 1px : 0px;
     border-color: Theme.accent;
     background: emoji-ta.has-hover ? SUi.hover : SUi.field;
-    NudgeEmoji { x: 5px; y: 4px; width: 26px; height: 26px; emoji: root.emoji; }
+    Image { source: root.emoji-image; x: 5px; y: 4px; width: 26px; height: 26px; image-fit: contain; }
     emoji-ta := TouchArea {
         x: 0px; y: 0px; width: parent.width; height: parent.height;
         enabled: root.interactive;
@@ -3472,6 +3487,8 @@ export component SettingsWindow inherits Window {
     in property <string> nudge-idle-min: "2";
     in property <string> nudge-message: "Kamu kemana, kok diam saja?";
     in property <string> nudge-emoji: "🥺";
+    in property <image> nudge-emoji-image;
+    in property <bool> nudge-emoji-image-available: false;
     in property <string> nudge-mood: "sad";
     in property <string> nudge-show-ms: "6000";
     in property <bool> nudge-only-silent: true;
@@ -3523,6 +3540,7 @@ export component SettingsWindow inherits Window {
     callback save-appearance(string, string, string, string, string, string, string, string, string, float);
     callback preview-appearance(string, string, string, string, string, string, string, string, string, float);
     callback preview-nudge-mood(string);
+    callback render-nudge-emoji(string);
     callback save-weather(string, string, string);
     // Pencarian kota (Open-Meteo geocoding) seperti kolom "Cari kota" di Pengaturan Tauri.
     in property <[CityHit]> weather-hits;
@@ -3576,6 +3594,7 @@ export component SettingsWindow inherits Window {
     property <string> f-nudge-idle: root.nudge-idle-min;
     property <string> f-nudge-message: root.nudge-message;
     property <string> f-nudge-emoji: root.nudge-emoji;
+    changed f-nudge-emoji => { root.render-nudge-emoji(root.f-nudge-emoji); }
     property <string> f-nudge-mood: root.nudge-mood;
     property <string> f-nudge-show: root.nudge-show-ms;
     property <bool> f-nudge-silent: root.nudge-only-silent;
@@ -4261,6 +4280,7 @@ export component SettingsWindow inherits Window {
                             }
                             SBlock {
                                 title: "Emoji";
+                                desc: "Ketik atau paste emoji. Di Windows, tekan Win + . untuk membuka Emoji Picker.";
                                 HorizontalLayout {
                                     spacing: 8px;
                                     alignment: start;
@@ -4268,16 +4288,18 @@ export component SettingsWindow inherits Window {
                                     SInput {
                                         width: 88px;
                                         leading-emoji: root.f-nudge-emoji;
+                                        leading-emoji-image: root.nudge-emoji-image;
+                                        leading-emoji-image-available: root.nudge-emoji-image-available;
                                         hide-text-when-leading-emoji: true;
                                         text <=> root.f-nudge-emoji;
                                     }
-                                    SettingsEmojiButton { emoji: "🥺"; selected: root.f-nudge-emoji == "🥺"; clicked => { root.f-nudge-emoji = "🥺"; } }
-                                    SettingsEmojiButton { emoji: "😳"; selected: root.f-nudge-emoji == "😳"; clicked => { root.f-nudge-emoji = "😳"; } }
-                                    SettingsEmojiButton { emoji: "😴"; selected: root.f-nudge-emoji == "😴"; clicked => { root.f-nudge-emoji = "😴"; } }
-                                    SettingsEmojiButton { emoji: "😿"; selected: root.f-nudge-emoji == "😿"; clicked => { root.f-nudge-emoji = "😿"; } }
-                                    SettingsEmojiButton { emoji: "😺"; selected: root.f-nudge-emoji == "😺"; clicked => { root.f-nudge-emoji = "😺"; } }
-                                    SettingsEmojiButton { emoji: "🥰"; selected: root.f-nudge-emoji == "🥰"; clicked => { root.f-nudge-emoji = "🥰"; } }
-                                    SettingsEmojiButton { emoji: "🤔"; selected: root.f-nudge-emoji == "🤔"; clicked => { root.f-nudge-emoji = "🤔"; } }
+                                    SettingsEmojiButton { emoji: "🥺"; emoji-image: @image-url("../assets/emoji/nudge/1f97a.svg"); selected: root.f-nudge-emoji == "🥺"; clicked => { root.f-nudge-emoji = "🥺"; } }
+                                    SettingsEmojiButton { emoji: "😳"; emoji-image: @image-url("../assets/emoji/nudge/1f633.svg"); selected: root.f-nudge-emoji == "😳"; clicked => { root.f-nudge-emoji = "😳"; } }
+                                    SettingsEmojiButton { emoji: "😴"; emoji-image: @image-url("../assets/emoji/nudge/1f634.svg"); selected: root.f-nudge-emoji == "😴"; clicked => { root.f-nudge-emoji = "😴"; } }
+                                    SettingsEmojiButton { emoji: "😿"; emoji-image: @image-url("../assets/emoji/nudge/1f63f.svg"); selected: root.f-nudge-emoji == "😿"; clicked => { root.f-nudge-emoji = "😿"; } }
+                                    SettingsEmojiButton { emoji: "😺"; emoji-image: @image-url("../assets/emoji/nudge/1f63a.svg"); selected: root.f-nudge-emoji == "😺"; clicked => { root.f-nudge-emoji = "😺"; } }
+                                    SettingsEmojiButton { emoji: "🥰"; emoji-image: @image-url("../assets/emoji/nudge/1f970.svg"); selected: root.f-nudge-emoji == "🥰"; clicked => { root.f-nudge-emoji = "🥰"; } }
+                                    SettingsEmojiButton { emoji: "🤔"; emoji-image: @image-url("../assets/emoji/nudge/1f914.svg"); selected: root.f-nudge-emoji == "🤔"; clicked => { root.f-nudge-emoji = "🤔"; } }
                                 }
                             }
                             SBlock {
@@ -6832,6 +6854,8 @@ export component NotchWindow inherits Window {
                     width: root.media-playing ? 24px : 34px;
                     height: root.media-playing ? 24px : 34px;
                     emoji: root.nudge-emoji;
+                    rendered-image: root.nudge-emoji-image;
+                    rendered-image-available: root.nudge-emoji-image-available;
                 }
                 if !root.nudge-visible: Rectangle {
                     x: 16px; y: 17px; width: 34px; height: 34px;
@@ -6902,6 +6926,8 @@ export component NotchWindow inherits Window {
         message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
         detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
         emoji: root.nudge-visible ? root.nudge-emoji : "";
+        emoji-image: root.nudge-emoji-image;
+        emoji-image-available: root.nudge-emoji-image-available;
     }
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
