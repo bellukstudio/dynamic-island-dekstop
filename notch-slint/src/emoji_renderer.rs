@@ -43,7 +43,7 @@ impl CachedEmoji {
             self.size,
             self.size,
         );
-        Image::from_rgba8_premultiplied(buffer)
+        Image::from_rgba8(buffer)
     }
 }
 
@@ -138,6 +138,20 @@ fn premultiply_rgba(rgba: &mut [u8]) {
         for channel in 0..3 {
             pixel[channel] =
                 ((u32::from(pixel[channel]) * alpha + 127) / 255).min(255) as u8;
+        }
+    }
+}
+
+fn unpremultiply_rgba(rgba: &mut [u8]) {
+    for pixel in rgba.chunks_exact_mut(4) {
+        let alpha = u32::from(pixel[3]);
+        if alpha == 0 {
+            pixel[..3].fill(0);
+            continue;
+        }
+        for channel in 0..3 {
+            pixel[channel] =
+                ((u32::from(pixel[channel]) * 255 + alpha / 2) / alpha).min(255) as u8;
         }
     }
 }
@@ -335,6 +349,9 @@ fn render_uncached(text: &str, target_size: u32) -> Option<CachedEmoji> {
             .copy_from_slice(&resized.as_raw()[source_start..source_start + row_len]);
     }
 
+    // The canvas was composited in premultiplied form. Slint's stable from_rgba8
+    // constructor expects straight RGBA, so convert once after resizing.
+    unpremultiply_rgba(&mut output);
     Some(CachedEmoji {
         size: output_size,
         rgba: Arc::new(output),
