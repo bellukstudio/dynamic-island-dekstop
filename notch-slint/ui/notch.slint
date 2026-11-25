@@ -2220,6 +2220,9 @@ component ReminderAlertCard inherits Rectangle {
 
 component ReminderPage inherits VerticalLayout {
     in property <[ReminderItem]> items;
+    in property <bool> compact: false;
+    in property <bool> media-playing: false;
+    in property <bool> nudge-visible: false;
     in property <bool> alert-visible: false;
     in property <string> alert-text;
     in property <string> alert-sub;
@@ -3471,6 +3474,7 @@ export component SettingsWindow inherits Window {
     callback save-routines(string, string, string, string, string, string, string, string, string);
     callback save-appearance(string, string, string, string, string, string, string, string, string, float);
     callback preview-appearance(string, string, string, string, string, string, string, string, string, float);
+    callback preview-nudge-mood(string);
     callback save-weather(string, string, string);
     // Pencarian kota (Open-Meteo geocoding) seperti kolom "Cari kota" di Pengaturan Tauri.
     in property <[CityHit]> weather-hits;
@@ -6716,6 +6720,9 @@ export component NotchWindow inherits Window {
                     }
                     if root.page-id == "reminder": ReminderPage {
                         items: root.reminders;
+                        compact: root.media-playing && root.nudge-visible;
+                        media-playing: root.media-playing;
+                        nudge-visible: root.nudge-visible;
                         alert-visible: root.reminder-alert-visible;
                         alert-text: root.reminder-alert-text;
                         alert-sub: root.reminder-alert-sub;
