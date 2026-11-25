@@ -5,6 +5,7 @@
 //! never replaced: only its visual representation is rasterized and cached.
 
 use std::collections::HashMap;
+#[cfg(windows)]
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -25,7 +26,26 @@ const MAX_EMOJI_CHARS: usize = 32;
 const MAX_CACHE_ENTRIES: usize = 256;
 
 static FONT_DATA: OnceLock<Option<(Arc<Vec<u8>>, usize)>> = OnceLock::new();
-static IMAGE_CACHE: OnceLock<Mutex<HashMap<(String, u32), Option<Image>>>> = OnceLock::new();
+static IMAGE_CACHE: OnceLock<Mutex<HashMap<(String, u32), Option<CachedEmoji>>>> =
+    OnceLock::new();
+
+#[derive(Clone)]
+struct CachedEmoji {
+    size: u32,
+    rgba: Arc<Vec<u8>>,
+}
+
+impl CachedEmoji {
+    /// Convert cached bytes into a Slint Image on the caller's UI thread.
+    fn to_slint_image(&self) -> Image {
+        let buffer = SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(
+            self.rgba.as_slice(),
+            self.size,
+            self.size,
+        );
+        Image::from_rgba8_premultiplied(buffer)
+    }
+}
 
 #[derive(Debug)]
 struct RasterGlyph {
@@ -122,7 +142,7 @@ fn premultiply_rgba(rgba: &mut [u8]) {
     }
 }
 
-fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
+fn render_uncached(text: &str, target_size: u32) -> Option<CachedEmoji> {
     let (font_data, font_index) = system_emoji_font()?;
     let font = FontRef::from_index(font_data.as_slice(), font_index)?;
 
@@ -315,9 +335,10 @@ fn render_uncached(text: &str, target_size: u32) -> Option<Image> {
             .copy_from_slice(&resized.as_raw()[source_start..source_start + row_len]);
     }
 
-    let buffer =
-        SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&output, output_size, output_size);
-    Some(Image::from_rgba8_premultiplied(buffer))
+    Some(CachedEmoji {
+        size: output_size,
+        rgba: Arc::new(output),
+    })
 }
 
 /// Render one emoji (or a Unicode emoji sequence) using the installed color emoji font.
@@ -333,18 +354,20 @@ pub(crate) fn render_emoji(text: &str, target_size: u32) -> Option<Image> {
 
     let key = (text.to_string(), target_size);
     let cache = IMAGE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    if let Ok(cache) = cache.lock() {
-        if let Some(image) = cache.get(&key) {
-            return image.clone();
-        }
-    }
+    let cached = cache.lock().ok().and_then(|cache| cache.get(&key).cloned());
 
-    let rendered = render_uncached(text, target_size);
-    if let Ok(mut cache) = cache.lock() {
-        if cache.len() >= MAX_CACHE_ENTRIES {
-            cache.clear();
+    let rendered = if let Some(cached) = cached {
+        cached
+    } else {
+        let rendered = render_uncached(text, target_size);
+        if let Ok(mut cache) = cache.lock() {
+            if cache.len() >= MAX_CACHE_ENTRIES {
+                cache.clear();
+            }
+            cache.insert(key, rendered.clone());
         }
-        cache.insert(key, rendered.clone());
-    }
-    rendered
+        rendered
+    };
+
+    rendered.map(|cached| cached.to_slint_image())
 }
