@@ -50,10 +50,16 @@ impl Shell {
             let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
             // Adzan memakai pil 220 x 34 (lihat `adhan-inline` di notch.slint); area klik harus mencakup tombol berhenti.
             let adhan = win.get_adhan_active();
+            // Nudge/pengingat di dock atas berubah menjadi pil inline lebar 288x68 (atau 220x40 saat musik).
+            let nudge_inline = matches!(dock, Dock::Top | Dock::Floating)
+                && !win.get_expanded() && !win.get_dragging() && !greeting && !adhan
+                && !win.get_meeting_active()
+                && (win.get_nudge_visible() || win.get_reminder_alert_visible());
             // Hit-test harus persis mengikuti badan yang digambar Slint: tanpa padding transparan.
             // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
-            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
-            let body_h = if greeting { 75.0 } else if adhan { 34.0 } else if dock == Dock::Top { 26.0 } else { 34.0 };
+            let compact_nudge_media = nudge_inline && win.get_media_playing() && win.get_nudge_visible();
+            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
+            let body_h = if greeting { 75.0 } else if adhan { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
             // Telinga atas menjulur 10 px di kiri dan kanan badan pill.
             // Masukkan keduanya ke native hit-test region agar hover tidak putus di area telinga.
             let ear_extension = if dock == Dock::Top { 20.0 } else { 0.0 };
@@ -61,6 +67,49 @@ impl Shell {
             let hit_h = (body_h * sf).round() as i32;
             let x = ((size.0 as i32 - hit_w) / 2).max(0);
             Some((x, 0, hit_w.min(size.0 as i32 - x), hit_h.min(size.1 as i32)))
+        } else if requested_size == COLLAPSED && matches!(dock, Dock::Left | Dock::Right) {
+            // Side dock memakai window 300x262 untuk menampung bubble, tetapi area transparan
+            // selebihnya tidak boleh memblokir klik aplikasi di belakangnya.
+            let scale = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
+            let pill_w = (40.0 * scale).round() as i32;
+            let pill_h = (80.0 * scale).round() as i32;
+            let ear_h = (10.0 * scale).round() as i32;
+            let pill_x = if dock == Dock::Left { 0 } else { size.0 as i32 - pill_w };
+            let pill_y = (size.1 as i32 - pill_h) / 2;
+            let mut left = pill_x;
+            let mut right = pill_x + pill_w;
+            let mut top = pill_y - ear_h;
+            let mut bottom = pill_y + pill_h + ear_h;
+
+            let bubble_visible = !win.get_expanded()
+                && (win.get_nudge_visible()
+                    || win.get_reminder_alert_visible()
+                    || win.get_adhan_active()
+                    || win.get_meeting_finished() != ""
+                    || win.get_greeting_speech_visible());
+            if bubble_visible {
+                let bubble_w = ((if win.get_nudge_visible() && win.get_media_playing() { 184.0 } else { 200.0 }) * scale).round() as i32;
+                // SpeechBubble membatasi teks ke 30 + 25 px, dengan padding vertikal 20 px.
+                let bubble_h = (78.0 * scale).round() as i32;
+                let gap = (11.0 * scale).round() as i32;
+                let tail = (10.0 * scale).round() as i32;
+                let bubble_x = if dock == Dock::Left {
+                    pill_x + pill_w + gap
+                } else {
+                    pill_x - gap - bubble_w
+                };
+                let bubble_y = (pill_y + pill_h / 2 - bubble_h / 2).clamp(0, (size.1 as i32 - bubble_h).max(0));
+                left = left.min(bubble_x - if dock == Dock::Left { tail } else { 0 });
+                right = right.max(bubble_x + bubble_w + if dock == Dock::Right { tail } else { 0 });
+                top = top.min(bubble_y);
+                bottom = bottom.max(bubble_y + bubble_h);
+            }
+            Some((
+                left.max(0),
+                top.max(0),
+                (right.min(size.0 as i32) - left.max(0)).max(0),
+                (bottom.min(size.1 as i32) - top.max(0)).max(0),
+            ))
         } else {
             Some((0, 0, size.0 as i32, size.1 as i32))
         };
