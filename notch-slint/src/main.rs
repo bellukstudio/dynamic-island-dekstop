@@ -2796,7 +2796,7 @@ fn main() -> Result<(), slint::PlatformError> {
             timer.start(TimerMode::SingleShot, Duration::from_millis(show_ms as u64), move || {
                 if let Some(w) = weak.upgrade() {
                     w.set_nudge_visible(false);
-                    w.set_nudge_emoji(saved_emoji.into());
+                    w.set_nudge_emoji(saved_emoji.clone().into());
                 }
             });
         });
