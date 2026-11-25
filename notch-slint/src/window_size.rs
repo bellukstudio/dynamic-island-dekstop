@@ -34,7 +34,7 @@ pub(crate) fn scaled_window_size(w: &NotchWindow, size: (u32, u32)) -> (u32, u32
 }
 
 pub(crate) fn expanded_size(w: &NotchWindow) -> (u32, u32) {
-    if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
+    let base = if w.get_page_id() == "prayer" && w.get_ramadan_enabled() {
         EXPANDED_RAMADAN
     } else if w.get_page_id() == "currency" {
         EXPANDED_CURRENCY
@@ -44,6 +44,15 @@ pub(crate) fn expanded_size(w: &NotchWindow) -> (u32, u32) {
         EXPANDED_TALL
     } else {
         EXPANDED
+    };
+
+    // Dock samping memusatkan pill secara vertikal. Berbeda dengan dock atas/bawah,
+    // jalur tombol Pusatkan berada di sisi bawah pill, sehingga perlu ruang tambahan.
+    // Selisih 62 px memberi ruang untuk gap 8 px + chip 22 px + hit-area 30 px.
+    if matches!(w.get_dock(), 3 | 4) {
+        (base.0, base.1 + 24)
+    } else {
+        base
     }
 }
 
