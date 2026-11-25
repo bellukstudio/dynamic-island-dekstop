@@ -4940,17 +4940,18 @@ component PrivacyBadge inherits Rectangle {
     in property <length> size: 16px;
     in property <bool> dot: false;
     in property <float> pulse: 0.0;
+    in property <float> ui-scale: 1.0;
     width: root.size;
     height: root.size;
     border-radius: root.size / 2;
     background: root.tone;
     Rectangle {
-        x: -(2px + 2.5px * root.pulse);
-        y: -(2px + 2.5px * root.pulse);
-        width: root.size + 2 * (2px + 2.5px * root.pulse);
+        x: -(2px + 2.5px * root.pulse) * root.ui-scale;
+        y: -(2px + 2.5px * root.pulse) * root.ui-scale;
+        width: root.size + 2 * (2px + 2.5px * root.pulse) * root.ui-scale;
         height: self.width;
         border-radius: self.width / 2;
-        border-width: 1.5px;
+        border-width: 1.5px * root.ui-scale;
         border-color: root.tone.with-alpha(0.34 - 0.24 * root.pulse);
     }
     if !root.dot: Path {
@@ -4974,7 +4975,8 @@ component PrivacyIndicator inherits Rectangle {
     in property <bool> cam: false;
     in property <length> size: 16px;
     in property <bool> dot: false;
-    property <length> gap: root.dot ? 3px : 5px;
+    in property <float> ui-scale: 1.0;
+    property <length> gap: (root.dot ? 3px : 5px) * root.ui-scale;
     property <int> count: (root.mic ? 1 : 0) + (root.cam ? 1 : 0);
     // Hanya dievaluasi saat indikator tampil, jadi tidak membuat render terus-menerus saat tidak ada aktivitas.
     property <float> pulse: 0.5 - 0.5 * Math.cos(Math.mod(animation-tick() / 1ms, 2000.0) / 2000.0 * 360deg);
@@ -4987,6 +4989,7 @@ component PrivacyIndicator inherits Rectangle {
         size: root.size;
         dot: root.dot;
         pulse: root.pulse;
+        ui-scale: root.ui-scale;
     }
     if root.mic: PrivacyBadge {
         x: root.cam ? root.size + root.gap : 0px;
@@ -4995,6 +4998,7 @@ component PrivacyIndicator inherits Rectangle {
         size: root.size;
         dot: root.dot;
         pulse: root.pulse;
+        ui-scale: root.ui-scale;
     }
 }
 
@@ -6323,10 +6327,12 @@ export component NotchWindow inherits Window {
             // Mata: hanya saat menciut. Renderer Rust mengikuti orientasi dock (horizontal / vertikal).
             Image {
                 source: root.eyes-image;
-                x: (parent.width - self.width) / 2 + root.eyes-offset-x * 1px;
-                y: (root.dock == 2 ? 7px : (root.dock >= 3 ? 31px : root.eyes-offset-y * 1px));
-                width: (root.dock == 2 ? 80px : (root.dock >= 3 ? 36px : 130px)) * root.eyes-scale-x;
-                height: (root.dock == 2 ? 21px : (root.dock >= 3 ? 18px : (root.dock == 0 ? 26px : 34px))) * root.eyes-scale-y;
+                x: (parent.width - self.width) / 2 + root.eyes-offset-x * root.ui-scale * 1px;
+                // Dock samping memakai gerak pada sumbu vertikal; offset ini sebelumnya belum diterapkan ke gambar mata.
+                y: (root.dock == 2 ? 7px : (root.dock >= 3 ? 31px : root.eyes-offset-y * 1px)) * root.ui-scale
+                    + (root.dock >= 3 ? root.eyes-offset-y * root.ui-scale * 1px : 0px);
+                width: (root.dock == 2 ? 80px : (root.dock >= 3 ? 36px : 130px)) * root.eyes-scale-x * root.ui-scale;
+                height: (root.dock == 2 ? 21px : (root.dock >= 3 ? 18px : (root.dock == 0 ? 26px : 34px))) * root.eyes-scale-y * root.ui-scale;
                 image-fit: fill;
                 opacity: root.expanded ? 0 : 1;
                 // Crossfade seperti Tauri: mata baru muncul setelah isi hub mulai memudar.
@@ -6491,23 +6497,23 @@ export component NotchWindow inherits Window {
             // Mulut ekspresif native: port dari mood-mouth.ts untuk dock bawah dan samping.
             Rectangle {
                 visible: !root.dragging && !root.expanded && !root.greeting-inline-visible && !root.media-mini && !root.adhan-active && (root.dock == 2 || root.dock == 3 || root.dock == 4) && !(root.meeting-active || root.meeting-finished != "");
-                x: (parent.width - self.width) / 2 + root.eyes-offset-x * 1px;
-                y: (root.dock >= 3 ? 58px : 27px) + root.eyes-offset-y * 1px;
+                x: (parent.width - self.width) / 2 + root.eyes-offset-x * root.ui-scale * 1px;
+                y: ((root.dock >= 3 ? 58px : 27px) + root.eyes-offset-y * 1px) * root.ui-scale;
                 width: (root.eyes-mood == "happy" ? 14px
                     : root.eyes-mood == "sleepy" ? 7px
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "angry" ? 12px
                     : root.eyes-mood == "love" ? 15px
                     : root.eyes-mood == "suspicious" ? 10px
-                    : root.eyes-mood == "sad" ? 11px : 10px) * root.eyes-scale-x;
+                    : root.eyes-mood == "sad" ? 11px : 10px) * root.eyes-scale-x * root.ui-scale;
                 height: (root.eyes-mood == "happy" || root.eyes-mood == "angry" || root.eyes-mood == "love" || root.eyes-mood == "sad" ? 6px
                     : root.eyes-mood == "surprised" ? 7px
                     : root.eyes-mood == "sleepy" ? 2px
-                    : root.eyes-mood == "suspicious" ? 5px : 3px) * root.eyes-scale-y;
-                border-radius: root.eyes-mood == "surprised" ? 4px
+                    : root.eyes-mood == "suspicious" ? 5px : 3px) * root.eyes-scale-y * root.ui-scale;
+                border-radius: (root.eyes-mood == "surprised" ? 4px
                     : root.eyes-mood == "happy" || root.eyes-mood == "love" ? 7px
                     : root.eyes-mood == "angry" || root.eyes-mood == "sad" ? 6px
-                    : root.eyes-mood == "suspicious" ? 5px : 2px;
+                    : root.eyes-mood == "suspicious" ? 5px : 2px) * root.ui-scale;
                 background: root.eyes-mood == "happy" ? #82ffbe
                     : root.eyes-mood == "sleepy" ? #9696c880
                     : root.eyes-mood == "surprised" ? #fff08c
@@ -6905,13 +6911,14 @@ export component NotchWindow inherits Window {
                 mic: root.priv-mic;
                 cam: root.priv-cam;
                 dot: root.expanded;
-                size: root.expanded ? 7px : (root.dock >= 2 ? 13px : 16px);
+                ui-scale: root.expanded ? 1.0 : root.ui-scale;
+                size: root.expanded ? 7px : (root.dock >= 2 ? 13px : 16px) * root.ui-scale;
                 x: root.expanded ? (parent.width - self.width) / 2
-                    : (root.dock == 3 ? 4px
-                    : (root.dock == 4 ? parent.width - self.width - 4px
+                    : (root.dock == 3 ? 4px * root.ui-scale
+                    : (root.dock == 4 ? parent.width - self.width - 4px * root.ui-scale
                     : (root.dock == 2 || root.idle-clock || root.media-mini ? (parent.width - self.width) / 2
-                    : parent.width - self.width - 8px)));
-                y: root.expanded ? 6px : (root.dock >= 3 ? 14px : (root.dock == 2 ? 3px : (parent.height - self.height) / 2));
+                    : parent.width - self.width - 8px * root.ui-scale)));
+                y: root.expanded ? 6px : (root.dock >= 3 ? 14px * root.ui-scale : (root.dock == 2 ? 3px * root.ui-scale : (parent.height - self.height) / 2));
             }
         }
     }
