@@ -1,7 +1,7 @@
 //! Native Windows media session integration.
 use slint::{ComponentHandle, Global, Image, Rgba8Pixel, SharedPixelBuffer, Weak};
 use crate::{NotchWindow, Theme};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use notch_core::lyrics::{self, Line};
 
 #[derive(Clone, Default)]
@@ -20,7 +20,8 @@ mod platform {
  use windows::Media::Control::{GlobalSystemMediaTransportControlsSession as Session,GlobalSystemMediaTransportControlsSessionManager as Manager,GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status};
  use windows::Storage::Streams::DataReader;
  use windows::Win32::System::WinRT::{RoInitialize,RO_INIT_MULTITHREADED};
- use std::sync::Mutex;
+ use std::sync::{Arc, Mutex};
+ use std::sync::atomic::{AtomicBool, Ordering};
  static PAUSED: Mutex<Vec<String>> = Mutex::new(Vec::new());
  fn init(){unsafe{let _=RoInitialize(RO_INIT_MULTITHREADED);}}
  fn app_id(s:&Session)->String{s.SourceAppUserModelId().map(|x|x.to_string()).unwrap_or_default().to_lowercase()}
@@ -72,38 +73,225 @@ mod platform {
   }
   let(ow,oh)=out.dimensions();(out.into_raw(),ow,oh)
  }
- fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32,[u8;3])>{let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;let size=stream.Size().ok()? as u32;if size==0||size as u64>3_000_000{return None;}let input=stream.GetInputStreamAt(0).ok()?;let reader=DataReader::CreateDataReader(&input).ok()?;reader.LoadAsync(size).ok()?.get().ok()?;let mut bytes=vec![0u8;size as usize];reader.ReadBytes(&mut bytes).ok()?;let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();let accent=dominant_color(&decoded);let(rgba,width,height)=round_cover(decoded);Some((rgba,width,height,accent))}
- pub fn poll(weak:Weak<NotchWindow>,fallback_accent:slint::Color,fallback_on_accent:slint::Color){std::thread::spawn(move||{
- init();let mut last=String::new();let mut lines:Vec<Line>=Vec::new();let mut lyrics_synced=false;
- loop{
-  let mut state=State::default();let mut art:Option<Option<(Vec<u8>,u32,u32,[u8;3])>>=None;
-  if let Ok(s)=session(){if let Ok(v)=read(&s){
-   let key=format!("{}|{}",v.title,v.artist);
-   if key!=last{
-    last=key.clone();art=Some(artwork(&s));lines.clear();lyrics_synced=false;
-    if !v.title.trim().is_empty(){if let Ok(Some(found))=lyrics::fetch(&v.title,&v.artist,v.length){lines=found.lines;lyrics_synced=found.synced;}}
-   }
-   state=v;
-  }}else if !last.is_empty(){last.clear();lines.clear();art=Some(None);}
-  let art_update=art.clone();let snapshot=state.clone();
-  let lyric_lines:Vec<slint::SharedString>=lines.iter().map(|l|l.text.as_str().into()).collect();
-  let lyric_active=active_lyric(&lines,state.position,state.length,lyrics_synced);
-  let _=weak.upgrade_in_event_loop(move|w|{
-   w.set_media_active(snapshot.active);
-   w.set_media_title(if snapshot.active{snapshot.title.clone().into()}else{"Tidak ada media".into()});
-   w.set_media_artist(if snapshot.active{snapshot.artist.clone().into()}else{"Putar musik untuk memulai".into()});
-   w.set_media_playing(snapshot.playing);w.set_media_position(snapshot.position as f32);w.set_media_length(snapshot.length as f32);
-   w.set_media_progress(if snapshot.length>0.0{(snapshot.position/snapshot.length)as f32}else{0.0});
-   w.set_media_pos_text(time_text(snapshot.position).into());w.set_media_dur_text(time_text(snapshot.length).into());
-   w.set_lyric_lines(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lyric_lines))));
-   w.set_lyric_active(lyric_active);
-   if let Some(a)=art_update{if let Some((rgba,width,height,rgb))=a{let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));w.set_media_art(img);w.set_media_has_art(true);if w.get_appearance_accent().trim().is_empty(){let accent=slint::Color::from_rgb_u8(rgb[0],rgb[1],rgb[2]);Theme::get(&w).set_accent(accent);let luma=0.2126*rgb[0]as f32+0.7152*rgb[1]as f32+0.0722*rgb[2]as f32;Theme::get(&w).set_on_accent(if luma>145.0{slint::Color::from_rgb_u8(0,0,0)}else{slint::Color::from_rgb_u8(255,255,255)});}}else{w.set_media_has_art(false);if w.get_appearance_accent().trim().is_empty(){Theme::get(&w).set_accent(fallback_accent);Theme::get(&w).set_on_accent(fallback_on_accent);}}}
-  });
-  std::thread::sleep(Duration::from_millis(if state.active{1000}else{2000}));
+ fn artwork(s:&Session)->Option<(Vec<u8>,u32,u32,[u8;3],Vec<u8>,u32,u32)>{
+  let p=s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;
+  let stream=p.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;
+  let size=stream.Size().ok()? as u32;
+  if size==0||size as u64>3_000_000{return None;}
+  let input=stream.GetInputStreamAt(0).ok()?;
+  let reader=DataReader::CreateDataReader(&input).ok()?;
+  reader.LoadAsync(size).ok()?.get().ok()?;
+  let mut bytes=vec![0u8;size as usize];
+  reader.ReadBytes(&mut bytes).ok()?;
+  let decoded=image::load_from_memory(&bytes).ok()?.thumbnail(256,256).to_rgba8();
+  let accent=dominant_color(&decoded);
+  let(w,h)=decoded.dimensions();
+  let side=w.min(h);
+  let disc=image::imageops::crop_imm(&decoded,(w-side)/2,(h-side)/2,side,side).to_image();
+  let(disc_w,disc_h)=disc.dimensions();
+  let(rgba,width,height)=round_cover(decoded);
+  Some((rgba,width,height,accent,disc.into_raw(),disc_w,disc_h))
  }
-});}
- pub fn control(action:&str){let a=action.to_string();std::thread::spawn(move||{if let Ok(s)=session(){let _=match a.as_str(){"toggle"=>s.TryTogglePlayPauseAsync().map(|_|()),"pause"=>s.TryPauseAsync().map(|_|()),"play"=>s.TryPlayAsync().map(|_|()),"next"=>s.TrySkipNextAsync().map(|_|()),"prev"=>s.TrySkipPreviousAsync().map(|_|()),_=>Ok(())};}});}
- pub fn seek(seconds:f64){std::thread::spawn(move||{if let Ok(s)=session(){let ticks=(seconds.max(0.0)*10_000_000.0)as i64;let _=s.TryChangePlaybackPositionAsync(ticks);}});}
+
+ /// Raster piringan untuk software renderer: transform-rotation Slint tidak tersedia di renderer ini.
+ /// Label album diputar di dalam piringan, sementara alur highlight dan groove memberi efek vinyl.
+ fn vinyl_frame(source:&[u8],source_w:u32,source_h:u32,angle_degrees:f32)->Vec<u8>{
+  const SIDE:u32=96;
+  let mut out=vec![0u8;(SIDE*SIDE*4)as usize];
+  let center=(SIDE as f32-1.0)*0.5;
+  let radius=center-1.0;
+  let label_radius=radius*0.48;
+  let angle=angle_degrees.to_radians();
+  let(cos,sin)=(angle.cos(),angle.sin());
+  let source_side=source_w.min(source_h).max(1)as f32;
+  let source_scale=(source_side-1.0)/(2.0*label_radius.max(1.0));
+  for y in 0..SIDE{
+   for x in 0..SIDE{
+    let dx=x as f32-center;
+    let dy=y as f32-center;
+    let r=(dx*dx+dy*dy).sqrt();
+    if r>radius+0.5{continue;}
+    let dst=((y*SIDE+x)*4)as usize;
+    let edge_alpha=((radius-r+0.75).clamp(0.0,1.0)*255.0)as u8;
+    if r<=label_radius{
+     // Rotasi inverse-sampling menghasilkan label album yang benar-benar bergerak.
+     let rx=dx*cos+dy*sin;
+     let ry=-dx*sin+dy*cos;
+     let sx=((source_w as f32-1.0)*0.5+rx*source_scale).round().clamp(0.0,source_w.saturating_sub(1)as f32)as u32;
+     let sy=((source_h as f32-1.0)*0.5+ry*source_scale).round().clamp(0.0,source_h.saturating_sub(1)as f32)as u32;
+     let src=((sy*source_w+sx)*4)as usize;
+     let shade=0.88+0.12*(1.0-r/label_radius.max(1.0));
+     out[dst]=(source[src]as f32*shade).round().clamp(0.0,255.0)as u8;
+     out[dst+1]=(source[src+1]as f32*shade).round().clamp(0.0,255.0)as u8;
+     out[dst+2]=(source[src+2]as f32*shade).round().clamp(0.0,255.0)as u8;
+     out[dst+3]=(source[src+3]as f32*edge_alpha as f32/255.0).round()as u8;
+    }else{
+     let theta=dy.atan2(dx);
+     let local=(theta-angle).rem_euclid(std::f32::consts::TAU);
+     let distance=local.min(std::f32::consts::TAU-local);
+     let sheen=if distance<0.055{(1.0-distance/0.055).powf(2.0)}else{0.0};
+     let groove=0.5+0.5*(r*1.45).sin();
+     let brightness=8.0+groove*7.0+sheen*34.0+(r/radius)*2.0;
+     let label_rim=if r-label_radius<1.2{12.0}else{0.0};
+     let value=(brightness+label_rim).clamp(0.0,255.0)as u8;
+     out[dst]=value;
+     out[dst+1]=value.saturating_add(1);
+     out[dst+2]=value.saturating_add(4);
+     out[dst+3]=edge_alpha;
+    }
+    // Lubang spindle kecil di tengah menjaga bentuk piringan tetap terbaca.
+    if r<1.55{
+     out[dst]=210;
+     out[dst+1]=214;
+     out[dst+2]=222;
+     out[dst+3]=edge_alpha;
+    }
+   }
+  }
+  out
+ }
+ pub fn poll(weak:Weak<NotchWindow>,fallback_accent:slint::Color,fallback_on_accent:slint::Color){
+  let disc_source:Arc<Mutex<Option<Arc<(Vec<u8>,u32,u32)>>>>=Arc::new(Mutex::new(None));
+  let disc_playing=Arc::new(AtomicBool::new(false));
+
+  // Renderer vinyl 20fps terpisah dari polling Windows Media Session (1 detik).
+  // Dengan begitu gerak piringan halus tanpa meminta metadata media berkali-kali per detik.
+  {
+   let weak_disc=weak.clone();
+   let source=disc_source.clone();
+   let playing=disc_playing.clone();
+   std::thread::spawn(move||{
+    let mut angle=0.0f32;
+    let mut last_frame=Instant::now();
+    let mut last_source=0usize;
+    loop{
+     std::thread::sleep(Duration::from_millis(50));
+     let current=source.lock().unwrap_or_else(|e|e.into_inner()).clone();
+     let Some(current)=current else{last_source=0;continue;};
+     let source_id=Arc::as_ptr(&current)as usize;
+     let changed=source_id!=last_source;
+     if changed{last_source=source_id;angle=0.0;}
+     let now=Instant::now();
+     let dt=now.saturating_duration_since(last_frame).as_secs_f32().clamp(0.0,0.1);
+     last_frame=now;
+     let is_playing=playing.load(Ordering::Relaxed);
+     if is_playing{angle=(angle+dt*200.0)%360.0;}else if !changed{continue;}
+     let frame=vinyl_frame(&current.0,current.1,current.2,angle);
+     if weak_disc.upgrade_in_event_loop(move|w|{
+      let image=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&frame,96,96));
+      w.set_media_disc_art(image);
+     }).is_err(){break;}
+    }
+   });
+  }
+
+  std::thread::spawn(move||{
+   init();
+   let mut last=String::new();
+   let mut lines:Vec<Line>=Vec::new();
+   let mut lyrics_synced=false;
+   loop{
+    let mut state=State::default();
+    let mut art:Option<Option<(Vec<u8>,u32,u32,[u8;3],Vec<u8>,u32,u32)>>=None;
+    if let Ok(s)=session(){
+     if let Ok(v)=read(&s){
+      let key=format!("{}|{}",v.title,v.artist);
+      if key!=last{
+       last=key.clone();
+       art=Some(artwork(&s));
+       lines.clear();
+       lyrics_synced=false;
+       if !v.title.trim().is_empty(){
+        if let Ok(Some(found))=lyrics::fetch(&v.title,&v.artist,v.length){
+         lines=found.lines;
+         lyrics_synced=found.synced;
+        }
+       }
+      }
+      state=v;
+     }
+    }else if !last.is_empty(){
+     last.clear();
+     lines.clear();
+     art=Some(None);
+    }
+
+    // Ganti sumber vinyl hanya ketika artwork/track berubah, bukan setiap frame animasi.
+    if let Some(update)=art.as_ref(){
+     let next=update.as_ref().map(|(_,_,_,_,rgba,width,height)|{
+      Arc::new((rgba.clone(),*width,*height))
+     });
+     *disc_source.lock().unwrap_or_else(|e|e.into_inner())=next;
+    }
+    disc_playing.store(state.active&&state.playing,Ordering::Relaxed);
+
+    let art_update=art;
+    let snapshot=state.clone();
+    let lyric_lines:Vec<slint::SharedString>=lines.iter().map(|l|l.text.as_str().into()).collect();
+    let lyric_active=active_lyric(&lines,state.position,state.length,lyrics_synced);
+    let _=weak.upgrade_in_event_loop(move|w|{
+     w.set_media_active(snapshot.active);
+     w.set_media_title(if snapshot.active{snapshot.title.clone().into()}else{"Tidak ada media".into()});
+     w.set_media_artist(if snapshot.active{snapshot.artist.clone().into()}else{"Putar musik untuk memulai".into()});
+     w.set_media_playing(snapshot.playing);
+     w.set_media_position(snapshot.position as f32);
+     w.set_media_length(snapshot.length as f32);
+     w.set_media_progress(if snapshot.length>0.0{(snapshot.position/snapshot.length)as f32}else{0.0});
+     w.set_media_pos_text(time_text(snapshot.position).into());
+     w.set_media_dur_text(time_text(snapshot.length).into());
+     w.set_lyric_lines(slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(lyric_lines))));
+     w.set_lyric_active(lyric_active);
+     if let Some(update)=art_update{
+      if let Some((rgba,width,height,rgb,_,_,_))=update{
+       let img=Image::from_rgba8(SharedPixelBuffer::<Rgba8Pixel>::clone_from_slice(&rgba,width,height));
+       w.set_media_art(img);
+       w.set_media_has_art(true);
+       if w.get_appearance_accent().trim().is_empty(){
+        let accent=slint::Color::from_rgb_u8(rgb[0],rgb[1],rgb[2]);
+        Theme::get(&w).set_accent(accent);
+        let luma=0.2126*rgb[0]as f32+0.7152*rgb[1]as f32+0.0722*rgb[2]as f32;
+        Theme::get(&w).set_on_accent(if luma>145.0{slint::Color::from_rgb_u8(0,0,0)}else{slint::Color::from_rgb_u8(255,255,255)});
+       }
+      }else{
+       w.set_media_has_art(false);
+       w.set_media_disc_art(Image::default());
+       if w.get_appearance_accent().trim().is_empty(){
+        Theme::get(&w).set_accent(fallback_accent);
+        Theme::get(&w).set_on_accent(fallback_on_accent);
+       }
+      }
+     }
+    });
+    std::thread::sleep(Duration::from_millis(if state.active{1000}else{2000}));
+   }
+  });
+ }
+ pub fn control(action:&str){
+  let a=action.to_string();
+  std::thread::spawn(move||{
+   if let Ok(s)=session(){
+    let result=match a.as_str(){
+     "toggle"=>s.TryTogglePlayPauseAsync().and_then(|op|op.get()).map(|_|()),
+     "pause"=>s.TryPauseAsync().and_then(|op|op.get()).map(|_|()),
+     "play"=>s.TryPlayAsync().and_then(|op|op.get()).map(|_|()),
+     "next"=>s.TrySkipNextAsync().and_then(|op|op.get()).map(|_|()),
+     "prev"=>s.TrySkipPreviousAsync().and_then(|op|op.get()).map(|_|()),
+     _=>Ok(()),
+    };
+    if let Err(error)=result{eprintln!("[Media] Gagal menjalankan aksi {a}: {error}");}
+   }
+  });
+ }
+ pub fn seek(seconds:f64){
+  std::thread::spawn(move||{
+   if let Ok(s)=session(){
+    let ticks=(seconds.max(0.0)*10_000_000.0)as i64;
+    if let Err(error)=s.TryChangePlaybackPositionAsync(ticks).and_then(|op|op.get()){
+     eprintln!("[Media] Gagal mengubah posisi playback: {error}");
+    }
+   }
+  });
+ }
  /// Jeda semua sesi media pengguna dan simpan hanya sesi yang benar-benar sedang diputar.
  pub fn pause_all()->usize{
   init();
