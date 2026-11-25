@@ -3413,16 +3413,13 @@ fn main() -> Result<(), slint::PlatformError> {
 
             let (canvas_w, canvas_h) = match w.get_dock() {
                 0 => (EYES_W, EYES_TOP_H),
-                3 | 4 => (EYES_H, EYES_W),
+                // Dock samping: mata tetap berdampingan pada badan notch 40 x 80 px.
+                3 | 4 => (36.0, 18.0),
                 _ => (EYES_W, EYES_H),
             };
             if e.canvas_size != (canvas_w, canvas_h) {
                 let skin_name = e.renderer.skin_name();
-                e.renderer = if matches!(w.get_dock(), 3 | 4) {
-                    EyeRenderer::new_vertical(skin_name, canvas_w, canvas_h)
-                } else {
-                    EyeRenderer::new(skin_name, canvas_w, canvas_h)
-                };
+                e.renderer = EyeRenderer::new(skin_name, canvas_w, canvas_h);
                 e.canvas_size = (canvas_w, canvas_h);
                 e.last_key = None;
             }
