@@ -6205,58 +6205,6 @@ export component NotchWindow inherits Window {
     changed greeting-speech-visible => { root.region-layout-changed(); }
     changed meeting-finished => { root.region-layout-changed(); }
 
-    // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
-    // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
-    // dianggap keluar; piksel hampir transparan memastikan jendela berlapis tetap menerima kursor di celah.
-    pos-zone := TouchArea {
-        property <length> gap: 8px;
-        width: 104px;
-        height: self.gap + 22px;
-        x: (root.width - self.width) / 2;
-        y: root.dock == 2 ? pill.y - self.height : pill.y + pill.height;
-        enabled: root.expanded;
-        mouse-cursor: pointer;
-        clicked => { root.quick-toggle("center"); }
-
-        Rectangle { background: #00000001; }
-        Rectangle {
-            x: (parent.width - self.width) / 2;
-            y: root.dock == 2 ? 0px : parent.gap;
-            width: 94px;
-            height: 22px;
-            border-radius: 11px;
-            background: pos-zone.has-hover ? #20202af2 : #121216e6;
-            border-width: 1px;
-            border-color: Theme.accent.with-alpha(pos-zone.has-hover ? 0.9 : 0.5);
-            // Saat menciut chip harus lenyap cepat: kalau memudar 180 ms ia tertinggal di bawah notch.
-            opacity: root.expanded ? root.pill-fade : 0;
-            animate opacity { duration: root.expanded ? 180ms : 90ms; }
-            animate background { duration: 120ms; }
-            Path {
-                x: 9px;
-                y: 5px;
-                width: 12px;
-                height: 12px;
-                viewbox-width: 24;
-                viewbox-height: 24;
-                commands: "M 12 3 V 8 M 12 16 V 21 M 3 12 H 8 M 16 12 H 21 M 12 10 A 2 2 0 1 0 12 14 A 2 2 0 1 0 12 10";
-                fill: transparent;
-                stroke: Theme.accent;
-                stroke-width: 2px;
-                stroke-line-cap: round;
-            }
-            Text {
-                x: 26px;
-                height: parent.height;
-                text: "Pusatkan";
-                color: Theme.accent;
-                font-size: 10px;
-                font-weight: 700;
-                vertical-alignment: center;
-            }
-        }
-    }
-
     pill := Rectangle {
         opacity: root.pill-fade;
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
@@ -6919,6 +6867,58 @@ export component NotchWindow inherits Window {
                     : (root.dock == 2 || root.idle-clock || root.media-mini ? (parent.width - self.width) / 2
                     : parent.width - self.width - 8px * root.ui-scale)));
                 y: root.expanded ? 6px : (root.dock >= 3 ? 14px * root.ui-scale : (root.dock == 2 ? 3px * root.ui-scale : (parent.height - self.height) / 2));
+            }
+        }
+    }
+
+    // Tombol "Pusatkan": melayang di luar badan notch, 8 px di bawahnya (di atasnya bila menempel dasar
+    // layar), muncul bersama hub. TouchArea mencakup celah ke pil supaya kursor yang menyeberang tidak
+    // dianggap keluar; piksel hampir transparan memastikan jendela berlapis tetap menerima kursor di celah.
+    pos-zone := TouchArea {
+        property <length> gap: 8px;
+        width: 104px;
+        height: self.gap + 22px;
+        x: (root.width - self.width) / 2;
+        y: root.dock == 2 ? pill.y - self.height : pill.y + pill.height;
+        enabled: root.expanded;
+        mouse-cursor: pointer;
+        clicked => { root.quick-toggle("center"); }
+
+        Rectangle { background: #00000001; }
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: root.dock == 2 ? 0px : parent.gap;
+            width: 94px;
+            height: 22px;
+            border-radius: 11px;
+            background: pos-zone.has-hover ? #20202af2 : #121216e6;
+            border-width: 1px;
+            border-color: Theme.accent.with-alpha(pos-zone.has-hover ? 0.9 : 0.5);
+            // Saat menciut chip harus lenyap cepat: kalau memudar 180 ms ia tertinggal di bawah notch.
+            opacity: root.expanded ? root.pill-fade : 0;
+            animate opacity { duration: root.expanded ? 180ms : 90ms; }
+            animate background { duration: 120ms; }
+            Path {
+                x: 9px;
+                y: 5px;
+                width: 12px;
+                height: 12px;
+                viewbox-width: 24;
+                viewbox-height: 24;
+                commands: "M 12 3 V 8 M 12 16 V 21 M 3 12 H 8 M 16 12 H 21 M 12 10 A 2 2 0 1 0 12 14 A 2 2 0 1 0 12 10";
+                fill: transparent;
+                stroke: Theme.accent;
+                stroke-width: 2px;
+                stroke-line-cap: round;
+            }
+            Text {
+                x: 26px;
+                height: parent.height;
+                text: "Pusatkan";
+                color: Theme.accent;
+                font-size: 10px;
+                font-weight: 700;
+                vertical-alignment: center;
             }
         }
     }
