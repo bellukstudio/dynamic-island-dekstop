@@ -2757,6 +2757,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
         let collapse_preview = collapse.clone();
+        let runtime_config = nudge_runtime_config.clone();
         let timer = Timer::default();
         win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
             let Some(w) = weak.upgrade() else { return };
@@ -2781,6 +2782,8 @@ fn main() -> Result<(), slint::PlatformError> {
             if was_expanded {
                 collapse_preview();
             }
+            let saved_emoji = runtime_config.borrow().emoji.clone();
+            w.set_nudge_emoji(emoji.clone().into());
             w.set_nudge_message(message.into());
             w.set_nudge_detail("Pratinjau pesan diam".into());
             let eye_state = eye.borrow().clone();
@@ -2793,6 +2796,7 @@ fn main() -> Result<(), slint::PlatformError> {
             timer.start(TimerMode::SingleShot, Duration::from_millis(show_ms as u64), move || {
                 if let Some(w) = weak.upgrade() {
                     w.set_nudge_visible(false);
+                    w.set_nudge_emoji(saved_emoji.into());
                 }
             });
         });
