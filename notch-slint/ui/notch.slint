@@ -3251,7 +3251,158 @@ component SettingsEmojiButton inherits Rectangle {
     horizontal-stretch: 0;
     border-radius: 9px;
     background: emoji-ta.has-hover ? SUi.hover : SUi.field;
-    Text { text: root.emoji; font-family: "Segoe UI Emoji"; font-size: 20px; horizontal-alignment: center; vertical-alignment: center; }
+
+    // Jangan memakai glyph font untuk emoji di renderer software: hasilnya monokrom.
+    // Gambar wajah kecil dengan bentuk Slint agar warna dan tampilannya konsisten di semua PC.
+    property <bool> cat: root.emoji == "😿" || root.emoji == "😺";
+    property <bool> sleep: root.emoji == "😴";
+    property <bool> love: root.emoji == "🥰";
+    property <bool> blush: root.emoji == "😳";
+    property <color> face-color: root.cat ? #ffd66e : (root.emoji == "🤔" ? #f3c36a : #ffd34e);
+
+    // Telinga berada di belakang wajah untuk dua emoji kucing.
+    if root.cat: Path {
+        x: 7px; y: 3px; width: 12px; height: 13px;
+        viewbox-width: 12; viewbox-height: 13;
+        commands: "M 0 13 L 2 0 L 12 10 Z";
+        fill: #eebc52;
+    }
+    if root.cat: Path {
+        x: 17px; y: 3px; width: 12px; height: 13px;
+        viewbox-width: 12; viewbox-height: 13;
+        commands: "M 0 10 L 10 0 L 12 13 Z";
+        fill: #eebc52;
+    }
+    if root.cat: Path {
+        x: 9px; y: 5px; width: 7px; height: 8px;
+        viewbox-width: 7; viewbox-height: 8;
+        commands: "M 0 8 L 1 1 L 7 6 Z";
+        fill: #f28b83;
+    }
+    if root.cat: Path {
+        x: 20px; y: 5px; width: 7px; height: 8px;
+        viewbox-width: 7; viewbox-height: 8;
+        commands: "M 0 6 L 6 1 L 7 8 Z";
+        fill: #f28b83;
+    }
+
+    Rectangle {
+        x: 7px; y: 6px; width: 22px; height: 22px;
+        border-radius: 11px;
+        background: root.face-color;
+        border-width: 1px;
+        border-color: root.cat ? #c88e3c : #e6a92f;
+    }
+
+    // Mata tertutup untuk 😴, hati/pipi untuk 🥰, dan mata besar untuk ekspresi lain.
+    if root.sleep: Path {
+        x: 10px; y: 13px; width: 7px; height: 4px;
+        viewbox-width: 7; viewbox-height: 4;
+        commands: "M 0 1 A 3.5 3.5 0 0 0 7 1";
+        fill: transparent; stroke: #68462f; stroke-width: 1.5px;
+        stroke-line-cap: round;
+    }
+    if root.sleep: Path {
+        x: 19px; y: 13px; width: 7px; height: 4px;
+        viewbox-width: 7; viewbox-height: 4;
+        commands: "M 0 1 A 3.5 3.5 0 0 0 7 1";
+        fill: transparent; stroke: #68462f; stroke-width: 1.5px;
+        stroke-line-cap: round;
+    }
+    if !root.sleep && !root.love: Rectangle {
+        x: 11px; y: 12px;
+        width: root.emoji == "🥺" ? 4px : 3px;
+        height: root.emoji == "🥺" ? 6px : 4px;
+        border-radius: 2px;
+        background: #51382f;
+    }
+    if !root.sleep && !root.love: Rectangle {
+        x: 21px; y: 12px;
+        width: root.emoji == "🥺" ? 4px : 3px;
+        height: root.emoji == "🥺" ? 6px : 4px;
+        border-radius: 2px;
+        background: #51382f;
+    }
+    if root.emoji == "🥺": Rectangle {
+        x: 12px; y: 13px; width: 1.5px; height: 2px;
+        border-radius: 1px; background: #ffffff;
+    }
+    if root.emoji == "🥺": Rectangle {
+        x: 22px; y: 13px; width: 1.5px; height: 2px;
+        border-radius: 1px; background: #ffffff;
+    }
+
+    if root.love: Rectangle {
+        x: 10px; y: 12px; width: 6px; height: 6px;
+        border-radius: 2px; background: #ef5b83;
+    }
+    if root.love: Rectangle {
+        x: 20px; y: 12px; width: 6px; height: 6px;
+        border-radius: 2px; background: #ef5b83;
+    }
+    if root.love: Rectangle {
+        x: 11px; y: 11px; width: 4px; height: 4px;
+        border-radius: 2px; background: #ef5b83;
+    }
+    if root.love: Rectangle {
+        x: 21px; y: 11px; width: 4px; height: 4px;
+        border-radius: 2px; background: #ef5b83;
+    }
+
+    if root.blush || root.love || root.cat: Rectangle {
+        x: 8px; y: 19px; width: 5px; height: 2.5px;
+        border-radius: 2px; background: #f28b83; opacity: 0.8;
+    }
+    if root.blush || root.love || root.cat: Rectangle {
+        x: 23px; y: 19px; width: 5px; height: 2.5px;
+        border-radius: 2px; background: #f28b83; opacity: 0.8;
+    }
+
+    // Mulut dan ekspresi khas tiap pilihan.
+    if root.emoji == "😳": Rectangle {
+        x: 16px; y: 20px; width: 4px; height: 5px;
+        border-radius: 2px; background: #8b4a3e;
+    }
+    if root.emoji == "🥺": Path {
+        x: 15px; y: 21px; width: 6px; height: 4px;
+        viewbox-width: 6; viewbox-height: 4;
+        commands: "M 0 1 A 3 3 0 0 0 6 1";
+        fill: transparent; stroke: #8b5148; stroke-width: 1.4px;
+    }
+    if root.sleep: Rectangle {
+        x: 16px; y: 21px; width: 4px; height: 2px;
+        border-radius: 1px; background: #8b5148;
+    }
+    if root.cat: Path {
+        x: 14px; y: 19px; width: 8px; height: 6px;
+        viewbox-width: 8; viewbox-height: 6;
+        commands: "M 0 0 L 4 2 L 8 0 M 4 2 L 4 5";
+        fill: transparent; stroke: #8b5148; stroke-width: 1.2px;
+        stroke-line-cap: round; stroke-line-join: round;
+    }
+    if root.love: Path {
+        x: 15px; y: 21px; width: 6px; height: 4px;
+        viewbox-width: 6; viewbox-height: 4;
+        commands: "M 0 0 A 3 3 0 0 0 6 0";
+        fill: transparent; stroke: #8b5148; stroke-width: 1.2px;
+    }
+    if root.emoji == "🤔": Rectangle {
+        x: 15px; y: 21px; width: 7px; height: 1.5px;
+        border-radius: 1px; background: #8b5148;
+    }
+
+    // Air mata biru dan tanda tidur memberi aksen warna tanpa bergantung pada font emoji.
+    if root.emoji == "😿": Path {
+        x: 11px; y: 17px; width: 4px; height: 7px;
+        viewbox-width: 4; viewbox-height: 7;
+        commands: "M 2 0 C 2 0 0 3 0 4.5 A 2 2 0 0 0 4 4.5 C 4 3 2 0 2 0 Z";
+        fill: #54b9ef;
+    }
+    if root.sleep: Text {
+        x: 23px; y: 3px; width: 9px; height: 9px;
+        text: "z"; color: #7c9bea; font-size: 10px; font-weight: 800;
+    }
+
     emoji-ta := TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
 }
 
