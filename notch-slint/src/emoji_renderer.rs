@@ -238,7 +238,7 @@ fn render_uncached(text: &str, target_size: u32) -> Option<CachedEmoji> {
                     rgba[offset] = ((255 * alpha + 127) / 255) as u8;
                     rgba[offset + 1] = ((218 * alpha + 127) / 255) as u8;
                     rgba[offset + 2] = ((92 * alpha + 127) / 255) as u8;
-                    rgba[offset + 3] = *alpha as u8;
+                    rgba[offset + 3] = alpha as u8;
                 }
             }
             Content::SubpixelMask => {
