@@ -2740,29 +2740,57 @@ component ToolsPage inherits HorizontalLayout {
     QuickButton { horizontal-stretch: 1; min-width: 80px; icon: Icons.center; label: "Pusatkan"; soft: true; clicked => { root.toggle("center"); } }
 }
 
-// Awan percakapan untuk dock bawah/samping: kecil, sudut membulat, tinggi mengikuti isi,
-// dan ekor membulat yang menunjuk ke notch. `tail-pos` = posisi ujung ekor di sepanjang sisi
-// (relatif terhadap awan); nilai negatif berarti di tengah.
+// Emoji dipakai sebagai gambar berwarna, bukan glyph font (renderer software Slint
+// merender emoji Unicode sebagai simbol monokrom). Artwork ini juga dipakai di pemilih Pengaturan.
+component NudgeEmoji inherits Rectangle {
+    in property <string> emoji;
+    width: 24px;
+    height: 24px;
+    background: transparent;
+    if root.emoji == "🥺": Image { source: @image-url("../assets/emoji/nudge/1f97a.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "😳": Image { source: @image-url("../assets/emoji/nudge/1f633.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "😴": Image { source: @image-url("../assets/emoji/nudge/1f634.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "😿": Image { source: @image-url("../assets/emoji/nudge/1f63f.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "😺": Image { source: @image-url("../assets/emoji/nudge/1f63a.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "🥰": Image { source: @image-url("../assets/emoji/nudge/1f970.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji == "🤔": Image { source: @image-url("../assets/emoji/nudge/1f914.svg"); width: parent.width; height: parent.height; image-fit: contain; }
+    if root.emoji != "🥺" && root.emoji != "😳" && root.emoji != "😴" && root.emoji != "😿" && root.emoji != "😺" && root.emoji != "🥰" && root.emoji != "🤔": Text {
+        width: parent.width; height: parent.height; text: root.emoji; color: Theme.text;
+        font-size: 18px; horizontal-alignment: center; vertical-alignment: center;
+    }
+}
+
+// Awan percakapan untuk dock bawah/samping: tinggi mengikuti isi, teks dapat membungkus hingga
+// beberapa baris, dan emoji tampil sebagai artwork berwarna. tail-pos mengatur ujung ekor.
 component SpeechBubble inherits Rectangle {
     in property <bool> compact: false;
     in property <string> message;
     in property <string> detail;
+    in property <string> emoji: "";
     in property <bool> side: false;
     in property <bool> side-right: false;
     in property <length> tail-pos: -1px;
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     width: root.compact ? 184px : 224px;
-    height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" ? (root.compact ? 2px : 3px) + det.height : 0px) + (root.compact ? 7px : 10px);
+    // 4–5 baris pesan + hingga 2 baris detail. Tinggi ini ikut dipakai Shell untuk native region.
+    height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
 
+    if root.emoji != "": NudgeEmoji {
+        x: 10px;
+        y: root.compact ? 8px : 11px;
+        width: root.compact ? 22px : 24px;
+        height: root.compact ? 22px : 24px;
+        emoji: root.emoji;
+    }
     msg := Text {
-        x: root.compact ? 10px : 14px;
+        x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
         y: root.compact ? 7px : 10px;
-        width: parent.width - (root.compact ? 20px : 28px);
-        height: Math.min(self.preferred-height, root.compact ? 24px : 30px);
+        width: parent.width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px));
+        height: Math.min(self.preferred-height, root.compact ? 40px : 68px);
         text: root.message;
         color: #ffffff;
         font-size: 11px;
@@ -2771,17 +2799,17 @@ component SpeechBubble inherits Rectangle {
         overflow: clip;
     }
     det := Text {
-        x: root.compact ? 10px : 14px;
-        y: msg.y + msg.height + (root.compact ? 2px : 3px);
-        width: parent.width - (root.compact ? 20px : 28px);
-        height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 25px) : 0px;
+        x: 14px;
+        y: msg.y + msg.height + 3px;
+        width: parent.width - 28px;
+        height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 24px) : 0px;
         text: root.detail;
         color: #c7c9d1;
-        font-size: root.compact ? 8px : 9.5px;
+        font-size: 9.5px;
         wrap: word-wrap;
         overflow: clip;
     }
-    // Ekor membulat (isi dan garis berwarna sama, join bulat) mengarah ke notch.
+    // Ekor membulat (isi dan garis berwarna sama, join berwarna sama) mengarah ke notch.
     Path {
         x: root.side ? (root.side-right ? parent.width - 2px : -10px) : root.tail-center - 9px;
         y: root.side ? root.tail-center - 9px : parent.height - 3px;
@@ -3259,158 +3287,7 @@ component SettingsEmojiButton inherits Rectangle {
     border-width: root.selected ? 1px : 0px;
     border-color: Theme.accent;
     background: emoji-ta.has-hover ? SUi.hover : SUi.field;
-
-    // Jangan memakai glyph font untuk emoji di renderer software: hasilnya monokrom.
-    // Gambar wajah kecil dengan bentuk Slint agar warna dan tampilannya konsisten di semua PC.
-    property <bool> cat: root.emoji == "😿" || root.emoji == "😺";
-    property <bool> sleep: root.emoji == "😴";
-    property <bool> love: root.emoji == "🥰";
-    property <bool> blush: root.emoji == "😳";
-    property <color> face-color: root.cat ? #ffd66e : (root.emoji == "🤔" ? #f3c36a : #ffd34e);
-
-    // Telinga berada di belakang wajah untuk dua emoji kucing.
-    if root.cat: Path {
-        x: 7px; y: 3px; width: 12px; height: 13px;
-        viewbox-width: 12; viewbox-height: 13;
-        commands: "M 0 13 L 2 0 L 12 10 Z";
-        fill: #eebc52;
-    }
-    if root.cat: Path {
-        x: 17px; y: 3px; width: 12px; height: 13px;
-        viewbox-width: 12; viewbox-height: 13;
-        commands: "M 0 10 L 10 0 L 12 13 Z";
-        fill: #eebc52;
-    }
-    if root.cat: Path {
-        x: 9px; y: 5px; width: 7px; height: 8px;
-        viewbox-width: 7; viewbox-height: 8;
-        commands: "M 0 8 L 1 1 L 7 6 Z";
-        fill: #f28b83;
-    }
-    if root.cat: Path {
-        x: 20px; y: 5px; width: 7px; height: 8px;
-        viewbox-width: 7; viewbox-height: 8;
-        commands: "M 0 6 L 6 1 L 7 8 Z";
-        fill: #f28b83;
-    }
-
-    Rectangle {
-        x: 7px; y: 6px; width: 22px; height: 22px;
-        border-radius: 11px;
-        background: root.face-color;
-        border-width: 1px;
-        border-color: root.cat ? #c88e3c : #e6a92f;
-    }
-
-    // Mata tertutup untuk 😴, hati/pipi untuk 🥰, dan mata besar untuk ekspresi lain.
-    if root.sleep: Path {
-        x: 10px; y: 13px; width: 7px; height: 4px;
-        viewbox-width: 7; viewbox-height: 4;
-        commands: "M 0 1 A 3.5 3.5 0 0 0 7 1";
-        fill: transparent; stroke: #68462f; stroke-width: 1.5px;
-        stroke-line-cap: round;
-    }
-    if root.sleep: Path {
-        x: 19px; y: 13px; width: 7px; height: 4px;
-        viewbox-width: 7; viewbox-height: 4;
-        commands: "M 0 1 A 3.5 3.5 0 0 0 7 1";
-        fill: transparent; stroke: #68462f; stroke-width: 1.5px;
-        stroke-line-cap: round;
-    }
-    if !root.sleep && !root.love: Rectangle {
-        x: 11px; y: 12px;
-        width: root.emoji == "🥺" ? 4px : 3px;
-        height: root.emoji == "🥺" ? 6px : 4px;
-        border-radius: 2px;
-        background: #51382f;
-    }
-    if !root.sleep && !root.love: Rectangle {
-        x: 21px; y: 12px;
-        width: root.emoji == "🥺" ? 4px : 3px;
-        height: root.emoji == "🥺" ? 6px : 4px;
-        border-radius: 2px;
-        background: #51382f;
-    }
-    if root.emoji == "🥺": Rectangle {
-        x: 12px; y: 13px; width: 1.5px; height: 2px;
-        border-radius: 1px; background: #ffffff;
-    }
-    if root.emoji == "🥺": Rectangle {
-        x: 22px; y: 13px; width: 1.5px; height: 2px;
-        border-radius: 1px; background: #ffffff;
-    }
-
-    if root.love: Rectangle {
-        x: 10px; y: 12px; width: 6px; height: 6px;
-        border-radius: 2px; background: #ef5b83;
-    }
-    if root.love: Rectangle {
-        x: 20px; y: 12px; width: 6px; height: 6px;
-        border-radius: 2px; background: #ef5b83;
-    }
-    if root.love: Rectangle {
-        x: 11px; y: 11px; width: 4px; height: 4px;
-        border-radius: 2px; background: #ef5b83;
-    }
-    if root.love: Rectangle {
-        x: 21px; y: 11px; width: 4px; height: 4px;
-        border-radius: 2px; background: #ef5b83;
-    }
-
-    if root.blush || root.love || root.cat: Rectangle {
-        x: 8px; y: 19px; width: 5px; height: 2.5px;
-        border-radius: 2px; background: #f28b83; opacity: 0.8;
-    }
-    if root.blush || root.love || root.cat: Rectangle {
-        x: 23px; y: 19px; width: 5px; height: 2.5px;
-        border-radius: 2px; background: #f28b83; opacity: 0.8;
-    }
-
-    // Mulut dan ekspresi khas tiap pilihan.
-    if root.emoji == "😳": Rectangle {
-        x: 16px; y: 20px; width: 4px; height: 5px;
-        border-radius: 2px; background: #8b4a3e;
-    }
-    if root.emoji == "🥺": Path {
-        x: 15px; y: 21px; width: 6px; height: 4px;
-        viewbox-width: 6; viewbox-height: 4;
-        commands: "M 0 1 A 3 3 0 0 0 6 1";
-        fill: transparent; stroke: #8b5148; stroke-width: 1.4px;
-    }
-    if root.sleep: Rectangle {
-        x: 16px; y: 21px; width: 4px; height: 2px;
-        border-radius: 1px; background: #8b5148;
-    }
-    if root.cat: Path {
-        x: 14px; y: 19px; width: 8px; height: 6px;
-        viewbox-width: 8; viewbox-height: 6;
-        commands: "M 0 0 L 4 2 L 8 0 M 4 2 L 4 5";
-        fill: transparent; stroke: #8b5148; stroke-width: 1.2px;
-        stroke-line-cap: round; stroke-line-join: round;
-    }
-    if root.love: Path {
-        x: 15px; y: 21px; width: 6px; height: 4px;
-        viewbox-width: 6; viewbox-height: 4;
-        commands: "M 0 0 A 3 3 0 0 0 6 0";
-        fill: transparent; stroke: #8b5148; stroke-width: 1.2px;
-    }
-    if root.emoji == "🤔": Rectangle {
-        x: 15px; y: 21px; width: 7px; height: 1.5px;
-        border-radius: 1px; background: #8b5148;
-    }
-
-    // Air mata biru dan tanda tidur memberi aksen warna tanpa bergantung pada font emoji.
-    if root.emoji == "😿": Path {
-        x: 11px; y: 17px; width: 4px; height: 7px;
-        viewbox-width: 4; viewbox-height: 7;
-        commands: "M 2 0 C 2 0 0 3 0 4.5 A 2 2 0 0 0 4 4.5 C 4 3 2 0 2 0 Z";
-        fill: #54b9ef;
-    }
-    if root.sleep: Text {
-        x: 23px; y: 3px; width: 9px; height: 9px;
-        text: "z"; color: #7c9bea; font-size: 10px; font-weight: 800;
-    }
-
+    NudgeEmoji { x: 5px; y: 4px; width: 26px; height: 26px; emoji: root.emoji; }
     emoji-ta := TouchArea {
         x: 0px; y: 0px; width: parent.width; height: parent.height;
         enabled: root.interactive;
@@ -7005,7 +6882,7 @@ export component NotchWindow inherits Window {
     // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
     if root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
         compact: root.media-playing && root.nudge-visible;
-        width: root.media-playing && root.nudge-visible ? 184px : (root.dock >= 3 ? 200px : 224px);
+        width: root.media-playing && root.nudge-visible ? 184px : 224px;
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
         y: root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height;
@@ -7014,6 +6891,7 @@ export component NotchWindow inherits Window {
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
         message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
         detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
+        emoji: root.nudge-visible ? root.nudge-emoji : "";
     }
 
     // Telinga cekung: atas/bawah mengapit pil secara horizontal; dock samping mengapitnya secara vertikal.
