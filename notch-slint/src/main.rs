@@ -106,6 +106,9 @@ fn main() -> Result<(), slint::PlatformError> {
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
+    // Sembunyikan frame pertama sampai posisi, ukuran, dock, dan hit-test native selesai dipasang.
+    // Tanpa ini, dock samping sempat menampilkan badan/top-layout berbentuk persegi pada startup.
+    win.set_geometry_hold(true);
     // Pulihkan wajah idle sebelum geometri dan hit-test awal dipasang.
     // Jika dibaca setelah Shell::place, region native masih selebar mode mata (130 px)
     // sementara isi Slint sudah menggambar jam (220 px), sehingga jam terpotong saat startup.
@@ -164,9 +167,8 @@ fn main() -> Result<(), slint::PlatformError> {
             if let Some(w) = weak.upgrade() {
                 shell.memo.set((None, 0));
                 shell.place(&w, COLLAPSED);
-                if w.get_idle_clock() {
-                    w.set_geometry_hold(false);
-                }
+                // Semua mode dock ditampilkan setelah geometri native siap, bukan hanya idle-clock.
+                w.set_geometry_hold(false);
                 platform::hide_from_taskbar(w.window());
                 w.window().request_redraw();
             }
@@ -2734,20 +2736,30 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let eye = appearance_eye.clone();
+        let collapse_preview = collapse.clone();
+        let shell_preview = shell.clone();
         let timer = Timer::default();
         win.on_settings_test_nudge(move |message, emoji, mood, show, _until_move| {
             let Some(w) = weak.upgrade() else { return };
             let message = message.to_string().trim().to_string();
             let emoji = emoji.to_string().trim().to_string();
             let mood = mood.to_string();
-            let Some(show_ms) = show.to_string().parse::<u32>().ok().filter(|v| (2_000..=30_000).contains(v)) else {
-                w.set_nudge_save_status("Durasi pratinjau harus 2000–30000 ms.".into());
+            // Form Pengaturan memakai detik (2–30), sama seperti handler penyimpanan.
+            // Sebelumnya pratinjau menganggap nilai tersebut milidetik sehingga nilai 6 langsung ditolak.
+            let Some(show_seconds) = show.to_string().parse::<u32>().ok().filter(|v| (2..=30).contains(v)) else {
+                w.set_nudge_save_status("Durasi pratinjau harus 2–30 detik.".into());
                 return;
             };
-            if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 8
+            let show_ms = show_seconds * 1_000;
+            if message.is_empty() || message.chars().count() > 80 || emoji.chars().count() > 12
                 || !["normal", "happy", "sleepy", "surprised", "angry", "love", "suspicious", "sad"].contains(&mood.as_str()) {
-                w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 8), dan ekspresi.".into());
+                w.set_nudge_save_status("Periksa pesan (1–80 karakter), emoji (maks. 12), dan ekspresi.".into());
                 return;
+            }
+            // Preview harus terlihat walaupun hub sedang terbuka; gunakan jalur collapse yang sama
+            // dengan hover-out agar dock samping kembali menyediakan ruang untuk SpeechBubble.
+            if w.get_expanded() {
+                collapse_preview();
             }
             w.set_nudge_message(message.into());
             w.set_nudge_detail(format!("{}  ·  Pratinjau sapaan otomatis", emoji).into());
@@ -2757,9 +2769,19 @@ fn main() -> Result<(), slint::PlatformError> {
             }
             w.set_nudge_visible(true);
             w.set_nudge_save_status("Pratinjau memakai nilai yang sedang diedit; belum menyimpan pengaturan.".into());
+            // Refresh region side-dock supaya balon pratinjau ikut menerima hit-test native.
+            if !w.get_expanded() {
+                shell_preview.place(&w, COLLAPSED);
+            }
             let weak = weak.clone();
+            let shell_hide = shell_preview.clone();
             timer.start(TimerMode::SingleShot, Duration::from_millis(show_ms as u64), move || {
-                if let Some(w) = weak.upgrade() { w.set_nudge_visible(false); }
+                if let Some(w) = weak.upgrade() {
+                    w.set_nudge_visible(false);
+                    if !w.get_expanded() {
+                        shell_hide.place(&w, COLLAPSED);
+                    }
+                }
             });
         });
     }
