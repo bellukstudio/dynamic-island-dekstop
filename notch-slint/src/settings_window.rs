@@ -201,7 +201,8 @@ pub(crate) fn wire_settings_window(m: &NotchWindow, s: &SettingsWindow) {
         let weak = s.as_weak();
         s.on_render_nudge_emoji(move |value| {
             if let Some(settings) = weak.upgrade() {
-                if let Some(image) = crate::emoji_renderer::render_emoji(value.as_str(), 64) {
+                let emoji = value.to_string();
+                if let Some(image) = crate::emoji_renderer::render_emoji(&emoji, 64) {
                     settings.set_nudge_emoji_image(image);
                     settings.set_nudge_emoji_image_available(true);
                 } else {
