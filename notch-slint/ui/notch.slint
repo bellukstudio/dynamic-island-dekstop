@@ -6345,9 +6345,11 @@ export component NotchWindow inherits Window {
                 width: self.d;
                 height: self.d;
                 border-radius: self.d / 2;
-                background: Theme.chip;
-                border-width: 1.5px * self.media-scale;
-                border-color: Theme.accent;
+                background: #0d0f13;
+                // Pinggiran piringan memakai warna metalik netral, bukan Theme.accent
+                // yang mengikuti warna dominan cover dan dapat menjadi halo neon.
+                border-width: 1px * self.media-scale;
+                border-color: #626975;
                 clip: true;
                 if root.media-has-art: Image {
                     source: root.media-disc-art;
