@@ -79,8 +79,14 @@ impl Shell {
             let pill_y = (size.1 as i32 - pill_h) / 2;
             let mut left = pill_x;
             let mut right = pill_x + pill_w;
-            let mut top = pill_y - ear_h;
-            let mut bottom = pill_y + pill_h + ear_h;
+            // Side Play menggeser badan sampai ±90 px pada sumbu vertikal.
+            // SetWindowRgn memotong hasil gambar, bukan hanya area klik. Jika region
+            // tetap mengikuti posisi diam, badan akan tampak terpotong kotak saat bergerak.
+            // Sediakan region sepanjang tinggi window sebagai envelope gerakan; lebarnya
+            // tetap sebatas notch agar area aplikasi di samping tidak ikut tertutup.
+            let motion_enabled = win.get_dock_play_enabled();
+            let mut top = if motion_enabled { 0 } else { pill_y - ear_h };
+            let mut bottom = if motion_enabled { size.1 as i32 } else { pill_y + pill_h + ear_h };
 
             let bubble_visible = !win.get_expanded()
                 && (win.get_nudge_visible()
