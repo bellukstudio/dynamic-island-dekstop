@@ -167,14 +167,29 @@ mod imp {
         })
     }
 
-    fn start_osd_suppressor() {
-        thread::spawn(|| {
+    fn start_osd_suppressor(window: Weak<NotchWindow>) {
+        thread::spawn(move || {
             let mut osd: Option<HWND> = None;
+            let mut minimized_by_us = false;
             loop {
+                // When Notch exits, restore the shell host only if this worker minimized it.
+                // This prevents the system OSD from remaining hidden after the app is closed.
+                if window.upgrade().is_none() {
+                    if minimized_by_us {
+                        if let Some(hwnd) = osd {
+                            if unsafe { IsWindow(hwnd).as_bool() } {
+                                unsafe { ShowWindow(hwnd, windows::Win32::UI::WindowsAndMessaging::SW_RESTORE) };
+                            }
+                        }
+                    }
+                    break;
+                }
+
                 let mut should_rediscover = osd.is_none();
                 if let Some(hwnd) = osd {
                     if !unsafe { IsWindow(hwnd).as_bool() } {
                         osd = None;
+                        minimized_by_us = false;
                         should_rediscover = true;
                     } else if unsafe { IsWindowVisible(hwnd).as_bool() }
                         && !unsafe { IsIconic(hwnd).as_bool() }
@@ -182,6 +197,7 @@ mod imp {
                         // Keep the shell OSD host minimized: hardware/ACPI brightness
                         // changes still work, but the system popup never takes the screen.
                         unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
+                        minimized_by_us = true;
                     }
                 }
 
@@ -192,6 +208,7 @@ mod imp {
                             && !unsafe { IsIconic(hwnd).as_bool() }
                         {
                             unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
+                            minimized_by_us = true;
                         }
                     }
                 }
@@ -441,7 +458,7 @@ Write-Output $target
         }
         // Menangani OSD brightness yang dipicu langsung oleh driver ACPI, bukan keyboard hook.
         if std::env::var_os("NOTCH_DISABLE_SYSTEM_OSD").is_none() {
-            start_osd_suppressor();
+            start_osd_suppressor(window.clone());
         }
         start_volume_watcher(window.clone(), last_volume);
         start_brightness_watcher(window);
