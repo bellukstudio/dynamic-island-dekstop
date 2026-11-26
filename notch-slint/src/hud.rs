@@ -66,9 +66,11 @@ mod imp {
     use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::Media::Audio::{eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::Foundation::HWND;
     use windows::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, GetMessageW, SetWindowsHookExW, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL, WM_KEYDOWN,
-        WM_SYSKEYDOWN,
+        CallNextHookEx, FindWindowExW, GetMessageW, IsIconic, IsWindow, IsWindowVisible, SetWindowsHookExW,
+        ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_MINIMIZE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
     };
 
     const NO_WINDOW: u32 = 0x0800_0000;
@@ -109,6 +111,94 @@ mod imp {
             }
         }
         unsafe { CallNextHookEx(None, code, wparam, lparam) }
+    }
+
+    // Windows brightness hotkeys are often delivered to Monitor.sys through ACPI and
+    // never reach WH_KEYBOARD_LL. Hide the shared shell OSD host instead, so the hardware
+    // brightness hotkey keeps working while Notch displays its own HUD from the WMI watcher.
+    fn find_osd_by_hierarchy(
+        outer_class: PCWSTR,
+        inner_class: PCWSTR,
+        inner_inner_class: Option<PCWSTR>,
+    ) -> Option<HWND> {
+        let mut after: Option<HWND> = None;
+        loop {
+            let outer = unsafe { FindWindowExW(None, after, outer_class, PCWSTR::null()) }.ok()?;
+            let inner = unsafe { FindWindowExW(Some(outer), None, inner_class, PCWSTR::null()) }.ok();
+            let Some(inner) = inner else {
+                after = Some(outer);
+                continue;
+            };
+
+            let nested_matches = match inner_inner_class {
+                Some(class) => unsafe {
+                    FindWindowExW(Some(inner), None, class, PCWSTR::null()).is_ok()
+                },
+                None => true,
+            };
+            if nested_matches {
+                return Some(outer);
+            }
+            after = Some(outer);
+        }
+    }
+
+    fn find_osd_window() -> Option<HWND> {
+        // Windows 11 (termasuk XamlExplorerHostIslandWindow pada build terbaru).
+        find_osd_by_hierarchy(
+            w!("XamlExplorerHostIslandWindow"),
+            w!("Windows.UI.Composition.DesktopWindowContentBridge"),
+            Some(w!("DesktopWindowXamlSource")),
+        )
+        .or_else(|| {
+            find_osd_by_hierarchy(
+                w!("XamlExplorerHostIslandWindow"),
+                w!("Windows.UI.Composition.DesktopWindowContentBridge"),
+                None,
+            )
+        })
+        // Windows 10: host OSD klasik DirectUI.
+        .or_else(|| {
+            find_osd_by_hierarchy(
+                w!("NativeHWNDHost"),
+                w!("DirectUIHWND"),
+                None,
+            )
+        })
+    }
+
+    fn start_osd_suppressor() {
+        thread::spawn(|| {
+            let mut osd: Option<HWND> = None;
+            loop {
+                let mut should_rediscover = osd.is_none();
+                if let Some(hwnd) = osd {
+                    if !unsafe { IsWindow(hwnd).as_bool() } {
+                        osd = None;
+                        should_rediscover = true;
+                    } else if unsafe { IsWindowVisible(hwnd).as_bool() }
+                        && !unsafe { IsIconic(hwnd).as_bool() }
+                    {
+                        // Keep the shell OSD host minimized: hardware/ACPI brightness
+                        // changes still work, but the system popup never takes the screen.
+                        unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
+                    }
+                }
+
+                if should_rediscover {
+                    osd = find_osd_window();
+                    if let Some(hwnd) = osd {
+                        if unsafe { IsWindowVisible(hwnd).as_bool() }
+                            && !unsafe { IsIconic(hwnd).as_bool() }
+                        {
+                            unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
+                        }
+                    }
+                }
+
+                thread::sleep(Duration::from_millis(80));
+            }
+        });
     }
 
     fn enumerator() -> Option<IMMDeviceEnumerator> {
@@ -348,6 +438,10 @@ Write-Output $target
         let last_volume = Arc::new(Mutex::new(None));
         if std::env::var_os("NOTCH_NATIVE_OSD").is_none() {
             start_key_hook(window.clone(), last_volume.clone());
+        }
+        // Menangani OSD brightness yang dipicu langsung oleh driver ACPI, bukan keyboard hook.
+        if std::env::var_os("NOTCH_DISABLE_SYSTEM_OSD").is_none() {
+            start_osd_suppressor();
         }
         start_volume_watcher(window.clone(), last_volume);
         start_brightness_watcher(window);
