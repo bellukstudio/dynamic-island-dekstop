@@ -151,7 +151,6 @@ pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
                     let Some(w) = weak_show.upgrade() else { return };
                     let blocked = w.get_expanded()
                         || w.get_dragging()
-                        || w.get_geometry_hold()
                         || w.get_hud_visible()
                         || w.get_adhan_active()
                         || w.get_nudge_visible()
