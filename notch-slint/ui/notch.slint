@@ -1126,7 +1126,7 @@ component NotesPage inherits VerticalLayout {
                 input := TextInput {
                     x: 14px;
                     y: 10px;
-                    width: Math.max(0px, root.target-width - 28px);
+                    width: parent.width - 28px;
                     height: parent.height - 20px;
                     color: Theme.text;
                     font-size: 14px;
