@@ -6232,17 +6232,13 @@ export component NotchWindow inherits Window {
         border-bottom-left-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 3) ? 0px : self.r);
         border-bottom-right-radius: root.dragging ? 29px : ((root.dock == 2 || root.dock == 4) ? 0px : self.r);
         animate r { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-        clip: true;
+        // Clipping parent dimatikan agar visual tidak terpotong kotak saat gerakan dock.
+        clip: false;
         // Membuka dan menutup sama dengan transisi #notch di Tauri (base.css): 300 ms cubic-bezier(.42, 0, .58, 1).
         // Kurva ease-out (gerak menumpuk di awal) membuat pil tampak melompat karena renderer software hanya
         // sempat menggambar beberapa frame; ease-in-out menyebar gerak merata seperti di video Tauri.
         animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
         animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-
-        // Jangan clip seluruh isi pill ke kotak lokal saat Bottom/Side Play bergerak.
-        // Siluet badan digambar oleh half-body Path; clipping persegi pada parent membuat
-        // anak visual tampak seperti tertahan/terpotong oleh sebuah frame.
-        clip: false;
 
         // Badan setengah lingkaran menghadap ke dalam layar: bawah 80x44 (radius 40), kiri/kanan 60x120 (radius 60).
         half-body := Path {
