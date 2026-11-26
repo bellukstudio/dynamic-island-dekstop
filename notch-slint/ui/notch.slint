@@ -1126,7 +1126,7 @@ component NotesPage inherits VerticalLayout {
                 input := TextInput {
                     x: 14px;
                     y: 10px;
-                    width: parent.width - 28px;
+                    width: Math.max(0px, root.target-width - 28px);
                     height: parent.height - 20px;
                     color: Theme.text;
                     font-size: 14px;
@@ -2769,6 +2769,7 @@ component NudgeEmoji inherits Rectangle {
 // Awan percakapan untuk dock bawah/samping: tinggi mengikuti isi, teks dapat membungkus hingga
 // beberapa baris, dan emoji tampil sebagai artwork berwarna. tail-pos mengatur ujung ekor.
 component SpeechBubble inherits Rectangle {
+    in property <bool> shown: false;
     in property <bool> compact: false;
     in property <string> message;
     in property <string> detail;
@@ -2778,14 +2779,23 @@ component SpeechBubble inherits Rectangle {
     in property <bool> side: false;
     in property <bool> side-right: false;
     in property <length> tail-pos: -1px;
+    property <length> target-width: root.compact ? 184px : 224px;
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
-    width: root.compact ? 184px : 224px;
-    // 4–5 baris pesan + hingga 2 baris detail. Tinggi ini ikut dipakai Shell untuk native region.
-    height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
+    property <length> target-height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
+    width: root.shown ? root.target-width : 0px;
+    // Lebar/tinggi dimulai dari titik pertemuan dengan Notch lalu melebar ke luar.
+    // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
+    height: root.shown ? root.target-height : 0px;
+    visible: root.shown || self.width > 0px || self.height > 0px;
+    opacity: root.shown ? 1 : 0;
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
+    animate width { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate height { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate opacity { duration: 240ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate border-radius { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
     if root.emoji != "": NudgeEmoji {
         x: 10px;
@@ -2799,7 +2809,7 @@ component SpeechBubble inherits Rectangle {
     msg := Text {
         x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
         y: root.compact ? 7px : 10px;
-        width: parent.width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px));
+        width: Math.max(0px, root.target-width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px)));
         height: Math.min(self.preferred-height, 68px);
         text: root.message;
         color: #ffffff;
@@ -6388,9 +6398,13 @@ export component NotchWindow inherits Window {
             }
 
             // Greeting tampil sebagai companion inline di badan notch, bukan speech bubble terpisah.
-            if root.greeting-inline-visible && !root.expanded: Rectangle {
+            Rectangle {
+                visible: (root.greeting-inline-visible && !root.expanded) || self.opacity > 0.01;
+                opacity: root.greeting-inline-visible && !root.expanded ? 1 : 0;
+                animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
+                clip: true;
                 background: Theme.body;
                 border-bottom-left-radius: 38px;
                 border-bottom-right-radius: 38px;
@@ -6494,11 +6508,16 @@ export component NotchWindow inherits Window {
 
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
             Rectangle {
-                visible: !root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2;
-                x: (parent.width - 130px) / 2;
+                visible: (!root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2) || self.width > 0px;
+                property <bool> meeting-message-shown: !root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2;
+                x: (parent.width - self.width) / 2;
                 y: 0px;
-                width: 130px;
-                height: 34px;
+                width: self.meeting-message-shown ? 130px : 0px;
+                height: self.meeting-message-shown ? 34px : 0px;
+                opacity: self.meeting-message-shown ? 1 : 0;
+                animate width { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate height { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: 220ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 border-radius: 17px;
                 background: #171923f5;
                 border-width: 1px;
@@ -6527,7 +6546,10 @@ export component NotchWindow inherits Window {
             }
 
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
-            if root.adhan-active && !root.expanded && !root.dragging: AdhanOverlay {
+            AdhanOverlay {
+                visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
+                opacity: root.adhan-active && !root.expanded && !root.dragging ? 1 : 0;
+                animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 x: 0px;
                 y: 0px;
                 width: parent.width;
@@ -6819,9 +6841,13 @@ export component NotchWindow inherits Window {
             }
 
             // Pesan (nudge / alert kurs-saham / pengingat) di dalam badan notch untuk dock atas.
-            if root.nudge-inline: Rectangle {
+            Rectangle {
+                visible: root.nudge-inline || self.opacity > 0.01;
+                opacity: root.nudge-inline ? 1 : 0;
+                animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
+                clip: true;
                 if root.nudge-visible: NudgeEmoji {
                     x: root.media-playing ? 8px : 16px;
                     y: root.media-playing ? 8px : 17px;
@@ -6940,8 +6966,11 @@ export component NotchWindow inherits Window {
         }
     }
 
-    // Balon berada di luar pill agar tidak terpotong oleh clip:true. Ruang ekstra disediakan saat menciut.
-    if root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible): SpeechBubble {
+    // Satu bubble bersama untuk semua pesan dock bawah/samping. Komponen tetap terpasang
+    // saat tersembunyi agar transisi keluar juga bisa berjalan sampai selesai.
+    SpeechBubble {
+        shown: root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible
+            && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible);
         compact: root.media-playing && root.nudge-visible;
         width: root.media-playing && root.nudge-visible ? 184px : 224px;
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
