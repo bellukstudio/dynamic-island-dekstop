@@ -2797,37 +2797,45 @@ component SpeechBubble inherits Rectangle {
     animate opacity { duration: 240ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
     animate border-radius { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
-    if root.emoji != "": NudgeEmoji {
-        x: 10px;
-        y: root.compact ? 8px : 11px;
-        width: root.compact ? 22px : 24px;
-        height: root.compact ? 22px : 24px;
-        emoji: root.emoji;
-        rendered-image: root.emoji-image;
-        rendered-image-available: root.emoji-image-available;
-    }
-    msg := Text {
-        x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
-        y: root.compact ? 7px : 10px;
-        width: Math.max(0px, root.target-width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px)));
-        height: Math.min(self.preferred-height, 68px);
-        text: root.message;
-        color: #ffffff;
-        font-size: 11px;
-        font-weight: 600;
-        wrap: word-wrap;
-        overflow: clip;
-    }
-    det := Text {
-        x: 14px;
-        y: msg.y + msg.height + 3px;
-        width: parent.width - 28px;
-        height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 34px) : 0px;
-        text: root.detail;
-        color: #c7c9d1;
-        font-size: 9.5px;
-        wrap: word-wrap;
-        overflow: clip;
+    // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
+    // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
+    content := Rectangle {
+        width: parent.width;
+        height: parent.height;
+        clip: true;
+        background: transparent;
+        if root.emoji != "": NudgeEmoji {
+            x: 10px;
+            y: root.compact ? 8px : 11px;
+            width: root.compact ? 22px : 24px;
+            height: root.compact ? 22px : 24px;
+            emoji: root.emoji;
+            rendered-image: root.emoji-image;
+            rendered-image-available: root.emoji-image-available;
+        }
+        msg := Text {
+            x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
+            y: root.compact ? 7px : 10px;
+            width: Math.max(0px, root.target-width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px)));
+            height: Math.min(self.preferred-height, 68px);
+            text: root.message;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 600;
+            wrap: word-wrap;
+            overflow: clip;
+        }
+        det := Text {
+            x: 14px;
+            y: msg.y + msg.height + 3px;
+            width: Math.max(0px, root.target-width - 28px);
+            height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 34px) : 0px;
+            text: root.detail;
+            color: #c7c9d1;
+            font-size: 9.5px;
+            wrap: word-wrap;
+            overflow: clip;
+        }
     }
     // Ekor membulat (isi dan garis berwarna sama, join berwarna sama) mengarah ke notch.
     Path {
@@ -6515,6 +6523,7 @@ export component NotchWindow inherits Window {
                 width: self.meeting-message-shown ? 130px : 0px;
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown ? 1 : 0;
+                clip: true;
                 animate width { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate height { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate opacity { duration: 220ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
