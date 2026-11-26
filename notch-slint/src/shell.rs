@@ -349,8 +349,14 @@ pub(crate) fn window_needs_resize(w: &NotchWindow, size: (u32, u32)) -> bool {
     let sf = w.window().scale_factor();
     let got = w.window().size();
     let side = w.get_dock() == 3 || w.get_dock() == 4;
-    let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else { size };
-    let logical_size = if size == COLLAPSED || size == GREETING_INLINE {
+    let logical_size = if side && size == COLLAPSED {
+        COLLAPSED_SIDE
+    } else {
+        size
+    };
+    // Device card memiliki ukuran awal 360x140 (340 px badan + telinga).
+    // Perbandingan awal harus memakai skala UI yang sama agar tidak berkedip pada 50–150%.
+    let logical_size = if size == COLLAPSED || size == GREETING_INLINE || size == COLLAPSED_DEVICE {
         scaled_window_size(w, logical_size)
     } else {
         logical_size
