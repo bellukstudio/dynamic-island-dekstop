@@ -207,7 +207,7 @@ mod imp {
             let mut osd: Option<HWND> = None;
             let mut hidden_by_us = false;
             loop {
-                // When Notch exits, restore the shell host only if this worker minimized it.
+                // When Notch exits, restore the shell host only if this worker hid it.
                 // This prevents the system OSD from remaining hidden after the app is closed.
                 if window.upgrade().is_none() {
                     if hidden_by_us {
@@ -226,8 +226,7 @@ mod imp {
                         osd = None;
                         hidden_by_us = false;
                         should_rediscover = true;
-                    } else if unsafe { IsWindowVisible(hwnd).as_bool() }
-                    {
+                    } else if unsafe { IsWindowVisible(hwnd).as_bool() } {
                         // Keep the shell OSD host hidden: hardware/ACPI brightness
                         // changes still work, but the system popup never takes the screen.
                         unsafe { ShowWindow(hwnd, SW_HIDE) };
@@ -238,8 +237,7 @@ mod imp {
                 if should_rediscover {
                     osd = find_osd_window();
                     if let Some(hwnd) = osd {
-                        if unsafe { IsWindowVisible(hwnd).as_bool() }
-                            {
+                        if unsafe { IsWindowVisible(hwnd).as_bool() } {
                             unsafe { ShowWindow(hwnd, SW_HIDE) };
                             hidden_by_us = true;
                         }
