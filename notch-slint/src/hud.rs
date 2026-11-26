@@ -2,8 +2,6 @@
 //! Mengikuti perilaku versi Tauri: event hanya ditampilkan saat nilainya berubah,
 //! level 0-100, status mute, dan durasi tampil 1,5 detik.
 use crate::*;
-use std::sync::{Arc, Mutex};
-
 const HUD_VISIBLE_MS: u64 = 1_500;
 
 fn publish(window: &Weak<NotchWindow>, kind: &'static str, value: u8, muted: bool) {
