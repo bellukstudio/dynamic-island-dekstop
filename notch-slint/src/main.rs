@@ -48,6 +48,7 @@ mod transfer_ui;
 mod autostart;
 mod speech;
 mod media;
+mod hud;
 mod platform;
 mod appearance;
 mod convert_store;
@@ -200,7 +201,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 || w.get_adhan_active()
                 || !w.get_meeting_finished().is_empty()
                 || w.get_greeting_speech_visible()
-                || w.get_greeting_inline_visible();
+                || w.get_greeting_inline_visible()
+                || w.get_hud_visible();
 
             if message_visible {
                 let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
@@ -227,7 +229,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         || w.get_adhan_active()
                         || !w.get_meeting_finished().is_empty()
                         || w.get_greeting_speech_visible()
-                        || w.get_greeting_inline_visible();
+                        || w.get_greeting_inline_visible()
+                        || w.get_hud_visible();
                     if still_has_message {
                         return;
                     }
@@ -243,6 +246,9 @@ fn main() -> Result<(), slint::PlatformError> {
             }
         });
     }
+    // Pantau perubahan volume/kecerahan dan tampilkan HUD native pada Notch.
+    hud::start(win.as_weak());
+
     // Shell::place pertama berjalan sebelum event loop Winit membuat HWND.
     // Ulangi sekali setelah native window siap agar posisi awal (tengah atas monitor) benar-benar diterapkan.
     {
