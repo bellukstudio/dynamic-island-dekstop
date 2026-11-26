@@ -2881,7 +2881,7 @@ component SpeechBubble inherits Rectangle {
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
-        out property <length> content-height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
+        out property <length> content-height: root.hud ? 56px : ((root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px));
         width: parent.width;
         height: parent.height;
         clip: true;
