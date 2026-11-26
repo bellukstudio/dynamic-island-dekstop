@@ -160,7 +160,7 @@ impl Shell {
         let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
         let logical_size = if side && size == COLLAPSED {
             COLLAPSED_SIDE
-        } else if size == COLLAPSED && win.get_device_notice_visible() && !side {
+        } else if size == COLLAPSED && win.get_device_notice_visible() && !side && win.get_dock() < 2 {
             // Kartu perangkat 340 px; jendela 360 px memberi ruang untuk telinga kiri dan kanan.
             COLLAPSED_DEVICE
         } else if size == COLLAPSED && win.get_hud_visible() && !side {
