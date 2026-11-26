@@ -2900,9 +2900,9 @@ component SpeechBubble inherits Rectangle {
             rendered-image-available: root.emoji-image-available;
         }
         msg := Text {
-            x: root.hud || root.emoji != "" ? 48px : (root.compact ? 10px : 14px);
+            x: (root.hud || root.emoji != "") ? 48px : (root.compact ? 10px : 14px);
             y: root.compact ? 7px : 10px;
-            width: Math.max(0px, root.target-width - (root.hud || root.emoji != "" ? 60px : (root.compact ? 20px : 28px)));
+            width: Math.max(0px, root.target-width - ((root.hud || root.emoji != "") ? 60px : (root.compact ? 20px : 28px)));
             height: Math.min(self.preferred-height, 68px);
             text: root.message;
             color: #ffffff;
@@ -2912,9 +2912,9 @@ component SpeechBubble inherits Rectangle {
             overflow: clip;
         }
         det := Text {
-            x: 14px;
-            y: msg.y + msg.height + 3px;
-            width: Math.max(0px, root.target-width - 28px);
+            x: root.hud ? 48px : 14px;
+            y: root.hud ? 30px : msg.y + msg.height + 3px;
+            width: Math.max(0px, root.target-width - (root.hud ? 60px : 28px));
             height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 34px) : 0px;
             text: root.detail;
             color: #c7c9d1;
