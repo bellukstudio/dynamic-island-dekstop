@@ -205,6 +205,18 @@ mod tests {
     }
 
     #[test]
+    fn parses_notch_brightness_hotkeys() {
+        assert_eq!(
+            parse_combo("Ctrl+Alt+Shift+Up"),
+            Some(Binding { modifiers: 7, vk: 0x26 })
+        );
+        assert_eq!(
+            parse_combo("Ctrl+Alt+Shift+Down"),
+            Some(Binding { modifiers: 7, vk: 0x28 })
+        );
+    }
+
+    #[test]
     fn detects_duplicate_shortcuts() {
         let mut shortcuts = Shortcuts::default();
         shortcuts.open_settings = shortcuts.toggle_hub.clone();
