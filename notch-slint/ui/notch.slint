@@ -6984,7 +6984,7 @@ export component NotchWindow inherits Window {
         shown: root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible
             && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible);
         compact: root.media-playing && root.nudge-visible;
-        width: root.media-playing && root.nudge-visible ? 184px : 224px;
+        // Lebar target dimiliki SpeechBubble agar root.width bisa dianimasikan dari nol.
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
         y: root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height;
