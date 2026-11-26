@@ -195,7 +195,7 @@ mod imp {
     const BELOW_NORMAL: u32 = 0x0000_4000;
     const RECYCLE: Duration = Duration::from_secs(30 * 60);
 
-    #[derive(Clone)]
+    #[derive(Clone, PartialEq, Eq)]
     struct UsbDevice {
         kind: String,
         name: String,
@@ -264,6 +264,73 @@ mod imp {
             result.entry(key.to_string()).or_insert((name.to_string(), battery));
         }
         result
+    }
+
+    // PnP snapshots can briefly be incomplete while Windows refreshes device state.
+    // Require two identical scans before publishing connect/disconnect transitions.
+    fn stable_usb_snapshot(
+        previous: &mut Option<HashMap<String, UsbDevice>>,
+        candidate: &mut Option<HashMap<String, UsbDevice>>,
+        samples: &mut u8,
+        current: HashMap<String, UsbDevice>,
+        queue: &NoticeQueue,
+    ) {
+        if candidate.as_ref() == Some(&current) {
+            *samples = samples.saturating_add(1);
+        } else {
+            *candidate = Some(current.clone());
+            *samples = 1;
+        }
+
+        if *samples >= 2 {
+            diff_usb(previous, current, queue);
+            *candidate = None;
+            *samples = 0;
+        }
+    }
+
+    fn stable_bluetooth_snapshot(
+        previous: &mut Option<HashMap<String, (String, Option<u8>)>>,
+        candidate: &mut Option<HashMap<String, (String, Option<u8>)>>,
+        samples: &mut u8,
+        current: HashMap<String, (String, Option<u8>)>,
+        queue: &NoticeQueue,
+    ) {
+        if candidate.as_ref() == Some(&current) {
+            *samples = samples.saturating_add(1);
+        } else {
+            *candidate = Some(current.clone());
+            *samples = 1;
+        }
+
+        if *samples >= 2 {
+            diff_bluetooth(previous, current, queue);
+            *candidate = None;
+            *samples = 0;
+        }
+    }
+
+    fn stable_wifi_snapshot(
+        previous: &mut Option<(bool, String)>,
+        candidate: &mut Option<(bool, String)>,
+        samples: &mut u8,
+        connected: bool,
+        name: String,
+        queue: &NoticeQueue,
+    ) {
+        let current = (connected, name);
+        if candidate.as_ref() == Some(&current) {
+            *samples = samples.saturating_add(1);
+        } else {
+            *candidate = Some(current.clone());
+            *samples = 1;
+        }
+
+        if *samples >= 2 {
+            update_wifi(previous, current.0, current.1, queue);
+            *candidate = None;
+            *samples = 0;
+        }
     }
 
     fn diff_usb(
@@ -405,8 +472,14 @@ while ($true) {
                         let mut usb_lines: Vec<String> = Vec::new();
                         let mut bt_lines: Vec<String> = Vec::new();
                         let mut usb_previous = None;
+                        let mut usb_candidate = None;
+                        let mut usb_candidate_samples = 0u8;
                         let mut bt_previous = None;
+                        let mut bt_candidate = None;
+                        let mut bt_candidate_samples = 0u8;
                         let mut wifi_previous = None;
+                        let mut wifi_candidate = None;
+                        let mut wifi_candidate_samples = 0u8;
 
                         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
                             if started.elapsed() >= RECYCLE {
@@ -417,7 +490,13 @@ while ($true) {
                                 if rest == "---" {
                                     let snapshot = parse_usb(&usb_lines);
                                     usb_lines.clear();
-                                    diff_usb(&mut usb_previous, snapshot, &queue);
+                                    stable_usb_snapshot(
+                                        &mut usb_previous,
+                                        &mut usb_candidate,
+                                        &mut usb_candidate_samples,
+                                        snapshot,
+                                        &queue,
+                                    );
                                 } else if !rest.is_empty() {
                                     usb_lines.push(rest.to_string());
                                 }
@@ -425,7 +504,13 @@ while ($true) {
                                 if rest == "---" {
                                     let snapshot = parse_bluetooth(&bt_lines);
                                     bt_lines.clear();
-                                    diff_bluetooth(&mut bt_previous, snapshot, &queue);
+                                    stable_bluetooth_snapshot(
+                                        &mut bt_previous,
+                                        &mut bt_candidate,
+                                        &mut bt_candidate_samples,
+                                        snapshot,
+                                        &queue,
+                                    );
                                 } else if !rest.is_empty() {
                                     bt_lines.push(rest.to_string());
                                 }
@@ -436,7 +521,14 @@ while ($true) {
                                 } else {
                                     let mut parts = rest.splitn(2, '|');
                                     if let (Some(state), Some(name)) = (parts.next(), parts.next()) {
-                                        update_wifi(&mut wifi_previous, state == "1", name.to_string(), &queue);
+                                        stable_wifi_snapshot(
+                                            &mut wifi_previous,
+                                            &mut wifi_candidate,
+                                            &mut wifi_candidate_samples,
+                                            state == "1",
+                                            name.to_string(),
+                                            &queue,
+                                        );
                                     }
                                 }
                             }
