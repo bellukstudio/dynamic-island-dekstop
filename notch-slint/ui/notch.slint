@@ -2768,8 +2768,89 @@ component NudgeEmoji inherits Rectangle {
 
 // Awan percakapan untuk dock bawah/samping: tinggi mengikuti isi, teks dapat membungkus hingga
 // beberapa baris, dan emoji tampil sebagai artwork berwarna. tail-pos mengatur ujung ekor.
+component HudGlyph inherits Rectangle {
+    in property <string> kind: "volume"; in property <int> value: 0;
+    in property <bool> muted: false; in property <bool> pulse: false;
+    background: transparent;
+    Rectangle {
+        x: root.pulse ? 0px : 4px; y: root.pulse ? 0px : 4px;
+        width: root.pulse ? parent.width : parent.width - 8px;
+        height: root.pulse ? parent.height : parent.height - 8px;
+        border-radius: parent.width / 2; border-width: 1px;
+        border-color: root.pulse ? Theme.accent.with-alpha(0.52) : Theme.accent.with-alpha(0.0);
+        background: root.pulse ? Theme.accent.with-alpha(0.13) : transparent;
+        animate x { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate y { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate width { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate height { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate background { duration: 180ms; } animate border-color { duration: 180ms; }
+    }
+    if root.kind == "brightness": Path {
+        x: 3px; y: 3px; width: parent.width - 6px; height: parent.height - 6px;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M 12 8 A 4 4 0 1 0 12 16 A 4 4 0 1 0 12 8 M 12 2 V 4 M 12 20 V 22 M 4.9 4.9 L 6.3 6.3 M 17.7 17.7 L 19.1 19.1 M 2 12 H 4 M 20 12 H 22 M 4.9 19.1 L 6.3 17.7 M 17.7 6.3 L 19.1 4.9";
+        fill: transparent; stroke: Theme.text; stroke-width: 2px;
+        stroke-line-cap: round; stroke-line-join: round;
+        opacity: root.pulse ? 1.0 : 0.88; animate opacity { duration: 180ms; }
+    }
+    if root.kind != "brightness": Path {
+        x: 3px; y: 3px; width: parent.width - 6px; height: parent.height - 6px;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M 11 5 L 6 9 H 2 V 15 H 6 L 11 19 Z";
+        fill: transparent; stroke: Theme.text; stroke-width: 2px;
+        stroke-line-cap: round; stroke-line-join: round;
+    }
+    if root.kind != "brightness" && root.muted: Path {
+        x: 3px; y: 3px; width: parent.width - 6px; height: parent.height - 6px;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M 17 9 L 23 15 M 23 9 L 17 15";
+        fill: transparent; stroke: Theme.text; stroke-width: 2px; stroke-line-cap: round;
+    }
+    if root.kind != "brightness" && !root.muted && root.value > 0: Path {
+        x: 3px; y: 3px; width: parent.width - 6px; height: parent.height - 6px;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M 15.5 8.5 A 5 5 0 0 1 15.5 15.5";
+        fill: transparent; stroke: Theme.text; stroke-width: 2px; stroke-line-cap: round;
+        opacity: 0.9; animate opacity { duration: 140ms; }
+    }
+    if root.kind != "brightness" && !root.muted && root.value >= 50: Path {
+        x: 3px; y: 3px; width: parent.width - 6px; height: parent.height - 6px;
+        viewbox-width: 24; viewbox-height: 24;
+        commands: "M 19 5 A 10 10 0 0 1 19 19";
+        fill: transparent; stroke: Theme.text; stroke-width: 2px; stroke-line-cap: round;
+        opacity: root.pulse ? 1.0 : 0.76; animate opacity { duration: 180ms; }
+    }
+}
+component HudPanel inherits Rectangle {
+    in property <string> kind: "volume"; in property <int> value: 0;
+    in property <string> value-text: "0"; in property <bool> muted: false; in property <bool> pulse: false;
+    background: transparent;
+    HorizontalLayout {
+        x: 18px; y: 0px; width: parent.width - 36px; height: parent.height;
+        spacing: 12px; alignment: center;
+        HudGlyph { width: 30px; height: 30px; kind: root.kind; value: root.value; muted: root.muted; pulse: root.pulse; }
+        Rectangle {
+            horizontal-stretch: 1; height: 6px; border-radius: 3px;
+            background: Theme.text.with-alpha(0.16); clip: true;
+            Rectangle {
+                x: 0px; y: 0px;
+                width: parent.width * Math.max(0, Math.min(100, root.value)) / 100.0;
+                height: parent.height; border-radius: 3px;
+                background: root.muted ? Theme.text.with-alpha(0.35) : Theme.text;
+                animate width { duration: 140ms; easing: ease-out; } animate background { duration: 180ms; }
+            }
+        }
+        Text { width: 38px; text: root.value-text; color: Theme.text.with-alpha(0.78); font-size: 12px; font-weight: 650; horizontal-alignment: right; vertical-alignment: center; }
+    }
+}
+
 component SpeechBubble inherits Rectangle {
     in property <bool> shown: false;
+    in property <bool> hud: false;
+    in property <string> hud-kind: "volume";
+    in property <int> hud-value: 0;
+    in property <bool> hud-muted: false;
+    in property <bool> hud-pulse: false;
     in property <bool> compact: false;
     in property <string> message;
     in property <string> detail;
@@ -2779,7 +2860,7 @@ component SpeechBubble inherits Rectangle {
     in property <bool> side: false;
     in property <bool> side-right: false;
     in property <length> tail-pos: -1px;
-    property <length> target-width: root.compact ? 184px : 224px;
+    property <length> target-width: root.hud ? 184px : (root.compact ? 184px : 224px);
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     property <length> target-height: content.content-height;
@@ -2805,7 +2886,11 @@ component SpeechBubble inherits Rectangle {
         height: parent.height;
         clip: true;
         background: transparent;
-        if root.emoji != "": NudgeEmoji {
+        if root.hud: HudGlyph {
+            x: 10px; y: 10px; width: 28px; height: 28px;
+            kind: root.hud-kind; value: root.hud-value; muted: root.hud-muted; pulse: root.hud-pulse;
+        }
+        if !root.hud && root.emoji != "": NudgeEmoji {
             x: 10px;
             y: root.compact ? 8px : 11px;
             width: root.compact ? 22px : 24px;
@@ -2815,9 +2900,9 @@ component SpeechBubble inherits Rectangle {
             rendered-image-available: root.emoji-image-available;
         }
         msg := Text {
-            x: root.emoji != "" ? 42px : (root.compact ? 10px : 14px);
+            x: root.hud || root.emoji != "" ? 48px : (root.compact ? 10px : 14px);
             y: root.compact ? 7px : 10px;
-            width: Math.max(0px, root.target-width - (root.emoji != "" ? 54px : (root.compact ? 20px : 28px)));
+            width: Math.max(0px, root.target-width - (root.hud || root.emoji != "" ? 60px : (root.compact ? 20px : 28px)));
             height: Math.min(self.preferred-height, 68px);
             text: root.message;
             color: #ffffff;
@@ -5802,6 +5887,13 @@ export component NotchWindow inherits Window {
     in property <string> adhan-prayer: "";
     in property <int> adhan-phase: 0;
     in property <bool> meeting-active: false;
+    in property <bool> hud-visible: false;
+    in property <string> hud-kind: "volume";
+    in property <int> hud-value: 0;
+    in property <string> hud-value-text: "0";
+    in property <bool> hud-muted: false;
+    in property <bool> hud-icon-pulse: false;
+    in property <int> hud-generation: 0;
     in property <string> meeting-elapsed: "00:00";
     in property <string> meeting-source: "";
     in property <string> meeting-finished: "";
@@ -5853,11 +5945,11 @@ export component NotchWindow inherits Window {
         && !root.meeting-active && !root.adhan-active && (root.nudge-visible || root.reminder-alert-visible);
     // Adzan tampil di dalam badan notch (dock atas/melayang): pil melebar supaya teks dan tombol berhenti muat.
     property <bool> adhan-inline: root.adhan-active && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible;
-    property <bool> inline-msg: root.greeting-inline-visible || root.nudge-inline || root.adhan-inline;
+    property <bool> inline-msg: root.greeting-inline-visible || root.nudge-inline || root.adhan-inline || (root.hud-visible && root.dock < 2);
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
     // Diekspos sebagai output agar Rust dapat memakai geometri mini-player yang sama dengan UI.
-    out property <bool> media-mini: root.media-active && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active;
+    out property <bool> media-mini: root.media-active && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active && !root.hud-visible;
     in property <string> day-text: "";
     in property <StatsView> stats;
     in property <CurrencyView> currency;
@@ -6226,18 +6318,19 @@ export component NotchWindow inherits Window {
     changed reminder-alert-visible => { root.region-layout-changed(); }
     changed greeting-speech-visible => { root.region-layout-changed(); }
     changed meeting-finished => { root.region-layout-changed(); }
+    changed hud-visible => { root.region-layout-changed(); }
 
     pill := Rectangle {
         opacity: root.pill-fade;
         // Radius mengikuti Tauri: hub 32 px menempel / 28 px melayang; pil kecil 17 px.
         // Bentuk compact meniru Tauri: setengah lingkaran menghadap ke dalam layar.
         // Dock bawah 80x44, dock samping 60x120; hub terbuka tetap memakai ukuran landscape.
-        property <length> r: root.adhan-inline ? 17px * root.ui-scale : (root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale
-            : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 40px : 17px))))) * root.ui-scale);
+        property <length> r: root.hud-visible && root.dock < 2 ? 26px * root.ui-scale : (root.adhan-inline ? 17px * root.ui-scale : (root.expanded ? (root.dock == 1 ? 28px : 32px) * root.ui-scale
+            : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 40px : 17px))))) * root.ui-scale));
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        width: root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))))))) * (root.expanded ? 1.0 : root.ui-scale));
-        height: root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale));
+        width: root.hud-visible && root.dock < 2 ? 300px * root.ui-scale : (root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : (root.greeting-inline-visible && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))))))) * (root.expanded ? 1.0 : root.ui-scale)));
+        height: root.hud-visible && root.dock < 2 ? 52px * root.ui-scale : (root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : (root.greeting-inline-visible && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale)));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         // Jangan meregangkan Path kubah saat panel masih mengecil dari ukuran hub.
@@ -6558,6 +6651,18 @@ export component NotchWindow inherits Window {
             }
 
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
+            Rectangle {
+                visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
+                opacity: root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0;
+                animate opacity { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                width: parent.width; height: parent.height; clip: true;
+                HudPanel {
+                    kind: root.hud-kind; value: root.hud-value; value-text: root.hud-value-text;
+                    muted: root.hud-muted; pulse: root.hud-icon-pulse;
+                    width: parent.width; height: parent.height;
+                }
+            }
+
             AdhanOverlay {
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.adhan-active && !root.expanded && !root.dragging ? 1 : 0;
@@ -6982,7 +7087,12 @@ export component NotchWindow inherits Window {
     // saat tersembunyi agar transisi keluar juga bisa berjalan sampai selesai.
     SpeechBubble {
         shown: root.dock >= 2 && !root.expanded && !root.geometry-hold && !root.greeting-inline-visible
-            && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible);
+            && (root.reminder-alert-visible || root.adhan-active || root.meeting-finished != "" || root.greeting-speech-visible || root.nudge-visible || root.hud-visible);
+        hud: root.hud-visible;
+        hud-kind: root.hud-kind;
+        hud-value: root.hud-value;
+        hud-muted: root.hud-muted;
+        hud-pulse: root.hud-icon-pulse;
         compact: root.media-playing && root.nudge-visible;
         // Lebar target dimiliki SpeechBubble agar root.width bisa dianimasikan dari nol.
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
@@ -6991,9 +7101,9 @@ export component NotchWindow inherits Window {
         side: root.dock >= 3;
         side-right: root.dock == 4;
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
-        message: root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text)));
-        detail: root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub)));
-        emoji: root.nudge-visible ? root.nudge-emoji : "";
+        message: root.hud-visible ? (root.hud-kind == "brightness" ? "Kecerahan" : "Volume") : (root.adhan-active ? ("Waktu " + root.adhan-prayer) : (root.meeting-finished != "" ? "Rapat selesai" : (root.greeting-speech-visible ? root.greeting-message : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text))));
+        detail: root.hud-visible ? root.hud-value-text : (root.adhan-active ? "Adzan sedang diputar" : (root.meeting-finished != "" ? root.meeting-finished : (root.greeting-speech-visible ? root.greeting-detail : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub))));
+        emoji: root.hud-visible ? "" : (root.nudge-visible ? root.nudge-emoji : "");
         emoji-image: root.nudge-emoji-image;
         emoji-image-available: root.nudge-emoji-image-available;
     }
