@@ -333,7 +333,11 @@ fn center_settings_window(main: &NotchWindow, settings: &SettingsWindow) {
     let max_x = (area.x + area.w - size.width as i32).max(area.x);
     let max_y = (area.y + area.h - size.height as i32).max(area.y);
     let x = (area.x + (area.w - size.width as i32) / 2).clamp(area.x, max_x);
-    let y = (area.y + (area.h - size.height as i32) / 2).clamp(area.y, max_y);
+    // Sedikit naikkan posisi awal agar jendela terasa lebih seimbang secara visual,
+    // terutama ketika taskbar berada di bawah dan title bar tampak terlalu dekat ke tengah.
+    const SETTINGS_VERTICAL_BIAS: i32 = 56;
+    let y = (area.y + (area.h - size.height as i32) / 2 - SETTINGS_VERTICAL_BIAS)
+        .clamp(area.y, max_y);
     settings.window().set_position(PhysicalPosition::new(x, y));
 }
 
