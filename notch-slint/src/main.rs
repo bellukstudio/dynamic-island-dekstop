@@ -49,6 +49,7 @@ mod autostart;
 mod speech;
 mod media;
 mod hud;
+mod device_notifications;
 mod platform;
 mod appearance;
 mod convert_store;
@@ -202,7 +203,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 || !w.get_meeting_finished().is_empty()
                 || w.get_greeting_speech_visible()
                 || w.get_greeting_inline_visible()
-                || w.get_hud_visible();
+                || w.get_hud_visible()
+                || w.get_device_notice_visible();
 
             if message_visible {
                 let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
@@ -230,7 +232,8 @@ fn main() -> Result<(), slint::PlatformError> {
                         || !w.get_meeting_finished().is_empty()
                         || w.get_greeting_speech_visible()
                         || w.get_greeting_inline_visible()
-                        || w.get_hud_visible();
+                        || w.get_hud_visible()
+                        || w.get_device_notice_visible();
                     if still_has_message {
                         return;
                     }
@@ -315,7 +318,8 @@ fn main() -> Result<(), slint::PlatformError> {
                 || w.get_reminder_alert_visible()
                 || !w.get_meeting_finished().is_empty()
                 || w.get_meeting_active()
-                || w.get_adhan_active();
+                || w.get_adhan_active()
+                || w.get_device_notice_visible();
             if blocked {
                 // Jangan biarkan gerakan otomatis mengambil alih pointer atau menggeser
                 // notch ketika kartu/pengingat/rapat/adzan sedang tampil.
@@ -3385,6 +3389,34 @@ fn main() -> Result<(), slint::PlatformError> {
         rng: Rng::new(),
     }));
     *appearance_eye.borrow_mut() = Some(eye.clone());
+
+    // Device notifications: kartu ala Tauri dengan antrean, transisi, dan auto-dismiss.
+    let _device_notice_timer = device_notifications::start(win.as_weak());
+
+    // Ekspresi mata ikut merespons event perangkat (charger=love, connect=happy, disconnect=surprised).
+    let device_notice_mood_timer = Timer::default();
+    {
+        let weak = win.as_weak();
+        let eye = eye.clone();
+        let last_generation = Rc::new(Cell::new(win.get_device_notice_generation()));
+        let seen = last_generation.clone();
+        device_notice_mood_timer.start(TimerMode::Repeated, Duration::from_millis(100), move || {
+            let Some(w) = weak.upgrade() else { return };
+            let generation = w.get_device_notice_generation();
+            if generation == seen.get() {
+                return;
+            }
+            seen.set(generation);
+            let mood = if !w.get_device_notice_connected() {
+                Mood::Surprised
+            } else if w.get_device_notice_kind() == "charger" {
+                Mood::Love
+            } else {
+                Mood::Happy
+            };
+            eye.borrow_mut().mood.flash(mood, 2_400, Instant::now());
+        });
+    }
 
     // Sapaan otomatis saat pointer idle. Satu sapaan per periode diam; gerakan baru mengaktifkan periode berikutnya.
     let nudge_timer = Timer::default();
