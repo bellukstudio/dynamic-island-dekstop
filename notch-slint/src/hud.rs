@@ -156,7 +156,7 @@ mod imp {
             if nested_matches {
                 let mut rect = RECT::default();
                 let has_bounds = unsafe {
-                    GetWindowRect(Some(outer), &mut rect).is_ok()
+                    GetWindowRect(outer, &mut rect).is_ok()
                 };
                 let (width, height) = if has_bounds {
                     (rect.right - rect.left, rect.bottom - rect.top)
