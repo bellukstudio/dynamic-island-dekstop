@@ -20,6 +20,16 @@ fn publish(window: &Weak<NotchWindow>, kind: &'static str, value: u8, muted: boo
             return;
         }
 
+        // Pembacaan WMI dan hasil shortcut dapat tiba hampir bersamaan.
+        // Jangan mem-pulse ulang ikon untuk nilai yang sama; cukup pertahankan animasi yang sedang berjalan.
+        if w.get_hud_visible()
+            && w.get_hud_kind() == kind
+            && w.get_hud_value() == value as i32
+            && w.get_hud_muted() == muted
+        {
+            return;
+        }
+
         let generation = w.get_hud_generation().wrapping_add(1);
         w.set_hud_generation(generation);
         w.set_hud_kind(kind.into());
@@ -251,6 +261,53 @@ while ($true) {
 }
 "#;
 
+    /// Mengubah brightness panel internal tanpa memicu hotkey/OSD bawaan Windows.
+    /// WMI WmiSetBrightness mengatur level dalam persen; shortcut ini milik Notch.
+    pub fn adjust_brightness(window: Weak<NotchWindow>, delta: i32) {
+        thread::spawn(move || {
+            let script = format!(r#"
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$brightness = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness |
+    Where-Object {{ $_.Active }} | Select-Object -First 1
+$method = Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods |
+    Where-Object {{ $_.Active }} | Select-Object -First 1
+if ($null -eq $brightness -or $null -eq $method) {{ exit 2 }}
+$target = [Math]::Max(0, [Math]::Min(100, [int]$brightness.CurrentBrightness + ({delta})))
+$result = Invoke-CimMethod -InputObject $method -MethodName WmiSetBrightness -Arguments @{{ Timeout = 0; Brightness = [byte]$target }}
+if ($null -eq $result -or $result.ReturnValue -ne 0) {{ exit 3 }}
+Write-Output $target
+"#);
+            let output = Command::new("powershell")
+                .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", &script])
+                .creation_flags(NO_WINDOW | BELOW_NORMAL)
+                .stdin(Stdio::null())
+                .stderr(Stdio::null())
+                .output();
+
+            match output {
+                Ok(result) if result.status.success() => {
+                    let value = String::from_utf8_lossy(&result.stdout)
+                        .lines()
+                        .rev()
+                        .find_map(|line| line.trim().parse::<u8>().ok());
+                    if let Some(value) = value {
+                        publish(&window, "brightness", value.min(100), false);
+                    } else {
+                        eprintln!("[HUD] WMI berhasil dipanggil tetapi level brightness tidak terbaca.");
+                    }
+                }
+                Ok(result) => {
+                    eprintln!(
+                        "[HUD] Pengaturan brightness via WMI gagal (status {:?}); perangkat mungkin tidak mendukung WmiSetBrightness.",
+                        result.status.code()
+                    );
+                }
+                Err(error) => eprintln!("[HUD] Gagal menjalankan PowerShell untuk brightness: {error}"),
+            }
+        });
+    }
+
     fn start_brightness_watcher(window: Weak<NotchWindow>) {
         thread::spawn(move || {
             loop {
@@ -301,7 +358,12 @@ mod imp {
     use crate::NotchWindow;
     use slint::Weak;
 
+    pub fn adjust_brightness(_window: Weak<NotchWindow>, _delta: i32) {}
     pub fn start(_window: Weak<NotchWindow>) {}
+}
+
+pub fn adjust_brightness(window: Weak<NotchWindow>, delta: i32) {
+    imp::adjust_brightness(window, delta);
 }
 
 pub fn start(window: Weak<NotchWindow>) {
