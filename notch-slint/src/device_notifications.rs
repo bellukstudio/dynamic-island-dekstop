@@ -103,9 +103,21 @@ pub fn start(window: Weak<NotchWindow>) -> Timer {
             w.set_device_notice_name(notice.name.into());
             w.set_device_notice_detail(notice.detail.into());
             w.set_device_notice_connected(notice.connected);
-            w.set_device_notice_generation(w.get_device_notice_generation().wrapping_add(1));
+            let generation = w.get_device_notice_generation().wrapping_add(1);
+            w.set_device_notice_generation(generation);
+            w.set_device_notice_pulse(true);
             w.set_device_notice_visible(true);
             shown_at.set(Some(Instant::now()));
+
+            // Satu gelombang ikon saat masuk, kemudian kembali tenang selama kartu ditahan.
+            let weak_pulse = weak.clone();
+            Timer::single_shot(Duration::from_millis(720), move || {
+                if let Some(w) = weak_pulse.upgrade() {
+                    if w.get_device_notice_generation() == generation {
+                        w.set_device_notice_pulse(false);
+                    }
+                }
+            });
         });
     }
     timer
@@ -113,7 +125,7 @@ pub fn start(window: Weak<NotchWindow>) -> Timer {
 
 #[cfg(windows)]
 mod imp {
-    use super::{enqueue, make_notice, DeviceNotice, NoticeQueue};
+    use super::{enqueue, make_notice, NoticeQueue};
     use std::collections::{HashMap, HashSet};
     use std::io::{BufRead, BufReader};
     use std::os::windows::process::CommandExt;
