@@ -50,6 +50,7 @@ impl Shell {
             let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
             // Adzan memakai pil 220 x 34 (lihat `adhan-inline` di notch.slint); area klik harus mencakup tombol berhenti.
             let adhan = win.get_adhan_active();
+            let hud = win.get_hud_visible();
             // Kartu "Rapat selesai" di dock atas berukuran 130x34 dan ikut memakai transisi pill.
             let meeting_notice = !win.get_meeting_active() && !win.get_meeting_finished().is_empty();
             // Nudge/pengingat di dock atas berubah menjadi pil inline lebar 288x68 (atau 220x40 saat musik).
@@ -60,8 +61,8 @@ impl Shell {
             // Hit-test harus persis mengikuti badan yang digambar Slint: tanpa padding transparan.
             // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
             let compact_nudge_media = nudge_inline && win.get_media_playing() && win.get_nudge_visible();
-            let body_w = if greeting { 385.0 } else if adhan { 220.0 } else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
-            let body_h = if greeting { 75.0 } else if adhan || meeting_notice { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
+            let body_w = if hud { 300.0 } else if greeting { 385.0 } else if adhan { 220.0 } else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
+            let body_h = if hud { 52.0 } else if greeting { 75.0 } else if adhan || meeting_notice { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
             // Telinga atas menjulur 10 px di kiri dan kanan badan pill.
             // Masukkan keduanya ke native hit-test region agar hover tidak putus di area telinga.
             let ear_extension = if dock == Dock::Top { 20.0 } else { 0.0 };
@@ -95,14 +96,16 @@ impl Shell {
                     || win.get_reminder_alert_visible()
                     || win.get_adhan_active()
                     || win.get_meeting_finished() != ""
-                    || win.get_greeting_speech_visible());
+                    || win.get_greeting_speech_visible()
+                    || win.get_hud_visible());
             if bubble_visible {
                 // SpeechBubble dan jaraknya memakai px UI biasa (hanya DPI), bukan ui-scale badan pill.
+                let hud_bubble = win.get_hud_visible();
                 let compact_bubble = win.get_nudge_visible() && win.get_media_playing();
-                let bubble_w = ((if compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
+                let bubble_w = ((if hud_bubble || compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
                 // Awan bisa menampilkan hingga 5 baris pesan + 2 baris detail, padding, dan emoji.
                 // Native region harus setidaknya setinggi visual bubble supaya teks tidak terpotong OS.
-                let bubble_h = ((if compact_bubble { 86.0 } else { 132.0 }) * dpi).round() as i32;
+                let bubble_h = ((if hud_bubble { 68.0 } else if compact_bubble { 86.0 } else { 132.0 }) * dpi).round() as i32;
                 let gap = (11.0 * dpi).round() as i32;
                 let tail = (10.0 * dpi).round() as i32;
                 let bubble_x = if dock == Dock::Left {
