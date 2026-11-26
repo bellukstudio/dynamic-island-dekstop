@@ -2782,7 +2782,7 @@ component SpeechBubble inherits Rectangle {
     property <length> target-width: root.compact ? 184px : 224px;
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
-    property <length> target-height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
+    property <length> target-height: content.content-height;
     width: root.shown ? root.target-width : 0px;
     // Lebar/tinggi dimulai dari titik pertemuan dengan Notch lalu melebar ke luar.
     // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
@@ -2800,6 +2800,7 @@ component SpeechBubble inherits Rectangle {
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
+        out property <length> content-height: (root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px);
         width: parent.width;
         height: parent.height;
         clip: true;
