@@ -67,10 +67,11 @@ mod imp {
     use windows::Win32::Media::Audio::{eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
     use windows::core::{w, PCWSTR};
-    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Foundation::{HWND, RECT};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, FindWindowExW, GetMessageW, IsIconic, IsWindow, IsWindowVisible, SetWindowsHookExW,
-        ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_MINIMIZE, WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
+        CallNextHookEx, FindWindowExW, GetMessageW, GetWindowRect, IsIconic, IsWindow,
+        IsWindowVisible, SetWindowsHookExW, ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_MINIMIZE,
+        WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
     };
 
     const NO_WINDOW: u32 = 0x0800_0000;
@@ -122,12 +123,28 @@ mod imp {
         inner_inner_class: Option<PCWSTR>,
     ) -> Option<HWND> {
         let mut after: Option<HWND> = None;
+        let mut result: Option<HWND> = None;
+        let mut pair_count = 0usize;
+
+        // Jangan langsung mengambil host pertama. Windows dapat memiliki beberapa
+        // XamlExplorerHostIslandWindow, termasuk island kosong 0x0 yang bukan OSD.
+        // Pilih kandidat terakhir yang punya ukuran nyata, sama seperti pencari OSD Tauri/Windhawk.
         loop {
-            let outer = unsafe { FindWindowExW(None, after, outer_class, PCWSTR::null()) }.ok()?;
-            let inner = unsafe { FindWindowExW(Some(outer), None, inner_class, PCWSTR::null()) }.ok();
-            let Some(inner) = inner else {
-                after = Some(outer);
-                continue;
+            let outer = match unsafe {
+                FindWindowExW(None, after, outer_class, PCWSTR::null())
+            } {
+                Ok(hwnd) => hwnd,
+                Err(_) => break,
+            };
+
+            let inner = match unsafe {
+                FindWindowExW(Some(outer), None, inner_class, PCWSTR::null())
+            } {
+                Ok(hwnd) => hwnd,
+                Err(_) => {
+                    after = Some(outer);
+                    continue;
+                }
             };
 
             let nested_matches = match inner_inner_class {
@@ -137,14 +154,32 @@ mod imp {
                 None => true,
             };
             if nested_matches {
-                return Some(outer);
+                let mut rect = RECT::default();
+                let has_bounds = unsafe {
+                    GetWindowRect(Some(outer), &mut rect).is_ok()
+                };
+                let (width, height) = if has_bounds {
+                    (rect.right - rect.left, rect.bottom - rect.top)
+                } else {
+                    (0, 0)
+                };
+
+                // Simpan kandidat pertama sebagai fallback jika semuanya masih 0x0,
+                // tetapi prioritaskan host yang telah dibuat dengan ukuran non-zero.
+                if pair_count == 0 || (width > 0 && height > 0) {
+                    result = Some(outer);
+                }
+                pair_count += 1;
             }
+
             after = Some(outer);
         }
+
+        result
     }
 
     fn find_osd_window() -> Option<HWND> {
-        // Windows 11 (termasuk XamlExplorerHostIslandWindow pada build terbaru).
+        // Windows 11 (termasuk 25H2): pilih host XAML yang memiliki bounds nyata.
         find_osd_by_hierarchy(
             w!("XamlExplorerHostIslandWindow"),
             w!("Windows.UI.Composition.DesktopWindowContentBridge"),
