@@ -319,6 +319,24 @@ pub(crate) struct SettingsHandle {
 }
 pub(crate) type SettingsSlot = Rc<RefCell<Option<SettingsHandle>>>;
 
+/// Pusatkan jendela Pengaturan pada monitor tempat Notch berada.
+/// Semua koordinat dan ukuran di sini adalah piksel fisik agar konsisten dengan work_area().
+fn center_settings_window(main: &NotchWindow, settings: &SettingsWindow) {
+    let main_pos = main.window().position();
+    let main_size = main.window().size();
+    let monitor_center = (
+        main_pos.x + main_size.width as i32 / 2,
+        main_pos.y + main_size.height as i32 / 2,
+    );
+    let area = platform::work_area(Some(monitor_center));
+    let size = settings.window().size();
+    let max_x = (area.x + area.w - size.width as i32).max(area.x);
+    let max_y = (area.y + area.h - size.height as i32).max(area.y);
+    let x = (area.x + (area.w - size.width as i32) / 2).clamp(area.x, max_x);
+    let y = (area.y + (area.h - size.height as i32) / 2).clamp(area.y, max_y);
+    settings.window().set_position(PhysicalPosition::new(x, y));
+}
+
 /// Buka (atau munculkan kembali) jendela Pengaturan terpisah, setara jendela Pengaturan versi Tauri.
 pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
     // Ambil Weak dalam scope borrow singkat agar operasi show/focus tidak berjalan saat RefCell dipinjam.
@@ -334,8 +352,9 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
             let _ = win.show();
             let _ = win.window().with_winit_window(|w| {
                 w.set_minimized(false);
-                w.focus_window();
             });
+            center_settings_window(main, &win);
+            let _ = win.window().with_winit_window(|w| w.focus_window());
             request_settings_redraw(&win);
             return;
         }
@@ -385,13 +404,8 @@ pub(crate) fn open_settings_window(main: &NotchWindow, slot: &SettingsSlot) {
         eprintln!("[Settings] Gagal menampilkan jendela: {error}");
         return;
     }
-    // Posisikan jendela Pengaturan di tengah monitor pertama kali dibuat.
-    // Ukuran Window Slint sudah berupa piksel fisik setelah show().
-    let area = platform::work_area(None);
-    let size = win.window().size();
-    let x = area.x + (area.w - size.width as i32).max(0) / 2;
-    let y = area.y + (area.h - size.height as i32).max(0) / 2;
-    win.window().set_position(PhysicalPosition::new(x, y));
+    // Pusatkan pada monitor tempat Notch berada, bukan selalu monitor utama.
+    center_settings_window(main, &win);
     request_settings_redraw(&win);
     *slot.borrow_mut() = Some(SettingsHandle { win, _sync: sync, close_pending });
 }
