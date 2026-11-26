@@ -69,8 +69,8 @@ mod imp {
     use windows::core::{w, PCWSTR};
     use windows::Win32::Foundation::{HWND, RECT};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, FindWindowExW, GetMessageW, GetWindowRect, IsIconic, IsWindow,
-        IsWindowVisible, SetWindowsHookExW, ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_MINIMIZE,
+        CallNextHookEx, FindWindowExW, GetMessageW, GetWindowRect, IsWindow,
+        IsWindowVisible, SetWindowsHookExW, ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_HIDE, SW_SHOWNA,
         WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
     };
 
@@ -205,15 +205,15 @@ mod imp {
     fn start_osd_suppressor(window: Weak<NotchWindow>) {
         thread::spawn(move || {
             let mut osd: Option<HWND> = None;
-            let mut minimized_by_us = false;
+            let mut hidden_by_us = false;
             loop {
                 // When Notch exits, restore the shell host only if this worker minimized it.
                 // This prevents the system OSD from remaining hidden after the app is closed.
                 if window.upgrade().is_none() {
-                    if minimized_by_us {
+                    if hidden_by_us {
                         if let Some(hwnd) = osd {
                             if unsafe { IsWindow(Some(hwnd)).as_bool() } {
-                                unsafe { ShowWindow(hwnd, windows::Win32::UI::WindowsAndMessaging::SW_RESTORE) };
+                                unsafe { ShowWindow(hwnd, SW_SHOWNA) };
                             }
                         }
                     }
@@ -224,15 +224,14 @@ mod imp {
                 if let Some(hwnd) = osd {
                     if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
                         osd = None;
-                        minimized_by_us = false;
+                        hidden_by_us = false;
                         should_rediscover = true;
                     } else if unsafe { IsWindowVisible(hwnd).as_bool() }
-                        && !unsafe { IsIconic(hwnd).as_bool() }
                     {
-                        // Keep the shell OSD host minimized: hardware/ACPI brightness
+                        // Keep the shell OSD host hidden: hardware/ACPI brightness
                         // changes still work, but the system popup never takes the screen.
-                        unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
-                        minimized_by_us = true;
+                        unsafe { ShowWindow(hwnd, SW_HIDE) };
+                        hidden_by_us = true;
                     }
                 }
 
@@ -240,10 +239,9 @@ mod imp {
                     osd = find_osd_window();
                     if let Some(hwnd) = osd {
                         if unsafe { IsWindowVisible(hwnd).as_bool() }
-                            && !unsafe { IsIconic(hwnd).as_bool() }
-                        {
-                            unsafe { ShowWindow(hwnd, SW_MINIMIZE) };
-                            minimized_by_us = true;
+                            {
+                            unsafe { ShowWindow(hwnd, SW_HIDE) };
+                            hidden_by_us = true;
                         }
                     }
                 }
