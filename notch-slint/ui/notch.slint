@@ -2792,10 +2792,10 @@ component SpeechBubble inherits Rectangle {
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
-    animate width { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-    animate height { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
     animate opacity { duration: 240ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-    animate border-radius { duration: 360ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate border-radius { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
@@ -2840,6 +2840,8 @@ component SpeechBubble inherits Rectangle {
     }
     // Ekor membulat (isi dan garis berwarna sama, join berwarna sama) mengarah ke notch.
     Path {
+        // Ekor ikut muncul perlahan saat badan bubble mulai melebar, dan tidak mendahului background.
+        opacity: Math.min(1.0, root.width / 32px);
         x: root.side ? (root.side-right ? parent.width - 2px : -10px) : root.tail-center - 9px;
         y: root.side ? root.tail-center - 9px : parent.height - 3px;
         width: root.side ? 12px : 18px;
@@ -6525,8 +6527,8 @@ export component NotchWindow inherits Window {
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown ? 1 : 0;
                 clip: true;
-                animate width { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-                animate height { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate opacity { duration: 220ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 border-radius: 17px;
                 background: #171923f5;
