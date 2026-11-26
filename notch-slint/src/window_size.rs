@@ -4,6 +4,8 @@ use crate::*;
 
 // Ruang saat menciut mencakup bubble 280 x 90 px dan pil setengah lingkaran dock bawah.
 pub(crate) const COLLAPSED: (u32, u32) = (300, 140);
+// HUD memakai badan Notch selebar 300 px + 10 px telinga di setiap sisi.
+pub(crate) const COLLAPSED_HUD: (u32, u32) = (320, 140);
 // Wajah jam menampilkan waktu dan tanggal berdampingan; sediakan ruang lebih lebar.
 pub(crate) const COLLAPSED_CLOCK: (u32, u32) = (360, 140);
 // Side dock: window 300 x 262 px memuat pil vertikal 60 x 120 dan bubble 230 px.
