@@ -2822,25 +2822,58 @@ component HudGlyph inherits Rectangle {
     }
 }
 component HudPanel inherits Rectangle {
-    in property <string> kind: "volume"; in property <int> value: 0;
-    in property <string> value-text: "0"; in property <bool> muted: false; in property <bool> pulse: false;
+    in property <string> kind: "volume";
+    in property <int> value: 0;
+    in property <string> value-text: "0";
+    in property <bool> muted: false;
+    in property <bool> pulse: false;
+    in property <float> ui-scale: 1.0;
     background: transparent;
-    HorizontalLayout {
-        x: 18px; y: 0px; width: parent.width - 36px; height: parent.height;
-        spacing: 12px; alignment: center;
-        HudGlyph { width: 30px; height: 30px; kind: root.kind; value: root.value; muted: root.muted; pulse: root.pulse; }
+
+    // Ukuran mengikuti .l-hud versi Tauri: padding 20, icon 22, gap 12,
+    // track 184, dan nilai 30 px. Posisi eksplisit menjaga track tidak collapse.
+    HudGlyph {
+        x: 16px * root.ui-scale;
+        y: 12px * root.ui-scale;
+        width: 28px * root.ui-scale;
+        height: 28px * root.ui-scale;
+        kind: root.kind;
+        value: root.value;
+        muted: root.muted;
+        pulse: root.pulse;
+    }
+
+    Rectangle {
+        x: 54px * root.ui-scale;
+        y: 23px * root.ui-scale;
+        width: 184px * root.ui-scale;
+        height: 6px * root.ui-scale;
+        border-radius: 3px * root.ui-scale;
+        background: Theme.text.with-alpha(0.18);
+        clip: true;
         Rectangle {
-            horizontal-stretch: 1; height: 6px; border-radius: 3px;
-            background: Theme.text.with-alpha(0.16); clip: true;
-            Rectangle {
-                x: 0px; y: 0px;
-                width: parent.width * Math.max(0, Math.min(100, root.value)) / 100.0;
-                height: parent.height; border-radius: 3px;
-                background: root.muted ? Theme.text.with-alpha(0.35) : Theme.text;
-                animate width { duration: 140ms; easing: ease-out; } animate background { duration: 180ms; }
-            }
+            x: 0px;
+            y: 0px;
+            width: parent.width * Math.max(0, Math.min(100, root.value)) / 100.0;
+            height: parent.height;
+            border-radius: 3px * root.ui-scale;
+            background: root.muted ? Theme.text.with-alpha(0.35) : Theme.text;
+            animate width { duration: 140ms; easing: ease-out; }
+            animate background { duration: 180ms; }
         }
-        Text { width: 38px; text: root.value-text; color: Theme.text.with-alpha(0.78); font-size: 12px; font-weight: 650; horizontal-alignment: right; vertical-alignment: center; }
+    }
+
+    Text {
+        x: 250px * root.ui-scale;
+        y: 17px * root.ui-scale;
+        width: 30px * root.ui-scale;
+        height: 18px * root.ui-scale;
+        text: root.muted ? "mute" : "" + root.value;
+        color: Theme.text.with-alpha(0.78);
+        font-size: 12px * root.ui-scale;
+        font-weight: 650;
+        horizontal-alignment: right;
+        vertical-alignment: center;
     }
 }
 
@@ -6661,6 +6694,7 @@ export component NotchWindow inherits Window {
                 HudPanel {
                     kind: root.hud-kind; value: root.hud-value; value-text: root.hud-value-text;
                     muted: root.hud-muted; pulse: root.hud-icon-pulse;
+                    ui-scale: root.ui-scale;
                     width: parent.width; height: parent.height;
                 }
             }
