@@ -2809,23 +2809,6 @@ component DeviceNoticePanel inherits Rectangle {
     background: transparent;
 
     Rectangle {
-        x: root.pulse ? 7px * root.ui-scale : 10px * root.ui-scale;
-        y: root.pulse ? 6px * root.ui-scale : 9px * root.ui-scale;
-        width: root.pulse ? 50px * root.ui-scale : 44px * root.ui-scale;
-        height: root.pulse ? 50px * root.ui-scale : 44px * root.ui-scale;
-        border-radius: self.width / 2;
-        border-width: 1px * root.ui-scale;
-        border-color: root.ink.with-alpha(root.pulse ? 0.55 : 0.0);
-        background: root.ink.with-alpha(root.pulse ? 0.10 : 0.0);
-        animate x { duration: 260ms; easing: cubic-bezier(0.34, 1.56, 0.5, 1); }
-        animate y { duration: 260ms; easing: cubic-bezier(0.34, 1.56, 0.5, 1); }
-        animate width { duration: 260ms; easing: cubic-bezier(0.34, 1.56, 0.5, 1); }
-        animate height { duration: 260ms; easing: cubic-bezier(0.34, 1.56, 0.5, 1); }
-        animate background { duration: 180ms; }
-        animate border-color { duration: 180ms; }
-    }
-
-    Rectangle {
         x: 16px * root.ui-scale;
         y: 15px * root.ui-scale;
         width: 44px * root.ui-scale;
@@ -2840,7 +2823,7 @@ component DeviceNoticePanel inherits Rectangle {
 
     Path {
         x: 27px * root.ui-scale;
-        y: (root.pulse && root.connected ? 24px : 26px) * root.ui-scale;
+        y: 26px * root.ui-scale;
         width: 22px * root.ui-scale;
         height: 22px * root.ui-scale;
         viewbox-width: 24;
