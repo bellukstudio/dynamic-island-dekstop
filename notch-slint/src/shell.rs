@@ -156,7 +156,16 @@ impl Shell {
         // COLLAPSED/EXPANDED dalam piksel logis; jendela diukur dalam piksel fisik
         let sf = win.window().scale_factor();
         let side = pos.is_some_and(|(x, _)| x == layout::LEFT_TX || x == layout::RIGHT_TX);
-        let logical_size = if side && size == COLLAPSED { COLLAPSED_SIDE } else if size == COLLAPSED && win.get_idle_clock() && !side { COLLAPSED_CLOCK } else { size };
+        let logical_size = if side && size == COLLAPSED {
+            COLLAPSED_SIDE
+        } else if size == COLLAPSED && win.get_hud_visible() && !side {
+            // Badan HUD tetap 300 px; tambahan 20 px memberi ruang 10 px untuk masing-masing telinga.
+            COLLAPSED_HUD
+        } else if size == COLLAPSED && win.get_idle_clock() && !side {
+            COLLAPSED_CLOCK
+        } else {
+            size
+        };
         // Skala notch berlaku pada semua geometri menciut, termasuk mode mini-player,
         // greeting inline, dan dock samping. Ukuran native harus sama dengan ukuran isi Slint.
         let mut logical_size = if size == COLLAPSED || size == GREETING_INLINE {
