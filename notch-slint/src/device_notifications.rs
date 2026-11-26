@@ -454,25 +454,58 @@ while ($true) {
         });
     }
 
+    /// Return only authoritative AC-line states. Windows uses 255 when the state is unknown;
+    /// treating that value as disconnected causes false connect/disconnect notifications.
     fn charger_state() -> Option<bool> {
         let mut status = SYSTEM_POWER_STATUS::default();
-        unsafe { GetSystemPowerStatus(&mut status) }
-            .ok()
-            .map(|_| status.ACLineStatus == 1)
+        unsafe { GetSystemPowerStatus(&mut status) }.ok()?;
+        match status.ACLineStatus {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        }
     }
 
     fn start_charger_watcher(queue: NoticeQueue) {
         thread::spawn(move || {
-            let mut previous = charger_state();
+            const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
+            const REQUIRED_STABLE_SAMPLES: u8 = 3;
+
+            // Keep the last confirmed state separate from transient/unknown readings.
+            let mut stable_state = charger_state();
+            let mut candidate_state: Option<bool> = None;
+            let mut candidate_samples = 0u8;
+
             loop {
-                thread::sleep(Duration::from_millis(1_500));
-                let current = charger_state();
-                if let (Some(old), Some(now)) = (previous, current) {
-                    if old != now {
-                        enqueue(&queue, make_notice("charger", "Charger", now, None));
-                    }
+                thread::sleep(SAMPLE_INTERVAL);
+                let Some(current) = charger_state() else {
+                    // Unknown readings must never be interpreted as unplugging the charger.
+                    candidate_state = None;
+                    candidate_samples = 0;
+                    continue;
+                };
+
+                if Some(current) == stable_state {
+                    candidate_state = None;
+                    candidate_samples = 0;
+                    continue;
                 }
-                previous = current;
+
+                if candidate_state == Some(current) {
+                    candidate_samples = candidate_samples.saturating_add(1);
+                } else {
+                    candidate_state = Some(current);
+                    candidate_samples = 1;
+                }
+
+                // Require three consecutive identical readings (~1.5 seconds) before
+                // publishing a real transition. This filters brief ACLineStatus glitches.
+                if candidate_samples >= REQUIRED_STABLE_SAMPLES {
+                    stable_state = Some(current);
+                    candidate_state = None;
+                    candidate_samples = 0;
+                    enqueue(&queue, make_notice("charger", "Charger", current, None));
+                }
             }
         });
     }
