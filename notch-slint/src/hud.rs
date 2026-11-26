@@ -228,6 +228,7 @@ try { $cs = New-CimSession } catch {}
 $last = -1
 $fails = 0
 $skip = 0
+$i = 0
 while ($true) {
   if ($skip -gt 0) { $skip-- }
   else {
@@ -244,6 +245,8 @@ while ($true) {
       if ($fails -ge 3) { $skip = 30 }
     }
   }
+  $i++
+  if ($i -ge 1800) { exit }
   Start-Sleep -Milliseconds 1000
 }
 "#;
