@@ -279,7 +279,8 @@ if ($null -eq $result -or $result.ReturnValue -ne 0) {{ exit 3 }}
 Write-Output $target
 "#);
             let output = Command::new("powershell")
-                .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", &script])
+                .args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command"])
+                .arg(&script)
                 .creation_flags(NO_WINDOW | BELOW_NORMAL)
                 .stdin(Stdio::null())
                 .stderr(Stdio::null())
