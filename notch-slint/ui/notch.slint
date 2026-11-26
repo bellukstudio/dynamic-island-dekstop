@@ -6127,7 +6127,7 @@ export component NotchWindow inherits Window {
         && !root.meeting-active && !root.adhan-active && (root.nudge-visible || root.reminder-alert-visible);
     // Adzan tampil di dalam badan notch (dock atas/melayang): pil melebar supaya teks dan tombol berhenti muat.
     property <bool> adhan-inline: root.adhan-active && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible;
-    property <bool> device-notice-inline: root.device-notice-visible && !root.expanded && !root.dragging && root.dock < 2;
+    property <bool> device-notice-inline: root.device-notice-visible && !root.expanded && !root.dragging && !root.geometry-hold && root.dock < 2;
     property <bool> inline-msg: root.greeting-inline-visible || root.nudge-inline || root.adhan-inline || root.device-notice-inline || (root.hud-visible && root.dock < 2);
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
