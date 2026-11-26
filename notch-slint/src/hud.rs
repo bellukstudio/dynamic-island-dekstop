@@ -177,7 +177,7 @@ mod imp {
                 if window.upgrade().is_none() {
                     if minimized_by_us {
                         if let Some(hwnd) = osd {
-                            if unsafe { IsWindow(hwnd).as_bool() } {
+                            if unsafe { IsWindow(Some(hwnd)).as_bool() } {
                                 unsafe { ShowWindow(hwnd, windows::Win32::UI::WindowsAndMessaging::SW_RESTORE) };
                             }
                         }
@@ -187,7 +187,7 @@ mod imp {
 
                 let mut should_rediscover = osd.is_none();
                 if let Some(hwnd) = osd {
-                    if !unsafe { IsWindow(hwnd).as_bool() } {
+                    if !unsafe { IsWindow(Some(hwnd)).as_bool() } {
                         osd = None;
                         minimized_by_us = false;
                         should_rediscover = true;
