@@ -3391,7 +3391,7 @@ fn main() -> Result<(), slint::PlatformError> {
     *appearance_eye.borrow_mut() = Some(eye.clone());
 
     // Device notifications: kartu ala Tauri dengan antrean, transisi, dan auto-dismiss.
-    let _device_notice_timer = device_notifications::start(win.as_weak());
+    let _device_notice_timer = device_notifications::start(win.as_weak(), shell.clone());
 
     // Ekspresi mata ikut merespons event perangkat (charger=love, connect=happy, disconnect=surprised).
     let device_notice_mood_timer = Timer::default();
