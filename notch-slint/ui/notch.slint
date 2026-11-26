@@ -7214,9 +7214,15 @@ export component NotchWindow inherits Window {
                 y: root.expanded ? 6px : (root.dock >= 3 ? 14px * root.ui-scale : (root.dock == 2 ? 3px * root.ui-scale : (parent.height - self.height) / 2));
             }
         }
-        if root.device-notice-inline: DeviceNoticePanel {
+        // Tetap terpasang agar animasi masuk/keluar berjalan; conditional creation
+        // sebelumnya membuat panel langsung muncul tanpa transisi opacity.
+        DeviceNoticePanel {
+            visible: root.device-notice-inline || self.opacity > 0.01;
+            opacity: root.device-notice-inline ? 1.0 : 0.0;
+            animate opacity { duration: 240ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
             x: 0px;
-            y: 0px;
+            y: root.device-notice-inline ? 0px : -5px * root.ui-scale;
+            animate y { duration: 280ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
             width: parent.width;
             height: parent.height;
             kind: root.device-notice-kind;
