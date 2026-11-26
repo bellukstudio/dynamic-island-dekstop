@@ -194,15 +194,52 @@ fn main() -> Result<(), slint::PlatformError> {
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() { return; }
-            let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
-                GREETING_INLINE
+
+            let message_visible = w.get_nudge_visible()
+                || w.get_reminder_alert_visible()
+                || w.get_adhan_active()
+                || !w.get_meeting_finished().is_empty()
+                || w.get_greeting_speech_visible()
+                || w.get_greeting_inline_visible();
+
+            if message_visible {
+                let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
+                    GREETING_INLINE
+                } else {
+                    COLLAPSED
+                };
+                // Saat pesan muncul, perluas native region lebih dulu agar frame awal animasi tidak terpotong.
+                if !window_needs_resize(&w, size) {
+                    shell.place(&w, size);
+                }
             } else {
-                COLLAPSED
-            };
-            // Saat transisi hub -> compact, native window sengaja tetap besar selama 330 ms.
-            // Jangan memotongnya lebih awal; shrink_window_synced akan memasang region setelah animasi.
-            if !window_needs_resize(&w, size) {
-                shell.place(&w, size);
+                // Saat pesan ditutup, tahan native region selama animasi keluar (360 ms).
+                // Setelah itu hitung ulang state terbaru agar timer lama tidak memotong pesan baru.
+                let weak_later = weak.clone();
+                let shell_later = shell.clone();
+                Timer::single_shot(Duration::from_millis(400), move || {
+                    let Some(w) = weak_later.upgrade() else { return };
+                    if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() {
+                        return;
+                    }
+                    let still_has_message = w.get_nudge_visible()
+                        || w.get_reminder_alert_visible()
+                        || w.get_adhan_active()
+                        || !w.get_meeting_finished().is_empty()
+                        || w.get_greeting_speech_visible()
+                        || w.get_greeting_inline_visible();
+                    if still_has_message {
+                        return;
+                    }
+                    let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
+                        GREETING_INLINE
+                    } else {
+                        COLLAPSED
+                    };
+                    if !window_needs_resize(&w, size) {
+                        shell_later.place(&w, size);
+                    }
+                });
             }
         });
     }
