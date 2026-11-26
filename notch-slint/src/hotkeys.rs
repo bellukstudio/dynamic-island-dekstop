@@ -17,6 +17,8 @@ pub enum Action {
     OpenTransfer,
     OpenAndroid,
     ShortcutRegistrationFailed,
+    BrightnessUp,
+    BrightnessDown,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -66,6 +68,12 @@ fn virtual_key(name: &str) -> Option<u32> {
         "ESC" | "ESCAPE" => Some(0x1B),
         "TAB" => Some(0x09),
         "BACKSPACE" => Some(0x08),
+        "UP" | "ARROWUP" => Some(0x26),
+        "DOWN" | "ARROWDOWN" => Some(0x28),
+        "LEFT" | "ARROWLEFT" => Some(0x25),
+        "RIGHT" | "ARROWRIGHT" => Some(0x27),
+        "PAGEUP" | "PAGE UP" => Some(0x21),
+        "PAGEDOWN" | "PAGE DOWN" => Some(0x22),
         "F1" => Some(0x70),
         "F2" => Some(0x71),
         "F3" => Some(0x72),
@@ -94,6 +102,8 @@ pub fn validate_shortcuts(config: &Shortcuts) -> Result<(), String> {
         ("Convert", "Ctrl+Alt+Shift+C"),
         ("File Transfer", "Ctrl+Alt+Shift+S"),
         ("Android", "Ctrl+Alt+Shift+A"),
+        ("Brightness naik", "Ctrl+Alt+Shift+Up"),
+        ("Brightness turun", "Ctrl+Alt+Shift+Down"),
     ];
     let mut used = std::collections::HashMap::<Binding, &str>::new();
     for (label, combo) in entries {
@@ -144,6 +154,8 @@ pub fn start(config: &Shortcuts) -> (Receiver<Action>, mpsc::Sender<Shortcuts>, 
                         (7i32, "Ctrl+Alt+Shift+C".to_string(), Action::OpenConvert),
                         (8i32, "Ctrl+Alt+Shift+S".to_string(), Action::OpenTransfer),
                         (9i32, "Ctrl+Alt+Shift+A".to_string(), Action::OpenAndroid),
+                        (10i32, "Ctrl+Alt+Shift+Up".to_string(), Action::BrightnessUp),
+                        (11i32, "Ctrl+Alt+Shift+Down".to_string(), Action::BrightnessDown),
                     ];
                     let mut used = std::collections::HashSet::new();
                     for (id, combo, action) in entries {
