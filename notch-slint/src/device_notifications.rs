@@ -54,7 +54,7 @@ fn make_notice(kind: &str, name: &str, connected: bool, extra: Option<&str>) -> 
 }
 
 /// Display queued device events on the UI thread. Higher-priority surfaces keep their space.
-pub fn start(window: Weak<NotchWindow>) -> Timer {
+pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
     let queue: NoticeQueue = Arc::new(Mutex::new(VecDeque::new()));
 
     #[cfg(windows)]
@@ -68,6 +68,7 @@ pub fn start(window: Weak<NotchWindow>) -> Timer {
         let weak = window.clone();
         let pending = queue.clone();
         let shown_at = shown_at.clone();
+        let shell = shell.clone();
         timer.start(TimerMode::Repeated, Duration::from_millis(80), move || {
             let Some(w) = weak.upgrade() else { return };
 
@@ -82,11 +83,23 @@ pub fn start(window: Weak<NotchWindow>) -> Timer {
                 || !w.get_meeting_finished().is_empty();
 
             if w.get_device_notice_visible() {
-                // Give each card a readable hold, then let the next queued event enter.
+                // Tahan kartu minimal 3,2 detik, lalu beri 400 ms untuk animasi keluar
+                // sebelum native window kembali mengecil ke ukuran notch biasa.
                 if let Some(started) = shown_at.get() {
                     if started.elapsed() >= Duration::from_millis(3_200) || higher_priority {
                         w.set_device_notice_visible(false);
+                        w.set_device_notice_pulse(false);
                         shown_at.set(None);
+
+                        let weak_hide = weak.clone();
+                        let shell_hide = shell.clone();
+                        Timer::single_shot(Duration::from_millis(400), move || {
+                            let Some(w) = weak_hide.upgrade() else { return };
+                            if w.get_device_notice_visible() || w.get_geometry_hold() {
+                                return;
+                            }
+                            shrink_window_synced(weak_hide.clone(), shell_hide.clone());
+                        });
                     }
                 }
                 return;
@@ -99,25 +112,66 @@ pub fn start(window: Weak<NotchWindow>) -> Timer {
             let next = pending.lock().unwrap_or_else(|e| e.into_inner()).pop_front();
             let Some(notice) = next else { return };
 
-            w.set_device_notice_kind(notice.kind.into());
-            w.set_device_notice_name(notice.name.into());
-            w.set_device_notice_detail(notice.detail.into());
-            w.set_device_notice_connected(notice.connected);
-            let generation = w.get_device_notice_generation().wrapping_add(1);
-            w.set_device_notice_generation(generation);
-            w.set_device_notice_pulse(true);
-            w.set_device_notice_visible(true);
-            shown_at.set(Some(Instant::now()));
+            // Kartu atas 340x74 membutuhkan native window 360x140 termasuk telinga.
+            // Sembunyikan notch sebentar saat ukuran native harus berubah agar tidak muncul
+            // frame lama yang terpotong; dock bawah/samping tetap memakai SpeechBubble Tauri.
+            let needs_device_window = w.get_dock() < 2
+                && window_needs_resize(&w, COLLAPSED_DEVICE);
 
-            // Satu gelombang ikon saat masuk, kemudian kembali tenang selama kartu ditahan.
-            let weak_pulse = weak.clone();
-            Timer::single_shot(Duration::from_millis(720), move || {
-                if let Some(w) = weak_pulse.upgrade() {
-                    if w.get_device_notice_generation() == generation {
-                        w.set_device_notice_pulse(false);
+            let show = move |w: &NotchWindow, notice: &DeviceNotice, shown_at: &Rc<Cell<Option<Instant>>>| {
+                w.set_device_notice_kind(notice.kind.clone().into());
+                w.set_device_notice_name(notice.name.clone().into());
+                w.set_device_notice_detail(notice.detail.clone().into());
+                w.set_device_notice_connected(notice.connected);
+                let generation = w.get_device_notice_generation().wrapping_add(1);
+                w.set_device_notice_generation(generation);
+                w.set_device_notice_pulse(true);
+                w.set_device_notice_visible(true);
+                shown_at.set(Some(Instant::now()));
+
+                let weak_pulse = w.as_weak();
+                Timer::single_shot(Duration::from_millis(720), move || {
+                    if let Some(w) = weak_pulse.upgrade() {
+                        if w.get_device_notice_generation() == generation {
+                            w.set_device_notice_pulse(false);
+                        }
                     }
-                }
-            });
+                });
+            };
+
+            if needs_device_window {
+                w.set_geometry_hold(true);
+                let weak_show = weak.clone();
+                let pending_show = pending.clone();
+                let shown_at_show = shown_at.clone();
+                let shell_show = shell.clone();
+                Timer::single_shot(Duration::from_millis(40), move || {
+                    let Some(w) = weak_show.upgrade() else { return };
+                    let blocked = w.get_expanded()
+                        || w.get_hud_visible()
+                        || w.get_adhan_active()
+                        || w.get_nudge_visible()
+                        || w.get_reminder_alert_visible()
+                        || w.get_greeting_inline_visible()
+                        || w.get_greeting_speech_visible()
+                        || w.get_meeting_active()
+                        || !w.get_meeting_finished().is_empty();
+                    if blocked {
+                        w.set_geometry_hold(false);
+                        enqueue(&pending_show, notice);
+                        return;
+                    }
+
+                    platform::wait_vsync();
+                    show(&w, &notice, &shown_at_show);
+                    shell_show.place(&w, COLLAPSED);
+                    w.set_geometry_hold(false);
+                });
+            } else {
+                show(&w, &notice, &shown_at);
+                // Refresh the native region for side/bottom SpeechBubble and for an already-sized top card.
+                shell.place(&w, COLLAPSED);
+            }
         });
     }
     timer
@@ -310,7 +364,8 @@ while ($true) {
         if ([string]::IsNullOrWhiteSpace($ssid)) { $ssid = [string]$wifi.Name }
         'W|1|' + $ssid
       } else {
-        'W|0|Wi-Fi'
+        # Adaptor aktif tetapi profil belum tersedia: tampilkan nama adaptor, jangan salah tandai putus.
+        'W|1|' + ([string]$wifi.Name).Replace('|', '/')
       }
     } else {
       'W|0|Wi-Fi'
