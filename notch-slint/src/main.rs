@@ -109,6 +109,83 @@ fn liquid_motion_anchor(window: &NotchWindow) -> (i32, i32) {
     }
 }
 
+/// Return a Conversation Moment only for a media transition that happened after
+/// the first native media snapshot. Existing playback at application startup is baseline.
+fn conversation_media_transition(
+    initialized: &mut bool,
+    last_playing: &mut bool,
+    last_title: &mut String,
+    playing: bool,
+    title: &str,
+    on_play: bool,
+    on_track_change: bool,
+    on_pause: bool,
+) -> Option<(&'static str, &'static str)> {
+    if !*initialized {
+        *last_playing = playing;
+        *last_title = if !title.is_empty() && title != "Tidak ada media" {
+            title.to_owned()
+        } else {
+            String::new()
+        };
+        *initialized = true;
+        return None;
+    }
+
+    let event = if playing && !*last_playing && on_play {
+        Some(("Musik mulai diputar. Semoga playlist-nya bikin semangat! 🎵", "Conversation Moments · musik dimulai"))
+    } else if playing && !title.is_empty() && title != "Tidak ada media"
+        && title != *last_title && on_track_change
+    {
+        Some(("Lagu baru, suasana baru. 🎶", "Conversation Moments · lagu berganti"))
+    } else if !playing && *last_playing && on_pause {
+        Some(("Musik berhenti dulu. Mau istirahat sebentar?", "Conversation Moments · media dijeda"))
+    } else {
+        None
+    };
+
+    *last_playing = playing;
+    if !title.is_empty() && title != "Tidak ada media" {
+        *last_title = title.to_owned();
+    } else if !playing {
+        *last_title = String::new();
+    }
+    event
+}
+
+#[cfg(test)]
+mod conversation_media_tests {
+    use super::conversation_media_transition;
+
+    #[test]
+    fn startup_playback_is_only_a_baseline() {
+        let (mut initialized, mut playing, mut title) = (false, false, String::new());
+        let event = conversation_media_transition(
+            &mut initialized, &mut playing, &mut title,
+            true, "Song already playing", true, true, true,
+        );
+        assert!(event.is_none());
+        assert!(initialized && playing);
+        assert_eq!(title, "Song already playing");
+    }
+
+    #[test]
+    fn playback_started_after_baseline_emits_event() {
+        let (mut initialized, mut playing, mut title) = (false, false, String::new());
+        let first = conversation_media_transition(
+            &mut initialized, &mut playing, &mut title,
+            false, "Tidak ada media", true, true, true,
+        );
+        assert!(first.is_none());
+
+        let next = conversation_media_transition(
+            &mut initialized, &mut playing, &mut title,
+            true, "New song", true, true, true,
+        );
+        assert_eq!(next.map(|event| event.0), Some("Musik mulai diputar. Semoga playlist-nya bikin semangat! 🎵"));
+    }
+}
+
 fn main() -> Result<(), slint::PlatformError> {
     if let Some(resource_dir) = std::env::current_exe().ok().and_then(|path| path.parent().map(std::path::Path::to_path_buf)) {
         notch_tools::pdf::set_resource_dir(resource_dir.clone());
@@ -2445,6 +2522,8 @@ fn main() -> Result<(), slint::PlatformError> {
         // Momen yang terjadi ketika hub/kartu/Adzan sedang aktif menunggu sebentar,
         // mengikuti perilaku antrean di implementasi Tauri.
         let mut pending_event: Option<(&'static str, &'static str, Instant)> = None;
+        // Inisialisasi event media menunggu polling media pertama selesai.
+        let mut media_baseline_initialized = false;
         let state = Rc::new(RefCell::new((
             false,
             String::new(),
@@ -2468,12 +2547,19 @@ fn main() -> Result<(), slint::PlatformError> {
             let (last_playing, last_title, last_message, last_move, was_low_battery, was_charging, last_weather, was_rain_soon) = &mut *state;
             let mut event: Option<(&'static str, &'static str)> = None;
 
-            if playing && !*last_playing && cfg.on_play {
-                event = Some(("Musik mulai diputar. Semoga playlist-nya bikin semangat! 🎵", "Conversation Moments · musik dimulai"));
-            } else if playing && !title.is_empty() && title != *last_title && cfg.on_track_change {
-                event = Some(("Lagu baru, suasana baru. 🎶", "Conversation Moments · lagu berganti"));
-            } else if !playing && *last_playing && cfg.on_pause {
-                event = Some(("Musik berhenti dulu. Mau istirahat sebentar?", "Conversation Moments · media dijeda"));
+            // Snapshot pertama dari Windows Media Session menjadi baseline, bukan event "play".
+            // media-ready baru aktif setelah media.rs mengirim sampel awal ke event loop Slint.
+            if w.get_media_ready() {
+                event = conversation_media_transition(
+                    &mut media_baseline_initialized,
+                    last_playing,
+                    last_title,
+                    playing,
+                    &title,
+                    cfg.on_play,
+                    cfg.on_track_change,
+                    cfg.on_pause,
+                );
             }
 
             if pointer_move > *last_move + 0.001 {
@@ -2486,12 +2572,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 *last_move = pointer_move;
             }
 
-            *last_playing = playing;
-            if !title.is_empty() && title != "Tidak ada media" {
-                *last_title = title;
-            } else if !playing {
-                *last_title = String::new();
-            }
+            // Status media diperbarui di conversation_media_transition setelah baseline siap.
 
             // Perubahan kondisi dan prakiraan hujan hanya dinilai setelah data cuaca valid tersedia.
             if !weather_condition.is_empty()
