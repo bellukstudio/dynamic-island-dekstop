@@ -348,12 +348,10 @@ fn main() -> Result<(), slint::PlatformError> {
             let message_visible = overlay_visible || w.get_greeting_animation_active();
 
             if message_visible {
+                // Shell::geometry memilih COLLAPSED_DEVICE / COLLAPSED_HUD dari state aktif,
+                // tetapi tetap menerima COLLAPSED agar skala UI dan hit-test dihitung konsisten.
                 let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                     GREETING_INLINE
-                } else if w.get_device_notice_visible() && w.get_dock() < 2 {
-                    COLLAPSED_DEVICE
-                } else if w.get_hud_visible() && w.get_dock() < 2 {
-                    COLLAPSED_HUD
                 } else {
                     COLLAPSED
                 };
@@ -386,10 +384,6 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                         GREETING_INLINE
-                    } else if w.get_device_notice_visible() && w.get_dock() < 2 {
-                        COLLAPSED_DEVICE
-                    } else if w.get_hud_visible() && w.get_dock() < 2 {
-                        COLLAPSED_HUD
                     } else {
                         COLLAPSED
                     };
