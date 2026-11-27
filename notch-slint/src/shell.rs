@@ -44,7 +44,13 @@ impl Shell {
         // Area hit-test harus mengikuti bentuk yang terlihat. Region persegi penuh membuat jendela
         // transparan tetap menangkap klik editor/aplikasi di bawahnya (terutama area kosong 300x140).
         // Untuk dock atas/melayang, batasi region ke badan notch + telinga; hub yang terbuka tetap penuh.
-        let region = if (requested_size == COLLAPSED || requested_size == GREETING_INLINE) && matches!(dock, Dock::Top | Dock::Floating) {
+        let region = if (
+            requested_size == COLLAPSED
+                || requested_size == GREETING_INLINE
+                || requested_size == COLLAPSED_HUD
+                || requested_size == COLLAPSED_DEVICE
+                || requested_size == COLLAPSED_CLOCK
+        ) && matches!(dock, Dock::Top | Dock::Floating) {
             let sf = win.window().scale_factor() * win.get_ui_scale().clamp(0.5, 1.5);
             // show_greeting_inline memasang geometri sebelum flag greeting diubah.
             let greeting = requested_size == GREETING_INLINE || win.get_greeting_inline_visible();
