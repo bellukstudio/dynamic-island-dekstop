@@ -234,6 +234,8 @@ mod platform {
      w.set_media_title(if snapshot.active{snapshot.title.clone().into()}else{"Tidak ada media".into()});
      w.set_media_artist(if snapshot.active{snapshot.artist.clone().into()}else{"Putar musik untuk memulai".into()});
      w.set_media_playing(snapshot.playing);
+     // Beri tahu Conversation Moments bahwa sampel awal sudah tersedia.
+     w.set_media_ready(true);
      w.set_media_position(snapshot.position as f32);
      w.set_media_length(snapshot.length as f32);
      w.set_media_progress(if snapshot.length>0.0{(snapshot.position/snapshot.length)as f32}else{0.0});
@@ -404,7 +406,7 @@ mod platform {
 }
 
 #[cfg(not(windows))]
-mod platform{pub fn poll(_:slint::Weak<crate::NotchWindow>,_:slint::Color,_:slint::Color){}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
+mod platform{pub fn poll(w:slint::Weak<crate::NotchWindow>,_:slint::Color,_:slint::Color){let _=w.upgrade_in_event_loop(|window|window.set_media_ready(true));}pub fn control(_: &str){}pub fn seek(_:f64){}pub fn pause_all()->usize{0}pub fn resume_paused(){}pub fn play_adhan(_:slint::Weak<crate::NotchWindow>,_:String){} pub fn stop_adhan(){} pub fn pause_adhan(_:bool){}}
 pub fn start(w:Weak<NotchWindow>,fallback_accent:slint::Color,fallback_on_accent:slint::Color){platform::poll(w,fallback_accent,fallback_on_accent);}
 pub fn control(a:&str){platform::control(a);}
 pub fn seek(s:f64){platform::seek(s);}
