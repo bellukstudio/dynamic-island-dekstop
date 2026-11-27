@@ -274,22 +274,28 @@ fn main() -> Result<(), slint::PlatformError> {
         // yang masih muncul seketika atau menutup ke arah berbeda.
         let previous_overlay_visible = Rc::new(Cell::new(false));
         let previous_overlay = previous_overlay_visible.clone();
+        let previous_overlay_renderable = Rc::new(Cell::new(false));
+        let previous_renderable = previous_overlay_renderable.clone();
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
             let can_render_overlay = !w.get_expanded() && !w.get_dragging() && !w.get_geometry_hold();
-            let overlay_visible = can_render_overlay && (
-                w.get_nudge_visible()
-                    || w.get_reminder_alert_visible()
-                    || w.get_adhan_active()
-                    || !w.get_meeting_finished().is_empty()
-                    || w.get_greeting_speech_visible()
-                    || w.get_greeting_inline_visible()
-                    || w.get_hud_visible()
-                    || w.get_device_notice_visible()
-            );
-            let was_visible = previous_overlay.replace(overlay_visible);
+            let overlay_event_visible = w.get_nudge_visible()
+                || w.get_reminder_alert_visible()
+                || w.get_adhan_active()
+                || !w.get_meeting_finished().is_empty()
+                || w.get_greeting_speech_visible()
+                || w.get_greeting_inline_visible()
+                || w.get_hud_visible()
+                || w.get_device_notice_visible();
+            let overlay_visible = can_render_overlay && overlay_event_visible;
+            let was_visible = previous_overlay.replace(overlay_event_visible);
+            let was_renderable = previous_renderable.replace(overlay_visible);
+            // Mulai/restart hanya ketika pesan hadir dan panel kembali bisa dirender.
+            // geometry-hold atau hub terbuka tidak dianggap sebagai event pesan selesai.
+            let should_enter = overlay_visible && (!was_visible || !was_renderable);
+            let should_exit = !overlay_event_visible && was_visible;
 
-            if overlay_visible && !was_visible {
+            if should_enter {
                 w.set_message_animation_active(true);
                 w.set_message_entering(true);
                 w.set_message_expanding(false);
@@ -317,7 +323,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         }
                     }
                 });
-            } else if !overlay_visible && was_visible {
+            } else if should_exit {
                 w.set_message_entering(false);
                 w.set_message_expanding(false);
                 w.set_message_exiting(true);
