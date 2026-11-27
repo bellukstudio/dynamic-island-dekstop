@@ -270,19 +270,60 @@ fn main() -> Result<(), slint::PlatformError> {
     {
         let weak = win.as_weak();
         let shell = shell.clone();
+        // Transisi semua pesan memakai satu state bersama agar tidak ada jalur notifikasi
+        // yang masih muncul seketika atau menutup ke arah berbeda.
+        let previous_overlay_visible = Rc::new(Cell::new(false));
+        let previous_overlay = previous_overlay_visible.clone();
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
             if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() { return; }
 
-            let message_visible = w.get_nudge_visible()
+            let overlay_visible = w.get_nudge_visible()
                 || w.get_reminder_alert_visible()
                 || w.get_adhan_active()
                 || !w.get_meeting_finished().is_empty()
                 || w.get_greeting_speech_visible()
                 || w.get_greeting_inline_visible()
-                || w.get_greeting_animation_active()
                 || w.get_hud_visible()
                 || w.get_device_notice_visible();
+            let was_visible = previous_overlay.replace(overlay_visible);
+
+            if overlay_visible && !was_visible {
+                w.set_message_animation_active(true);
+                w.set_message_entering(true);
+                w.set_message_exiting(false);
+                let weak_enter = weak.clone();
+                Timer::single_shot(Duration::from_millis(16), move || {
+                    if let Some(w) = weak_enter.upgrade() {
+                        if w.get_message_animation_active() && !w.get_message_exiting() {
+                            w.set_message_entering(false);
+                        }
+                    }
+                });
+            } else if !overlay_visible && was_visible {
+                w.set_message_entering(false);
+                w.set_message_exiting(true);
+                let weak_exit = weak.clone();
+                Timer::single_shot(Duration::from_millis(360), move || {
+                    if let Some(w) = weak_exit.upgrade() {
+                        let still_visible = w.get_nudge_visible()
+                            || w.get_reminder_alert_visible()
+                            || w.get_adhan_active()
+                            || !w.get_meeting_finished().is_empty()
+                            || w.get_greeting_speech_visible()
+                            || w.get_greeting_inline_visible()
+                            || w.get_hud_visible()
+                            || w.get_device_notice_visible();
+                        if !still_visible && w.get_message_exiting() {
+                            w.set_message_animation_active(false);
+                            w.set_message_exiting(false);
+                        }
+                    }
+                });
+            }
+
+            // Greeting inline juga menahan ukuran jendela selama transisi miliknya sendiri.
+            let message_visible = overlay_visible || w.get_greeting_animation_active();
 
             if message_visible {
                 let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
@@ -311,6 +352,7 @@ fn main() -> Result<(), slint::PlatformError> {
                         || w.get_greeting_speech_visible()
                         || w.get_greeting_inline_visible()
                         || w.get_greeting_animation_active()
+                        || w.get_message_animation_active()
                         || w.get_hud_visible()
                         || w.get_device_notice_visible();
                     if still_has_message {
