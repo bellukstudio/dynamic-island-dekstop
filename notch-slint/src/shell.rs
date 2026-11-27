@@ -63,7 +63,8 @@ impl Shell {
             // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
             let compact_nudge_media = nudge_inline && win.get_media_playing() && win.get_nudge_visible();
             let body_w = if device_notice { 340.0 } else if hud { 300.0 } else if greeting { 385.0 } else if adhan { 220.0 } else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
-            let body_h = if device_notice { 74.0 } else if hud { 52.0 } else if greeting { 75.0 } else if adhan || meeting_notice { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
+            let greeting_exit = greeting && win.get_greeting_animation_active() && win.get_greeting_exiting();
+            let body_h = if device_notice { 74.0 } else if hud { 52.0 } else if greeting { if greeting_exit { 93.0 } else { 75.0 } } else if adhan || meeting_notice { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
             // Telinga atas menjulur 10 px di kiri dan kanan badan pill.
             // Masukkan keduanya ke native hit-test region agar hover tidak putus di area telinga.
             let ear_extension = if dock == Dock::Top { 20.0 } else { 0.0 };
@@ -98,6 +99,7 @@ impl Shell {
                     || win.get_adhan_active()
                     || win.get_meeting_finished() != ""
                     || win.get_greeting_speech_visible()
+                    || win.get_greeting_animation_active()
                     || win.get_hud_visible()
                     || win.get_device_notice_visible());
             if bubble_visible {
@@ -312,14 +314,49 @@ pub(crate) fn shrink_window_synced(weak: slint::Weak<NotchWindow>, shell: Rc<She
 /// saat notch masih tampak, frame lama muncul di koordinat baru sebagai notch ganda ("hantu"), sama seperti pada
 /// `expand()`. Karena itu notch disembunyikan dulu, beberapa frame diberi waktu sampai ke layar, jendela dibesarkan
 /// tepat setelah vsync, lalu kartu ditampilkan di jendela yang sudah berukuran benar.
+pub(crate) fn begin_greeting_entry(win: &NotchWindow) {
+    win.set_greeting_animation_active(true);
+    win.set_greeting_entering(true);
+    win.set_greeting_exiting(false);
+}
+
+/// Lepaskan posisi awal setelah satu frame agar greeting benar-benar turun dari atas.
+pub(crate) fn finish_greeting_entry(weak: slint::Weak<NotchWindow>) {
+    Timer::single_shot(Duration::from_millis(16), move || {
+        if let Some(win) = weak.upgrade() {
+            if win.get_greeting_animation_active() && !win.get_greeting_exiting() {
+                win.set_greeting_entering(false);
+            }
+        }
+    });
+}
+
+/// Pertahankan layer greeting selama animasi keluar bergerak ke bawah.
+pub(crate) fn begin_greeting_exit(win: &NotchWindow, weak: slint::Weak<NotchWindow>) {
+    win.set_greeting_entering(false);
+    win.set_greeting_exiting(true);
+    Timer::single_shot(Duration::from_millis(360), move || {
+        if let Some(win) = weak.upgrade() {
+            if !win.get_greeting_inline_visible() && !win.get_greeting_speech_visible()
+                && win.get_greeting_exiting()
+            {
+                win.set_greeting_animation_active(false);
+                win.set_greeting_exiting(false);
+            }
+        }
+    });
+}
+
 pub(crate) fn show_greeting_inline(weak: slint::Weak<NotchWindow>, shell: Rc<Shell>) {
     let Some(w) = weak.upgrade() else { return };
     if w.get_expanded() {
         return;
     }
+    begin_greeting_entry(&w);
     if !window_needs_resize(&w, GREETING_INLINE) {
         shell.place(&w, GREETING_INLINE);
         w.set_greeting_inline_visible(true);
+        finish_greeting_entry(w.as_weak());
         return;
     }
     w.set_geometry_hold(true);
@@ -335,6 +372,7 @@ pub(crate) fn show_greeting_inline(weak: slint::Weak<NotchWindow>, shell: Rc<She
         shell.place(&w, GREETING_INLINE);
         w.set_greeting_inline_visible(true);
         w.set_geometry_hold(false);
+        finish_greeting_entry(w.as_weak());
         let weak = w.as_weak();
         Timer::single_shot(Duration::from_millis(200), move || {
             if let Some(w) = weak.upgrade() {
