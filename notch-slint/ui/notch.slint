@@ -6728,8 +6728,10 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Greeting inline turun dari atas ketika muncul dan bergerak ke bawah ketika ditutup.
+            // Greeting inline: reveal tinggi terlebih dahulu, lalu lebar; keluar dengan gerak turun.
             Rectangle {
+                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 visible: (root.greeting-inline-visible && !root.expanded)
                     || self.opacity > 0.01 || (root.greeting-animation-active && root.greeting-exiting);
                 opacity: root.greeting-inline-visible && !root.expanded
@@ -6843,6 +6845,8 @@ export component NotchWindow inherits Window {
             Rectangle {
                 visible: root.meeting-inline || self.width > 0px;
                 property <bool> meeting-message-shown: root.meeting-inline;
+                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 x: (parent.width - self.width) / 2;
                 width: self.meeting-message-shown
                     ? (root.message-animation-active && root.message-entering && !root.message-expanding ? 26px : 130px)
@@ -6883,6 +6887,8 @@ export component NotchWindow inherits Window {
 
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
             Rectangle {
+                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging
                     && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
@@ -6897,6 +6903,8 @@ export component NotchWindow inherits Window {
             }
 
             AdhanOverlay {
+                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.adhan-active && !root.expanded && !root.dragging
                     && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
@@ -7191,9 +7199,11 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Pesan (Conversation Moments, pesan diam, alert, dan pengingat) turun dari atas
-            // sambil badan notch melebar; ketika selesai, panel bergerak ke bawah dan memudar.
+            // Pesan (Conversation Moments, pesan diam, alert, dan pengingat):
+            // tinggi terbuka dahulu, lebar menyusul; saat ditutup bergerak turun.
             Rectangle {
+                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 visible: root.nudge-inline || self.opacity > 0.01
                     || (root.message-animation-active && root.message-exiting && root.dock < 2);
                 opacity: root.nudge-inline
@@ -7269,6 +7279,8 @@ export component NotchWindow inherits Window {
         // Tetap terpasang agar animasi masuk/keluar berjalan; conditional creation
         // sebelumnya membuat panel langsung muncul tanpa transisi opacity.
         DeviceNoticePanel {
+            y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
             visible: root.device-notice-inline || self.opacity > 0.01;
             opacity: root.device-notice-inline
                 && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1.0 : 0.0;
