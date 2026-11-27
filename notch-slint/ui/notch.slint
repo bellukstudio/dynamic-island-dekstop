@@ -3007,7 +3007,7 @@ component SpeechBubble inherits Rectangle {
     in property <bool> greeting-exiting: false;
     in property <length> slide-y: 0px;
     y: root.slide-y;
-    animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+    animate y { duration: root.greeting && root.greeting-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
     in property <bool> hud: false;
     in property <string> hud-kind: "volume";
     in property <int> hud-value: 0;
@@ -6690,7 +6690,7 @@ export component NotchWindow inherits Window {
                     ? (root.greeting-entering ? -12px * root.ui-scale : (root.greeting-exiting ? 12px * root.ui-scale : 0px))
                     : 0px;
                 y: self.greeting-slide-y;
-                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+                animate y { duration: root.greeting-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 visible: (root.greeting-inline-visible && !root.expanded)
                     || self.opacity > 0.01 || (root.greeting-animation-active && root.greeting-exiting);
                 opacity: root.greeting-inline-visible && !root.expanded && !root.greeting-entering ? 1 : 0;
