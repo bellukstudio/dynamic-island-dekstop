@@ -6686,7 +6686,7 @@ export component NotchWindow inherits Window {
             // Greeting inline turun dari atas ketika muncul dan bergerak ke bawah ketika ditutup.
             Rectangle {
                 property <length> greeting-slide-y: root.greeting-animation-active
-                    ? (root.greeting-entering ? -18px : (root.greeting-exiting ? 18px : 0px))
+                    ? (root.greeting-entering ? -12px * root.ui-scale : (root.greeting-exiting ? 12px * root.ui-scale : 0px))
                     : 0px;
                 y: self.greeting-slide-y;
                 animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
