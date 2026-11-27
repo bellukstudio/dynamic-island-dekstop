@@ -3004,6 +3004,7 @@ component SpeechBubble inherits Rectangle {
     in property <bool> shown: false;
     in property <bool> motion-active: false;
     in property <bool> motion-entering: false;
+    in property <bool> motion-expanding: false;
     in property <bool> motion-exiting: false;
     in property <length> slide-y: 0px;
     y: root.slide-y;
@@ -3026,24 +3027,34 @@ component SpeechBubble inherits Rectangle {
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     out property <length> target-height: content.content-height;
-    width: root.shown ? root.target-width : 0px;
-    // Lebar melebar keluar dari sisi notch; tinggi tumbuh dari sisi atas ke bawah.
-    // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
+    // Fase 1: bidang tipis dengan tinggi penuh (tumbuh dari atas ke bawah).
+    // Fase 2: lebarkan bidang ke dua sisi setelah tinggi selesai.
+    width: root.shown
+        ? (root.motion-active && root.motion-entering && !root.motion-expanding ? 26px : root.target-width)
+        : 0px;
     height: root.shown ? root.target-height : 0px;
     visible: root.shown || self.width > 0px || self.height > 0px;
-    opacity: root.shown ? (root.motion-active && root.motion-entering ? 0 : 1) : 0;
+    opacity: root.shown ? 1 : 0;
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
-    animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-    animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-    animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate width {
+        duration: root.motion-active && root.motion-entering && !root.motion-expanding ? 0ms : 260ms;
+        easing: cubic-bezier(0.42, 0, 0.58, 1);
+    }
+    animate height {
+        duration: root.motion-active && root.motion-entering ? 180ms : 260ms;
+        easing: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    animate opacity { duration: 160ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
     animate border-radius { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
         out property <length> content-height: root.hud ? 56px : ((root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px));
+        opacity: !root.motion-active || !root.motion-entering || root.motion-expanding ? 1 : 0;
+        animate opacity { duration: 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
         width: parent.width;
         height: parent.height;
         clip: true;
@@ -6223,7 +6234,9 @@ export component NotchWindow inherits Window {
     in property <bool> greeting-speech-visible: false;
     // Gerakan bersama untuk seluruh panel pesan: Conversation Moments, Nudge, reminder, HUD, dan greeting.
     in property <bool> message-animation-active: false;
+    // Fase 1: buka panel dari atas ke bawah. Fase 2: lebarkan ke kiri dan kanan.
     in property <bool> message-entering: false;
+    in property <bool> message-expanding: false;
     in property <bool> message-exiting: false;
     in property <bool> greeting-animation-active: false;
     in property <bool> greeting-entering: false;
@@ -7339,15 +7352,15 @@ export component NotchWindow inherits Window {
         // State gerak dipakai bersama oleh semua pesan, bukan hanya greeting.
         motion-active: root.message-animation-active;
         motion-entering: root.message-entering;
+        motion-expanding: root.message-expanding;
         motion-exiting: root.message-exiting;
         // Kunci sisi atas pada posisi akhir. Tinggi bertambah ke bawah ketika panel melebar,
         // bukan bergerak ke atas dari titik sambungan dengan notch.
-        slide-y: (root.dock >= 3
+        // Posisi atas tetap. Height animation membuka isi dari tepi atas ke bawah,
+        // kemudian width animation melebar simetris menjauhi notch.
+        slide-y: root.dock >= 3
             ? Math.max(0px, Math.min(root.height - self.target-height, pill.y + pill.height / 2 - self.target-height / 2))
-            : pill.y - 11px - self.target-height)
-            + (root.message-animation-active
-                ? (root.message-entering ? -18px : (root.message-exiting ? 18px : 0px))
-                : 0px);
+            : pill.y - 11px - self.target-height;
         side: root.dock >= 3;
         side-right: root.dock == 4;
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
