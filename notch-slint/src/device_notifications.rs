@@ -201,6 +201,16 @@ mod imp {
     use std::process::{Command, Stdio};
     use std::thread;
     use std::time::{Duration, Instant};
+    use windows::core::Interface;
+    use windows::Win32::Media::Audio::{
+        eRender, IDeviceTopology, IMMDeviceEnumerator, DEVICE_STATEMASK_ALL, MMDeviceEnumerator,
+    };
+    use windows::Win32::Media::KernelStreaming::{
+        IKsJackDescription, IKsJackDescription2, JACKDESC2_PRESENCE_DETECT_CAPABILITY,
+    };
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED,
+    };
     use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
 
     const NO_WINDOW: u32 = 0x0800_0000;
@@ -216,14 +226,6 @@ mod imp {
     fn parse_usb(lines: &[String]) -> HashMap<String, UsbDevice> {
         let mut groups: HashMap<String, (HashSet<String>, Vec<String>)> = HashMap::new();
         for line in lines {
-            if line.starts_with("JACK|") {
-                let name = line.trim_start_matches("JACK|").trim();
-                if !name.is_empty() {
-                    groups.entry(format!("jack:{name}"))
-                        .or_default().1.push(name.to_string());
-                }
-                continue;
-            }
             let mut parts = line.splitn(3, '|');
             let (Some(id), Some(class), Some(name)) = (parts.next(), parts.next(), parts.next()) else { continue };
             let Some(instance) = id.split('\\').nth(1) else { continue };
@@ -324,6 +326,54 @@ mod imp {
         }
     }
 
+    // Snapshot jack kabel dibaca melalui Core Audio, bukan dari nama endpoint registry.
+    // Hanya jack yang mengiklankan PRESENCE_DETECT_CAPABILITY yang boleh menghasilkan event.
+    fn stable_jack_snapshot(
+        previous: &mut Option<HashMap<String, bool>>,
+        candidate: &mut Option<HashMap<String, bool>>,
+        samples: &mut u8,
+        current: HashMap<String, bool>,
+        queue: &NoticeQueue,
+    ) {
+        if candidate.as_ref() == Some(&current) {
+            *samples = samples.saturating_add(1);
+        } else {
+            *candidate = Some(current.clone());
+            *samples = 1;
+        }
+
+        if *samples < 2 {
+            return;
+        }
+
+        if let Some(old) = previous.as_ref() {
+            for (key, connected) in &current {
+                let changed = old.get(key).is_some_and(|was| was != connected);
+                let newly_connected = !old.contains_key(key) && *connected;
+                if changed || newly_connected {
+                    enqueue(
+                        queue,
+                        make_notice("audio", "Earphone kabel", *connected, Some("Jack 3,5 mm")),
+                    );
+                }
+            }
+
+            // Beberapa driver menghapus endpoint dinamis ketika jack dicabut.
+            for (key, was_connected) in old {
+                if *was_connected && !current.contains_key(key) {
+                    enqueue(
+                        queue,
+                        make_notice("audio", "Earphone kabel", false, Some("Jack 3,5 mm")),
+                    );
+                }
+            }
+        }
+
+        *previous = Some(current);
+        *candidate = None;
+        *samples = 0;
+    }
+
     fn stable_wifi_snapshot(
         previous: &mut Option<(bool, String)>,
         candidate: &mut Option<(bool, String)>,
@@ -407,9 +457,6 @@ mod imp {
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$mm = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render'
-$conn = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
-$batt = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
 $i = 0
 while ($true) {
   # Scan USB and Bluetooth every cycle; snapshots are still debounced in Rust.
@@ -421,20 +468,6 @@ while ($true) {
       'D|' + $id + '|' + $class + '|' + $name
     }
 
-  # Jack audio 3.5 mm: gunakan endpoint render aktif dari registry Windows.
-  # Abaikan endpoint USB/Bluetooth agar tidak membuat notifikasi duplikat.
-  Get-ChildItem $mm | ForEach-Object {
-    $state = (Get-ItemProperty $_.PSPath).DeviceState
-    if ($state -eq 1) {
-      $properties = Get-ItemProperty ($_.PSPath + '\Properties')
-      $description = [string]$properties.'{a45c254e-df1c-4efd-8020-67d146a850e0},2'
-      $adapter = [string]$properties.'{b3f8fa53-0004-438e-9003-51a46e139bfc},6'
-      if (($description -match 'Headphone|Headset|Earphone|Earbud|Handset') -and
-          ($adapter -notmatch 'USB|Bluetooth|Hands-Free')) {
-        'D|JACK|' + $description + ' (' + $adapter + ')'
-      }
-    }
-  }
   'D|---'
 
   Get-PnpDevice -Class Bluetooth -PresentOnly | Where-Object {
@@ -572,6 +605,119 @@ while ($true) {
         });
     }
 
+    // Membaca status fisik jack lewat Core Audio Device Topology.
+    // Registry MMDevices hanya menyatakan endpoint ada/aktif; ia bukan sensor plug 3,5 mm.
+    unsafe fn activate_part_interface<T: Interface>(part: &IPart) -> Option<T> {
+        let mut raw = std::ptr::null_mut();
+        part.Activate(CLSCTX_ALL.0 as u32, &T::IID, Some(&mut raw)).ok()?;
+        if raw.is_null() {
+            return None;
+        }
+        Some(T::from_raw(raw))
+    }
+
+    fn scan_wired_headphone_jacks(
+        enumerator: &IMMDeviceEnumerator,
+    ) -> Option<HashMap<String, bool>> {
+        unsafe {
+            let endpoints = enumerator
+                .EnumAudioEndpoints(eRender, DEVICE_STATEMASK_ALL)
+                .ok()?;
+            let count = endpoints.GetCount().ok()?;
+            let mut result = HashMap::new();
+
+            for device_index in 0..count {
+                let Ok(device) = endpoints.Item(device_index) else { continue };
+                let Ok(endpoint_id) = device.GetId() else { continue };
+                let Ok(endpoint_id) = endpoint_id.to_string() else { continue };
+                let Ok(topology) = device.Activate::<IDeviceTopology>(CLSCTX_ALL, None) else { continue };
+                let Ok(connector_count) = topology.GetConnectorCount() else { continue };
+
+                for connector_index in 0..connector_count {
+                    let Ok(connector) = topology.GetConnector(connector_index) else { continue };
+                    let Ok(part) = connector.cast::<IPart>() else { continue };
+                    let Some(jack_description) = activate_part_interface::<IKsJackDescription>(&part) else {
+                        continue;
+                    };
+                    let Some(jack_description2) = activate_part_interface::<IKsJackDescription2>(&part) else {
+                        continue;
+                    };
+                    let Ok(jack_count) = jack_description2.GetJackCount() else { continue };
+
+                    for jack_index in 0..jack_count.min(16) {
+                        let Ok(capabilities) = jack_description2.GetJackDescription2(jack_index) else {
+                            continue;
+                        };
+                        if capabilities.JackCapabilities & JACKDESC2_PRESENCE_DETECT_CAPABILITY == 0 {
+                            continue;
+                        }
+
+                        let mut description = windows::Win32::Media::KernelStreaming::KSJACK_DESCRIPTION::default();
+                        if jack_description.GetJackDescription(jack_index, &mut description).is_err() {
+                            continue;
+                        }
+
+                        // eConnType3Point5mm = 1. Hindari memicu kartu untuk HDMI, USB audio,
+                        // konektor internal, atau endpoint Bluetooth.
+                        if description.ConnectionType.0 != 1 {
+                            continue;
+                        }
+
+                        let key = format!("{endpoint_id}|{connector_index}|{jack_index}");
+                        result.insert(key, description.IsConnected.0 != 0);
+                    }
+                }
+            }
+
+            Some(result)
+        }
+    }
+
+    fn start_jack_watcher(queue: NoticeQueue) {
+        thread::spawn(move || unsafe {
+            let initialized = CoInitializeEx(None, COINIT_MULTITHREADED);
+            if initialized.is_err() {
+                eprintln!("[DeviceNotice] COM initialization for audio jack watcher failed: {initialized:?}");
+                return;
+            }
+
+            let enumerator = match CoCreateInstance::<_, IMMDeviceEnumerator>(
+                &MMDeviceEnumerator,
+                None,
+                CLSCTX_ALL,
+            ) {
+                Ok(enumerator) => enumerator,
+                Err(error) => {
+                    eprintln!("[DeviceNotice] Core Audio enumerator unavailable: {error}");
+                    CoUninitialize();
+                    return;
+                }
+            };
+
+            let mut previous = None;
+            let mut candidate = None;
+            let mut candidate_samples = 0u8;
+
+            loop {
+                thread::sleep(Duration::from_millis(500));
+                if let Some(snapshot) = scan_wired_headphone_jacks(&enumerator) {
+                    stable_jack_snapshot(
+                        &mut previous,
+                        &mut candidate,
+                        &mut candidate_samples,
+                        snapshot,
+                        &queue,
+                    );
+                }
+                // Scan errors are ignored: a temporary Core Audio restart must not be
+                // interpreted as the user unplugging the earphone.
+            }
+
+            #[allow(unreachable_code)]
+            CoUninitialize();
+        });
+    }
+
     /// Return only authoritative AC-line states. Windows uses 255 when the state is unknown;
     /// treating that value as disconnected causes false connect/disconnect notifications.
     fn charger_state() -> Option<bool> {
@@ -630,6 +776,7 @@ while ($true) {
 
     pub fn start(queue: NoticeQueue) {
         start_pnp_watcher(queue.clone());
+        start_jack_watcher(queue.clone());
         start_charger_watcher(queue);
     }
 }
