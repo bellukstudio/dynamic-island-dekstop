@@ -350,6 +350,10 @@ fn main() -> Result<(), slint::PlatformError> {
             if message_visible {
                 let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                     GREETING_INLINE
+                } else if w.get_device_notice_visible() && w.get_dock() < 2 {
+                    COLLAPSED_DEVICE
+                } else if w.get_hud_visible() && w.get_dock() < 2 {
+                    COLLAPSED_HUD
                 } else {
                     COLLAPSED
                 };
@@ -382,6 +386,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                     let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                         GREETING_INLINE
+                    } else if w.get_device_notice_visible() && w.get_dock() < 2 {
+                        COLLAPSED_DEVICE
+                    } else if w.get_hud_visible() && w.get_dock() < 2 {
+                        COLLAPSED_HUD
                     } else {
                         COLLAPSED
                     };
