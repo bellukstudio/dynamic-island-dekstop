@@ -133,15 +133,8 @@ pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
                         w.set_device_notice_pulse(false);
                         shown_at.set(None);
 
-                        let weak_hide = weak.clone();
-                        let shell_hide = shell.clone();
-                        Timer::single_shot(Duration::from_millis(400), move || {
-                            let Some(w) = weak_hide.upgrade() else { return };
-                            if w.get_device_notice_visible() || w.get_geometry_hold() {
-                                return;
-                            }
-                            shrink_window_synced(weak_hide.clone(), shell_hide.clone());
-                        });
+                        // Pengendali pesan bersama di main.rs menahan region selama 400 ms
+                        // lalu memulihkan ukuran native. Hindari timer shrink kedua di sini.
                     }
                 }
                 return;
