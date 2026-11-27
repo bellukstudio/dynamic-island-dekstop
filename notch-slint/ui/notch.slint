@@ -6861,7 +6861,7 @@ export component NotchWindow inherits Window {
             Rectangle {
                 visible: root.meeting-inline || self.width > 0px;
                 property <bool> meeting-message-shown: root.meeting-inline;
-                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 x: (parent.width - self.width) / 2;
                 width: self.meeting-message-shown
@@ -6903,7 +6903,7 @@ export component NotchWindow inherits Window {
 
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
             Rectangle {
-                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging
@@ -6919,7 +6919,7 @@ export component NotchWindow inherits Window {
             }
 
             AdhanOverlay {
-                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.adhan-active && !root.expanded && !root.dragging
@@ -7217,7 +7217,7 @@ export component NotchWindow inherits Window {
             // Pesan (Conversation Moments, pesan diam, alert, dan pengingat):
             // tinggi terbuka dahulu, lebar menyusul; saat ditutup bergerak turun.
             Rectangle {
-                y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+                y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: root.nudge-inline || self.opacity > 0.01
                     || (root.message-animation-active && root.message-exiting && root.dock < 2);
@@ -7294,7 +7294,7 @@ export component NotchWindow inherits Window {
         // Tetap terpasang agar animasi masuk/keluar berjalan; conditional creation
         // sebelumnya membuat panel langsung muncul tanpa transisi opacity.
         DeviceNoticePanel {
-            y: root.message-animation-active && root.message-exiting ? 12px * root.ui-scale : 0px;
+            y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
             visible: root.device-notice-inline || self.opacity > 0.01;
             opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.device-notice-inline
