@@ -237,11 +237,6 @@ mod imp {
 
         let mut result = HashMap::new();
         for (key, (classes, names)) in groups {
-            if key.starts_with("jack:") {
-                let name = names.first().cloned().unwrap_or_else(|| "Headphone".into());
-                result.insert(key, UsbDevice { kind: "audio".into(), name });
-                continue;
-            }
             let all_names = names.join(" ").to_ascii_lowercase();
             if all_names.contains("hub") || classes.contains("bluetooth") {
                 continue;
@@ -673,6 +668,14 @@ while ($true) {
         }
     }
 
+    struct ComApartment;
+
+    impl Drop for ComApartment {
+        fn drop(&mut self) {
+            unsafe { CoUninitialize(); }
+        }
+    }
+
     fn start_jack_watcher(queue: NoticeQueue) {
         thread::spawn(move || unsafe {
             let initialized = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -680,6 +683,7 @@ while ($true) {
                 eprintln!("[DeviceNotice] COM initialization for audio jack watcher failed: {initialized:?}");
                 return;
             }
+            let _apartment = ComApartment;
 
             let enumerator = match CoCreateInstance::<_, IMMDeviceEnumerator>(
                 &MMDeviceEnumerator,
@@ -689,7 +693,6 @@ while ($true) {
                 Ok(enumerator) => enumerator,
                 Err(error) => {
                     eprintln!("[DeviceNotice] Core Audio enumerator unavailable: {error}");
-                    CoUninitialize();
                     return;
                 }
             };
@@ -712,9 +715,6 @@ while ($true) {
                 // Scan errors are ignored: a temporary Core Audio restart must not be
                 // interpreted as the user unplugging the earphone.
             }
-
-            #[allow(unreachable_code)]
-            CoUninitialize();
         });
     }
 
