@@ -260,6 +260,7 @@ mod imp {
             let mut osd: Option<HWND> = None;
             let mut hidden_by_us = false;
             let mut logged_detection = false;
+            let mut logged_missing = false;
             loop {
                 // When Notch exits, restore the shell host only if this worker hid it.
                 // This prevents the system OSD from remaining hidden after the app is closed.
@@ -299,6 +300,9 @@ mod imp {
                             unsafe { ShowWindow(hwnd, SW_HIDE) };
                             hidden_by_us = true;
                         }
+                    } else if !logged_missing {
+                        eprintln!("[HUD] Windows shell OSD host belum terdeteksi; akan mencoba lagi.");
+                        logged_missing = true;
                     }
                 }
 
