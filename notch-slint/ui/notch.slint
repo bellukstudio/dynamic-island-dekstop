@@ -6115,7 +6115,7 @@ export component NotchWindow inherits Window {
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
     // Diekspos sebagai output agar Rust dapat memakai geometri mini-player yang sama dengan UI.
-    out property <bool> media-mini: root.media-active && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active && !root.hud-visible && !root.device-notice-visible;
+    out property <bool> media-mini: root.media-active && root.media-playing && !root.expanded && !root.dragging && !root.inline-msg && !root.adhan-active && !root.hud-visible && !root.device-notice-visible;
     in property <string> day-text: "";
     in property <StatsView> stats;
     in property <CurrencyView> currency;
