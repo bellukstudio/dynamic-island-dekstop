@@ -135,7 +135,7 @@ fn conversation_media_transition(
     let event = if playing && !*last_playing && on_play {
         Some(("Musik mulai diputar. Semoga playlist-nya bikin semangat! 🎵", "Conversation Moments · musik dimulai"))
     } else if playing && !title.is_empty() && title != "Tidak ada media"
-        && title != *last_title && on_track_change
+        && title != last_title.as_str() && on_track_change
     {
         Some(("Lagu baru, suasana baru. 🎶", "Conversation Moments · lagu berganti"))
     } else if !playing && *last_playing && on_pause {
