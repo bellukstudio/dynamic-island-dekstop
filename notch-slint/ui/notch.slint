@@ -3044,6 +3044,7 @@ component SpeechBubble inherits Rectangle {
     property <bool> last-emoji-image-available: root.emoji-image-available;
     property <bool> visual-hud: root.motion-exiting ? root.last-hud : root.hud;
     property <bool> visual-compact: root.motion-exiting ? root.last-compact : root.compact;
+    property <length> visual-target-width: root.visual-hud ? 184px : (root.visual-compact ? 184px : 224px);
     property <string> visual-hud-kind: root.motion-exiting ? root.last-hud-kind : root.hud-kind;
     property <int> visual-hud-value: root.motion-exiting ? root.last-hud-value : root.hud-value;
     property <bool> visual-hud-muted: root.motion-exiting ? root.last-hud-muted : root.hud-muted;
@@ -3145,7 +3146,7 @@ component SpeechBubble inherits Rectangle {
         msg := Text {
             x: (root.visual-hud || root.visual-emoji != "") ? 48px : (root.visual-compact ? 10px : 14px);
             y: root.visual-compact ? 7px : 10px;
-            width: Math.max(0px, root.target-width - ((root.visual-hud || root.visual-emoji != "") ? 60px : (root.visual-compact ? 20px : 28px)));
+            width: Math.max(0px, root.visual-target-width - ((root.visual-hud || root.visual-emoji != "") ? 60px : (root.visual-compact ? 20px : 28px)));
             height: Math.min(self.preferred-height, 68px);
             text: root.visual-message;
             color: #ffffff;
@@ -3157,7 +3158,7 @@ component SpeechBubble inherits Rectangle {
         det := Text {
             x: root.visual-hud ? 48px : 14px;
             y: root.visual-hud ? 30px : msg.y + msg.height + 3px;
-            width: Math.max(0px, root.target-width - (root.visual-hud ? 60px : 28px));
+            width: Math.max(0px, root.visual-target-width - (root.visual-hud ? 60px : 28px));
             height: root.visual-detail != "" && !root.visual-compact ? Math.min(self.preferred-height, 34px) : 0px;
             text: root.visual-detail;
             color: #c7c9d1;
@@ -3171,7 +3172,10 @@ component SpeechBubble inherits Rectangle {
         // Ekor ikut muncul perlahan saat badan bubble mulai melebar, dan tidak mendahului background.
         opacity: root.motion-active && root.motion-entering && !root.motion-expanding
             ? 0 : Math.min(1.0, root.width / 32px);
-        animate opacity { duration: root.motion-exiting ? 260ms : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        animate opacity {
+            duration: root.motion-exiting ? (root.motion-collapsing ? 180ms : 260ms) : 140ms;
+            easing: cubic-bezier(0.42, 0, 0.58, 1);
+        }
         x: root.side ? (root.side-right ? parent.width - 2px : -10px) : root.tail-center - 9px;
         y: root.side ? root.tail-center - 9px : parent.height - 3px;
         width: root.side ? 12px : 18px;
