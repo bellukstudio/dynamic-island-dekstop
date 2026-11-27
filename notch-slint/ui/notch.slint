@@ -3028,6 +3028,16 @@ component SpeechBubble inherits Rectangle {
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     out property <length> target-height: content.content-height;
+    // Simpan tinggi terakhir saat pesan masih terbuka agar state sumber yang berubah
+    // tidak menggeser titik awal animasi tutup.
+    property <length> exit-height: root.target-height;
+    out property <length> anchor-height: root.motion-exiting ? root.exit-height : root.target-height;
+    changed shown => {
+        if (root.shown && !root.motion-exiting) { root.exit-height = root.target-height; }
+    }
+    changed motion-exiting => {
+        if (root.motion-exiting) { root.exit-height = root.height; }
+    }
     // Fase 1: bidang tipis dengan tinggi penuh (tumbuh dari atas ke bawah).
     // Fase 2: lebarkan bidang ke dua sisi setelah tinggi selesai.
     // Penutupan membalik urutan pembukaan: lebar menyempit dulu,
@@ -3038,7 +3048,7 @@ component SpeechBubble inherits Rectangle {
             ? (root.motion-active && root.motion-entering && !root.motion-expanding ? 26px : root.target-width)
             : 0px);
     height: root.motion-exiting
-        ? (root.motion-collapsing ? 0px : root.target-height)
+        ? (root.motion-collapsing ? 0px : root.exit-height)
         : (root.shown ? root.target-height : 0px);
     visible: root.shown || self.width > 0px || self.height > 0px;
     opacity: root.motion-exiting && root.motion-collapsing ? 0 : (root.shown ? 1 : 0);
@@ -6744,7 +6754,7 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Greeting inline: reveal tinggi terlebih dahulu, lalu lebar; keluar dengan gerak turun.
+            // Greeting inline: reveal tinggi terlebih dahulu, lalu lebar; penutupan mempertahankan tepi atas.
             Rectangle {
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
@@ -7390,9 +7400,8 @@ export component NotchWindow inherits Window {
         // Posisi atas tetap. Height animation membuka isi dari tepi atas ke bawah,
         // kemudian width animation melebar simetris menjauhi notch.
         slide-y: (root.dock >= 3
-            ? Math.max(0px, Math.min(root.height - self.target-height, pill.y + pill.height / 2 - self.target-height / 2))
-            : pill.y - 11px - self.target-height)
-            ;
+            ? Math.max(0px, Math.min(root.height - self.anchor-height, pill.y + pill.height / 2 - self.anchor-height / 2))
+            : pill.y - 11px - self.anchor-height);
         side: root.dock >= 3;
         side-right: root.dock == 4;
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
