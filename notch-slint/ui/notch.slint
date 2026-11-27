@@ -3124,10 +3124,19 @@ component SpeechBubble inherits Rectangle {
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
         out property <length> content-height: root.visual-hud ? 56px : ((root.visual-compact ? 7px : 10px) + msg.height + (root.visual-detail != "" && !root.visual-compact ? 3px + det.height : 0px) + (root.visual-compact ? 7px : 10px));
-        opacity: !root.motion-active || !root.motion-entering || root.motion-expanding ? 1 : 0;
-        animate opacity { duration: 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+        // Mask isi dibuka dari tepi atas ke bawah setelah panel selesai membuka tinggi.
+        // Saat menutup, mask menguncup kembali dari bawah ke atas pada fase kedua.
+        opacity: 1;
         width: parent.width;
-        height: parent.height;
+        height: root.motion-exiting
+            ? (root.motion-collapsing ? 0px : parent.height)
+            : (root.motion-active && root.motion-entering && !root.motion-expanding ? 0px : parent.height);
+        animate height {
+            duration: root.motion-exiting
+                ? (root.motion-collapsing ? 180ms : 0ms)
+                : (root.motion-active && root.motion-entering && !root.motion-expanding ? 0ms : 180ms);
+            easing: cubic-bezier(0.42, 0, 0.58, 1);
+        }
         clip: true;
         background: transparent;
         if root.visual-hud: HudGlyph {
