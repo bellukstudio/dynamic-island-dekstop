@@ -292,9 +292,25 @@ fn main() -> Result<(), slint::PlatformError> {
             if overlay_visible && !was_visible {
                 w.set_message_animation_active(true);
                 w.set_message_entering(true);
+                w.set_message_expanding(false);
                 w.set_message_exiting(false);
+
+                // Fase 1: tinggi panel terbuka dari atas ke bawah (180 ms).
+                // Fase 2: setelah tinggi selesai, lebar bergerak ke kiri dan kanan (260 ms).
+                let weak_vertical = weak.clone();
+                Timer::single_shot(Duration::from_millis(190), move || {
+                    if let Some(w) = weak_vertical.upgrade() {
+                        if w.get_message_animation_active()
+                            && w.get_message_entering()
+                            && !w.get_message_exiting()
+                        {
+                            w.set_message_expanding(true);
+                        }
+                    }
+                });
+
                 let weak_enter = weak.clone();
-                Timer::single_shot(Duration::from_millis(16), move || {
+                Timer::single_shot(Duration::from_millis(470), move || {
                     if let Some(w) = weak_enter.upgrade() {
                         if w.get_message_animation_active() && !w.get_message_exiting() {
                             w.set_message_entering(false);
@@ -303,6 +319,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 });
             } else if !overlay_visible && was_visible {
                 w.set_message_entering(false);
+                w.set_message_expanding(false);
                 w.set_message_exiting(true);
                 let weak_exit = weak.clone();
                 Timer::single_shot(Duration::from_millis(360), move || {
