@@ -272,8 +272,10 @@ fn main() -> Result<(), slint::PlatformError> {
         let shell = shell.clone();
         // Transisi semua pesan memakai satu state bersama agar tidak ada jalur notifikasi
         // yang masih muncul seketika atau menutup ke arah berbeda.
-        let previous_overlay_visible = Rc::new(Cell::new(false));
-        let previous_overlay = previous_overlay_visible.clone();
+        // Track the visible surface, not just a boolean. Replacing a port card with HUD,
+        // Adhan, greeting or another message must start a fresh two-stage reveal.
+        let previous_overlay_kind = Rc::new(Cell::new(0u8));
+        let previous_kind = previous_overlay_kind.clone();
         let previous_overlay_renderable = Rc::new(Cell::new(false));
         let previous_renderable = previous_overlay_renderable.clone();
         // Invalidate stale stage timers when a message closes or a new one starts.
@@ -282,21 +284,32 @@ fn main() -> Result<(), slint::PlatformError> {
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
             let can_render_overlay = !w.get_expanded() && !w.get_dragging() && !w.get_geometry_hold();
-            let overlay_event_visible = w.get_nudge_visible()
-                || w.get_reminder_alert_visible()
-                || w.get_adhan_active()
-                || !w.get_meeting_finished().is_empty()
-                || w.get_greeting_speech_visible()
-                || w.get_greeting_inline_visible()
-                || w.get_hud_visible()
-                || w.get_device_notice_visible();
+            let overlay_kind = if w.get_device_notice_visible() {
+                8
+            } else if w.get_hud_visible() {
+                7
+            } else if w.get_adhan_active() {
+                6
+            } else if !w.get_meeting_finished().is_empty() {
+                5
+            } else if w.get_greeting_speech_visible() || w.get_greeting_inline_visible() {
+                4
+            } else if w.get_nudge_visible() {
+                3
+            } else if w.get_reminder_alert_visible() {
+                2
+            } else {
+                0
+            };
+            let overlay_event_visible = overlay_kind != 0;
             let overlay_visible = can_render_overlay && overlay_event_visible;
-            let was_visible = previous_overlay.replace(overlay_event_visible);
+            let was_kind = previous_kind.replace(overlay_kind);
+            let was_visible = was_kind != 0;
             let was_renderable = previous_renderable.replace(overlay_visible);
-            // Mulai/restart hanya ketika pesan hadir dan panel kembali bisa dirender.
-            // geometry-hold atau hub terbuka tidak dianggap sebagai event pesan selesai.
-            let should_enter = overlay_visible && (!was_visible || !was_renderable);
-            let should_exit = !overlay_event_visible && was_visible;
+            // Mulai ulang ketika jenis panel berganti atau panel kembali bisa dirender.
+            // geometry-hold/hub tidak dianggap sebagai event pesan selesai.
+            let should_enter = overlay_visible && (overlay_kind != was_kind || !was_renderable);
+            let should_exit = overlay_kind == 0 && was_visible;
 
             if should_enter {
                 let generation = motion_generation.get().wrapping_add(1);
