@@ -318,6 +318,7 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_message_entering(true);
                 w.set_message_expanding(false);
                 w.set_message_exiting(false);
+                w.set_message_collapsing(false);
 
                 // Fase 1: tinggi panel terbuka dari atas ke bawah (180 ms).
                 // Fase 2: setelah tinggi selesai, lebar bergerak ke kiri dan kanan (260 ms).
@@ -351,9 +352,23 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_message_entering(false);
                 w.set_message_expanding(false);
                 w.set_message_exiting(true);
+                w.set_message_collapsing(false);
+
+                // Urutan keluar membalik urutan masuk: lebar 260 ms, lalu tinggi 180 ms.
+                let weak_collapse = weak.clone();
+                let collapse_generation = motion_generation.clone();
+                Timer::single_shot(Duration::from_millis(260), move || {
+                    if collapse_generation.get() != generation { return; }
+                    if let Some(w) = weak_collapse.upgrade() {
+                        if w.get_message_animation_active() && w.get_message_exiting() {
+                            w.set_message_collapsing(true);
+                        }
+                    }
+                });
+
                 let weak_exit = weak.clone();
                 let exit_generation = motion_generation.clone();
-                Timer::single_shot(Duration::from_millis(360), move || {
+                Timer::single_shot(Duration::from_millis(480), move || {
                     if exit_generation.get() != generation { return; }
                     if let Some(w) = weak_exit.upgrade() {
                         let still_visible = w.get_nudge_visible()
@@ -396,11 +411,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     shrink_window_synced(weak.clone(), shell.clone());
                 }
             } else {
-                // Saat pesan ditutup, tahan native region selama animasi keluar (360 ms).
+                // Saat pesan ditutup, tahan native region selama dua tahap animasi keluar (260 + 180 ms).
                 // Setelah itu hitung ulang state terbaru agar timer lama tidak memotong pesan baru.
                 let weak_later = weak.clone();
                 let shell_later = shell.clone();
-                Timer::single_shot(Duration::from_millis(400), move || {
+                Timer::single_shot(Duration::from_millis(520), move || {
                     let Some(w) = weak_later.upgrade() else { return };
                     if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() {
                         return;
