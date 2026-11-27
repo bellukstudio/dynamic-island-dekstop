@@ -6093,6 +6093,8 @@ export component NotchWindow inherits Window {
     in property <float> media-length: 0;
     in property <float> media-progress: 0;
     in property <bool> media-active: false;
+    // True setelah polling media pertama selesai; sampel awal hanya dipakai sebagai baseline.
+    in property <bool> media-ready: false;
     in property <bool> media-playing: false;
     in property <image> media-art;
     in property <image> media-disc-art;
