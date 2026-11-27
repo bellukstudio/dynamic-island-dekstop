@@ -3002,12 +3002,12 @@ component HudPanel inherits Rectangle {
 
 component SpeechBubble inherits Rectangle {
     in property <bool> shown: false;
-    in property <bool> greeting: false;
-    in property <bool> greeting-entering: false;
-    in property <bool> greeting-exiting: false;
+    in property <bool> motion-active: false;
+    in property <bool> motion-entering: false;
+    in property <bool> motion-exiting: false;
     in property <length> slide-y: 0px;
     y: root.slide-y;
-    animate y { duration: root.greeting && root.greeting-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+    animate y { duration: root.motion-active && root.motion-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
     in property <bool> hud: false;
     in property <string> hud-kind: "volume";
     in property <int> hud-value: 0;
@@ -3027,11 +3027,11 @@ component SpeechBubble inherits Rectangle {
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
     property <length> target-height: content.content-height;
     width: root.shown ? root.target-width : 0px;
-    // Lebar/tinggi dimulai dari titik pertemuan dengan Notch lalu melebar ke luar.
+    // Lebar melebar keluar dari sisi notch; tinggi tumbuh dari sisi atas ke bawah.
     // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
     height: root.shown ? root.target-height : 0px;
     visible: root.shown || self.width > 0px || self.height > 0px;
-    opacity: root.shown ? (root.greeting && root.greeting-entering ? 0 : 1) : 0;
+    opacity: root.shown ? (root.motion-active && root.motion-entering ? 0 : 1) : 0;
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
@@ -7318,9 +7318,9 @@ export component NotchWindow inherits Window {
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
         // State gerak dipakai bersama oleh semua pesan, bukan hanya greeting.
-        greeting: root.message-animation-active;
-        greeting-entering: root.message-entering;
-        greeting-exiting: root.message-exiting;
+        motion-active: root.message-animation-active;
+        motion-entering: root.message-entering;
+        motion-exiting: root.message-exiting;
         // Kunci sisi atas pada posisi akhir. Tinggi bertambah ke bawah ketika panel melebar,
         // bukan bergerak ke atas dari titik sambungan dengan notch.
         slide-y: (root.dock >= 3
