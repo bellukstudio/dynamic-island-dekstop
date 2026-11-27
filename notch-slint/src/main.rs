@@ -276,16 +276,17 @@ fn main() -> Result<(), slint::PlatformError> {
         let previous_overlay = previous_overlay_visible.clone();
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
-            if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() { return; }
-
-            let overlay_visible = w.get_nudge_visible()
-                || w.get_reminder_alert_visible()
-                || w.get_adhan_active()
-                || !w.get_meeting_finished().is_empty()
-                || w.get_greeting_speech_visible()
-                || w.get_greeting_inline_visible()
-                || w.get_hud_visible()
-                || w.get_device_notice_visible();
+            let can_render_overlay = !w.get_expanded() && !w.get_dragging() && !w.get_geometry_hold();
+            let overlay_visible = can_render_overlay && (
+                w.get_nudge_visible()
+                    || w.get_reminder_alert_visible()
+                    || w.get_adhan_active()
+                    || !w.get_meeting_finished().is_empty()
+                    || w.get_greeting_speech_visible()
+                    || w.get_greeting_inline_visible()
+                    || w.get_hud_visible()
+                    || w.get_device_notice_visible()
+            );
             let was_visible = previous_overlay.replace(overlay_visible);
 
             if overlay_visible && !was_visible {
@@ -321,6 +322,10 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 });
             }
+
+            // Jangan ubah geometri selama hub, drag, atau resize sedang menguasai jendela.
+            // Status overlay tetap dilacak agar animasi masuk dimulai ulang saat Notch kembali terlihat.
+            if !can_render_overlay { return; }
 
             // Greeting inline juga menahan ukuran jendela selama transisi miliknya sendiri.
             let message_visible = overlay_visible || w.get_greeting_animation_active();
