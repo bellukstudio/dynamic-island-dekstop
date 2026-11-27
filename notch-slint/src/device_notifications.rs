@@ -412,18 +412,34 @@ mod imp {
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$mm = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\MMDevices\Audio\Render'
 $conn = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
 $batt = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
 $i = 0
 while ($true) {
   # Scan USB and Bluetooth every cycle; snapshots are still debounced in Rust.
-  Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\VID_*' } |
+  Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\*' } |
     ForEach-Object {
       $id = $_.InstanceId.Replace('|', '/')
       $class = ([string]$_.Class).Replace('|', '/')
       $name = ([string]$_.FriendlyName).Replace('|', '/')
       'D|' + $id + '|' + $class + '|' + $name
     }
+
+  # Jack audio 3.5 mm: gunakan endpoint render aktif dari registry Windows.
+  # Abaikan endpoint USB/Bluetooth agar tidak membuat notifikasi duplikat.
+  Get-ChildItem $mm | ForEach-Object {
+    $state = (Get-ItemProperty $_.PSPath).DeviceState
+    if ($state -eq 1) {
+      $properties = Get-ItemProperty ($_.PSPath + '\Properties')
+      $description = [string]$properties.'{a45c254e-df1c-4efd-8020-67d146a850e0},2'
+      $adapter = [string]$properties.'{b3f8fa53-0004-438e-9003-51a46e139bfc},6'
+      if (($description -match 'Headphone|Headset|Earphone|Earbud|Handset') -and
+          ($adapter -notmatch 'USB|Bluetooth|Hands-Free')) {
+        'D|JACK|' + $description + ' (' + $adapter + ')'
+      }
+    }
+  }
   'D|---'
 
   Get-PnpDevice -Class Bluetooth -PresentOnly | Where-Object {
