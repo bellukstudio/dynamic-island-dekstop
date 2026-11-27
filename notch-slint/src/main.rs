@@ -418,7 +418,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     if still_has_message {
                         return;
                     }
-                    shrink_window_synced(weak_after_exit.clone(), shell_later.clone());
+                    shrink_window_synced(weak_later.clone(), shell_later.clone());
                 });
             }
         });
