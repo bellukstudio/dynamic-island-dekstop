@@ -6809,10 +6809,14 @@ export component NotchWindow inherits Window {
                 visible: (!root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2) || self.width > 0px;
                 property <bool> meeting-message-shown: !root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2;
                 x: (parent.width - self.width) / 2;
-                y: 0px;
+                y: root.message-animation-active
+                    ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                    : 0px;
+                animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 width: self.meeting-message-shown ? 130px : 0px;
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown ? 1 : 0;
+                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 clip: true;
                 animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
@@ -6848,7 +6852,11 @@ export component NotchWindow inherits Window {
             Rectangle {
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0;
-                animate opacity { duration: 180ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                y: root.message-animation-active
+                    ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                    : 0px;
+                animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 width: parent.width; height: parent.height; clip: true;
                 HudPanel {
                     kind: root.hud-kind; value: root.hud-value; value-text: root.hud-value-text;
@@ -6861,9 +6869,12 @@ export component NotchWindow inherits Window {
             AdhanOverlay {
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.adhan-active && !root.expanded && !root.dragging ? 1 : 0;
-                animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 x: 0px;
-                y: 0px;
+                y: root.message-animation-active
+                    ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                    : 0px;
+                animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
                 width: parent.width;
                 height: parent.height;
                 dock: root.dock;
@@ -7236,10 +7247,12 @@ export component NotchWindow inherits Window {
         DeviceNoticePanel {
             visible: root.device-notice-inline || self.opacity > 0.01;
             opacity: root.device-notice-inline ? 1.0 : 0.0;
-            animate opacity { duration: 240ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+            animate opacity { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
             x: 0px;
-            y: root.device-notice-inline ? 0px : -5px * root.ui-scale;
-            animate y { duration: 280ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+            y: root.message-animation-active
+                ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                : 0px;
+            animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
             width: parent.width;
             height: parent.height;
             kind: root.device-notice-kind;
