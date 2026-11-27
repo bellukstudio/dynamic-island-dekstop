@@ -6119,7 +6119,11 @@ export component NotchWindow inherits Window {
     // Adzan tampil di dalam badan notch (dock atas/melayang): pil melebar supaya teks dan tombol berhenti muat.
     property <bool> adhan-inline: root.adhan-active && root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible;
     property <bool> device-notice-inline: root.device-notice-visible && !root.expanded && !root.dragging && !root.geometry-hold && root.dock < 2;
-    property <bool> inline-msg: root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2) || root.nudge-inline || root.adhan-inline || root.device-notice-inline || (root.hud-visible && root.dock < 2);
+    property <bool> inline-msg: root.greeting-inline-visible
+        || (root.greeting-animation-active && root.dock < 2)
+        || (root.message-animation-active && root.dock < 2)
+        || root.nudge-inline || root.adhan-inline || root.device-notice-inline
+        || (root.hud-visible && root.dock < 2);
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
     // Diekspos sebagai output agar Rust dapat memakai geometri mini-player yang sama dengan UI.
