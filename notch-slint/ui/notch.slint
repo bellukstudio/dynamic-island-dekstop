@@ -3031,13 +3031,59 @@ component SpeechBubble inherits Rectangle {
     // Simpan tinggi terakhir saat pesan masih terbuka agar state sumber yang berubah
     // tidak menggeser titik awal animasi tutup.
     property <length> exit-height: root.target-height;
+    property <bool> last-hud: root.hud;
+    property <bool> last-compact: root.compact;
+    property <string> last-hud-kind: root.hud-kind;
+    property <int> last-hud-value: root.hud-value;
+    property <bool> last-hud-muted: root.hud-muted;
+    property <bool> last-hud-pulse: root.hud-pulse;
+    property <string> last-message: root.message;
+    property <string> last-detail: root.detail;
+    property <string> last-emoji: root.emoji;
+    property <image> last-emoji-image: root.emoji-image;
+    property <bool> last-emoji-image-available: root.emoji-image-available;
+    property <bool> visual-hud: root.motion-exiting ? root.last-hud : root.hud;
+    property <bool> visual-compact: root.motion-exiting ? root.last-compact : root.compact;
+    property <string> visual-hud-kind: root.motion-exiting ? root.last-hud-kind : root.hud-kind;
+    property <int> visual-hud-value: root.motion-exiting ? root.last-hud-value : root.hud-value;
+    property <bool> visual-hud-muted: root.motion-exiting ? root.last-hud-muted : root.hud-muted;
+    property <bool> visual-hud-pulse: root.motion-exiting ? root.last-hud-pulse : root.hud-pulse;
+    property <string> visual-message: root.motion-exiting ? root.last-message : root.message;
+    property <string> visual-detail: root.motion-exiting ? root.last-detail : root.detail;
+    property <string> visual-emoji: root.motion-exiting ? root.last-emoji : root.emoji;
+    property <image> visual-emoji-image: root.motion-exiting ? root.last-emoji-image : root.emoji-image;
+    property <bool> visual-emoji-image-available: root.motion-exiting ? root.last-emoji-image-available : root.emoji-image-available;
     out property <length> anchor-height: root.motion-exiting ? root.exit-height : root.target-height;
     changed shown => {
-        if (root.shown && !root.motion-exiting) { root.exit-height = root.target-height; }
+        if (root.shown && !root.motion-exiting) {
+            root.exit-height = root.target-height;
+            root.last-hud = root.hud;
+            root.last-compact = root.compact;
+            root.last-hud-kind = root.hud-kind;
+            root.last-hud-value = root.hud-value;
+            root.last-hud-muted = root.hud-muted;
+            root.last-hud-pulse = root.hud-pulse;
+            root.last-message = root.message;
+            root.last-detail = root.detail;
+            root.last-emoji = root.emoji;
+            root.last-emoji-image = root.emoji-image;
+            root.last-emoji-image-available = root.emoji-image-available;
+        }
     }
     changed motion-exiting => {
         if (root.motion-exiting) { root.exit-height = root.height; }
     }
+    changed hud => { if (root.shown && !root.motion-exiting) { root.last-hud = root.hud; } }
+    changed compact => { if (root.shown && !root.motion-exiting) { root.last-compact = root.compact; } }
+    changed hud-kind => { if (root.shown && !root.motion-exiting) { root.last-hud-kind = root.hud-kind; } }
+    changed hud-value => { if (root.shown && !root.motion-exiting) { root.last-hud-value = root.hud-value; } }
+    changed hud-muted => { if (root.shown && !root.motion-exiting) { root.last-hud-muted = root.hud-muted; } }
+    changed hud-pulse => { if (root.shown && !root.motion-exiting) { root.last-hud-pulse = root.hud-pulse; } }
+    changed message => { if (root.shown && !root.motion-exiting) { root.last-message = root.message; } }
+    changed detail => { if (root.shown && !root.motion-exiting) { root.last-detail = root.detail; } }
+    changed emoji => { if (root.shown && !root.motion-exiting) { root.last-emoji = root.emoji; } }
+    changed emoji-image => { if (root.shown && !root.motion-exiting) { root.last-emoji-image = root.emoji-image; } }
+    changed emoji-image-available => { if (root.shown && !root.motion-exiting) { root.last-emoji-image-available = root.emoji-image-available; } }
     // Fase 1: bidang tipis dengan tinggi penuh (tumbuh dari atas ke bawah).
     // Fase 2: lebarkan bidang ke dua sisi setelah tinggi selesai.
     // Penutupan membalik urutan pembukaan: lebar menyempit dulu,
@@ -3052,7 +3098,7 @@ component SpeechBubble inherits Rectangle {
         : (root.shown ? root.target-height : 0px);
     visible: root.shown || self.width > 0px || self.height > 0px;
     opacity: root.motion-exiting && root.motion-collapsing ? 0 : (root.shown ? 1 : 0);
-    border-radius: root.compact ? 14px : 18px;
+    border-radius: root.visual-compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
     animate width {
@@ -3076,32 +3122,32 @@ component SpeechBubble inherits Rectangle {
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
-        out property <length> content-height: root.hud ? 56px : ((root.compact ? 7px : 10px) + msg.height + (root.detail != "" && !root.compact ? 3px + det.height : 0px) + (root.compact ? 7px : 10px));
+        out property <length> content-height: root.visual-hud ? 56px : ((root.visual-compact ? 7px : 10px) + msg.height + (root.visual-detail != "" && !root.visual-compact ? 3px + det.height : 0px) + (root.visual-compact ? 7px : 10px));
         opacity: !root.motion-active || !root.motion-entering || root.motion-expanding ? 1 : 0;
         animate opacity { duration: 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
         width: parent.width;
         height: parent.height;
         clip: true;
         background: transparent;
-        if root.hud: HudGlyph {
+        if root.visual-hud: HudGlyph {
             x: 10px; y: 10px; width: 28px; height: 28px;
-            kind: root.hud-kind; value: root.hud-value; muted: root.hud-muted; pulse: root.hud-pulse;
+            kind: root.visual-hud-kind; value: root.visual-hud-value; muted: root.visual-hud-muted; pulse: root.visual-hud-pulse;
         }
-        if !root.hud && root.emoji != "": NudgeEmoji {
+        if !root.visual-hud && root.visual-emoji != "": NudgeEmoji {
             x: 10px;
-            y: root.compact ? 8px : 11px;
-            width: root.compact ? 22px : 24px;
-            height: root.compact ? 22px : 24px;
-            emoji: root.emoji;
-            rendered-image: root.emoji-image;
-            rendered-image-available: root.emoji-image-available;
+            y: root.visual-compact ? 8px : 11px;
+            width: root.visual-compact ? 22px : 24px;
+            height: root.visual-compact ? 22px : 24px;
+            emoji: root.visual-emoji;
+            rendered-image: root.visual-emoji-image;
+            rendered-image-available: root.visual-emoji-image-available;
         }
         msg := Text {
-            x: (root.hud || root.emoji != "") ? 48px : (root.compact ? 10px : 14px);
-            y: root.compact ? 7px : 10px;
-            width: Math.max(0px, root.target-width - ((root.hud || root.emoji != "") ? 60px : (root.compact ? 20px : 28px)));
+            x: (root.visual-hud || root.visual-emoji != "") ? 48px : (root.visual-compact ? 10px : 14px);
+            y: root.visual-compact ? 7px : 10px;
+            width: Math.max(0px, root.target-width - ((root.visual-hud || root.visual-emoji != "") ? 60px : (root.visual-compact ? 20px : 28px)));
             height: Math.min(self.preferred-height, 68px);
-            text: root.message;
+            text: root.visual-message;
             color: #ffffff;
             font-size: 11px;
             font-weight: 600;
@@ -3109,11 +3155,11 @@ component SpeechBubble inherits Rectangle {
             overflow: clip;
         }
         det := Text {
-            x: root.hud ? 48px : 14px;
-            y: root.hud ? 30px : msg.y + msg.height + 3px;
-            width: Math.max(0px, root.target-width - (root.hud ? 60px : 28px));
-            height: root.detail != "" && !root.compact ? Math.min(self.preferred-height, 34px) : 0px;
-            text: root.detail;
+            x: root.visual-hud ? 48px : 14px;
+            y: root.visual-hud ? 30px : msg.y + msg.height + 3px;
+            width: Math.max(0px, root.target-width - (root.visual-hud ? 60px : 28px));
+            height: root.visual-detail != "" && !root.visual-compact ? Math.min(self.preferred-height, 34px) : 0px;
+            text: root.visual-detail;
             color: #c7c9d1;
             font-size: 9.5px;
             wrap: word-wrap;
