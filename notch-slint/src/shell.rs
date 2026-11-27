@@ -62,7 +62,18 @@ impl Shell {
             // Hit-test harus persis mengikuti badan yang digambar Slint: tanpa padding transparan.
             // mini-player memakai 220 px; status media-playing saja tidak memperlebar notch.
             let compact_nudge_media = nudge_inline && win.get_media_playing() && win.get_nudge_visible();
-            let body_w = if device_notice { 340.0 } else if hud { 300.0 } else if greeting { 385.0 } else if adhan { 220.0 } else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } } else if win.get_idle_clock() { 300.0 } else if win.get_media_mini() { 220.0 } else { 130.0 };
+            let vertical_reveal = win.get_message_animation_active()
+                && win.get_message_entering()
+                && !win.get_message_expanding();
+            let body_w = if vertical_reveal { 26.0 }
+                else if device_notice { 340.0 }
+                else if hud { 300.0 }
+                else if greeting { 385.0 }
+                else if adhan { 220.0 }
+                else if nudge_inline { if compact_nudge_media { 220.0 } else { 288.0 } }
+                else if win.get_idle_clock() { 300.0 }
+                else if win.get_media_mini() { 220.0 }
+                else { 130.0 };
             let greeting_exit = greeting && win.get_greeting_animation_active() && win.get_greeting_exiting();
             let body_h = if device_notice { 74.0 } else if hud { 52.0 } else if greeting { if greeting_exit { 93.0 } else { 75.0 } } else if adhan || meeting_notice { 34.0 } else if nudge_inline { if compact_nudge_media { 40.0 } else { 68.0 } } else if dock == Dock::Top { 26.0 } else { 34.0 };
             // Telinga atas menjulur 10 px di kiri dan kanan badan pill.
@@ -107,7 +118,10 @@ impl Shell {
                 // SpeechBubble dan jaraknya memakai px UI biasa (hanya DPI), bukan ui-scale badan pill.
                 let hud_bubble = win.get_hud_visible();
                 let compact_bubble = win.get_nudge_visible() && win.get_media_playing();
-                let bubble_w = ((if hud_bubble || compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
+                let vertical_reveal = win.get_message_animation_active()
+                    && win.get_message_entering()
+                    && !win.get_message_expanding();
+                let bubble_w = ((if vertical_reveal { 26.0 } else if hud_bubble || compact_bubble { 184.0 } else { 224.0 }) * dpi).round() as i32;
                 // Awan bisa menampilkan hingga 5 baris pesan + 2 baris detail, padding, dan emoji.
                 // Native region harus setidaknya setinggi visual bubble supaya teks tidak terpotong OS.
                 let bubble_h = ((if hud_bubble { 68.0 } else if compact_bubble { 86.0 } else { 132.0 }) * dpi).round() as i32;
