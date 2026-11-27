@@ -6217,6 +6217,10 @@ export component NotchWindow inherits Window {
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
     in property <bool> greeting-speech-visible: false;
+    // Gerakan bersama untuk seluruh panel pesan: Conversation Moments, Nudge, reminder, HUD, dan greeting.
+    in property <bool> message-animation-active: false;
+    in property <bool> message-entering: false;
+    in property <bool> message-exiting: false;
     in property <bool> greeting-animation-active: false;
     in property <bool> greeting-entering: false;
     in property <bool> greeting-exiting: false;
@@ -6497,6 +6501,7 @@ export component NotchWindow inherits Window {
     changed greeting-animation-active => { root.region-layout-changed(); }
     changed greeting-entering => { root.region-layout-changed(); }
     changed greeting-exiting => { root.region-layout-changed(); }
+    changed greeting-inline-visible => { root.region-layout-changed(); }
     changed meeting-finished => { root.region-layout-changed(); }
     changed hud-visible => { root.region-layout-changed(); }
     changed device-notice-visible => { root.region-layout-changed(); }
@@ -7147,9 +7152,16 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Pesan (nudge / alert kurs-saham / pengingat) di dalam badan notch untuk dock atas.
+            // Pesan (Conversation Moments, pesan diam, alert, dan pengingat) turun dari atas
+            // sambil badan notch melebar; ketika selesai, panel bergerak ke bawah dan memudar.
             Rectangle {
-                visible: root.nudge-inline || self.opacity > 0.01;
+                property <length> message-slide-y: root.message-animation-active
+                    ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                    : 0px;
+                y: self.message-slide-y;
+                animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+                visible: root.nudge-inline || self.opacity > 0.01
+                    || (root.message-animation-active && root.message-exiting && root.dock < 2);
                 opacity: root.nudge-inline ? 1 : 0;
                 animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
@@ -7305,11 +7317,18 @@ export component NotchWindow inherits Window {
         // Lebar target dimiliki SpeechBubble agar root.width bisa dianimasikan dari nol.
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
-        greeting: root.greeting-animation-active;
-        greeting-entering: root.greeting-entering;
-        greeting-exiting: root.greeting-exiting;
-        slide-y: (root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height)
-            + (root.greeting-animation-active ? (root.greeting-entering ? -18px : (root.greeting-exiting ? 18px : 0px)) : 0px);
+        // State gerak dipakai bersama oleh semua pesan, bukan hanya greeting.
+        greeting: root.message-animation-active;
+        greeting-entering: root.message-entering;
+        greeting-exiting: root.message-exiting;
+        // Kunci sisi atas pada posisi akhir. Tinggi bertambah ke bawah ketika panel melebar,
+        // bukan bergerak ke atas dari titik sambungan dengan notch.
+        slide-y: (root.dock >= 3
+            ? Math.max(0px, Math.min(root.height - self.target-height, pill.y + pill.height / 2 - self.target-height / 2))
+            : pill.y - 11px - self.target-height)
+            + (root.message-animation-active
+                ? (root.message-entering ? -18px : (root.message-exiting ? 18px : 0px))
+                : 0px);
         side: root.dock >= 3;
         side-right: root.dock == 4;
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
