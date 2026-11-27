@@ -100,6 +100,7 @@ impl Shell {
                     || win.get_meeting_finished() != ""
                     || win.get_greeting_speech_visible()
                     || win.get_greeting_animation_active()
+                    || win.get_message_animation_active()
                     || win.get_hud_visible()
                     || win.get_device_notice_visible());
             if bubble_visible {
@@ -118,14 +119,14 @@ impl Shell {
                     pill_x - gap - bubble_w
                 };
                 let bubble_y = (pill_y + pill_h / 2 - bubble_h / 2).clamp(0, (size.1 as i32 - bubble_h).max(0));
-                let greeting_slide = (18.0 * dpi).round() as i32;
-                let bubble_top = if win.get_greeting_animation_active() && win.get_greeting_entering() {
-                    bubble_y - greeting_slide
+                let message_slide = (18.0 * dpi).round() as i32;
+                let bubble_top = if win.get_message_animation_active() && win.get_message_entering() {
+                    bubble_y - message_slide
                 } else {
                     bubble_y
                 };
                 let bubble_bottom = bubble_y + bubble_h
-                    + (if win.get_greeting_animation_active() && win.get_greeting_exiting() { greeting_slide } else { 0 });
+                    + (if win.get_message_animation_active() && win.get_message_exiting() { message_slide } else { 0 });
                 left = left.min(bubble_x - (if dock == Dock::Left { tail } else { 0 }));
                 right = right.max(bubble_x + bubble_w + (if dock == Dock::Right { tail } else { 0 }));
                 top = top.min(bubble_top);
