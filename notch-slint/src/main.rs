@@ -276,6 +276,9 @@ fn main() -> Result<(), slint::PlatformError> {
         let previous_overlay = previous_overlay_visible.clone();
         let previous_overlay_renderable = Rc::new(Cell::new(false));
         let previous_renderable = previous_overlay_renderable.clone();
+        // Invalidate stale stage timers when a message closes or a new one starts.
+        let message_motion_generation = Rc::new(Cell::new(0u64));
+        let motion_generation = message_motion_generation.clone();
         win.on_region_layout_changed(move || {
             let Some(w) = weak.upgrade() else { return };
             let can_render_overlay = !w.get_expanded() && !w.get_dragging() && !w.get_geometry_hold();
@@ -296,6 +299,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let should_exit = !overlay_event_visible && was_visible;
 
             if should_enter {
+                let generation = motion_generation.get().wrapping_add(1);
+                motion_generation.set(generation);
                 w.set_message_animation_active(true);
                 w.set_message_entering(true);
                 w.set_message_expanding(false);
@@ -304,7 +309,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 // Fase 1: tinggi panel terbuka dari atas ke bawah (180 ms).
                 // Fase 2: setelah tinggi selesai, lebar bergerak ke kiri dan kanan (260 ms).
                 let weak_vertical = weak.clone();
+                let vertical_generation = motion_generation.clone();
                 Timer::single_shot(Duration::from_millis(190), move || {
+                    if vertical_generation.get() != generation { return; }
                     if let Some(w) = weak_vertical.upgrade() {
                         if w.get_message_animation_active()
                             && w.get_message_entering()
@@ -316,7 +323,9 @@ fn main() -> Result<(), slint::PlatformError> {
                 });
 
                 let weak_enter = weak.clone();
+                let enter_generation = motion_generation.clone();
                 Timer::single_shot(Duration::from_millis(470), move || {
+                    if enter_generation.get() != generation { return; }
                     if let Some(w) = weak_enter.upgrade() {
                         if w.get_message_animation_active() && !w.get_message_exiting() {
                             w.set_message_entering(false);
@@ -324,11 +333,15 @@ fn main() -> Result<(), slint::PlatformError> {
                     }
                 });
             } else if should_exit {
+                let generation = motion_generation.get().wrapping_add(1);
+                motion_generation.set(generation);
                 w.set_message_entering(false);
                 w.set_message_expanding(false);
                 w.set_message_exiting(true);
                 let weak_exit = weak.clone();
+                let exit_generation = motion_generation.clone();
                 Timer::single_shot(Duration::from_millis(360), move || {
+                    if exit_generation.get() != generation { return; }
                     if let Some(w) = weak_exit.upgrade() {
                         let still_visible = w.get_nudge_visible()
                             || w.get_reminder_alert_visible()
