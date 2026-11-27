@@ -253,6 +253,8 @@ mod imp {
             }
             let has = |class: &str| classes.contains(class);
             let kind = if all_names.contains("mass storage") || has("diskdrive") { "storage" }
+                else if all_names.contains("type-c") || all_names.contains("type c")
+                    || all_names.contains("usb-c") || all_names.contains("thunderbolt") { "usbc" }
                 else if has("keyboard") { "keyboard" }
                 else if has("mouse") { "mouse" }
                 else if has("media") || has("audioendpoint") { "audio" }
