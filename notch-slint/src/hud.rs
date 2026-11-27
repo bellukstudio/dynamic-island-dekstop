@@ -69,8 +69,9 @@ mod imp {
     use windows::core::{w, PCWSTR};
     use windows::Win32::Foundation::{HWND, RECT};
     use windows::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, FindWindowExW, GetMessageW, GetWindowRect, IsWindow,
-        IsWindowVisible, SetWindowsHookExW, ShowWindow, KBDLLHOOKSTRUCT, MSG, SW_HIDE, SW_SHOWNA,
+        CallNextHookEx, FindWindowExW, FindWindowW, GetMessageW, GetSystemMetrics,
+        GetWindowRect, GetWindowThreadProcessId, IsWindow, IsWindowVisible, SetWindowsHookExW,
+        ShowWindow, KBDLLHOOKSTRUCT, MSG, SM_CXSCREEN, SM_CYSCREEN, SW_HIDE, SW_SHOWNA,
         WH_KEYBOARD_LL, WM_KEYDOWN, WM_SYSKEYDOWN,
     };
 
@@ -200,12 +201,65 @@ mod imp {
                 None,
             )
         })
+        // Fallback for newer Windows 11 builds where the XAML host has no child HWNDs.
+        .or_else(find_childless_shell_osd)
+    }
+
+    // Windows 11 26H2+ can create the Explorer OSD host without child/bridge HWNDs.
+    // In that layout, identify the host by its top-level class, Explorer ownership and
+    // compact flyout dimensions instead of requiring a child-window hierarchy.
+    fn find_childless_shell_osd() -> Option<HWND> {
+        let tray = unsafe { FindWindowW(w!("Shell_TrayWnd"), PCWSTR::null()) }.ok()?;
+        let mut explorer_pid = 0u32;
+        unsafe { GetWindowThreadProcessId(tray, Some(&mut explorer_pid)) };
+        if explorer_pid == 0 {
+            return None;
+        }
+
+        let screen_w = unsafe { GetSystemMetrics(SM_CXSCREEN) }.max(1);
+        let screen_h = unsafe { GetSystemMetrics(SM_CYSCREEN) }.max(1);
+        let mut after: Option<HWND> = None;
+        let mut result: Option<HWND> = None;
+
+        loop {
+            let hwnd = match unsafe {
+                FindWindowExW(None, after, w!("XamlExplorerHostIslandWindow"), PCWSTR::null())
+            } {
+                Ok(hwnd) => hwnd,
+                Err(_) => break,
+            };
+
+            let mut pid = 0u32;
+            unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+            if pid == explorer_pid {
+                let mut rect = RECT::default();
+                if unsafe { GetWindowRect(hwnd, &mut rect) }.is_ok() {
+                    let width = rect.right - rect.left;
+                    let height = rect.bottom - rect.top;
+
+                    // OSD hardware flyouts are small; this excludes full-size Explorer/XAML windows.
+                    // Position is intentionally unrestricted because Windows lets users move indicators.
+                    if width >= 80
+                        && height >= 24
+                        && width <= screen_w / 2
+                        && height <= screen_h / 3
+                    {
+                        result = Some(hwnd);
+                    }
+                }
+            }
+
+            after = Some(hwnd);
+        }
+
+        result
     }
 
     fn start_osd_suppressor(window: Weak<NotchWindow>) {
         thread::spawn(move || {
             let mut osd: Option<HWND> = None;
             let mut hidden_by_us = false;
+            let mut logged_detection = false;
             loop {
                 // When Notch exits, restore the shell host only if this worker hid it.
                 // This prevents the system OSD from remaining hidden after the app is closed.
@@ -237,6 +291,10 @@ mod imp {
                 if should_rediscover {
                     osd = find_osd_window();
                     if let Some(hwnd) = osd {
+                        if !logged_detection {
+                            eprintln!("[HUD] Windows shell OSD host terdeteksi; suppressor aktif.");
+                            logged_detection = true;
+                        }
                         if unsafe { IsWindowVisible(hwnd).as_bool() } {
                             unsafe { ShowWindow(hwnd, SW_HIDE) };
                             hidden_by_us = true;
