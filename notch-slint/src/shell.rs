@@ -139,14 +139,15 @@ impl Shell {
                     pill_x - gap - bubble_w
                 };
                 let bubble_y = (pill_y + pill_h / 2 - bubble_h / 2).clamp(0, (size.1 as i32 - bubble_h).max(0));
-                let message_slide = (18.0 * dpi).round() as i32;
-                let bubble_top = if win.get_message_animation_active() && win.get_message_entering() {
-                    bubble_y - message_slide
-                } else {
-                    bubble_y
-                };
+                // Bubble kini ditambatkan pada posisi akhirnya; tinggi dibuka ke bawah.
+                // Sisakan ruang tambahan hanya saat keluar karena bubble bergerak turun.
+                let bubble_top = bubble_y;
                 let bubble_bottom = bubble_y + bubble_h
-                    + (if win.get_message_animation_active() && win.get_message_exiting() { message_slide } else { 0 });
+                    + (if win.get_message_animation_active() && win.get_message_exiting() {
+                        (18.0 * dpi).round() as i32
+                    } else {
+                        0
+                    });
                 left = left.min(bubble_x - (if dock == Dock::Left { tail } else { 0 }));
                 right = right.max(bubble_x + bubble_w + (if dock == Dock::Right { tail } else { 0 }));
                 top = top.min(bubble_top);
