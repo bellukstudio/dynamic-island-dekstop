@@ -6125,6 +6125,7 @@ export component NotchWindow inherits Window {
     // Notch menciut saat musik diputar: pil lebar (dock atas/melayang) atau kubah berisi cover bulat (bawah/samping).
     // Dock atas/melayang: nudge dan pengingat tampil di dalam badan notch (tanpa awan percakapan).
     // Dock bawah/samping memakai SpeechBubble.
+    property <bool> meeting-inline: !root.meeting-active && root.meeting-finished != "" && !root.expanded && !root.dragging && root.dock < 2;
     property <bool> nudge-inline: root.dock < 2 && !root.expanded && !root.dragging && !root.greeting-inline-visible
         && !root.meeting-active && !root.adhan-active && (root.nudge-visible || root.reminder-alert-visible);
     // Adzan tampil di dalam badan notch (dock atas/melayang): pil melebar supaya teks dan tombol berhenti muat.
@@ -6133,7 +6134,7 @@ export component NotchWindow inherits Window {
     property <bool> inline-msg: root.greeting-inline-visible
         || (root.greeting-animation-active && root.dock < 2)
         || (root.message-animation-active && root.dock < 2)
-        || root.nudge-inline || root.adhan-inline || root.device-notice-inline
+        || root.meeting-inline || root.nudge-inline || root.adhan-inline || root.device-notice-inline
         || (root.hud-visible && root.dock < 2);
     property <bool> priv-mic: root.meeting-active && (root.meeting-source == "MIC" || root.meeting-source == "MIC + CAM");
     property <bool> priv-cam: root.meeting-active && (root.meeting-source == "CAM" || root.meeting-source == "MIC + CAM");
@@ -6543,7 +6544,7 @@ export component NotchWindow inherits Window {
         width: root.message-animation-active && root.dock < 2 && root.message-entering && !root.message-expanding
             ? 26px * root.ui-scale
             : (root.device-notice-inline ? 340px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 300px * root.ui-scale : (root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))))))) * (root.expanded ? 1.0 : root.ui-scale)))));
-        height: root.device-notice-inline ? 74px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 52px * root.ui-scale : (root.adhan-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale))));
+        height: root.device-notice-inline ? 74px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 52px * root.ui-scale : (root.adhan-inline || root.meeting-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale))));
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         // Jangan meregangkan Path kubah saat panel masih mengecil dari ukuran hub.
@@ -6834,14 +6835,12 @@ export component NotchWindow inherits Window {
 
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
             Rectangle {
-                visible: (!root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2) || self.width > 0px;
-                property <bool> meeting-message-shown: !root.meeting-active && root.meeting-finished != "" && !root.expanded && root.dock < 2;
+                visible: root.meeting-inline || self.width > 0px;
+                property <bool> meeting-message-shown: root.meeting-inline;
                 x: (parent.width - self.width) / 2;
-                y: root.message-animation-active
-                    ? (root.message-entering ? -12px * root.ui-scale : (root.message-exiting ? 12px * root.ui-scale : 0px))
+                width: self.meeting-message-shown
+                    ? (root.message-animation-active && root.message-entering && !root.message-expanding ? 26px : 130px)
                     : 0px;
-                animate y { duration: root.message-entering ? 0ms : 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
-                width: self.meeting-message-shown ? 130px : 0px;
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown
                     && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
@@ -6879,8 +6878,6 @@ export component NotchWindow inherits Window {
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
             Rectangle {
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
-                opacity: root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0;
-                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 opacity: root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging
                     && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
                 animate opacity { duration: 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
@@ -6895,8 +6892,6 @@ export component NotchWindow inherits Window {
 
             AdhanOverlay {
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
-                opacity: root.adhan-active && !root.expanded && !root.dragging ? 1 : 0;
-                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 opacity: root.adhan-active && !root.expanded && !root.dragging
                     && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
                 animate opacity { duration: 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
