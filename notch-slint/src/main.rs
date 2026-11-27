@@ -358,6 +358,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 // Saat pesan muncul, perluas native region lebih dulu agar frame awal animasi tidak terpotong.
                 if !window_needs_resize(&w, size) {
                     shell.place(&w, size);
+                } else if w.get_hud_visible() && w.get_dock() < 2 {
+                    // HUD top membutuhkan tambahan ruang telinga. Gunakan jalur resize
+                    // tersinkron agar ukuran native benar sebelum fase melebar dimulai.
+                    shrink_window_synced(weak.clone(), shell.clone());
                 }
             } else {
                 // Saat pesan ditutup, tahan native region selama animasi keluar (360 ms).
@@ -382,14 +386,7 @@ fn main() -> Result<(), slint::PlatformError> {
                     if still_has_message {
                         return;
                     }
-                    let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
-                        GREETING_INLINE
-                    } else {
-                        COLLAPSED
-                    };
-                    if !window_needs_resize(&w, size) {
-                        shell_later.place(&w, size);
-                    }
+                    shrink_window_synced(weak_after_exit.clone(), shell_later.clone());
                 });
             }
         });
