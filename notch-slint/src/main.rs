@@ -280,11 +280,12 @@ fn main() -> Result<(), slint::PlatformError> {
                 || !w.get_meeting_finished().is_empty()
                 || w.get_greeting_speech_visible()
                 || w.get_greeting_inline_visible()
+                || w.get_greeting_animation_active()
                 || w.get_hud_visible()
                 || w.get_device_notice_visible();
 
             if message_visible {
-                let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
+                let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                     GREETING_INLINE
                 } else {
                     COLLAPSED
@@ -309,12 +310,13 @@ fn main() -> Result<(), slint::PlatformError> {
                         || !w.get_meeting_finished().is_empty()
                         || w.get_greeting_speech_visible()
                         || w.get_greeting_inline_visible()
+                        || w.get_greeting_animation_active()
                         || w.get_hud_visible()
                         || w.get_device_notice_visible();
                     if still_has_message {
                         return;
                     }
-                    let size = if w.get_greeting_inline_visible() && w.get_dock() < 2 {
+                    let size = if w.get_greeting_animation_active() && w.get_dock() < 2 {
                         GREETING_INLINE
                     } else {
                         COLLAPSED
@@ -2881,8 +2883,10 @@ fn main() -> Result<(), slint::PlatformError> {
             } else {
                 w.set_greeting_inline_visible(false);
                 w.set_nudge_visible(false);
+                begin_greeting_entry(&w);
                 w.set_greeting_speech_visible(true);
                 shell.place(&w, COLLAPSED);
+                finish_greeting_entry(weak.clone());
             }
             if let Some(eye_state) = eye.borrow().clone() {
                 eye_state.borrow_mut().mood.flash(Mood::Happy, greeting_duration_ms, Instant::now());
@@ -2893,15 +2897,25 @@ fn main() -> Result<(), slint::PlatformError> {
             timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                 if let Some(w) = weak.upgrade() {
                     let was_inline = w.get_greeting_inline_visible() && !w.get_expanded();
+                    begin_greeting_exit(&w, weak.clone());
                     w.set_greeting_inline_visible(false);
-                    if was_inline {
-                        shrink_window_synced(weak.clone(), shell_hide.clone());
-                    }
                     w.set_greeting_speech_visible(false);
                     w.set_nudge_visible(false);
-                    if w.get_dock() >= 2 && !w.get_expanded() {
-                        shell_hide.place(&w, COLLAPSED);
-                    }
+
+                    // Jangan menciutkan native region sebelum greeting selesai bergerak ke bawah.
+                    let weak_after_exit = weak.clone();
+                    let shell_after_exit = shell_hide.clone();
+                    Timer::single_shot(Duration::from_millis(360), move || {
+                        if let Some(w) = weak_after_exit.upgrade() {
+                            if w.get_expanded() { return; }
+                            if was_inline {
+                                shrink_window_synced(weak_after_exit.clone(), shell_after_exit.clone());
+                            }
+                            if w.get_dock() >= 2 {
+                                shell_after_exit.place(&w, COLLAPSED);
+                            }
+                        }
+                    });
                 }
             });
         });
@@ -4146,8 +4160,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 } else {
                     w.set_greeting_inline_visible(false);
                     w.set_nudge_visible(false);
+                    begin_greeting_entry(&w);
                     w.set_greeting_speech_visible(true);
                     shell.place(&w, COLLAPSED);
+                    finish_greeting_entry(weak.clone());
                 }
                 let greeting_duration_ms = speech::estimated_duration_ms(&greeting.spoken);
                 let _ = speech::speak(greeting.spoken.clone(), voice.clone());
@@ -4156,15 +4172,25 @@ fn main() -> Result<(), slint::PlatformError> {
                 hide_timer.start(TimerMode::SingleShot, Duration::from_millis(greeting_duration_ms + 600), move || {
                     if let Some(w) = weak_hide.upgrade() {
                         let was_inline = w.get_greeting_inline_visible() && !w.get_expanded();
+                        begin_greeting_exit(&w, weak_hide.clone());
                         w.set_greeting_inline_visible(false);
-                        if was_inline {
-                            shrink_window_synced(weak_hide.clone(), shell_hide.clone());
-                        }
                         w.set_greeting_speech_visible(false);
                         w.set_nudge_visible(false);
-                        if w.get_dock() >= 2 && !w.get_expanded() {
-                            shell_hide.place(&w, COLLAPSED);
-                        }
+
+                        // Pertahankan area render hingga transisi greeting selesai.
+                        let weak_after_exit = weak_hide.clone();
+                        let shell_after_exit = shell_hide.clone();
+                        Timer::single_shot(Duration::from_millis(360), move || {
+                            if let Some(w) = weak_after_exit.upgrade() {
+                                if w.get_expanded() { return; }
+                                if was_inline {
+                                    shrink_window_synced(weak_after_exit.clone(), shell_after_exit.clone());
+                                }
+                                if w.get_dock() >= 2 {
+                                    shell_after_exit.place(&w, COLLAPSED);
+                                }
+                            }
+                        });
                     }
                 });
             }
