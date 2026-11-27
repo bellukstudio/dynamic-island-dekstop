@@ -206,7 +206,8 @@ mod imp {
         eRender, IDeviceTopology, IMMDeviceEnumerator, DEVICE_STATEMASK_ALL, MMDeviceEnumerator,
     };
     use windows::Win32::Media::KernelStreaming::{
-        IKsJackDescription, IKsJackDescription2, JACKDESC2_PRESENCE_DETECT_CAPABILITY,
+        eConnType3Point5mm, IKsJackDescription, IKsJackDescription2,
+        JACKDESC2_PRESENCE_DETECT_CAPABILITY,
     };
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_MULTITHREADED,
@@ -652,9 +653,9 @@ while ($true) {
                             continue;
                         }
 
-                        // eConnType3Point5mm = 1. Hindari memicu kartu untuk HDMI, USB audio,
-                        // konektor internal, atau endpoint Bluetooth.
-                        if description.ConnectionType.0 != 1 {
+                        // Hanya konektor analog 3,5 mm. Endpoint HDMI, USB, dan Bluetooth
+                        // tidak ikut menghasilkan kartu earphone kabel.
+                        if description.ConnectionType != eConnType3Point5mm {
                             continue;
                         }
 
