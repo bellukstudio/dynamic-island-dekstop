@@ -3037,7 +3037,7 @@ component SpeechBubble inherits Rectangle {
     background: #08090df5;
     animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
     animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-    animate opacity { duration: 240ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+    animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
     animate border-radius { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
 
     // Konten mengikuti area yang sedang melebar; teks tidak boleh muncul di luar background
@@ -7163,7 +7163,7 @@ export component NotchWindow inherits Window {
                 visible: root.nudge-inline || self.opacity > 0.01
                     || (root.message-animation-active && root.message-exiting && root.dock < 2);
                 opacity: root.nudge-inline ? 1 : 0;
-                animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
                 clip: true;
