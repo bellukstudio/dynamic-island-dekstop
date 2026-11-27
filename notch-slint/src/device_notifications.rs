@@ -18,6 +18,11 @@ type NoticeQueue = Arc<Mutex<VecDeque<DeviceNotice>>>;
 
 fn enqueue(queue: &NoticeQueue, notice: DeviceNotice) {
     let mut queue = queue.lock().unwrap_or_else(|e| e.into_inner());
+    // A charger has one physical state: while the UI is busy, keep only its newest state
+    // instead of replaying stale unplug/plug events later.
+    if notice.kind == "charger" {
+        queue.retain(|pending| pending.kind != "charger");
+    }
     // Keep the newest events without allowing a rapid USB scan to grow memory indefinitely.
     if queue.len() >= 24 {
         queue.pop_front();
@@ -53,6 +58,32 @@ fn make_notice(kind: &str, name: &str, connected: bool, extra: Option<&str>) -> 
     }
 }
 
+/// Apply or refresh the currently visible device card without restarting the native window.
+fn display_notice(
+    window: &NotchWindow,
+    notice: &DeviceNotice,
+    shown_at: &Cell<Option<Instant>>,
+) {
+    window.set_device_notice_kind(notice.kind.clone().into());
+    window.set_device_notice_name(notice.name.clone().into());
+    window.set_device_notice_detail(notice.detail.clone().into());
+    window.set_device_notice_connected(notice.connected);
+    let generation = window.get_device_notice_generation().wrapping_add(1);
+    window.set_device_notice_generation(generation);
+    window.set_device_notice_pulse(true);
+    window.set_device_notice_visible(true);
+    shown_at.set(Some(Instant::now()));
+
+    let weak_pulse = window.as_weak();
+    Timer::single_shot(Duration::from_millis(720), move || {
+        if let Some(window) = weak_pulse.upgrade() {
+            if window.get_device_notice_generation() == generation {
+                window.set_device_notice_pulse(false);
+            }
+        }
+    });
+}
+
 /// Display queued device events on the UI thread. Higher-priority surfaces keep their space.
 pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
     let queue: NoticeQueue = Arc::new(Mutex::new(VecDeque::new()));
@@ -85,8 +116,17 @@ pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
                 || !w.get_meeting_finished().is_empty();
 
             if w.get_device_notice_visible() {
-                // Tahan kartu minimal 3,2 detik, lalu beri 400 ms untuk animasi keluar
-                // sebelum native window kembali mengecil ke ukuran notch biasa.
+                // Selama kartu tampil, terapkan event terbaru langsung. Jangan menahan
+                // cabut/pasang berikutnya sampai durasi kartu sebelumnya habis.
+                if !higher_priority {
+                    let next = pending.lock().unwrap_or_else(|e| e.into_inner()).pop_front();
+                    if let Some(notice) = next {
+                        display_notice(&w, &notice, &shown_at);
+                    }
+                }
+
+                // Tahan kartu minimal 3,2 detik setelah event terakhir, lalu beri 400 ms
+                // untuk animasi keluar sebelum native window kembali mengecil.
                 if let Some(started) = shown_at.get() {
                     if started.elapsed() >= Duration::from_millis(3_200) || higher_priority {
                         w.set_device_notice_visible(false);
@@ -120,27 +160,6 @@ pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
             let needs_device_window = w.get_dock() < 2
                 && window_needs_resize(&w, COLLAPSED_DEVICE);
 
-            let show = move |w: &NotchWindow, notice: &DeviceNotice, shown_at: &Rc<Cell<Option<Instant>>>| {
-                w.set_device_notice_kind(notice.kind.clone().into());
-                w.set_device_notice_name(notice.name.clone().into());
-                w.set_device_notice_detail(notice.detail.clone().into());
-                w.set_device_notice_connected(notice.connected);
-                let generation = w.get_device_notice_generation().wrapping_add(1);
-                w.set_device_notice_generation(generation);
-                w.set_device_notice_pulse(true);
-                w.set_device_notice_visible(true);
-                shown_at.set(Some(Instant::now()));
-
-                let weak_pulse = w.as_weak();
-                Timer::single_shot(Duration::from_millis(720), move || {
-                    if let Some(w) = weak_pulse.upgrade() {
-                        if w.get_device_notice_generation() == generation {
-                            w.set_device_notice_pulse(false);
-                        }
-                    }
-                });
-            };
-
             if needs_device_window {
                 w.set_geometry_hold(true);
                 let weak_show = weak.clone();
@@ -166,12 +185,12 @@ pub fn start(window: Weak<NotchWindow>, shell: Rc<Shell>) -> Timer {
                     }
 
                     platform::wait_vsync();
-                    show(&w, &notice, &shown_at_show);
+                    display_notice(&w, &notice, &shown_at_show);
                     shell_show.place(&w, COLLAPSED);
                     w.set_geometry_hold(false);
                 });
             } else {
-                show(&w, &notice, &shown_at);
+                display_notice(&w, &notice, &shown_at);
                 // Refresh the native region for side/bottom SpeechBubble and for an already-sized top card.
                 shell.place(&w, COLLAPSED);
             }
@@ -397,31 +416,28 @@ $conn = '{83DA6326-97A6-4088-9453-A1923F573B29} 15'
 $batt = '{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2'
 $i = 0
 while ($true) {
-  if ($i % 4 -eq 0) {
-    Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\VID_*' } |
-      ForEach-Object {
-        $id = $_.InstanceId.Replace('|', '/')
-        $class = ([string]$_.Class).Replace('|', '/')
-        $name = ([string]$_.FriendlyName).Replace('|', '/')
-        'D|' + $id + '|' + $class + '|' + $name
-      }
-    'D|---'
-  }
-
-  if ($i % 6 -eq 0) {
-    Get-PnpDevice -Class Bluetooth -PresentOnly | Where-Object {
-      $_.InstanceId -like 'BTHENUM\DEV_*' -or $_.InstanceId -like 'BTHLE\DEV_*'
-    } | ForEach-Object {
-      $id = $_.InstanceId
-      $connected = (Get-PnpDeviceProperty -InstanceId $id -KeyName $conn).Data
-      if ($connected -eq $true) {
-        $level = (Get-PnpDeviceProperty -InstanceId $id -KeyName $batt).Data
-        $name = ([string]$_.FriendlyName).Replace('|', '/')
-        'T|BT|' + $id + '|' + $level + '|' + $name
-      }
+  # Scan USB and Bluetooth every cycle; snapshots are still debounced in Rust.
+  Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -like 'USB\VID_*' } |
+    ForEach-Object {
+      $id = $_.InstanceId.Replace('|', '/')
+      $class = ([string]$_.Class).Replace('|', '/')
+      $name = ([string]$_.FriendlyName).Replace('|', '/')
+      'D|' + $id + '|' + $class + '|' + $name
     }
-    'T|---'
+  'D|---'
+
+  Get-PnpDevice -Class Bluetooth -PresentOnly | Where-Object {
+    $_.InstanceId -like 'BTHENUM\DEV_*' -or $_.InstanceId -like 'BTHLE\DEV_*'
+  } | ForEach-Object {
+    $id = $_.InstanceId
+    $connected = (Get-PnpDeviceProperty -InstanceId $id -KeyName $conn).Data
+    if ($connected -eq $true) {
+      $level = (Get-PnpDeviceProperty -InstanceId $id -KeyName $batt).Data
+      $name = ([string]$_.FriendlyName).Replace('|', '/')
+      'T|BT|' + $id + '|' + $level + '|' + $name
+    }
   }
+  'T|---'
 
   if ($i % 3 -eq 0) {
     $wifi = Get-NetAdapter -Physical | Where-Object {
@@ -559,7 +575,7 @@ while ($true) {
 
     fn start_charger_watcher(queue: NoticeQueue) {
         thread::spawn(move || {
-            const SAMPLE_INTERVAL: Duration = Duration::from_millis(500);
+            const SAMPLE_INTERVAL: Duration = Duration::from_millis(250);
             const REQUIRED_STABLE_SAMPLES: u8 = 3;
 
             // Keep the last confirmed state separate from transient/unknown readings.
@@ -589,8 +605,8 @@ while ($true) {
                     candidate_samples = 1;
                 }
 
-                // Require three consecutive identical readings (~1.5 seconds) before
-                // publishing a real transition. This filters brief ACLineStatus glitches.
+                // Require three readings (~750 ms) before publishing a transition;
+                // shorter sampling improves response without trusting a single ACLineStatus glitch.
                 if candidate_samples >= REQUIRED_STABLE_SAMPLES {
                     stable_state = Some(current);
                     candidate_state = None;
