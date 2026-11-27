@@ -203,7 +203,8 @@ mod imp {
     use std::time::{Duration, Instant};
     use windows::core::Interface;
     use windows::Win32::Media::Audio::{
-        eRender, IDeviceTopology, IMMDeviceEnumerator, DEVICE_STATEMASK_ALL, MMDeviceEnumerator,
+        eRender, IDeviceTopology, IMMDeviceEnumerator, IPart, DEVICE_STATE, DEVICE_STATEMASK_ALL,
+        MMDeviceEnumerator,
     };
     use windows::Win32::Media::KernelStreaming::{
         eConnType3Point5mm, IKsJackDescription, IKsJackDescription2,
@@ -617,7 +618,7 @@ while ($true) {
     ) -> Option<HashMap<String, bool>> {
         unsafe {
             let endpoints = enumerator
-                .EnumAudioEndpoints(eRender, DEVICE_STATEMASK_ALL)
+                .EnumAudioEndpoints(eRender, DEVICE_STATE(DEVICE_STATEMASK_ALL))
                 .ok()?;
             let count = endpoints.GetCount().ok()?;
             let mut result = HashMap::new();
