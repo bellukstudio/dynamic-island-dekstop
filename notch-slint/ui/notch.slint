@@ -6491,6 +6491,10 @@ export component NotchWindow inherits Window {
     property <bool> any-hover: hover.has-hover || pos-zone.has-hover;
     out property <bool> drag-armed: hover.pressed;
     changed any-hover => { root.hover-changed(root.any-hover); }
+    // Perubahan visibilitas/docking memicu perhitungan ulang setelah hub, drag, atau resize selesai.
+    changed expanded => { root.region-layout-changed(); }
+    changed dragging => { root.region-layout-changed(); }
+    changed geometry-hold => { root.region-layout-changed(); }
     // Lebar badan notch menciut (adzan 220, musik/jam 220, biasa 130) menentukan area klik di Rust; hitung ulang tiap berubah.
     changed adhan-active => { root.adhan-layout-changed(); root.region-layout-changed(); }
     changed idle-clock => { root.adhan-layout-changed(); root.region-layout-changed(); }
