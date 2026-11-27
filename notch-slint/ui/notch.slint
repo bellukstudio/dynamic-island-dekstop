@@ -3025,7 +3025,7 @@ component SpeechBubble inherits Rectangle {
     property <length> target-width: root.hud ? 184px : (root.compact ? 184px : 224px);
     property <length> along: root.side ? root.height : root.width;
     property <length> tail-center: Math.max(20px, Math.min(root.along - 20px, root.tail-pos < 0px ? root.along / 2 : root.tail-pos));
-    property <length> target-height: content.content-height;
+    out property <length> target-height: content.content-height;
     width: root.shown ? root.target-width : 0px;
     // Lebar melebar keluar dari sisi notch; tinggi tumbuh dari sisi atas ke bawah.
     // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
@@ -6823,11 +6823,10 @@ export component NotchWindow inherits Window {
                 width: self.meeting-message-shown ? 130px : 0px;
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown ? 1 : 0;
-                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 clip: true;
                 animate width { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate height { duration: 300ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-                animate opacity { duration: 220ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 border-radius: 17px;
                 background: #171923f5;
                 border-width: 1px;
