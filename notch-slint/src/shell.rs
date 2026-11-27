@@ -125,7 +125,7 @@ impl Shell {
                     bubble_y
                 };
                 let bubble_bottom = bubble_y + bubble_h
-                    + if win.get_greeting_animation_active() && win.get_greeting_exiting() { greeting_slide } else { 0 };
+                    + (if win.get_greeting_animation_active() && win.get_greeting_exiting() { greeting_slide } else { 0 });
                 left = left.min(bubble_x - (if dock == Dock::Left { tail } else { 0 }));
                 right = right.max(bubble_x + bubble_w + (if dock == Dock::Right { tail } else { 0 }));
                 top = top.min(bubble_top);
