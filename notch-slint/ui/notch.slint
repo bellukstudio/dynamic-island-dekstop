@@ -3002,6 +3002,12 @@ component HudPanel inherits Rectangle {
 
 component SpeechBubble inherits Rectangle {
     in property <bool> shown: false;
+    in property <bool> greeting: false;
+    in property <bool> greeting-entering: false;
+    in property <bool> greeting-exiting: false;
+    in property <length> slide-y: 0px;
+    y: root.slide-y;
+    animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
     in property <bool> hud: false;
     in property <string> hud-kind: "volume";
     in property <int> hud-value: 0;
@@ -3025,7 +3031,7 @@ component SpeechBubble inherits Rectangle {
     // Bubble tetap hidup selama ukuran/opacity sedang kembali ke nol.
     height: root.shown ? root.target-height : 0px;
     visible: root.shown || self.width > 0px || self.height > 0px;
-    opacity: root.shown ? 1 : 0;
+    opacity: root.shown ? (root.greeting && root.greeting-entering ? 0 : 1) : 0;
     border-radius: root.compact ? 14px : 18px;
     clip: false;
     background: #08090df5;
@@ -6211,6 +6217,9 @@ export component NotchWindow inherits Window {
     in property <bool> nudge-until-move: false;
     in property <string> nudge-save-status: "";
     in property <bool> greeting-speech-visible: false;
+    in property <bool> greeting-animation-active: false;
+    in property <bool> greeting-entering: false;
+    in property <bool> greeting-exiting: false;
     in property <string> greeting-message: "Halo!";
     in property <string> greeting-detail: "Sapaan dari Notch";
     in property <bool> greeting-enabled: true;
@@ -6485,6 +6494,8 @@ export component NotchWindow inherits Window {
     changed nudge-visible => { root.region-layout-changed(); }
     changed reminder-alert-visible => { root.region-layout-changed(); }
     changed greeting-speech-visible => { root.region-layout-changed(); }
+    changed greeting-animation-active => { root.region-layout-changed(); }
+    changed greeting-exiting => { root.region-layout-changed(); }
     changed meeting-finished => { root.region-layout-changed(); }
     changed hud-visible => { root.region-layout-changed(); }
     changed device-notice-visible => { root.region-layout-changed(); }
@@ -6672,10 +6683,16 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Greeting tampil sebagai companion inline di badan notch, bukan speech bubble terpisah.
+            // Greeting inline turun dari atas ketika muncul dan bergerak ke bawah ketika ditutup.
             Rectangle {
-                visible: (root.greeting-inline-visible && !root.expanded) || self.opacity > 0.01;
-                opacity: root.greeting-inline-visible && !root.expanded ? 1 : 0;
+                property <length> greeting-slide-y: root.greeting-animation-active
+                    ? (root.greeting-entering ? -18px : (root.greeting-exiting ? 18px : 0px))
+                    : 0px;
+                y: self.greeting-slide-y;
+                animate y { duration: 320ms; easing: cubic-bezier(0.22, 1, 0.36, 1); }
+                visible: (root.greeting-inline-visible && !root.expanded)
+                    || self.opacity > 0.01 || (root.greeting-animation-active && root.greeting-exiting);
+                opacity: root.greeting-inline-visible && !root.expanded && !root.greeting-entering ? 1 : 0;
                 animate opacity { duration: 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
@@ -7287,7 +7304,11 @@ export component NotchWindow inherits Window {
         // Lebar target dimiliki SpeechBubble agar root.width bisa dianimasikan dari nol.
         // Jarak 11 px dari notch: ekor (sekitar 8,5 px) berakhir tepat di depan badan notch.
         x: root.dock == 3 ? pill.x + pill.width + 11px : (root.dock == 4 ? pill.x - 11px - self.width : (root.width - self.width) / 2);
-        y: root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height;
+        greeting: root.greeting-animation-active;
+        greeting-entering: root.greeting-entering;
+        greeting-exiting: root.greeting-exiting;
+        slide-y: (root.dock >= 3 ? Math.max(0px, Math.min(root.height - self.height, pill.y + pill.height / 2 - self.height / 2)) : pill.y - 11px - self.height)
+            + (root.greeting-animation-active ? (root.greeting-entering ? -18px : (root.greeting-exiting ? 18px : 0px)) : 0px);
         side: root.dock >= 3;
         side-right: root.dock == 4;
         tail-pos: root.dock >= 3 ? pill.y + pill.height / 2 - self.y : pill.x + pill.width / 2 - self.x;
