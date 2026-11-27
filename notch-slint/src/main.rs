@@ -2092,6 +2092,11 @@ fn main() -> Result<(), slint::PlatformError> {
             // Hover saat greeting tampil: hub menggantikan greeting. Flag harus dibersihkan, kalau tidak kartu 385 px
             // muncul lagi di jendela 300 px begitu hub menciut.
             w.set_greeting_inline_visible(false);
+            // Greeting langsung digantikan hub; batalkan state animasi agar ukuran inline
+            // tidak tertinggal 385 px setelah hub ditutup.
+            w.set_greeting_animation_active(false);
+            w.set_greeting_entering(false);
+            w.set_greeting_exiting(false);
             let size = expanded_size(&w);
             if !w.get_expanded() && window_needs_resize(&w, size) {
                 // Jendela akan membesar sementara notch (mata) masih tampak: frame lama akan tampil di koordinat
