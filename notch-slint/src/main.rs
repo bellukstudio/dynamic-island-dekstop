@@ -320,11 +320,11 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_message_exiting(false);
                 w.set_message_collapsing(false);
 
-                // Fase 1: tinggi panel terbuka dari atas ke bawah (180 ms).
-                // Fase 2: setelah tinggi selesai, lebar bergerak ke kiri dan kanan (260 ms).
+                // Fase 1: tinggi panel terbuka dari atas ke bawah (260 ms).
+                // Fase 2: setelahnya, lebar melebar ke kiri dan kanan (420 ms).
                 let weak_vertical = weak.clone();
                 let vertical_generation = motion_generation.clone();
-                Timer::single_shot(Duration::from_millis(190), move || {
+                Timer::single_shot(Duration::from_millis(270), move || {
                     if vertical_generation.get() != generation { return; }
                     if let Some(w) = weak_vertical.upgrade() {
                         if w.get_message_animation_active()
@@ -338,7 +338,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
                 let weak_enter = weak.clone();
                 let enter_generation = motion_generation.clone();
-                Timer::single_shot(Duration::from_millis(470), move || {
+                Timer::single_shot(Duration::from_millis(720), move || {
                     if enter_generation.get() != generation { return; }
                     if let Some(w) = weak_enter.upgrade() {
                         if w.get_message_animation_active() && !w.get_message_exiting() {
@@ -354,10 +354,10 @@ fn main() -> Result<(), slint::PlatformError> {
                 w.set_message_exiting(true);
                 w.set_message_collapsing(false);
 
-                // Urutan keluar membalik urutan masuk: lebar 260 ms, lalu tinggi 180 ms.
+                // Urutan keluar membalik urutan masuk: lebar 420 ms, lalu tinggi 260 ms.
                 let weak_collapse = weak.clone();
                 let collapse_generation = motion_generation.clone();
-                Timer::single_shot(Duration::from_millis(260), move || {
+                Timer::single_shot(Duration::from_millis(420), move || {
                     if collapse_generation.get() != generation { return; }
                     if let Some(w) = weak_collapse.upgrade() {
                         if w.get_message_animation_active() && w.get_message_exiting() {
@@ -368,7 +368,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
                 let weak_exit = weak.clone();
                 let exit_generation = motion_generation.clone();
-                Timer::single_shot(Duration::from_millis(480), move || {
+                Timer::single_shot(Duration::from_millis(720), move || {
                     if exit_generation.get() != generation { return; }
                     if let Some(w) = weak_exit.upgrade() {
                         let still_visible = w.get_nudge_visible()
@@ -411,11 +411,11 @@ fn main() -> Result<(), slint::PlatformError> {
                     shrink_window_synced(weak.clone(), shell.clone());
                 }
             } else {
-                // Saat pesan ditutup, tahan native region selama dua tahap animasi keluar (260 + 180 ms).
+                // Saat pesan ditutup, tahan native region selama dua tahap animasi keluar (420 + 260 ms).
                 // Setelah itu hitung ulang state terbaru agar timer lama tidak memotong pesan baru.
                 let weak_later = weak.clone();
                 let shell_later = shell.clone();
-                Timer::single_shot(Duration::from_millis(520), move || {
+                Timer::single_shot(Duration::from_millis(760), move || {
                     let Some(w) = weak_later.upgrade() else { return };
                     if w.get_expanded() || w.get_dragging() || w.get_geometry_hold() {
                         return;
@@ -815,8 +815,8 @@ fn main() -> Result<(), slint::PlatformError> {
             let center_y = work.y + work.h / 2;
             let next_pos = match mode.as_str() {
                 "top" => None,
-                // Mode melayang tetap dekat tepi atas, dengan jarak visual sekitar 10 px.
-                "floating" => Some((center_x, work.y + 10)),
+                // Mode melayang tetap dekat tepi atas, dengan jarak visual 5 px.
+                "floating" => Some((center_x, work.y + 5)),
                 "bottom" => Some((center_x, notch_core::layout::BOTTOM_TY)),
                 "left" => Some((notch_core::layout::LEFT_TX, center_y)),
                 "right" => Some((notch_core::layout::RIGHT_TX, center_y)),
