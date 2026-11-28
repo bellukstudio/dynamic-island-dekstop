@@ -6332,6 +6332,10 @@ export component NotchWindow inherits Window {
     in property <bool> message-exiting: false;
     // Fase kedua saat menutup: tinggi menguncup setelah lebar selesai menyempit.
     in property <bool> message-collapsing: false;
+    // Snapshot geometri notifikasi agar panel tetap utuh saat sumber event sudah nonaktif.
+    property <length> message-origin-width: 130px;
+    property <length> message-origin-height: 26px;
+    property <length> message-target-height: 74px;
     in property <bool> greeting-animation-active: false;
     in property <bool> greeting-entering: false;
     in property <bool> greeting-exiting: false;
@@ -6617,7 +6621,14 @@ export component NotchWindow inherits Window {
     changed greeting-entering => { root.region-layout-changed(); }
     changed greeting-exiting => { root.region-layout-changed(); }
     changed message-animation-active => { root.region-layout-changed(); }
-    changed message-entering => { root.region-layout-changed(); }
+    changed message-entering => {
+        root.region-layout-changed();
+        if (root.message-entering) {
+            root.message-origin-width = (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)) * root.ui-scale;
+            root.message-origin-height = (root.dock == 0 ? 26px : 34px) * root.ui-scale;
+            root.message-target-height = pill.target-message-height;
+        }
+    }
     changed message-expanding => { root.region-layout-changed(); }
     changed message-exiting => { root.region-layout-changed(); }
     changed greeting-inline-visible => { root.region-layout-changed(); }
@@ -6634,16 +6645,14 @@ export component NotchWindow inherits Window {
             : (root.nudge-inline ? 24px : (root.greeting-inline-visible && root.dock < 3 ? 17px : (root.dock == 0 ? 13px : (root.dock == 2 ? 40px : (root.dock >= 3 ? 40px : 17px))))) * root.ui-scale)));
         x: root.dock == 3 ? 0px : (root.dock == 4 ? root.width - self.width : (root.width - self.width) / 2 + (root.dock == 2 ? root.play-offset * 1px : 0px));
         y: root.dock == 2 ? root.height - self.height : (root.dock >= 3 ? (root.height - self.height) / 2 + root.play-offset * 1px : 0px);
-        property <length> message-origin-width: (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)) * root.ui-scale;
-        property <length> message-origin-height: (root.dock == 0 ? 26px : 34px) * root.ui-scale;
         width: root.message-animation-active && root.dock < 2 && !root.expanded && !root.dragging && !root.geometry-hold
             && ((root.message-entering && !root.message-expanding) || root.message-exiting)
-            ? self.message-origin-width
+            ? root.message-origin-width
             : (root.device-notice-inline ? 340px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 300px * root.ui-scale : (root.adhan-inline ? 220px * root.ui-scale : ((root.expanded ? ((root.prayer-wide || root.reminder-wide || root.page-id == "currency") ? 780px : 580px) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 220px : 288px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 385px : (root.dragging ? 58px : (root.dock == 2 ? 80px : (root.dock >= 3 ? 40px : (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)))))))) * (root.expanded ? 1.0 : root.ui-scale)))));
-        property <length> target-message-height: root.device-notice-inline ? 74px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 52px * root.ui-scale : (root.adhan-inline || root.meeting-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale))));
-        height: root.message-animation-active && root.dock < 2 && !root.expanded && !root.dragging && !root.geometry-hold
-            && root.message-exiting && root.message-collapsing
-            ? self.message-origin-height : self.target-message-height;
+        out property <length> target-message-height: root.device-notice-inline ? 74px * root.ui-scale : (root.hud-visible && root.dock < 2 ? 52px * root.ui-scale : (root.adhan-inline || root.meeting-inline ? 34px * root.ui-scale : ((root.expanded ? (root.prayer-wide ? 540px : (root.reminder-wide ? 502px : (root.page-id == "currency" ? 520px : (root.page-id == "notes" && root.notes-expanded ? 300px : 202px)))) : (root.nudge-inline ? (root.media-playing && root.nudge-visible ? 40px : 68px) : ((root.greeting-inline-visible || (root.greeting-animation-active && root.dock < 2)) && root.dock < 3 ? 75px : (root.dragging ? 58px : (root.dock == 0 ? 26px : (root.dock == 2 ? 44px : (root.dock >= 3 ? 80px : 34px))))))) * (root.expanded ? 1.0 : root.ui-scale))));
+        height: root.message-animation-active && root.dock < 2 && !root.expanded && !root.dragging && !root.geometry-hold && root.message-exiting
+            ? (root.message-collapsing ? root.message-origin-height : root.message-target-height)
+            : self.target-message-height;
         // Dock bawah/samping saat menciut digambar sebagai Path busur (lihat `half-body`) karena Slint
         // membatasi border-radius maksimal setengah sisi terpendek: radius 40 pada 80x44 jadi 22 (bukan setengah lingkaran).
         // Jangan meregangkan Path kubah saat panel masih mengecil dari ukuran hub.
