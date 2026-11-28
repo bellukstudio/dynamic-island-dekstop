@@ -3105,7 +3105,7 @@ component SpeechBubble inherits Rectangle {
     background: #08090df5;
     animate width {
         duration: root.motion-exiting
-            ? 260ms
+            ? 420ms
             : (root.motion-active && root.motion-entering && !root.motion-expanding ? 0ms : 420ms);
         easing: cubic-bezier(0.65, 0, 0.35, 1);
     }
@@ -3116,7 +3116,7 @@ component SpeechBubble inherits Rectangle {
         easing: cubic-bezier(0.65, 0, 0.35, 1);
     }
     animate opacity {
-        duration: root.motion-exiting ? (root.motion-collapsing ? 260ms : 0ms) : 160ms;
+        duration: root.motion-exiting ? (root.motion-collapsing ? 260ms : 0ms) : 220ms;
         easing: cubic-bezier(0.65, 0, 0.35, 1);
     }
     animate border-radius { duration: 420ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
@@ -6983,7 +6983,7 @@ export component NotchWindow inherits Window {
                 opacity: self.meeting-message-shown ? 1 : 0;
                 clip: true;
                 animate width { duration: root.message-animation-active && root.message-exiting && root.message-collapsing ? 260ms : (root.message-animation-active && root.message-entering && !root.message-expanding ? 0ms : 260ms); easing: cubic-bezier(0.65, 0, 0.35, 1); }
-                animate height { duration: root.message-animation-active && ((root.message-entering && !root.message-expanding) || (root.message-exiting && root.message-collapsing)) ? 180ms : 260ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate height { duration: root.message-animation-active && ((root.message-entering && !root.message-expanding) || (root.message-exiting && root.message-collapsing)) ? 260ms : 360ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 animate opacity { duration: root.message-animation-active && root.message-exiting && root.message-collapsing ? 260ms : 420ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 border-radius: 17px;
                 background: #171923f5;
@@ -7017,11 +7017,11 @@ export component NotchWindow inherits Window {
             // Overlay Adzan saat notch menciut: status jelas dan tombol berhenti, mengikuti skala notch.
             Rectangle {
                 y: 0px;
-                animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate y { duration: root.message-exiting ? 420ms : 420ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-hud
                     ? 1.0 : (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0);
-                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 260ms : 0ms) : 220ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 width: parent.width; height: parent.height; clip: true;
                 HudPanel {
                     kind: root.hud-kind; value: root.hud-value; value-text: root.hud-value-text;
@@ -7033,11 +7033,11 @@ export component NotchWindow inherits Window {
 
             AdhanOverlay {
                 y: 0px;
-                animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate y { duration: root.message-exiting ? 420ms : 420ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
                 opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-adhan
                     ? 1.0 : (root.adhan-active && !root.expanded && !root.dragging ? 1 : 0);
-                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 220ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 x: 0px;
                 width: parent.width;
                 height: parent.height;
@@ -7331,12 +7331,12 @@ export component NotchWindow inherits Window {
             // konten mengikuti kliping tinggi kapsul, lalu kapsul melebar ke samping.
             Rectangle {
                 y: 0px;
-                animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate y { duration: root.message-exiting ? 420ms : 420ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 visible: root.nudge-inline || self.opacity > 0.01
                     || (root.message-animation-active && root.message-exiting && root.dock < 2 && (root.message-is-nudge || root.message-is-reminder));
                 opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && (root.message-is-nudge || root.message-is-reminder)
                     ? 1.0 : (root.nudge-inline ? 1 : 0);
-                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
+                animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 260ms : 0ms) : 220ms; easing: cubic-bezier(0.65, 0, 0.35, 1); }
                 width: parent.width;
                 height: parent.height;
                 clip: true;
