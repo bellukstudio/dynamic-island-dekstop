@@ -3088,10 +3088,8 @@ component SpeechBubble inherits Rectangle {
     changed emoji => { if (root.shown && !root.motion-exiting) { root.last-emoji = root.emoji; } }
     changed emoji-image => { if (root.shown && !root.motion-exiting) { root.last-emoji-image = root.emoji-image; } }
     changed emoji-image-available => { if (root.shown && !root.motion-exiting) { root.last-emoji-image-available = root.emoji-image-available; } }
-    // Fase 1: bidang tipis dengan tinggi penuh (tumbuh dari atas ke bawah).
-    // Fase 2: lebarkan bidang ke dua sisi setelah tinggi selesai.
-    // Penutupan membalik urutan pembukaan: lebar menyempit dulu,
-    // lalu tinggi menguncup dari bawah ke atas dengan tepi atas tetap.
+    // Bubble mulai dari lebar kapsul dock. Tinggi membuka isi dari atas ke bawah,
+    // lalu lebar berkembang; penutupan membalik urutannya dengan tepi atas tetap.
     width: root.motion-exiting
         ? root.resting-width
         : (root.shown
@@ -3127,19 +3125,11 @@ component SpeechBubble inherits Rectangle {
     // pada frame awal animasi (khususnya ketika lebar bubble masih mendekati nol).
     content := Rectangle {
         out property <length> content-height: root.visual-hud ? 56px : ((root.visual-compact ? 7px : 10px) + msg.height + (root.visual-detail != "" && !root.visual-compact ? 3px + det.height : 0px) + (root.visual-compact ? 7px : 10px));
-        // Mask isi dibuka dari tepi atas ke bawah setelah panel selesai membuka tinggi.
-        // Saat menutup, mask menguncup kembali dari bawah ke atas pada fase kedua.
+        // Tinggi mask mengikuti badan bubble: isi ikut terbuka dari atas ke bawah
+        // dan tertutup kembali dari bawah ke atas tanpa fase tambahan yang terlambat.
         opacity: 1;
         width: parent.width;
-        height: root.motion-exiting
-            ? (root.motion-collapsing ? 0px : parent.height)
-            : (root.motion-active && root.motion-entering && !root.motion-expanding ? 0px : parent.height);
-        animate height {
-            duration: root.motion-exiting
-                ? (root.motion-collapsing ? 180ms : 0ms)
-                : (root.motion-active && root.motion-entering && !root.motion-expanding ? 0ms : 180ms);
-            easing: cubic-bezier(0.42, 0, 0.58, 1);
-        }
+        height: parent.height;
         clip: true;
         background: transparent;
         if root.visual-hud: HudGlyph {
@@ -6955,8 +6945,7 @@ export component NotchWindow inherits Window {
                     ? 130px
                     : 0px;
                 height: self.meeting-message-shown ? 34px : 0px;
-                opacity: self.meeting-message-shown
-                    && (!root.message-animation-active || !root.message-entering || root.message-expanding) ? 1 : 0;
+                opacity: self.meeting-message-shown ? 1 : 0;
                 clip: true;
                 animate width { duration: root.message-animation-active && root.message-entering && !root.message-expanding ? 0ms : 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 animate height { duration: root.message-animation-active && root.message-entering ? 180ms : 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
@@ -7299,8 +7288,8 @@ export component NotchWindow inherits Window {
                 }
             }
 
-            // Pesan (Conversation Moments, pesan diam, alert, dan pengingat):
-            // tinggi terbuka dahulu, lebar menyusul; saat ditutup bergerak turun.
+            // Pesan inline (Conversation Moments, pesan diam, alert, dan pengingat):
+            // konten mengikuti kliping tinggi kapsul, lalu kapsul melebar ke samping.
             Rectangle {
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
