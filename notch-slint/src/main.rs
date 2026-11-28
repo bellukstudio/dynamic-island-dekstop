@@ -213,6 +213,20 @@ fn main() -> Result<(), slint::PlatformError> {
     let sleep_after_s = Rc::new(Cell::new(cfg.timing.sleep_after_s));
     let hide_fullscreen = Rc::new(Cell::new(cfg.hide_fullscreen));
     let win = NotchWindow::new()?;
+    // Sinkronkan mode dock sebelum frame pertama dirender. Tanpa ini posisi floating
+    // tetap memakai dock=0 sehingga panel greeting mempunyai sisi atas rata seperti dock top.
+    let initial_dock = if !cfg.position.custom {
+        0
+    } else if cfg.position.x == notch_core::layout::LEFT_TX {
+        3
+    } else if cfg.position.x == notch_core::layout::RIGHT_TX {
+        4
+    } else if cfg.position.y >= notch_core::layout::BOTTOM_TY / 2 {
+        2
+    } else {
+        1
+    };
+    win.set_dock(initial_dock);
     // Sembunyikan frame pertama sampai posisi, ukuran, dock, dan hit-test native selesai dipasang.
     // Tanpa ini, dock samping sempat menampilkan badan/top-layout berbentuk persegi pada startup.
     win.set_geometry_hold(true);
@@ -718,16 +732,12 @@ fn main() -> Result<(), slint::PlatformError> {
     win.set_focus_companion_on_focus_complete(cfg.focus_companion.on_focus_complete);
     win.set_focus_companion_on_break_end(cfg.focus_companion.on_break_end);
     win.set_hub_pages(pages.join(", ").into());
-    let initial_position_mode = if !cfg.position.custom {
-        "top"
-    } else if cfg.position.x == notch_core::layout::LEFT_TX {
-        "left"
-    } else if cfg.position.x == notch_core::layout::RIGHT_TX {
-        "right"
-    } else if cfg.position.y >= notch_core::layout::BOTTOM_TY / 2 {
-        "bottom"
-    } else {
-        "floating"
+    let initial_position_mode = match initial_dock {
+        0 => "top",
+        1 => "floating",
+        2 => "bottom",
+        3 => "left",
+        _ => "right",
     };
     win.set_position_mode(initial_position_mode.into());
     win.set_active_pages(ModelRc::from(Rc::new(VecModel::from(pages.iter().map(|page| SharedString::from(page.as_str())).collect::<Vec<_>>()))));
@@ -847,6 +857,16 @@ fn main() -> Result<(), slint::PlatformError> {
                     shell.pos.set(next_pos);
                     shell.monitor_hint.set(next_pos.map(|_| (center_x, center_y)));
                     if let Some(w) = weak.upgrade() {
+                        // Preset harus memperbarui bentuk UI, bukan hanya memindahkan native window.
+                        let dock = match mode.as_str() {
+                            "top" => 0,
+                            "floating" => 1,
+                            "bottom" => 2,
+                            "left" => 3,
+                            "right" => 4,
+                            _ => 0,
+                        };
+                        w.set_dock(dock);
                         let from = w.window().position();
                         let size = if w.get_expanded() { expanded_size(&w) } else { COLLAPSED };
                         shell.place(&w, size);
