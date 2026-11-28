@@ -6971,7 +6971,7 @@ export component NotchWindow inherits Window {
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
             Rectangle {
                 property <bool> meeting-message-shown: root.meeting-inline
-                    || (root.message-animation-active && root.message-exiting && root.message-is-meeting);
+                    || (root.message-animation-active && root.message-exiting && root.message-is-meeting && !root.message-collapsing);
                 visible: self.meeting-message-shown || self.width > 0px;
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
@@ -6982,9 +6982,9 @@ export component NotchWindow inherits Window {
                 height: self.meeting-message-shown ? 34px : 0px;
                 opacity: self.meeting-message-shown ? 1 : 0;
                 clip: true;
-                animate width { duration: root.message-animation-active && root.message-entering && !root.message-expanding ? 0ms : 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-                animate height { duration: root.message-animation-active && root.message-entering ? 180ms : 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
-                animate opacity { duration: 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate width { duration: root.message-animation-active && root.message-exiting && root.message-collapsing ? 180ms : (root.message-animation-active && root.message-entering && !root.message-expanding ? 0ms : 260ms); easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate height { duration: root.message-animation-active && ((root.message-entering && !root.message-expanding) || (root.message-exiting && root.message-collapsing)) ? 180ms : 260ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
+                animate opacity { duration: root.message-animation-active && root.message-exiting && root.message-collapsing ? 180ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 border-radius: 17px;
                 background: #171923f5;
                 border-width: 1px;
