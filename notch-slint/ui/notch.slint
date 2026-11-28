@@ -6327,6 +6327,10 @@ export component NotchWindow inherits Window {
     property <length> message-origin-height: 26px;
     property <length> message-target-height: 74px;
     // Konten inline terakhir dipertahankan sampai animasi tutup selesai.
+    property <bool> message-is-device: false;
+    property <bool> message-is-hud: false;
+    property <bool> message-is-adhan: false;
+    property <bool> message-is-greeting: false;
     property <bool> message-is-nudge: false;
     property <bool> message-is-reminder: false;
     property <bool> message-is-meeting: false;
@@ -6630,6 +6634,10 @@ export component NotchWindow inherits Window {
             root.message-origin-width = (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)) * root.ui-scale;
             root.message-origin-height = (root.dock == 0 ? 26px : 34px) * root.ui-scale;
             root.message-target-height = pill.target-message-height;
+            root.message-is-device = root.device-notice-visible;
+            root.message-is-hud = root.hud-visible;
+            root.message-is-adhan = root.adhan-active;
+            root.message-is-greeting = root.greeting-speech-visible || root.greeting-inline-visible;
             root.message-is-nudge = root.nudge-visible;
             root.message-is-reminder = root.reminder-alert-visible;
             root.message-is-meeting = root.meeting-inline;
@@ -6853,7 +6861,8 @@ export component NotchWindow inherits Window {
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: (root.greeting-inline-visible && !root.expanded)
                     || self.opacity > 0.01 || (root.greeting-animation-active && root.greeting-exiting);
-                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.greeting-inline-visible && !root.expanded ? 1 : 0);
+                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-greeting
+                    ? 1.0 : (root.greeting-inline-visible && !root.expanded ? 1 : 0);
                 animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
@@ -7010,7 +7019,8 @@ export component NotchWindow inherits Window {
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging) || self.opacity > 0.01;
-                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0);
+                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-hud
+                    ? 1.0 : (root.hud-visible && root.dock < 2 && !root.expanded && !root.dragging ? 1 : 0);
                 animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width; height: parent.height; clip: true;
                 HudPanel {
@@ -7025,7 +7035,8 @@ export component NotchWindow inherits Window {
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: (root.adhan-active && !root.expanded && !root.dragging) || self.opacity > 0.01;
-                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.adhan-active && !root.expanded && !root.dragging ? 1 : 0);
+                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-adhan
+                    ? 1.0 : (root.adhan-active && !root.expanded && !root.dragging ? 1 : 0);
                 animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 x: 0px;
                 width: parent.width;
@@ -7322,8 +7333,9 @@ export component NotchWindow inherits Window {
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 visible: root.nudge-inline || self.opacity > 0.01
-                    || (root.message-animation-active && root.message-exiting && root.dock < 2);
-                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.nudge-inline ? 1 : 0);
+                    || (root.message-animation-active && root.message-exiting && root.dock < 2 && (root.message-is-nudge || root.message-is-reminder));
+                opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && (root.message-is-nudge || root.message-is-reminder)
+                    ? 1.0 : (root.nudge-inline ? 1 : 0);
                 animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 width: parent.width;
                 height: parent.height;
@@ -7406,7 +7418,8 @@ export component NotchWindow inherits Window {
             y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
             visible: root.device-notice-inline || self.opacity > 0.01;
-            opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing ? 1.0 : (root.device-notice-inline ? 1.0 : 0.0);
+            opacity: root.message-animation-active && root.message-exiting && !root.message-collapsing && root.message-is-device
+                ? 1.0 : (root.device-notice-inline ? 1.0 : 0.0);
             animate opacity { duration: root.message-exiting ? (root.message-collapsing ? 180ms : 0ms) : 140ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
             x: 0px;
             width: parent.width;
