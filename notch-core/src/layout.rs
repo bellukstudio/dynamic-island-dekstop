@@ -4,8 +4,9 @@
 
 /// `Position.y` sebesar ini (>= setengahnya) berarti "menempel di dasar layar".
 pub const BOTTOM_TY: i32 = 100_000;
-/// Jarak ke tepi atas (px) di bawah ini masih dianggap menempel di atas.
-pub const TOP_SNAP: i32 = 8;
+/// Batas posisi tepi atas. Offset 5 px harus tetap masuk kategori Floating,
+/// sedangkan posisi 0–4 px dianggap menempel di atas.
+pub const TOP_SNAP: i32 = 4;
 /// Jarak aman antara Notch dock bawah dan batas atas taskbar Windows.
 pub const BOTTOM_GAP: i32 = 0;
 /// Sentinel posisi kustom untuk docking vertikal. `x` menyimpan sisi, `y` menyimpan pusat vertikal.
@@ -100,9 +101,16 @@ mod tests {
 
     #[test]
     fn near_top_edge_stays_docked() {
-        assert_eq!(place(&W, 600, 300, Some((960, 8))).1, Dock::Top);
-        assert_eq!(place(&W, 600, 300, Some((960, 9))).1, Dock::Floating);
+        assert_eq!(place(&W, 600, 300, Some((960, 4))).1, Dock::Top);
+        assert_eq!(place(&W, 600, 300, Some((960, 5))).1, Dock::Floating);
         assert_eq!(place(&W, 600, 300, Some((960, 0))).1, Dock::Top);
+    }
+
+    #[test]
+    fn five_pixel_floating_preset_is_not_misclassified_as_top() {
+        let ((_, y), dock) = place(&W, 600, 300, Some((960, W.y + 5)));
+        assert_eq!(y, W.y + 5);
+        assert_eq!(dock, Dock::Floating);
     }
 
     #[test]
