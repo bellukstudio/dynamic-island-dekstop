@@ -6326,6 +6326,19 @@ export component NotchWindow inherits Window {
     property <length> message-origin-width: 130px;
     property <length> message-origin-height: 26px;
     property <length> message-target-height: 74px;
+    // Konten inline terakhir dipertahankan sampai animasi tutup selesai.
+    property <bool> message-is-nudge: false;
+    property <bool> message-is-reminder: false;
+    property <bool> message-is-meeting: false;
+    property <bool> message-is-compact-nudge: false;
+    property <string> message-nudge-text: "";
+    property <string> message-nudge-detail: "";
+    property <string> message-reminder-text: "";
+    property <string> message-reminder-detail: "";
+    property <string> message-nudge-emoji: "";
+    property <image> message-nudge-emoji-image;
+    property <bool> message-nudge-emoji-image-available: false;
+    property <string> message-meeting-finished: "";
     in property <bool> greeting-animation-active: false;
     in property <bool> greeting-entering: false;
     in property <bool> greeting-exiting: false;
@@ -6617,6 +6630,18 @@ export component NotchWindow inherits Window {
             root.message-origin-width = (root.idle-clock ? 300px : (root.media-mini ? 220px : 130px)) * root.ui-scale;
             root.message-origin-height = (root.dock == 0 ? 26px : 34px) * root.ui-scale;
             root.message-target-height = pill.target-message-height;
+            root.message-is-nudge = root.nudge-visible;
+            root.message-is-reminder = root.reminder-alert-visible;
+            root.message-is-meeting = root.meeting-inline;
+            root.message-is-compact-nudge = root.media-playing && root.nudge-visible;
+            root.message-nudge-text = root.nudge-message;
+            root.message-nudge-detail = root.nudge-detail;
+            root.message-reminder-text = root.reminder-alert-text;
+            root.message-reminder-detail = root.reminder-alert-sub;
+            root.message-nudge-emoji = root.nudge-emoji;
+            root.message-nudge-emoji-image = root.nudge-emoji-image;
+            root.message-nudge-emoji-image-available = root.nudge-emoji-image-available;
+            root.message-meeting-finished = root.meeting-finished;
         }
     }
     changed message-expanding => { root.region-layout-changed(); }
@@ -6936,8 +6961,9 @@ export component NotchWindow inherits Window {
 
             // Mode rapat: timer ringkas di atas wajah, tanpa mengubah animasi mata di bawahnya.
             Rectangle {
-                visible: root.meeting-inline || self.width > 0px;
-                property <bool> meeting-message-shown: root.meeting-inline;
+                property <bool> meeting-message-shown: root.meeting-inline
+                    || (root.message-animation-active && root.message-exiting && root.message-is-meeting);
+                visible: self.meeting-message-shown || self.width > 0px;
                 y: 0px;
                 animate y { duration: root.message-exiting ? 260ms : 320ms; easing: cubic-bezier(0.42, 0, 0.58, 1); }
                 x: (parent.width - self.width) / 2;
@@ -6961,7 +6987,9 @@ export component NotchWindow inherits Window {
                     spacing: 5px;
                     Text { text: "●"; color: root.meeting-active ? #e5a84b : Theme.ok; font-size: 9px; vertical-alignment: center; }
                     Text {
-                        text: root.meeting-active ? root.meeting-elapsed : root.meeting-finished;
+                        text: root.meeting-active ? root.meeting-elapsed
+                            : (root.message-animation-active && root.message-exiting && root.message-is-meeting
+                                ? root.message-meeting-finished : root.meeting-finished);
                         color: #ffffff;
                         font-size: 11px;
                         font-weight: 700;
@@ -7300,16 +7328,20 @@ export component NotchWindow inherits Window {
                 width: parent.width;
                 height: parent.height;
                 clip: true;
-                if root.nudge-visible: NudgeEmoji {
-                    x: root.media-playing ? 8px : 16px;
-                    y: root.media-playing ? 8px : 17px;
-                    width: root.media-playing ? 24px : 34px;
-                    height: root.media-playing ? 24px : 34px;
-                    emoji: root.nudge-emoji;
-                    rendered-image: root.nudge-emoji-image;
-                    rendered-image-available: root.nudge-emoji-image-available;
+                property <bool> nudge-message-visible: root.nudge-visible
+                    || (root.message-animation-active && root.message-exiting && root.message-is-nudge);
+                property <bool> compact-message: root.message-animation-active && root.message-exiting
+                    ? root.message-is-compact-nudge : (root.media-playing && root.nudge-visible);
+                if self.nudge-message-visible: NudgeEmoji {
+                    x: parent.compact-message ? 8px : 16px;
+                    y: parent.compact-message ? 8px : 17px;
+                    width: parent.compact-message ? 24px : 34px;
+                    height: parent.compact-message ? 24px : 34px;
+                    emoji: root.message-animation-active && root.message-exiting ? root.message-nudge-emoji : root.nudge-emoji;
+                    rendered-image: root.message-animation-active && root.message-exiting ? root.message-nudge-emoji-image : root.nudge-emoji-image;
+                    rendered-image-available: root.message-animation-active && root.message-exiting ? root.message-nudge-emoji-image-available : root.nudge-emoji-image-available;
                 }
-                if !root.nudge-visible: Rectangle {
+                if !self.nudge-message-visible: Rectangle {
                     x: 16px; y: 17px; width: 34px; height: 34px;
                     border-radius: 17px;
                     background: Theme.accent.with-alpha(0.14);
@@ -7321,11 +7353,13 @@ export component NotchWindow inherits Window {
                     }
                 }
                 Text {
-                    x: root.media-playing && root.nudge-visible ? 40px : 60px;
-                    y: root.media-playing && root.nudge-visible ? 5px : 9px;
-                    width: root.media-playing && root.nudge-visible ? 170px : 212px;
+                    x: parent.compact-message ? 40px : 60px;
+                    y: parent.compact-message ? 5px : 9px;
+                    width: parent.compact-message ? 170px : 212px;
                     height: 30px;
-                    text: root.nudge-visible ? root.nudge-message : root.reminder-alert-text;
+                    text: root.message-animation-active && root.message-exiting
+                        ? (root.message-is-nudge ? root.message-nudge-text : root.message-reminder-text)
+                        : (root.nudge-visible ? root.nudge-message : root.reminder-alert-text);
                     color: Theme.text;
                     font-size: 12px;
                     font-weight: 700;
@@ -7338,8 +7372,10 @@ export component NotchWindow inherits Window {
                     y: 40px;
                     width: 212px;
                     height: 20px;
-                    visible: !(root.media-playing && root.nudge-visible);
-                    text: root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub;
+                    visible: !parent.compact-message;
+                    text: root.message-animation-active && root.message-exiting
+                        ? (root.message-is-nudge ? root.message-nudge-detail : root.message-reminder-detail)
+                        : (root.nudge-visible ? root.nudge-detail : root.reminder-alert-sub);
                     color: Theme.text-dim;
                     font-size: 10px;
                     vertical-alignment: center;
